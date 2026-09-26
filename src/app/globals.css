@@ -1,0 +1,372 @@
+@import "tailwindcss";
+
+/* Use class-based dark mode so next-themes' .dark on <html> drives all dark: variants */
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --font-family-sans: var(--font-geist-sans);
+  --font-family-mono: var(--font-geist-mono);
+
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--input));
+  --color-ring: hsl(var(--ring));
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-foreground));
+  --color-destructive: hsl(var(--destructive));
+  --color-destructive-foreground: hsl(var(--destructive-foreground));
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+  --color-popover: hsl(var(--popover));
+  --color-popover-foreground: hsl(var(--popover-foreground));
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+
+  --color-success-bg: hsl(var(--success-bg));
+  --color-success-foreground: hsl(var(--success-foreground));
+  --color-warning-bg: hsl(var(--warning-bg));
+  --color-warning-foreground: hsl(var(--warning-foreground));
+  --color-info-bg: hsl(var(--info-bg));
+  --color-info-foreground: hsl(var(--info-foreground));
+
+  /* Brass accents for the residential / house-hold module */
+  --color-brass-300: #e8c874;
+  --color-brass-400: #d4b357;
+  --color-brass-500: #c9a227;
+  --color-brass-600: #a8861d;
+
+  --radius-lg: var(--radius);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-sm: calc(var(--radius) - 4px);
+
+  --container-center: true;
+  --container-padding: 2rem;
+  --container-screen-2xl: 1400px;
+
+  --breakpoint-sm: 640px;
+  --breakpoint-md: 768px;
+  --breakpoint-lg: 1024px;
+  --breakpoint-xl: 1280px;
+  --breakpoint-2xl: 1536px;
+}
+
+@utility text-balance {
+  text-wrap: balance;
+}
+
+@layer components {
+  .scroll-shadow {
+    overflow-y: auto;
+    position: relative;
+  }
+
+  .scroll-shadow::before,
+  .scroll-shadow::after {
+    content: "";
+    position: sticky;
+    left: 0;
+    right: 0;
+    height: 20px;
+    pointer-events: none;
+    z-index: 10;
+  }
+
+  .scroll-shadow::before {
+    top: 0;
+    background: linear-gradient(to bottom, hsl(var(--background)), transparent);
+  }
+
+  .scroll-shadow::after {
+    bottom: 0;
+    background: linear-gradient(to top, hsl(var(--background)), transparent);
+  }
+
+  /* Residential module: serif display for house numbers / bilingual labels */
+  .housing-serif {
+    font-family:
+      "Source Serif 4", "Noto Serif Ethiopic", Georgia, "Times New Roman",
+      serif;
+    letter-spacing: 0.01em;
+  }
+}
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 220 9% 12%;
+    --card: 0 0% 100%;
+    --card-foreground: 220 9% 12%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 220 9% 12%;
+    --primary: 217 91% 60%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 220 6% 96%;
+    --secondary-foreground: 220 9% 12%;
+    --muted: 220 6% 96%;
+    --muted-foreground: 220 5% 52%;
+    --accent: 220 6% 96%;
+    --accent-foreground: 220 9% 12%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 220 6% 92%;
+    --input: 220 6% 92%;
+    --ring: 217 91% 60%;
+    --chart-1: 12 76% 61%;
+    --chart-2: 173 58% 39%;
+    --chart-3: 197 37% 24%;
+    --chart-4: 43 74% 66%;
+    --chart-5: 27 87% 67%;
+    --radius: 0.625rem;
+
+    --success: 142 71% 45%;
+    --success-foreground: 144 61% 20%;
+    --success-bg: 138 76% 94%;
+    --warning: 38 92% 50%;
+    --warning-foreground: 32 95% 24%;
+    --warning-bg: 48 96% 93%;
+    --info: 217 91% 60%;
+    --info-foreground: 221 83% 24%;
+    --info-bg: 214 95% 94%;
+
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.03), 0 1px 3px 0 rgb(0 0 0 / 0.04);
+    --shadow-md:
+      0 2px 4px -1px rgb(0 0 0 / 0.04), 0 4px 12px -2px rgb(0 0 0 / 0.06);
+  }
+  .dark {
+    --background: 220 13% 6%;
+    --foreground: 0 0% 98%;
+    --card: 220 13% 8%;
+    --card-foreground: 0 0% 98%;
+    --popover: 220 13% 8%;
+    --popover-foreground: 0 0% 98%;
+    --primary: 217 91% 60%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 220 10% 16%;
+    --secondary-foreground: 0 0% 98%;
+    --muted: 220 10% 16%;
+    --muted-foreground: 0 0% 63.9%;
+    --accent: 220 10% 16%;
+    --accent-foreground: 0 0% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 220 10% 16%;
+    --input: 220 10% 16%;
+    --ring: 217 91% 60%;
+    --chart-1: 220 70% 50%;
+    --chart-2: 160 60% 45%;
+    --chart-3: 30 80% 55%;
+    --chart-4: 280 65% 60%;
+    --chart-5: 340 75% 55%;
+
+    --success: 142 71% 45%;
+    --success-foreground: 144 61% 80%;
+    --success-bg: 144 50% 12%;
+    --warning: 38 92% 50%;
+    --warning-foreground: 48 96% 80%;
+    --warning-bg: 36 50% 12%;
+    --info: 217 91% 60%;
+    --info-foreground: 214 95% 80%;
+    --info-bg: 220 50% 12%;
+
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.08), 0 1px 3px 0 rgb(0 0 0 / 0.1);
+    --shadow-md:
+      0 2px 4px -1px rgb(0 0 0 / 0.1), 0 4px 12px -2px rgb(0 0 0 / 0.15);
+  }
+}
+
+@layer base {
+  :root {
+    color-scheme: light;
+  }
+  .dark {
+    color-scheme: dark;
+  }
+  * {
+    @apply border-border;
+    scrollbar-color: hsl(var(--muted-foreground) / 0.3) transparent;
+  }
+  html {
+    @apply bg-background text-foreground;
+    transition: background-color 0.3s ease, color 0.3s ease;
+  }
+  body {
+    @apply bg-background text-foreground;
+    transition: background-color 0.3s ease, color 0.3s ease;
+  }
+  /* Smooth dark-mode transition on all elements */
+  *,
+  *::before,
+  *::after {
+    transition-property: background-color, border-color, color, fill, stroke, box-shadow;
+    transition-duration: 0.25s;
+    transition-timing-function: ease;
+  }
+  /* Don't animate transforms/opacity (breaks animations like spinners) */
+  *[class*="animate-"],
+  *[class*="transition-"] {
+    transition-property: revert;
+    transition-duration: revert;
+  }
+}
+
+/* Transition utilities for micro-interactions */
+.transition-height {
+  transition: max-height 0.2s ease-in-out;
+}
+
+.hover-lift {
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.hover-lift:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+/* Safe area for mobile bottom nav */
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* Touch-friendly tap targets */
+@media (max-width: 768px) {
+  .touch-target {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}
+
+/* MapLibre popup dark mode */
+.dark .maplibregl-popup-content {
+  background: hsl(220 13% 10%);
+  color: hsl(0 0% 98%);
+  border: 1px solid hsl(220 10% 20%);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+.dark .maplibregl-popup-tip {
+  border-top-color: hsl(220 13% 10%);
+}
+
+.dark .maplibregl-popup-close-button {
+  color: hsl(0 0% 64%);
+}
+
+.dark .maplibregl-popup-close-button:hover {
+  color: hsl(0 0% 98%);
+  background: hsl(220 10% 16%);
+}
+
+
+/* ── Login page animations ── */
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slide-in-from-top {
+  from { transform: translateY(-10px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+/* Card entrance - smooth and subtle */
+@keyframes login-card-in {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Section stagger entrance - subtle */
+@keyframes login-section-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Error shake - gentle */
+@keyframes login-shake {
+  0%, 100% { transform: translateX(0); }
+  25%      { transform: translateX(-4px); }
+  50%      { transform: translateX(4px); }
+  75%      { transform: translateX(-2px); }
+}
+
+/* ── Utility classes ── */
+
+.animate-in {
+  animation: fade-in 0.3s ease-out;
+}
+
+.fade-in {
+  animation: fade-in 0.3s ease-out;
+}
+
+.slide-in-from-top-2 {
+  animation: slide-in-from-top 0.3s ease-out;
+}
+
+/* Card entrance */
+.login-card {
+  animation: login-card-in 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* Staggered section entrances - more subtle timing */
+.login-section:nth-child(1) { animation: login-section-in 0.4s ease-out 0.05s both; }
+.login-section:nth-child(2) { animation: login-section-in 0.4s ease-out 0.10s both; }
+.login-section:nth-child(3) { animation: login-section-in 0.4s ease-out 0.15s both; }
+.login-section:nth-child(4) { animation: login-section-in 0.4s ease-out 0.20s both; }
+.login-section:nth-child(5) { animation: login-section-in 0.4s ease-out 0.25s both; }
+.login-section:nth-child(6) { animation: login-section-in 0.4s ease-out 0.30s both; }
+.login-section:nth-child(7) { animation: login-section-in 0.4s ease-out 0.35s both; }
+.login-section:nth-child(8) { animation: login-section-in 0.4s ease-out 0.40s both; }
+.login-section:nth-child(9) { animation: login-section-in 0.4s ease-out 0.45s both; }
+.login-section:nth-child(10) { animation: login-section-in 0.4s ease-out 0.50s both; }
+
+/* Error shake */
+.login-shake {
+  animation: login-shake 0.4s ease-in-out;
+}
+
+/* ── Print: allocation receipt (Original + Duplicate) ── */
+.allocation-receipt-print {
+  display: none;
+}
+
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 8mm;
+  }
+
+  body {
+    background: #fff !important;
+    height: auto !important;
+  }
+
+  /* The receipt is portaled into <body>, so simply replace the page with it */
+  body > *:not(.allocation-receipt-print) {
+    display: none !important;
+  }
+  .allocation-receipt-print {
+    display: block !important;
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    background: #fff;
+    color: #000;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* Each copy fits on its own A4 page and never splits mid-form */
+  .allocation-receipt-copy {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+}

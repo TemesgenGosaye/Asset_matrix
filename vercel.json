@@ -1,0 +1,47 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "buildCommand": "node prisma/set-schema.mjs && prisma generate && prisma migrate deploy && next build",
+  "installCommand": "bun install",
+  "crons": [
+    {
+      "path": "/api/cron/demo-reset",
+      "schedule": "0 0 * * *"
+    },
+    {
+      "path": "/api/cron/sessions",
+      "schedule": "0 1 * * *"
+    },
+    {
+      "path": "/api/cron/notifications",
+      "schedule": "0 2 * * *"
+    },
+    {
+      "path": "/api/cron/workflows",
+      "schedule": "0 3 * * *"
+    },
+    {
+      "path": "/api/cron/gdpr-retention",
+      "schedule": "0 4 * * *"
+    },
+    {
+      "path": "/api/cron/ldap-sync",
+      "schedule": "0 5 * * *"
+    },
+    {
+      "path": "/api/cron/cleanup",
+      "schedule": "0 6 * * *"
+    },
+    {
+      "path": "/api/cron/scheduled-reports",
+      "schedule": "0 7 * * *"
+    },
+    {
+      "path": "/api/cron/access-expiry",
+      "schedule": "30 7 * * *"
+    },
+    {
+      "path": "/api/cron/intune-sync",
+      "schedule": "0 8 * * *"
+    }
+  ]
+}

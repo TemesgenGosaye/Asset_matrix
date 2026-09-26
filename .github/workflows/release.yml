@@ -1,0 +1,104 @@
+name: Release
+
+on:
+  push:
+    branches: [master]
+
+jobs:
+  release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get version from package.json
+        id: version
+        run: |
+          VERSION=$(jq -r '.version' package.json)
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Check if tag already exists
+        id: check_tag
+        env:
+          TAG_VERSION: v${{ steps.version.outputs.version }}
+        run: |
+          if git rev-parse "$TAG_VERSION" >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Generate release notes
+        if: steps.check_tag.outputs.exists == 'false'
+        id: notes
+        run: |
+          # Find the previous tag, or use the initial commit if none exists
+          PREV_TAG=$(git describe --tags --abbrev=0 2>/dev/null || git rev-list --max-parents=0 HEAD)
+
+          # Build release notes from conventional commits into a temp file
+          NOTES_FILE=$(mktemp)
+
+          FEATURES=$(git log "$PREV_TAG"..HEAD --pretty=format:"- %s" --grep="^feat:" | sed 's/^- feat: /- /')
+          if [ -n "$FEATURES" ]; then
+            echo "## Features" >> "$NOTES_FILE"
+            echo "$FEATURES" >> "$NOTES_FILE"
+            echo "" >> "$NOTES_FILE"
+          fi
+
+          FIXES=$(git log "$PREV_TAG"..HEAD --pretty=format:"- %s" --grep="^fix:" | sed 's/^- fix: /- /')
+          if [ -n "$FIXES" ]; then
+            echo "## Fixes" >> "$NOTES_FILE"
+            echo "$FIXES" >> "$NOTES_FILE"
+            echo "" >> "$NOTES_FILE"
+          fi
+
+          REFACTORS=$(git log "$PREV_TAG"..HEAD --pretty=format:"- %s" --grep="^refactor:" | sed 's/^- refactor: /- /')
+          if [ -n "$REFACTORS" ]; then
+            echo "## Refactors" >> "$NOTES_FILE"
+            echo "$REFACTORS" >> "$NOTES_FILE"
+            echo "" >> "$NOTES_FILE"
+          fi
+
+          CHORES=$(git log "$PREV_TAG"..HEAD --pretty=format:"- %s" --grep="^chore:" | sed 's/^- chore: /- /')
+          if [ -n "$CHORES" ]; then
+            echo "## Chores" >> "$NOTES_FILE"
+            echo "$CHORES" >> "$NOTES_FILE"
+            echo "" >> "$NOTES_FILE"
+          fi
+
+          DOCS=$(git log "$PREV_TAG"..HEAD --pretty=format:"- %s" --grep="^docs:" | sed 's/^- docs: /- /')
+          if [ -n "$DOCS" ]; then
+            echo "## Docs" >> "$NOTES_FILE"
+            echo "$DOCS" >> "$NOTES_FILE"
+            echo "" >> "$NOTES_FILE"
+          fi
+
+          PERF=$(git log "$PREV_TAG"..HEAD --pretty=format:"- %s" --grep="^perf:" | sed 's/^- perf: /- /')
+          if [ -n "$PERF" ]; then
+            echo "## Performance" >> "$NOTES_FILE"
+            echo "$PERF" >> "$NOTES_FILE"
+            echo "" >> "$NOTES_FILE"
+          fi
+
+          # Use delimiter pattern for multiline output
+          {
+            echo "notes<<RELEASE_EOF"
+            cat "$NOTES_FILE"
+            echo "RELEASE_EOF"
+          } >> "$GITHUB_OUTPUT"
+
+          rm -f "$NOTES_FILE"
+
+      - name: Create GitHub Release
+        if: steps.check_tag.outputs.exists == 'false'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: ${{ steps.version.outputs.tag }}
+          body: ${{ steps.notes.outputs.notes }}
+          generate_release_notes: false

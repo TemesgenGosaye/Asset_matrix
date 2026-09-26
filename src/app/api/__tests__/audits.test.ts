@@ -1,0 +1,232 @@
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import {
+  createMockRequest,
+  parseResponse,
+} from "../../../../tests/setup/test-helpers";
+
+// Mock all dependencies BEFORE importing the route
+vi.mock("@/lib/prisma", () => ({
+  default: {
+    auditCampaign: {
+      findMany: vi.fn(),
+      findUnique: vi.fn(),
+      create: vi.fn(),
+      delete: vi.fn(),
+      count: vi.fn(),
+    },
+    auditCampaignAuditor: { createMany: vi.fn() },
+    $transaction: vi.fn(),
+  },
+}));
+
+vi.mock("@/lib/api-auth", () => ({
+  requireApiAuth: vi.fn(),
+  requirePermission: vi.fn(),
+  requireNotDemoMode: vi.fn().mockReturnValue(null),
+}));
+
+vi.mock("@/lib/organization-context", () => ({
+  getOrganizationContext: vi.fn().mockResolvedValue({
+    organization: { id: "org-uuid-001" },
+  }),
+  scopeToOrganization: vi.fn((where: any) => ({
+    ...where,
+    organizationId: "org-uuid-001",
+  })),
+}));
+
+vi.mock("@/lib/validation", () => ({
+  validateBody: vi.fn((_schema: any, body: any) => body),
+  createAuditCampaignSchema: {},
+  updateAuditCampaignSchema: {},
+}));
+
+vi.mock("@/lib/audit-log", () => ({
+  createAuditLog: vi.fn().mockResolvedValue(undefined),
+  AUDIT_ACTIONS: { CREATE: "create", UPDATE: "update", DELETE: "delete" },
+  AUDIT_ENTITIES: { AUDIT_CAMPAIGN: "audit_campaign" },
+}));
+
+vi.mock("@/lib/logger", () => ({
+  logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
+  logCatchError: vi.fn(() => vi.fn()),
+}));
+
+vi.mock("@/lib/pagination", () => ({
+  parsePaginationParams: vi
+    .fn()
+    .mockReturnValue({ page: 1, pageSize: 25, search: null }),
+  buildPrismaArgs: vi.fn().mockReturnValue({ skip: 0, take: 25 }),
+  buildPaginatedResponse: vi.fn((items: any, total: number) => ({
+    data: items,
+    total,
+  })),
+}));
+
+vi.mock("@/lib/webhooks", () => ({
+  triggerWebhook: vi.fn().mockResolvedValue(undefined),
+}));
+
+vi.mock("@/lib/integrations/slack-teams", () => ({
+  notifyIntegrations: vi.fn().mockResolvedValue(undefined),
+}));
+
+import { GET, POST, DELETE } from "@/app/api/audits/route";
+import prisma from "@/lib/prisma";
+import { requirePermission } from "@/lib/api-auth";
+import { triggerWebhook } from "@/lib/webhooks";
+import { notifyIntegrations } from "@/lib/integrations/slack-teams";
+
+const mockPrisma = prisma as any;
+const mockRequirePermission = vi.mocked(requirePermission);
+
+const mockCampaign = {
+  id: "campaign-uuid-001",
+  name: "Q1 2026 Audit",
+  description: "Quarterly audit",
+  status: "draft",
+  dueDate: null,
+  scopeType: "all",
+  scopeId: null,
+  createdBy: "admin-uuid-001",
+  organizationId: "org-uuid-001",
+  createdAt: new Date(),
+  updatedAt: new Date(),
+};
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  mockRequirePermission.mockResolvedValue({
+    id: "admin-uuid-001",
+    isAdmin: true,
+    organizationId: "org-uuid-001",
+  } as any);
+});
+
+// ---------------------------------------------------------------------------
+// GET /api/audits
+// ---------------------------------------------------------------------------
+describe("GET /api/audits", () => {
+  it("returns all campaigns when no page param", async () => {
+    mockPrisma.auditCampaign.findMany.mockResolvedValue([mockCampaign] as any);
+
+    const req = createMockRequest("/api/audits");
+    const res = await GET(req);
+    const { status, body } = await parseResponse<any>(res);
+
+    expect(status).toBe(200);
+    expect(Array.isArray(body)).toBe(true);
+    expect(body).toHaveLength(1);
+    expect(body[0].name).toBe("Q1 2026 Audit");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// POST /api/audits
+// ---------------------------------------------------------------------------
+describe("POST /api/audits", () => {
+  it("creates a campaign with auditors and returns 201", async () => {
+    vi.mocked(mockPrisma.$transaction).mockImplementation(async (cb: any) =>
+      cb(mockPrisma),
+    );
+    mockPrisma.auditCampaign.create.mockResolvedValue(mockCampaign as any);
+
+    const req = createMockRequest("/api/audits", {
+      method: "POST",
+      body: {
+        name: "Q1 2026 Audit",
+        description: "Quarterly audit",
+        scopeType: "all",
+        auditorIds: ["auditor-1", "auditor-2"],
+      },
+    });
+    const res = await POST(req);
+    const { status, body } = await parseResponse<any>(res);
+
+    expect(status).toBe(201);
+    expect(body.name).toBe("Q1 2026 Audit");
+    expect(mockPrisma.auditCampaign.create).toHaveBeenCalled();
+    expect(mockPrisma.auditCampaignAuditor.createMany).toHaveBeenCalledWith({
+      data: [
+        { campaignId: "campaign-uuid-001", userId: "auditor-1" },
+        { campaignId: "campaign-uuid-001", userId: "auditor-2" },
+      ],
+    });
+  });
+
+  it("triggers webhook and integration notification", async () => {
+    vi.mocked(mockPrisma.$transaction).mockImplementation(async (cb: any) =>
+      cb(mockPrisma),
+    );
+    mockPrisma.auditCampaign.create.mockResolvedValue(mockCampaign as any);
+
+    const req = createMockRequest("/api/audits", {
+      method: "POST",
+      body: {
+        name: "Q1 2026 Audit",
+        scopeType: "all",
+      },
+    });
+    await POST(req);
+
+    expect(triggerWebhook).toHaveBeenCalledWith("audit.campaign_created", {
+      campaignId: "campaign-uuid-001",
+      campaignName: "Q1 2026 Audit",
+    });
+    expect(notifyIntegrations).toHaveBeenCalledWith(
+      "audit.campaign_created",
+      { campaignName: "Q1 2026 Audit" },
+    );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// DELETE /api/audits
+// ---------------------------------------------------------------------------
+describe("DELETE /api/audits", () => {
+  it("deletes a campaign and returns 200", async () => {
+    mockPrisma.auditCampaign.findUnique.mockResolvedValue({
+      name: "Q1 2026 Audit",
+    } as any);
+    mockPrisma.auditCampaign.delete.mockResolvedValue(mockCampaign as any);
+
+    const req = createMockRequest("/api/audits", {
+      method: "DELETE",
+      body: { id: "campaign-uuid-001" },
+    });
+    const res = await DELETE(req);
+    const { status, body } = await parseResponse<any>(res);
+
+    expect(status).toBe(200);
+    expect(body.message).toBe("Audit campaign deleted successfully");
+    expect(mockPrisma.auditCampaign.delete).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: "campaign-uuid-001" } }),
+    );
+  });
+
+  it("returns 404 when campaign not found", async () => {
+    mockPrisma.auditCampaign.findUnique.mockResolvedValue(null);
+
+    const req = createMockRequest("/api/audits", {
+      method: "DELETE",
+      body: { id: "nonexistent" },
+    });
+    const res = await DELETE(req);
+    const { status, body } = await parseResponse<any>(res);
+
+    expect(status).toBe(404);
+    expect(body.error).toBe("Audit campaign not found");
+  });
+
+  it("returns 400 when id is missing", async () => {
+    const req = createMockRequest("/api/audits", {
+      method: "DELETE",
+      body: {},
+    });
+    const res = await DELETE(req);
+    const { status, body } = await parseResponse<any>(res);
+
+    expect(status).toBe(400);
+    expect(body.error).toBe("Campaign ID is required");
+  });
+});

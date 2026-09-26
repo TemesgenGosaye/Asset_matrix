@@ -1,0 +1,966 @@
+"use client";
+
+import React, { useState, useEffect, useMemo } from "react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+  LineChart,
+  Line,
+} from "recharts";
+import {
+  Download,
+  FileText,
+  FileSpreadsheet,
+  TrendingUp,
+  Package,
+  Users,
+  AlertTriangle,
+  DollarSign,
+  Loader2,
+} from "lucide-react";
+import WarrantyReport from "./WarrantyReport";
+import DepreciationReport from "./DepreciationReport";
+import type { DepreciationMethod } from "@/lib/depreciation";
+import { toast } from "sonner";
+import HelpTooltip from "@/components/HelpTooltip";
+import AssetLifecycleChart from "@/components/charts/AssetLifecycleChart";
+import CostBreakdownChart from "@/components/charts/CostBreakdownChart";
+import LocationDistributionChart from "@/components/charts/LocationDistributionChart";
+import MaintenanceTrendChart from "@/components/charts/MaintenanceTrendChart";
+import DepreciationForecastChart from "@/components/charts/DepreciationForecastChart";
+
+interface ReportData {
+  summary: {
+    totalAssets: number;
+    totalUsers: number;
+    totalAccessories: number;
+    totalLicenses: number;
+    totalConsumables: number;
+    totalAssetValue: number;
+    assignedAssets: number;
+    unassignedAssets: number;
+    expiringLicenses: number;
+    lowStockConsumables: number;
+  };
+  charts: {
+    assetsByStatus: Array<{ name: string; value: number }>;
+    assetsByCategory: Array<{ name: string; value: number }>;
+    assetsByLocation: Array<{ name: string; value: number }>;
+    assetsByManufacturer: Array<{ name: string; value: number }>;
+    monthlyAcquisitions: Array<{ month: string; count: number }>;
+    utilization: Array<{ name: string; value: number }>;
+  };
+  rawData: {
+    assets: Array<{
+      id: string;
+      name: string;
+      tag: string;
+      serial: string;
+      category: string;
+      status: string;
+      location: string;
+      manufacturer: string;
+      purchasePrice: number;
+      purchaseDate: string | null;
+    }>;
+  };
+}
+
+interface WarrantyAsset {
+  id: string;
+  name: string;
+  tag: string;
+  warrantyExpires: string;
+  warrantyMonths: number | null;
+  status: string;
+  category: string;
+}
+
+interface DepreciationAsset {
+  id: string;
+  name: string;
+  tag: string;
+  category: string;
+  purchasePrice: number;
+  purchaseDate: string;
+  method: DepreciationMethod;
+  usefulLifeYears: number;
+  salvagePercent: number;
+  currentValue: number;
+  accumulatedDepreciation: number;
+  percentDepreciated: number;
+  isFullyDepreciated: boolean;
+}
+
+interface ReportsPageProps {
+  data: ReportData;
+  warrantyAssets: WarrantyAsset[];
+  depreciationAssets: DepreciationAsset[];
+}
+
+const COLORS = [
+  "#0088FE",
+  "#00C49F",
+  "#FFBB28",
+  "#FF8042",
+  "#8884d8",
+  "#82ca9d",
+  "#ffc658",
+  "#8dd1e1",
+];
+
+function formatCurrency(value: number): string {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(value);
+}
+
+interface AdvancedData {
+  lifecycle: Array<{ month: string; acquisitions: number; disposals: number }>;
+  costBreakdown: Array<{
+    category: string;
+    assets: number;
+    accessories: number;
+    consumables: number;
+    licences: number;
+  }>;
+  locationDistribution: Array<{ name: string; value: number }>;
+  maintenanceTrend: Array<{ month: string; count: number }>;
+  depreciationForecast: {
+    currentTotal: number;
+    projections: Array<{ year: string; value: number }>;
+  };
+}
+
+function AdvancedCharts() {
+  const [data, setData] = useState<AdvancedData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function fetchData() {
+      try {
+        setLoading(true);
+        setError(null);
+        const res = await fetch("/api/reports/advanced");
+        if (!res.ok) {
+          throw new Error("Failed to load advanced reports");
+        }
+        const json = await res.json();
+        setData(json);
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : "Unknown error";
+        setError(message);
+        toast.error("Failed to load advanced reports");
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchData();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Loader2 className="text-muted-foreground h-8 w-8 animate-spin" />
+        <span className="text-muted-foreground ml-3">
+          Loading advanced reports...
+        </span>
+      </div>
+    );
+  }
+
+  if (error || !data) {
+    return (
+      <Card>
+        <CardContent className="py-10 text-center">
+          <p className="text-muted-foreground">
+            {error || "No data available"}
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+      <AssetLifecycleChart data={data.lifecycle} />
+      <CostBreakdownChart data={data.costBreakdown} />
+      <LocationDistributionChart data={data.locationDistribution} />
+      <MaintenanceTrendChart data={data.maintenanceTrend} />
+      <div className="lg:col-span-2">
+        <DepreciationForecastChart data={data.depreciationForecast} />
+      </div>
+    </div>
+  );
+}
+
+interface TCOData {
+  totalPurchaseCost: number;
+  totalMaintenanceCost: number;
+  totalLicenceCost: number;
+  totalDepreciationLoss: number;
+  totalCurrentValue: number;
+  grandTotal: number;
+  byCategory: Array<{
+    categoryName: string;
+    assetCount: number;
+    purchaseCost: number;
+    maintenanceCost: number;
+    depreciationLoss: number;
+    currentValue: number;
+    totalCostOfOwnership: number;
+  }>;
+}
+
+function TCOReport() {
+  const [data, setData] = useState<TCOData | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch("/api/dashboard/tco")
+      .then((r) => r.json())
+      .then((d) => setData(d))
+      .catch(() => setData(null))
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="text-muted-foreground h-8 w-8 animate-spin" />
+      </div>
+    );
+  }
+
+  if (!data) {
+    return (
+      <p className="text-muted-foreground py-8 text-center">
+        No TCO data available.
+      </p>
+    );
+  }
+
+  const chartData = data.byCategory
+    .filter((c) => c.totalCostOfOwnership > 0)
+    .slice(0, 10)
+    .map((c) => ({
+      name:
+        c.categoryName.length > 15
+          ? c.categoryName.slice(0, 15) + "..."
+          : c.categoryName,
+      purchase: c.purchaseCost,
+      maintenance: c.maintenanceCost,
+    }));
+
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardDescription>Purchase Costs</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="text-2xl font-bold">
+              {formatCurrency(data.totalPurchaseCost)}
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardDescription>Maintenance Costs</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="text-2xl font-bold">
+              {formatCurrency(data.totalMaintenanceCost)}
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardDescription>Licence Costs</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="text-2xl font-bold">
+              {formatCurrency(data.totalLicenceCost)}
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardDescription>Grand Total TCO</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="text-2xl font-bold">
+              {formatCurrency(data.grandTotal)}
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {chartData.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">
+              Cost by Category (Purchase vs Maintenance)
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={350}>
+              <BarChart data={chartData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="name" tick={{ fontSize: 12 }} />
+                <YAxis tick={{ fontSize: 12 }} />
+                <Tooltip formatter={(value: number) => formatCurrency(value)} />
+                <Legend />
+                <Bar
+                  dataKey="purchase"
+                  name="Purchase"
+                  fill="#0088FE"
+                  stackId="a"
+                />
+                <Bar
+                  dataKey="maintenance"
+                  name="Maintenance"
+                  fill="#FF8042"
+                  stackId="a"
+                />
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      )}
+
+      {data.byCategory.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Category Breakdown</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm">
+                <thead>
+                  <tr className="border-b">
+                    <th className="pb-2 font-medium">Category</th>
+                    <th className="pb-2 text-right font-medium">Assets</th>
+                    <th className="pb-2 text-right font-medium">Purchase</th>
+                    <th className="pb-2 text-right font-medium">Maintenance</th>
+                    <th className="pb-2 text-right font-medium">
+                      Depreciation
+                    </th>
+                    <th className="pb-2 text-right font-medium">
+                      Current Value
+                    </th>
+                    <th className="pb-2 text-right font-medium">Total TCO</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.byCategory.map((cat) => (
+                    <tr
+                      key={cat.categoryName}
+                      className="border-b last:border-0"
+                    >
+                      <td className="py-2">{cat.categoryName}</td>
+                      <td className="py-2 text-right">{cat.assetCount}</td>
+                      <td className="py-2 text-right">
+                        {formatCurrency(cat.purchaseCost)}
+                      </td>
+                      <td className="py-2 text-right">
+                        {formatCurrency(cat.maintenanceCost)}
+                      </td>
+                      <td className="py-2 text-right text-red-600">
+                        {formatCurrency(cat.depreciationLoss)}
+                      </td>
+                      <td className="py-2 text-right text-green-600">
+                        {formatCurrency(cat.currentValue)}
+                      </td>
+                      <td className="py-2 text-right font-medium">
+                        {formatCurrency(cat.totalCostOfOwnership)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+}
+
+export default function ReportsPage({
+  data,
+  warrantyAssets,
+  depreciationAssets,
+}: ReportsPageProps) {
+  const [activeTab, setActiveTab] = useState("overview");
+
+  const costByCategoryData = useMemo(() => {
+    const categoryMap = new Map<string, number>();
+    for (const asset of data.rawData.assets) {
+      const cat = asset.category || "Uncategorized";
+      categoryMap.set(cat, (categoryMap.get(cat) || 0) + asset.purchasePrice);
+    }
+    return Array.from(categoryMap.entries())
+      .map(([name, total]) => ({ name, total: Math.round(total) }))
+      .sort((a, b) => b.total - a.total);
+  }, [data.rawData.assets]);
+
+  const assetAgeData = useMemo(() => {
+    const yearMap = new Map<number, number>();
+    for (const asset of data.rawData.assets) {
+      if (!asset.purchaseDate) continue;
+      const year = new Date(asset.purchaseDate).getFullYear();
+      yearMap.set(year, (yearMap.get(year) || 0) + 1);
+    }
+    return Array.from(yearMap.entries())
+      .map(([year, count]) => ({ year: String(year), count }))
+      .sort((a, b) => a.year.localeCompare(b.year));
+  }, [data.rawData.assets]);
+
+  const exportToCSV = () => {
+    const headers = [
+      "Name",
+      "Asset Tag",
+      "Serial Number",
+      "Category",
+      "Status",
+      "Location",
+      "Manufacturer",
+      "Purchase Price",
+      "Purchase Date",
+    ];
+
+    const rows = data.rawData.assets.map((asset) => [
+      asset.name,
+      asset.tag,
+      asset.serial,
+      asset.category,
+      asset.status,
+      asset.location,
+      asset.manufacturer,
+      asset.purchasePrice,
+      asset.purchaseDate
+        ? new Date(asset.purchaseDate).toLocaleDateString()
+        : "",
+    ]);
+
+    const csvContent = [headers, ...rows]
+      .map((row) => row.map((cell) => `"${cell}"`).join(","))
+      .join("\n");
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute(
+      "download",
+      `asset-report-${new Date().toISOString().split("T")[0]}.csv`,
+    );
+    link.style.visibility = "hidden";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast.success("Report exported to CSV");
+  };
+
+  const exportToExcel = async () => {
+    try {
+      const res = await fetch("/api/export?entity=assets&format=xlsx");
+      if (!res.ok) throw new Error("Export failed");
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `asset-report-${new Date().toISOString().split("T")[0]}.xlsx`;
+      link.style.visibility = "hidden";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      toast.success("Report exported to Excel");
+    } catch {
+      toast.error("Failed to export Excel report");
+    }
+  };
+
+  const exportToPDF = async () => {
+    // For PDF export, we'll generate a printable HTML and use browser print
+    const printWindow = window.open("", "_blank");
+    if (!printWindow) {
+      toast.error("Please allow popups to export PDF");
+      return;
+    }
+
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Asset Report - ${new Date().toISOString().split("T")[0]}</title>
+        <style>
+          body { font-family: Arial, sans-serif; padding: 20px; }
+          h1 { color: #333; }
+          table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+          th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+          th { background-color: #f4f4f4; }
+          .summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-bottom: 30px; }
+          .stat { padding: 15px; background: #f9f9f9; border-radius: 8px; }
+          .stat h3 { margin: 0 0 5px 0; color: #666; font-size: 14px; }
+          .stat p { margin: 0; font-size: 24px; font-weight: bold; }
+          @media print { .no-print { display: none; } }
+        </style>
+      </head>
+      <body>
+        <h1>Asset Management Report</h1>
+        <p>Generated: ${new Date().toLocaleString()}</p>
+        
+        <h2>Summary</h2>
+        <div class="summary">
+          <div class="stat"><h3>Total Assets</h3><p>${data.summary.totalAssets}</p></div>
+          <div class="stat"><h3>Total Value</h3><p>${formatCurrency(data.summary.totalAssetValue)}</p></div>
+          <div class="stat"><h3>Assigned</h3><p>${data.summary.assignedAssets}</p></div>
+          <div class="stat"><h3>Unassigned</h3><p>${data.summary.unassignedAssets}</p></div>
+        </div>
+
+        <h2>Asset Details</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Tag</th>
+              <th>Serial</th>
+              <th>Category</th>
+              <th>Status</th>
+              <th>Location</th>
+              <th>Price</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${data.rawData.assets
+              .map(
+                (asset) => `
+              <tr>
+                <td>${asset.name}</td>
+                <td>${asset.tag}</td>
+                <td>${asset.serial}</td>
+                <td>${asset.category}</td>
+                <td>${asset.status}</td>
+                <td>${asset.location}</td>
+                <td>${formatCurrency(asset.purchasePrice)}</td>
+              </tr>
+            `,
+              )
+              .join("")}
+          </tbody>
+        </table>
+
+        <button class="no-print" onclick="window.print()">Print / Save as PDF</button>
+      </body>
+      </html>
+    `;
+
+    printWindow.document.write(html);
+    printWindow.document.close();
+    toast.success("PDF report opened in new tab");
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold">Reports & Analytics</h1>
+          <p className="text-muted-foreground mt-1 text-sm">
+            View insights and export reports about your assets
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" size="sm" onClick={exportToCSV}>
+            <Download className="mr-2 h-4 w-4" />
+            CSV
+          </Button>
+          <Button variant="outline" size="sm" onClick={exportToExcel}>
+            <FileSpreadsheet className="mr-2 h-4 w-4" />
+            Excel
+          </Button>
+          <Button variant="outline" size="sm" onClick={exportToPDF}>
+            <FileText className="mr-2 h-4 w-4" />
+            PDF
+          </Button>
+        </div>
+      </div>
+
+      <Separator />
+
+      {/* Summary Cards */}
+      <div className="grid grid-cols-2 gap-4 md:grid-cols-4 lg:grid-cols-5">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-muted-foreground flex items-center gap-2 text-sm font-medium">
+              <Package className="h-4 w-4" />
+              Total Assets
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{data.summary.totalAssets}</div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-muted-foreground flex items-center gap-2 text-sm font-medium">
+              <DollarSign className="h-4 w-4" />
+              Total Value
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {formatCurrency(data.summary.totalAssetValue)}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-muted-foreground flex items-center gap-2 text-sm font-medium">
+              <Users className="h-4 w-4" />
+              Utilization
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {data.summary.totalAssets > 0
+                ? Math.round(
+                    (data.summary.assignedAssets / data.summary.totalAssets) *
+                      100,
+                  )
+                : 0}
+              %
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-muted-foreground flex items-center gap-2 text-sm font-medium">
+              <AlertTriangle className="h-4 w-4 text-yellow-500" />
+              Expiring Licenses
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {data.summary.expiringLicenses}
+            </div>
+            <p className="text-muted-foreground text-xs">Next 90 days</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-muted-foreground flex items-center gap-2 text-sm font-medium">
+              <AlertTriangle className="h-4 w-4 text-red-500" />
+              Low Stock
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {data.summary.lowStockConsumables}
+            </div>
+            <p className="text-muted-foreground text-xs">Consumables</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Charts */}
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <div className="overflow-x-auto">
+          <TabsList>
+            <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="utilization">Utilization</TabsTrigger>
+            <TabsTrigger value="trends">Trends</TabsTrigger>
+            <TabsTrigger value="breakdown">Breakdown</TabsTrigger>
+            <TabsTrigger value="warranty">Warranty</TabsTrigger>
+            <TabsTrigger value="depreciation">Depreciation</TabsTrigger>
+            <TabsTrigger value="advanced">Advanced</TabsTrigger>
+            <TabsTrigger value="tco">TCO</TabsTrigger>
+          </TabsList>
+        </div>
+
+        <TabsContent value="overview" className="mt-6">
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+            <Card>
+              <CardHeader>
+                <CardTitle>Assets by Status</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={300}>
+                  <PieChart>
+                    <Pie
+                      data={data.charts.assetsByStatus}
+                      cx="50%"
+                      cy="50%"
+                      labelLine={false}
+                      label={({ name, percent }) =>
+                        `${name} (${(percent * 100).toFixed(0)}%)`
+                      }
+                      outerRadius={100}
+                      fill="#8884d8"
+                      dataKey="value"
+                    >
+                      {data.charts.assetsByStatus.map((entry, index) => (
+                        <Cell
+                          key={`cell-${index}`}
+                          fill={COLORS[index % COLORS.length]}
+                        />
+                      ))}
+                    </Pie>
+                    <Tooltip />
+                  </PieChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Assets by Category</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={data.charts.assetsByCategory}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="name" />
+                    <YAxis />
+                    <Tooltip />
+                    <Bar dataKey="value" fill="#8884d8" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="utilization" className="mt-6">
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+            <Card>
+              <CardHeader>
+                <CardTitle>Asset Utilization</CardTitle>
+                <CardDescription>Assigned vs Unassigned assets</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={300}>
+                  <PieChart>
+                    <Pie
+                      data={data.charts.utilization}
+                      cx="50%"
+                      cy="50%"
+                      labelLine={false}
+                      label={({ name, percent }) =>
+                        `${name} (${(percent * 100).toFixed(0)}%)`
+                      }
+                      outerRadius={100}
+                      fill="#8884d8"
+                      dataKey="value"
+                    >
+                      <Cell fill="#00C49F" />
+                      <Cell fill="#FFBB28" />
+                    </Pie>
+                    <Tooltip />
+                    <Legend />
+                  </PieChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Assets by Location</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart
+                    data={data.charts.assetsByLocation}
+                    layout="vertical"
+                  >
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis type="number" />
+                    <YAxis dataKey="name" type="category" width={100} />
+                    <Tooltip />
+                    <Bar dataKey="value" fill="#82ca9d" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="trends" className="mt-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <TrendingUp className="h-5 w-5" />
+                Asset Acquisitions (Last 12 Months)
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={400}>
+                <LineChart data={data.charts.monthlyAcquisitions}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="month" />
+                  <YAxis />
+                  <Tooltip />
+                  <Legend />
+                  <Line
+                    type="monotone"
+                    dataKey="count"
+                    stroke="#8884d8"
+                    strokeWidth={2}
+                    name="Assets Acquired"
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="breakdown" className="mt-6">
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+            <Card>
+              <CardHeader>
+                <CardTitle>Assets by Manufacturer</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={data.charts.assetsByManufacturer}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="name" />
+                    <YAxis />
+                    <Tooltip />
+                    <Bar dataKey="value" fill="#ffc658" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Cost by Category</CardTitle>
+                <CardDescription>
+                  Total purchase value per asset category
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={costByCategoryData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="name" />
+                    <YAxis tickFormatter={(v: number) => formatCurrency(v)} />
+                    <Tooltip
+                      formatter={(value: number) => formatCurrency(value)}
+                    />
+                    <Bar dataKey="total" fill="#8884d8" name="Total Value" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Asset Age Distribution</CardTitle>
+                <CardDescription>
+                  Number of assets purchased per year
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={assetAgeData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="year" />
+                    <YAxis allowDecimals={false} />
+                    <Tooltip />
+                    <Bar dataKey="count" fill="#82ca9d" name="Assets" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Inventory Summary</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="bg-muted flex items-center justify-between rounded-lg p-4">
+                    <span>Total Assets</span>
+                    <span className="font-bold">
+                      {data.summary.totalAssets}
+                    </span>
+                  </div>
+                  <div className="bg-muted flex items-center justify-between rounded-lg p-4">
+                    <span>Total Accessories</span>
+                    <span className="font-bold">
+                      {data.summary.totalAccessories}
+                    </span>
+                  </div>
+                  <div className="bg-muted flex items-center justify-between rounded-lg p-4">
+                    <span>Total Licenses</span>
+                    <span className="font-bold">
+                      {data.summary.totalLicenses}
+                    </span>
+                  </div>
+                  <div className="bg-muted flex items-center justify-between rounded-lg p-4">
+                    <span>Total Consumables</span>
+                    <span className="font-bold">
+                      {data.summary.totalConsumables}
+                    </span>
+                  </div>
+                  <div className="bg-muted flex items-center justify-between rounded-lg p-4">
+                    <span>Total Users</span>
+                    <span className="font-bold">{data.summary.totalUsers}</span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="warranty" className="mt-6">
+          <WarrantyReport warrantyAssets={warrantyAssets} />
+        </TabsContent>
+
+        <TabsContent value="depreciation" className="mt-6">
+          <DepreciationReport depreciationAssets={depreciationAssets} />
+        </TabsContent>
+
+        <TabsContent value="advanced" className="mt-6">
+          <AdvancedCharts />
+        </TabsContent>
+
+        <TabsContent value="tco" className="mt-6">
+          <TCOReport />
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+}

@@ -1,0 +1,248 @@
+import { type NextRequest, NextResponse } from "next/server";
+import prisma from "../../../lib/prisma";
+import { Prisma } from "@prisma/client";
+import {
+  requireApiAuth,
+  requireApiAdmin,
+  requireNotDemoMode,
+} from "@/lib/api-auth";
+import {
+  createAssetCategoryTypeSchema,
+  updateAssetCategoryTypeSchema,
+  uuidSchema,
+} from "@/lib/validation";
+import { createAuditLog, AUDIT_ACTIONS, AUDIT_ENTITIES } from "@/lib/audit-log";
+import { getOrganizationContext } from "@/lib/organization-context";
+import {
+  parsePaginationParams,
+  buildPrismaArgs,
+  buildPaginatedResponse,
+} from "@/lib/pagination";
+import { logger } from "@/lib/logger";
+import { compareAssetCategoryNames } from "@/lib/utils";
+
+const ASSET_CATEGORY_SORT_FIELDS = ["assetcategorytypename"];
+
+// GET /api/assetCategory
+export async function GET(req: NextRequest) {
+  try {
+    // Require authentication to view asset categories
+    await requireApiAuth();
+    const orgCtx = await getOrganizationContext();
+    const orgId = orgCtx?.organization?.id;
+
+    const searchParams = req.nextUrl.searchParams;
+
+    // If no `page` param, return all results for backward compatibility
+    if (!searchParams.has("page")) {
+      const items = await prisma.assetCategoryType.findMany({
+        where: orgId
+          ? { OR: [{ organizationId: orgId }, { organizationId: null }] }
+          : { organizationId: null },
+      });
+      items.sort((a, b) =>
+        compareAssetCategoryNames(
+          a.assetcategorytypename,
+          b.assetcategorytypename,
+        ),
+      );
+      return NextResponse.json(items, { status: 200 });
+    }
+
+    // Paginated path
+    const params = parsePaginationParams(searchParams);
+    const prismaArgs = buildPrismaArgs(params, ASSET_CATEGORY_SORT_FIELDS);
+
+    const where: Record<string, unknown> = orgId
+      ? { OR: [{ organizationId: orgId }, { organizationId: null }] }
+      : { organizationId: null };
+
+    // Search filter
+    if (params.search) {
+      where.AND = [
+        {
+          assetcategorytypename: {
+            contains: params.search,
+            mode: "insensitive",
+          },
+        },
+      ];
+    }
+
+    const [items, total] = await Promise.all([
+      prisma.assetCategoryType.findMany({ where, ...prismaArgs }),
+      prisma.assetCategoryType.count({ where }),
+    ]);
+
+    return NextResponse.json(buildPaginatedResponse(items, total, params), {
+      status: 200,
+    });
+  } catch (e) {
+    logger.error("GET /api/assetCategory error", { error: e });
+
+    if (e.message === "Unauthorized") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    return NextResponse.json(
+      { error: "Failed to fetch asset categories" },
+      { status: 500 },
+    );
+  }
+}
+
+// POST /api/assetCategory
+export async function POST(req: NextRequest) {
+  try {
+    const demoBlock = requireNotDemoMode();
+    if (demoBlock) return demoBlock;
+    // Only admins can create asset categories
+    const admin = await requireApiAdmin();
+
+    const body = await req.json();
+
+    // Validate input
+    const validationResult = createAssetCategoryTypeSchema.safeParse(body);
+    if (!validationResult.success) {
+      return NextResponse.json(
+        {
+          error: "Validation failed",
+          details: validationResult.error.issues,
+        },
+        { status: 400 },
+      );
+    }
+
+    const { assetcategorytypename } = validationResult.data;
+
+    const orgCtx = await getOrganizationContext();
+    const orgId = orgCtx?.organization?.id;
+
+    const codeMatch = assetcategorytypename.trim().match(/^(\d+(?:\.\d+)+)/);
+    const assetTypeCode =
+      (typeof body.assetTypeCode === "string" ? body.assetTypeCode.trim() : null) ||
+      (codeMatch ? codeMatch[1] : null);
+
+    const created = await prisma.assetCategoryType.create({
+      data: {
+        assetcategorytypename,
+        assetTypeCode,
+        organizationId: orgId ?? null,
+      } as Prisma.assetCategoryTypeUncheckedCreateInput,
+    });
+
+    // Create audit log
+    await createAuditLog({
+      userId: admin.id,
+      action: AUDIT_ACTIONS.CREATE,
+      entity: AUDIT_ENTITIES.ASSET_CATEGORY,
+      entityId: created.assetcategorytypeid,
+      details: { assetcategorytypename },
+    });
+
+    return NextResponse.json(created, { status: 201 });
+  } catch (e) {
+    logger.error("POST /api/assetCategory error", { error: e });
+
+    if (e.message === "Unauthorized") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    if (e.message.startsWith("Forbidden")) {
+      return NextResponse.json({ error: e.message }, { status: 403 });
+    }
+
+    return NextResponse.json(
+      { error: "Failed to create asset category" },
+      { status: 500 },
+    );
+  }
+}
+
+// PUT /api/assetCategory
+export async function PUT(req: NextRequest) {
+  try {
+    const demoBlock = requireNotDemoMode();
+    if (demoBlock) return demoBlock;
+    // Only admins can update asset categories
+    const admin = await requireApiAdmin();
+
+    const body = await req.json();
+
+    // Validate category ID
+    const idValidation = uuidSchema.safeParse(body.assetcategorytypeid);
+    if (!idValidation.success) {
+      return NextResponse.json(
+        { error: "Invalid asset category ID" },
+        { status: 400 },
+      );
+    }
+
+    // Validate update data
+    const dataValidation = updateAssetCategoryTypeSchema.safeParse(body);
+    if (!dataValidation.success) {
+      return NextResponse.json(
+        {
+          error: "Validation failed",
+          details: dataValidation.error.issues,
+        },
+        { status: 400 },
+      );
+    }
+
+    const { assetcategorytypeid, assetcategorytypename } = body;
+
+    const orgCtx = await getOrganizationContext();
+    const orgId = orgCtx?.organization?.id;
+
+    // Verify ownership
+    const existing = await prisma.assetCategoryType.findFirst({
+      where: { assetcategorytypeid, organizationId: orgId ?? null },
+    });
+    if (!existing) {
+      return NextResponse.json(
+        { error: "Asset category not found" },
+        { status: 404 },
+      );
+    }
+
+    const updated = await prisma.assetCategoryType.update({
+      where: { assetcategorytypeid },
+      data: {
+        assetcategorytypename,
+      },
+    });
+
+    // Create audit log
+    await createAuditLog({
+      userId: admin.id,
+      action: AUDIT_ACTIONS.UPDATE,
+      entity: AUDIT_ENTITIES.ASSET_CATEGORY,
+      entityId: updated.assetcategorytypeid,
+      details: { assetcategorytypename },
+    });
+
+    return NextResponse.json(updated, { status: 200 });
+  } catch (e) {
+    logger.error("PUT /api/assetCategory error", { error: e });
+
+    if (e.message === "Unauthorized") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    if (e.message.startsWith("Forbidden")) {
+      return NextResponse.json({ error: e.message }, { status: 403 });
+    }
+    if (e.code === "P2025") {
+      return NextResponse.json(
+        { error: "Asset category not found" },
+        { status: 404 },
+      );
+    }
+
+    return NextResponse.json(
+      { error: "Failed to update asset category" },
+      { status: 500 },
+    );
+  }
+}
+
+export const dynamic = "force-dynamic";

@@ -1,0 +1,2117 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = []
+}
+
+datasource db {
+  provider = "postgresql"
+  schemas  = ["public"]
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Housing lifecycle enums
+// ────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Physical occupancy state of a house. Mirrors the House Hold Register:
+ * a house is Occupied only while a live (`allocated`) HouseAllocation points
+ * at it, Vacant when released back to the pool, and Maintenance while the
+ * register marks it Inactive (damage checklist). Written exclusively from the
+ * Queue decision service and the register's activate/deactivate path.
+ */
+enum HouseOccupancyStatus {
+  Vacant
+  Occupied
+  Maintenance
+
+  @@schema("public")
+}
+
+/**
+ * Coded reason an allocation was terminated (release with a reason). The Queue
+ * release action is the only place these are written. HR exit types:
+ * TRANSFER, EMPLOYEE_LEAVE, RETIREMENT.
+ */
+enum HouseTerminationReason {
+  TRANSFER
+  EMPLOYEE_LEAVE
+  RETIREMENT
+
+  @@schema("public")
+}
+
+// Multi-tenancy: Organization model
+model Organization {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name        String   @db.VarChar(100)
+  slug        String   @unique @db.VarChar(50)
+  description String?
+  settings    Json?
+  createdAt   DateTime @default(now()) @db.Timestamp(6)
+  updatedAt   DateTime @updatedAt @db.Timestamp(6)
+  isActive    Boolean  @default(true)
+
+  // Relationships
+  users           user[]
+  departments     Department[]
+  assets          asset[]
+  accessories     accessories[]
+  licences        licence[]
+  consumables     consumable[]
+  components      Component[]
+  roles           Role[]
+  webhooks        Webhook[]
+  teamInvitations TeamInvitation[]
+  eulaTemplates   EulaTemplate[]
+  kits            Kit[]
+  auditCampaigns  AuditCampaign[]
+
+  // Shared-table relations (org-scoped)
+  manufacturers            manufacturer[]
+  suppliers                supplier[]
+  models                   model[]
+  locations                location[]
+  statusTypes              statusType[]
+  assetCategories          assetCategoryType[]
+  accessoryCategories      accessorieCategoryType[]
+  consumableCategories     consumableCategoryType[]
+  licenceCategories        licenceCategoryType[]
+  componentCategories      ComponentCategory[]
+  scimTokens               ScimToken[]
+  purchaseRequests         PurchaseRequest[]
+  purchaseOrders           PurchaseOrder[]
+  employees                Employee[]
+  households               Household[]
+  generalAssets            GeneralAsset[]
+  houseAllocations         HouseAllocation[]
+  houseInspections         HouseInspection[]
+  houseInspectionArchives  HouseInspectionArchive[]
+  engineConfigVersions     EngineConfigVersion[]
+  engineConfigAuditEntries ConfigAuditEntry[]
+
+  @@map("organizations")
+  @@schema("public")
+}
+
+// Multi-tenancy: Department model (hierarchical)
+model Department {
+  id             String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name           String       @db.VarChar(100)
+  code           String?      @db.VarChar(20)
+  description    String?
+  isActive       Boolean      @default(true)
+  organizationId String       @db.Uuid
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  parentId       String?      @db.Uuid
+  parent         Department?  @relation("DepartmentHierarchy", fields: [parentId], references: [id])
+  children       Department[] @relation("DepartmentHierarchy")
+  sortOrder      Int          @default(0)
+  createdAt      DateTime     @default(now()) @db.Timestamp(6)
+  updatedAt      DateTime     @updatedAt @db.Timestamp(6)
+
+  // Relationships
+  users            user[]
+  purchaseRequests PurchaseRequest[]
+  employees        Employee[]
+  assets           asset[]
+
+  @@unique([code, organizationId])
+  @@index([organizationId])
+  @@index([parentId])
+  @@index([code])
+  @@index([isActive])
+  @@map("departments")
+  @@schema("public")
+}
+
+// RBAC: Role model
+model Role {
+  id             String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name           String        @db.VarChar(100)
+  description    String?
+  permissions    String[]
+  isSystem       Boolean       @default(false)
+  organizationId String?       @db.Uuid
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdAt      DateTime      @default(now()) @db.Timestamp(6)
+  updatedAt      DateTime      @updatedAt @db.Timestamp(6)
+
+  userRoles       UserRole[]
+  teamInvitations TeamInvitation[]
+
+  @@unique([name, organizationId])
+  @@index([organizationId])
+  @@map("roles")
+  @@schema("public")
+}
+
+// RBAC: UserRole junction model
+model UserRole {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String   @db.Uuid
+  user      user     @relation(fields: [userId], references: [userid], onDelete: Cascade)
+  roleId    String   @db.Uuid
+  role      Role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  grantedAt DateTime @default(now()) @db.Timestamp(6)
+  grantedBy String?  @db.Uuid
+
+  @@unique([userId, roleId])
+  @@map("user_roles")
+  @@schema("public")
+}
+
+// Webhook System
+model Webhook {
+  id             String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name           String        @db.VarChar(100)
+  url            String        @db.VarChar(500)
+  secret         String?       @db.VarChar(255)
+  events         String[]
+  isActive       Boolean       @default(true)
+  retryAttempts  Int           @default(3)
+  organizationId String?       @db.Uuid
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdAt      DateTime      @default(now()) @db.Timestamp(6)
+  updatedAt      DateTime      @updatedAt @db.Timestamp(6)
+
+  deliveries WebhookDelivery[]
+
+  @@index([organizationId])
+  @@index([isActive])
+  @@index([organizationId, isActive])
+  @@map("webhooks")
+  @@schema("public")
+}
+
+model WebhookDelivery {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  webhookId   String   @db.Uuid
+  webhook     Webhook  @relation(fields: [webhookId], references: [id], onDelete: Cascade)
+  event       String   @db.VarChar(100)
+  payload     Json
+  statusCode  Int?
+  response    String?
+  attempt     Int      @default(1)
+  success     Boolean  @default(false)
+  deliveredAt DateTime @default(now()) @db.Timestamp(6)
+  error       String?
+
+  @@index([webhookId])
+  @@index([deliveredAt])
+  @@map("webhook_deliveries")
+  @@schema("public")
+}
+
+// SCIM Token (per-org bearer tokens for SCIM provisioning)
+model ScimToken {
+  id             String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  token          String       @db.VarChar(255)
+  organizationId String       @db.Uuid
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  description    String?      @db.VarChar(255)
+  createdAt      DateTime     @default(now()) @db.Timestamp(6)
+  createdBy      String?      @db.Uuid
+
+  @@index([organizationId])
+  @@map("scim_tokens")
+  @@schema("public")
+}
+
+// Asset Reservation/Booking System
+model AssetReservation {
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  assetId    String    @db.Uuid
+  asset      asset     @relation(fields: [assetId], references: [assetid], onDelete: Cascade)
+  userId     String    @db.Uuid
+  user       user      @relation(fields: [userId], references: [userid], onDelete: Cascade)
+  startDate  DateTime  @db.Timestamp(6)
+  endDate    DateTime  @db.Timestamp(6)
+  status     String    @default("pending") @db.VarChar(20)
+  notes      String?
+  approvedBy String?   @db.Uuid
+  approvedAt DateTime? @db.Timestamp(6)
+  createdAt  DateTime  @default(now()) @db.Timestamp(6)
+  updatedAt  DateTime  @updatedAt @db.Timestamp(6)
+
+  @@index([assetId])
+  @@index([userId])
+  @@index([status])
+  @@index([assetId, status])
+  @@map("asset_reservations")
+  @@schema("public")
+}
+
+// Asset Transfer Log
+model AssetTransfer {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  assetId        String   @db.Uuid
+  asset          asset    @relation(fields: [assetId], references: [assetid], onDelete: Cascade)
+  transferType   String   @db.VarChar(20) // user, location, organization
+  fromUserId     String?  @db.Uuid
+  toUserId       String?  @db.Uuid
+  fromLocationId String?  @db.Uuid
+  toLocationId   String?  @db.Uuid
+  fromOrgId      String?  @db.Uuid
+  toOrgId        String?  @db.Uuid
+  reason         String?
+  transferredBy  String   @db.Uuid
+  transferredAt  DateTime @default(now()) @db.Timestamp(6)
+
+  @@index([assetId])
+  @@index([transferredAt])
+  @@map("asset_transfers")
+  @@schema("public")
+}
+
+// Approval Workflow
+model ApprovalRequest {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  entityType  String    @db.VarChar(50) // reservation, asset_request, transfer
+  entityId    String    @db.Uuid
+  requesterId String    @db.Uuid
+  requester   user      @relation("approval_requester", fields: [requesterId], references: [userid], onDelete: Cascade)
+  approverId  String?   @db.Uuid
+  approver    user?     @relation("approval_approver", fields: [approverId], references: [userid])
+  status      String    @default("pending") @db.VarChar(20) // pending, approved, rejected
+  notes       String?
+  resolvedAt  DateTime? @db.Timestamp(6)
+  createdAt   DateTime  @default(now()) @db.Timestamp(6)
+  updatedAt   DateTime  @updatedAt @db.Timestamp(6)
+
+  @@index([requesterId])
+  @@index([status])
+  @@index([approverId])
+  @@map("approval_requests")
+  @@schema("public")
+}
+
+// Automation Rules / Workflows Engine
+model AutomationRule {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name        String    @db.VarChar(200)
+  description String?
+  trigger     String    @db.VarChar(50) // warranty_expiring, maintenance_due, asset_status_change, license_expiring, stock_low
+  conditions  String    @db.Text // JSON: conditions to evaluate
+  actions     String    @db.Text // JSON: actions to take (notify, update_status, create_ticket, etc.)
+  isActive    Boolean   @default(true)
+  lastRunAt   DateTime? @db.Timestamp(6)
+  runCount    Int       @default(0)
+  createdBy   String    @db.Uuid
+  creator     user      @relation("automation_creator", fields: [createdBy], references: [userid], onDelete: Cascade)
+  createdAt   DateTime  @default(now()) @db.Timestamp(6)
+  updatedAt   DateTime  @updatedAt @db.Timestamp(6)
+
+  @@index([trigger])
+  @@index([isActive])
+  @@map("automation_rules")
+  @@schema("public")
+}
+
+// Stock Alert Configuration
+model StockAlert {
+  id                String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  consumableId      String     @unique @db.Uuid
+  consumable        consumable @relation(fields: [consumableId], references: [consumableid], onDelete: Cascade)
+  minThreshold      Int        @default(10)
+  criticalThreshold Int        @default(5)
+  emailNotify       Boolean    @default(true)
+  webhookNotify     Boolean    @default(false)
+  lastAlertSentAt   DateTime?  @db.Timestamp(6)
+  createdAt         DateTime   @default(now()) @db.Timestamp(6)
+  updatedAt         DateTime   @updatedAt @db.Timestamp(6)
+
+  @@map("stock_alerts")
+  @@schema("public")
+}
+
+// Bulk Import Jobs
+model ImportJob {
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId        String    @db.Uuid
+  user          user      @relation(fields: [userId], references: [userid], onDelete: Cascade)
+  entityType    String    @db.VarChar(50)
+  fileName      String    @db.VarChar(255)
+  fileSize      Int
+  totalRows     Int       @default(0)
+  processedRows Int       @default(0)
+  successCount  Int       @default(0)
+  errorCount    Int       @default(0)
+  status        String    @default("pending") @db.VarChar(20)
+  errors        Json?
+  startedAt     DateTime? @db.Timestamp(6)
+  completedAt   DateTime? @db.Timestamp(6)
+  createdAt     DateTime  @default(now()) @db.Timestamp(6)
+
+  @@index([userId])
+  @@map("import_jobs")
+  @@schema("public")
+}
+
+model accessorieCategoryType {
+  accessoriecategorytypeid   String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  accessoriecategorytypename String        @db.VarChar
+  organizationId             String?       @db.Uuid
+  organization               Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  accessories                accessories[]
+
+  @@index([organizationId])
+  @@schema("public")
+}
+
+model accessories {
+  accessorieid             String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  accessoriename           String                 @db.VarChar
+  accessorietag            String                 @db.VarChar
+  purchaseprice            Decimal?               @db.Decimal(10, 2)
+  purchasedate             DateTime?              @db.Date
+  requestable              Boolean?
+  manufacturerid           String                 @db.Uuid
+  statustypeid             String                 @db.Uuid
+  accessoriecategorytypeid String                 @db.Uuid
+  locationid               String                 @db.Uuid
+  supplierid               String                 @db.Uuid
+  modelid                  String                 @db.Uuid
+  organizationId           String?                @db.Uuid
+  creation_date            DateTime               @db.Timestamp(6)
+  change_date              DateTime?              @db.Timestamp(6)
+  accessorieCategoryType   accessorieCategoryType @relation(fields: [accessoriecategorytypeid], references: [accessoriecategorytypeid], onDelete: NoAction, onUpdate: NoAction, map: "fk_accessories_accessoriecategorytype_c_accessoriecategorytypei")
+  location                 location               @relation(fields: [locationid], references: [locationid], onDelete: NoAction, onUpdate: NoAction, map: "fk_accessories_location_c_locationid")
+  manufacturer             manufacturer           @relation(fields: [manufacturerid], references: [manufacturerid], onDelete: NoAction, onUpdate: NoAction, map: "fk_accessories_manufacturer_c_manufacturerid")
+  model                    model                  @relation(fields: [modelid], references: [modelid], onDelete: NoAction, onUpdate: NoAction, map: "fk_accessories_model_c_modelid")
+  organization             Organization?          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  statusType               statusType             @relation(fields: [statustypeid], references: [statustypeid], onDelete: NoAction, onUpdate: NoAction, map: "fk_accessories_statustype_c_statustypeid")
+  supplier                 supplier               @relation(fields: [supplierid], references: [supplierid], onDelete: NoAction, onUpdate: NoAction, map: "fk_accessories_supplier_c_supplierid")
+  userAccessoires          userAccessoires[]
+
+  @@index([organizationId])
+  @@index([manufacturerid])
+  @@index([statustypeid])
+  @@index([accessoriecategorytypeid])
+  @@index([locationid])
+  @@index([supplierid])
+  @@index([modelid])
+  @@schema("public")
+}
+
+model accounts {
+  id                    String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId                String    @db.Uuid
+  accountId             String
+  providerId            String
+  issuer                String?
+  accessToken           String?
+  refreshToken          String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  idToken               String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @default(now())
+  user                  user      @relation(fields: [userId], references: [userid], onDelete: Cascade)
+
+  @@unique([providerId, accountId])
+  @@index([userId])
+  @@map("accounts")
+  @@schema("public")
+}
+
+model asset {
+  assetid                  String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  assetname                String                  @db.VarChar
+  assettag                 String                  @unique @db.VarChar
+  serialnumber             String                  @unique @db.VarChar
+  modelid                  String?                 @db.Uuid
+  specs                    String?
+  notes                    String?
+  purchaseprice            Decimal?                @db.Decimal(10, 2)
+  purchasedate             DateTime?               @db.Date
+  mobile                   Boolean?
+  requestable              Boolean?
+  assetcategorytypeid      String?                 @db.Uuid
+  statustypeid             String?                 @db.Uuid
+  supplierid               String?                 @db.Uuid
+  locationid               String?                 @db.Uuid
+  manufacturerid           String?                 @db.Uuid
+  organizationId           String?                 @db.Uuid
+  creation_date            DateTime                @db.Timestamp(6)
+  change_date              DateTime?               @db.Timestamp(6)
+  expectedEndOfLife        DateTime?               @db.Date
+  warrantyExpires          DateTime?               @db.Date
+  warrantyMonths           Int?
+  reviewsDate              DateTime?               @db.Date
+  remark                   String?
+  departmentId             String?                 @db.Uuid
+  departmentCode           String?                 @db.VarChar(20)
+  externalId               String?                 @db.VarChar(255)
+  externalSource           String?                 @db.VarChar(30)
+  assetCategoryType        assetCategoryType?      @relation(fields: [assetcategorytypeid], references: [assetcategorytypeid], onDelete: NoAction, onUpdate: NoAction, map: "fk_asset_assetcategorytype_c_assetcategorytypeid")
+  location                 location?               @relation(fields: [locationid], references: [locationid], onDelete: NoAction, onUpdate: NoAction, map: "fk_asset_location_c_locationid")
+  manufacturer             manufacturer?           @relation(fields: [manufacturerid], references: [manufacturerid], onDelete: NoAction, onUpdate: NoAction, map: "fk_asset_manufacturer_c_manufacturerid")
+  model                    model?                  @relation(fields: [modelid], references: [modelid], onDelete: NoAction, onUpdate: NoAction, map: "fk_asset_model_c_modelid")
+  organization             Organization?           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  statusType               statusType?             @relation(fields: [statustypeid], references: [statustypeid], onDelete: NoAction, onUpdate: NoAction, map: "fk_asset_statustype_c_statustypeid")
+  supplier                 supplier?               @relation(fields: [supplierid], references: [supplierid], onDelete: NoAction, onUpdate: NoAction, map: "fk_asset_supplier_c_supplierid")
+  department               Department?             @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  asset_attachments        asset_attachments[]
+  maintenance_schedules    maintenance_schedules[]
+  reservations             AssetReservation[]
+  transfers                AssetTransfer[]
+  checkouts                AssetCheckout[]
+  checkoutsReceivedAsAsset AssetCheckout[]         @relation("checkout_to_asset")
+  componentCheckouts       ComponentCheckout[]
+  userAssets               userAssets[]
+  auditEntries             AuditEntry[]
+
+  @@index([assetname])
+  @@index([statustypeid])
+  @@index([assetcategorytypeid])
+  @@index([locationid])
+  @@index([organizationId])
+  @@index([creation_date])
+  @@index([modelid])
+  @@index([supplierid])
+  @@index([manufacturerid])
+  @@index([departmentId])
+  @@index([organizationId, creation_date])
+  @@index([externalId])
+  @@index([externalSource])
+  @@schema("public")
+}
+
+model IntuneSyncLog {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String?  @db.Uuid
+  status         String   @db.VarChar(20)
+  devicesCreated Int      @default(0)
+  devicesUpdated Int      @default(0)
+  devicesSkipped Int      @default(0)
+  errors         Json?
+  triggeredBy    String?  @db.VarChar(50)
+  durationMs     Int?
+  createdAt      DateTime @default(now()) @db.Timestamp(6)
+
+  @@index([createdAt])
+  @@map("intune_sync_logs")
+  @@schema("public")
+}
+
+model AssetTemplate {
+  id                  String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name                String   @db.VarChar(200)
+  description         String?
+  assetcategorytypeid String?  @db.Uuid
+  manufacturerid      String?  @db.Uuid
+  modelid             String?  @db.Uuid
+  statustypeid        String?  @db.Uuid
+  locationid          String?  @db.Uuid
+  supplierid          String?  @db.Uuid
+  defaultSpecs        String?
+  defaultNotes        String?
+  isActive            Boolean  @default(true)
+  organizationId      String?  @db.Uuid
+  createdBy           String?  @db.Uuid
+  createdAt           DateTime @default(now()) @db.Timestamp(6)
+  updatedAt           DateTime @updatedAt @db.Timestamp(6)
+
+  @@index([organizationId])
+  @@map("asset_templates")
+  @@schema("public")
+}
+
+model assetCategoryType {
+  assetcategorytypeid   String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  assetcategorytypename String                 @db.VarChar
+  assetTypeCode         String?                @db.VarChar(50)
+  organizationId        String?                @db.Uuid
+  organization          Organization?          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  asset                 asset[]
+  depreciation_settings depreciation_settings?
+  eulaTemplateId        String?                @db.Uuid
+  eulaTemplate          EulaTemplate?          @relation("category_eula", fields: [eulaTemplateId], references: [id])
+
+  @@index([organizationId])
+  @@index([assetTypeCode])
+  @@schema("public")
+}
+
+model AssetPidSequence {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  assetTypeCode  String   @db.VarChar(50)
+  departmentCode String   @db.VarChar(50)
+  lastSequence   Int      @default(0)
+  updatedAt      DateTime @updatedAt @db.Timestamp(6)
+
+  @@unique([assetTypeCode, departmentCode])
+  @@map("asset_pid_sequences")
+  @@schema("public")
+}
+
+model asset_attachments {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  assetId       String   @db.Uuid
+  filename      String   @db.VarChar(255)
+  originalName  String   @db.VarChar(255)
+  mimeType      String   @db.VarChar(100)
+  size          Int
+  path          String   @db.VarChar(500)
+  thumbnailPath String?  @db.VarChar(500)
+  isPrimary     Boolean  @default(false)
+  uploadedBy    String?  @db.Uuid
+  createdAt     DateTime @default(now()) @db.Timestamp(6)
+  asset         asset    @relation(fields: [assetId], references: [assetid], onDelete: Cascade)
+  user          user?    @relation(fields: [uploadedBy], references: [userid])
+
+  @@index([assetId])
+  @@schema("public")
+}
+
+model audit_logs {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String?  @db.Uuid
+  action    String   @db.VarChar(50)
+  entity    String   @db.VarChar(50)
+  entityId  String?  @db.Uuid
+  details   String?
+  ipAddress String?  @db.VarChar(50)
+  userAgent String?
+  createdAt DateTime @default(now()) @db.Timestamp(6)
+  user      user?    @relation(fields: [userId], references: [userid])
+
+  @@index([entity, entityId])
+  @@index([createdAt])
+  @@index([userId])
+  @@index([action])
+  @@index([userId, createdAt])
+  @@schema("public")
+}
+
+model consumable {
+  consumableid             String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  consumablename           String                 @db.VarChar
+  consumablecategorytypeid String                 @db.Uuid
+  manufacturerid           String                 @db.Uuid
+  supplierid               String                 @db.Uuid
+  purchaseprice            Decimal?               @db.Decimal(10, 2)
+  purchasedate             DateTime?              @db.Date
+  organizationId           String?                @db.Uuid
+  creation_date            DateTime               @db.Timestamp(6)
+  change_date              DateTime?              @db.Timestamp(6)
+  minQuantity              Int                    @default(0)
+  quantity                 Int                    @default(0)
+  consumableCategoryType   consumableCategoryType @relation(fields: [consumablecategorytypeid], references: [consumablecategorytypeid], onDelete: NoAction, onUpdate: NoAction, map: "fk_consumable_consumablecategorytype_c_consumablecategorytypeid")
+  manufacturer             manufacturer           @relation(fields: [manufacturerid], references: [manufacturerid], onDelete: NoAction, onUpdate: NoAction, map: "fk_consumable_manufacturer_c_manufacturerid")
+  organization             Organization?          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  supplier                 supplier               @relation(fields: [supplierid], references: [supplierid], onDelete: NoAction, onUpdate: NoAction, map: "fk_consumable_supplier_c_supplierid")
+  stockAlert               StockAlert?
+  consumable_checkouts     consumable_checkouts[]
+
+  @@index([consumablename])
+  @@index([organizationId])
+  @@index([manufacturerid])
+  @@index([supplierid])
+  @@index([consumablecategorytypeid])
+  @@index([organizationId, consumablename])
+  @@schema("public")
+}
+
+model consumableCategoryType {
+  consumablecategorytypeid   String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  consumablecategorytypename String        @db.VarChar
+  organizationId             String?       @db.Uuid
+  organization               Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  consumable                 consumable[]
+
+  @@index([organizationId])
+  @@schema("public")
+}
+
+model custom_field_definitions {
+  id                  String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name                String                @db.VarChar(100)
+  fieldType           String                @db.VarChar(20)
+  options             String?
+  isRequired          Boolean               @default(false)
+  entityType          String                @db.VarChar(50)
+  displayOrder        Int                   @default(0)
+  isActive            Boolean               @default(true)
+  createdAt           DateTime              @default(now()) @db.Timestamp(6)
+  updatedAt           DateTime              @db.Timestamp(6)
+  custom_field_values custom_field_values[]
+
+  @@index([entityType])
+  @@index([isActive])
+  @@schema("public")
+}
+
+model custom_field_values {
+  id                       String                   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  fieldId                  String                   @db.Uuid
+  entityId                 String                   @db.Uuid
+  value                    String?
+  createdAt                DateTime                 @default(now()) @db.Timestamp(6)
+  updatedAt                DateTime                 @db.Timestamp(6)
+  custom_field_definitions custom_field_definitions @relation(fields: [fieldId], references: [id], onDelete: Cascade)
+
+  @@unique([fieldId, entityId])
+  @@index([entityId])
+  @@schema("public")
+}
+
+model depreciation_settings {
+  id                String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  categoryId        String            @unique @db.Uuid
+  method            String            @db.VarChar(30)
+  usefulLifeYears   Int               @default(5)
+  salvagePercent    Decimal           @default(10) @db.Decimal(5, 2)
+  createdAt         DateTime          @default(now()) @db.Timestamp(6)
+  updatedAt         DateTime          @db.Timestamp(6)
+  assetCategoryType assetCategoryType @relation(fields: [categoryId], references: [assetcategorytypeid], onDelete: Cascade)
+
+  @@schema("public")
+}
+
+model email_templates {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name      String   @unique @db.VarChar(100)
+  subject   String   @db.VarChar(255)
+  body      String
+  variables String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now()) @db.Timestamp(6)
+  updatedAt DateTime @db.Timestamp(6)
+
+  @@schema("public")
+}
+
+model label_templates {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name        String   @db.VarChar(100)
+  width       Decimal  @db.Decimal(5, 2)
+  height      Decimal  @db.Decimal(5, 2)
+  layout      String
+  includeQR   Boolean  @default(true)
+  includeLogo Boolean  @default(false)
+  fields      String
+  isDefault   Boolean  @default(false)
+  createdAt   DateTime @default(now()) @db.Timestamp(6)
+  updatedAt   DateTime @db.Timestamp(6)
+
+  @@schema("public")
+}
+
+model licence {
+  licenceid             String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  licencekey            String?                 @unique @db.VarChar
+  licenceduserid        String?                 @db.Uuid
+  licensedtoemail       String?                 @db.VarChar
+  purchaseprice         Decimal?                @db.Decimal(10, 2)
+  purchasedate          DateTime?               @db.Date
+  expirationdate        DateTime?               @db.Date
+  notes                 String?
+  requestable           Boolean?
+  licencecategorytypeid String                  @db.Uuid
+  manufacturerid        String                  @db.Uuid
+  supplierid            String                  @db.Uuid
+  seatCount             Int                     @default(1)
+  organizationId        String?                 @db.Uuid
+  creation_date         DateTime                @db.Timestamp(6)
+  change_date           DateTime?               @db.Timestamp(6)
+  licenceCategoryType   licenceCategoryType     @relation(fields: [licencecategorytypeid], references: [licencecategorytypeid], onDelete: NoAction, onUpdate: NoAction, map: "fk_licence_licencecategorytype_c_licencecategorytypeid")
+  manufacturer          manufacturer            @relation(fields: [manufacturerid], references: [manufacturerid], onDelete: NoAction, onUpdate: NoAction, map: "fk_licence_manufacturer_c_manufacturerid")
+  organization          Organization?           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  supplier              supplier                @relation(fields: [supplierid], references: [supplierid], onDelete: NoAction, onUpdate: NoAction, map: "fk_licence_supplier_c_supplierid")
+  user                  user?                   @relation(fields: [licenceduserid], references: [userid], onDelete: NoAction, onUpdate: NoAction, map: "fk_licence_user_c_licenceduser_userid")
+  seatAssignments       LicenceSeatAssignment[]
+
+  @@index([organizationId])
+  @@index([licenceduserid])
+  @@index([manufacturerid])
+  @@index([supplierid])
+  @@index([licencecategorytypeid])
+  @@index([expirationdate])
+  @@index([organizationId, expirationdate])
+  @@schema("public")
+}
+
+model licenceCategoryType {
+  licencecategorytypeid   String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  licencecategorytypename String        @db.VarChar
+  organizationId          String?       @db.Uuid
+  organization            Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  licence                 licence[]
+
+  @@index([organizationId])
+  @@schema("public")
+}
+
+model location {
+  locationid        String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  locationname      String?         @db.VarChar
+  street            String?         @db.VarChar
+  housenumber       String?         @db.VarChar
+  city              String?         @db.VarChar
+  country           String?         @db.VarChar
+  latitude          Float?
+  longitude         Float?
+  creation_date     DateTime        @db.Timestamp(6)
+  change_date       DateTime?       @db.Timestamp(6)
+  parentId          String?         @db.Uuid
+  organizationId    String?         @db.Uuid
+  organization      Organization?   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  parent            location?       @relation("LocationHierarchy", fields: [parentId], references: [locationid], onDelete: SetNull)
+  children          location[]      @relation("LocationHierarchy")
+  accessories       accessories[]
+  asset             asset[]
+  components        Component[]
+  checkoutsReceived AssetCheckout[] @relation("checkout_to_location")
+  auditEntries      AuditEntry[]
+  households        Household[]
+  generalAssets     GeneralAsset[]
+
+  @@index([parentId])
+  @@index([organizationId])
+  @@schema("public")
+}
+
+model maintenance_logs {
+  id                    String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  scheduleId            String                @db.Uuid
+  completedBy           String?               @db.Uuid
+  completedAt           DateTime              @default(now()) @db.Timestamp(6)
+  notes                 String?
+  actualCost            Decimal?              @db.Decimal(10, 2)
+  createdAt             DateTime              @default(now()) @db.Timestamp(6)
+  user                  user?                 @relation(fields: [completedBy], references: [userid])
+  maintenance_schedules maintenance_schedules @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+
+  @@index([scheduleId])
+  @@index([completedBy])
+  @@schema("public")
+}
+
+model maintenance_schedules {
+  id               String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  assetId          String             @db.Uuid
+  title            String             @db.VarChar(255)
+  description      String?
+  frequency        String             @db.VarChar(20)
+  nextDueDate      DateTime           @db.Date
+  lastCompletedAt  DateTime?          @db.Timestamp(6)
+  assignedTo       String?            @db.Uuid
+  estimatedCost    Decimal?           @db.Decimal(10, 2)
+  isActive         Boolean            @default(true)
+  createdAt        DateTime           @default(now()) @db.Timestamp(6)
+  updatedAt        DateTime           @db.Timestamp(6)
+  maintenance_logs maintenance_logs[]
+  asset            asset              @relation(fields: [assetId], references: [assetid], onDelete: Cascade)
+  user             user?              @relation(fields: [assignedTo], references: [userid])
+
+  @@index([nextDueDate])
+  @@index([assetId])
+  @@index([assignedTo])
+  @@index([isActive])
+  @@index([isActive, nextDueDate])
+  @@schema("public")
+}
+
+model manufacturer {
+  manufacturerid   String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  manufacturername String        @db.VarChar
+  creation_date    DateTime      @db.Timestamp(6)
+  change_date      DateTime?     @db.Timestamp(6)
+  organizationId   String?       @db.Uuid
+  organization     Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  accessories      accessories[]
+  asset            asset[]
+  consumable       consumable[]
+  licence          licence[]
+  components       Component[]
+
+  @@index([organizationId])
+  @@schema("public")
+}
+
+model model {
+  modelid        String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  modelname      String        @db.VarChar
+  modelnumber    String?       @db.VarChar
+  creation_date  DateTime      @db.Timestamp(6)
+  change_date    DateTime?     @db.Timestamp(6)
+  organizationId String?       @db.Uuid
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  accessories    accessories[]
+  asset          asset[]
+
+  @@index([organizationId])
+  @@schema("public")
+}
+
+model app_notification {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String   @db.Uuid
+  type      String   @db.VarChar(50)
+  category  String   @default("system") @db.VarChar(30)
+  title     String   @db.VarChar(255)
+  body      String
+  icon      String?
+  link      String?
+  metadata  String?
+  readAt    DateTime? @db.Timestamp(6)
+  createdAt DateTime @default(now()) @db.Timestamp(6)
+  user      user     @relation(fields: [userId], references: [userid], onDelete: Cascade)
+
+  @@index([userId, readAt])
+  @@index([userId, createdAt])
+  @@index([userId, category])
+  @@index([userId, type])
+  @@schema("public")
+}
+
+model notification_preferences {
+  id                      String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId                  String   @unique @db.Uuid
+  emailAssignments        Boolean  @default(true)
+  emailUnassignments      Boolean  @default(true)
+  emailLicenseExpiry      Boolean  @default(true)
+  emailMaintenanceDue     Boolean  @default(true)
+  emailLowStock           Boolean  @default(false)
+  licenseExpiryDays       Int      @default(30)
+  maintenanceReminderDays Int      @default(7)
+  lowStockThreshold       Int      @default(10)
+  createdAt               DateTime @default(now()) @db.Timestamp(6)
+  updatedAt               DateTime @db.Timestamp(6)
+  user                    user     @relation(fields: [userId], references: [userid], onDelete: Cascade)
+
+  @@schema("public")
+}
+
+model notification_queue {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId      String?   @db.Uuid
+  type        String    @db.VarChar(50)
+  recipient   String    @db.VarChar(255)
+  subject     String    @db.VarChar(255)
+  body        String
+  status      String    @default("pending") @db.VarChar(20)
+  attempts    Int       @default(0)
+  lastError   String?
+  scheduledAt DateTime  @default(now()) @db.Timestamp(6)
+  sentAt      DateTime? @db.Timestamp(6)
+  createdAt   DateTime  @default(now()) @db.Timestamp(6)
+  user        user?     @relation(fields: [userId], references: [userid])
+
+  @@index([userId])
+  @@index([status])
+  @@index([status, scheduledAt])
+  @@schema("public")
+}
+
+model saved_filters {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String   @db.Uuid
+  name      String   @db.VarChar(100)
+  entity    String   @db.VarChar(50)
+  filters   String
+  isDefault Boolean  @default(false)
+  isGlobal  Boolean  @default(false)
+  createdAt DateTime @default(now()) @db.Timestamp(6)
+  updatedAt DateTime @db.Timestamp(6)
+  user      user     @relation(fields: [userId], references: [userid], onDelete: Cascade)
+
+  @@index([userId])
+  @@schema("public")
+}
+
+model sessions {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  token      String   @unique
+  userId     String   @db.Uuid
+  expiresAt  DateTime
+  ipAddress  String?  @db.VarChar(45)
+  userAgent  String?  @db.VarChar(500)
+  deviceName String?  @db.VarChar(100)
+  lastActive DateTime @default(now()) @db.Timestamp(6)
+  createdAt  DateTime @default(now()) @db.Timestamp(6)
+  updatedAt  DateTime @default(now()) @db.Timestamp(6)
+  isCurrent  Boolean  @default(false)
+  user       user     @relation(fields: [userId], references: [userid], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("sessions")
+  @@schema("public")
+}
+
+model statusType {
+  statustypeid    String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  statustypename  String               @db.VarChar
+  color           String?              @db.VarChar(7)
+  isDefault       Boolean              @default(false)
+  organizationId  String?              @db.Uuid
+  organization    Organization?        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  accessories     accessories[]
+  asset           asset[]
+  transitionsFrom status_transitions[] @relation("from_status")
+  transitionsTo   status_transitions[] @relation("to_status")
+
+  @@index([organizationId])
+  @@schema("public")
+}
+
+model status_transitions {
+  id                 String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  fromStatusId       String     @db.Uuid
+  toStatusId         String     @db.Uuid
+  requiredRole       String?    @db.VarChar(50)
+  notifyOnTransition Boolean    @default(false)
+  fromStatus         statusType @relation("from_status", fields: [fromStatusId], references: [statustypeid], onDelete: Cascade)
+  toStatus           statusType @relation("to_status", fields: [toStatusId], references: [statustypeid], onDelete: Cascade)
+  createdAt          DateTime   @default(now()) @db.Timestamp(6)
+
+  @@unique([fromStatusId, toStatusId])
+  @@schema("public")
+}
+
+model supplier {
+  supplierid           String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  suppliername         String                @db.VarChar
+  lastname             String?               @db.VarChar
+  firstname            String?               @db.VarChar
+  salutation           String?               @db.VarChar
+  email                String?               @db.VarChar
+  phonenumber          String?               @db.VarChar
+  website              String?               @db.VarChar(500)
+  creation_date        DateTime              @db.Timestamp(6)
+  change_date          DateTime?             @db.Timestamp(6)
+  organizationId       String?               @db.Uuid
+  organization         Organization?         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  accessories          accessories[]
+  asset                asset[]
+  consumable           consumable[]
+  licence              licence[]
+  components           Component[]
+  purchaseRequestItems PurchaseRequestItem[]
+  purchaseOrders       PurchaseOrder[]
+
+  @@index([organizationId])
+  @@schema("public")
+}
+
+model system_settings {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  settingKey   String   @unique @db.VarChar(100)
+  settingValue String?
+  settingType  String   @db.VarChar(20)
+  category     String   @db.VarChar(50)
+  description  String?
+  isEncrypted  Boolean  @default(false)
+  createdAt    DateTime @default(now()) @db.Timestamp(6)
+  updatedAt    DateTime @db.Timestamp(6)
+
+  @@schema("public")
+}
+
+model ticket_comments {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ticketId  String   @db.Uuid
+  userId    String   @db.Uuid
+  comment   String
+  createdAt DateTime @default(now()) @db.Timestamp(6)
+  tickets   tickets  @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  user      user     @relation(fields: [userId], references: [userid], onDelete: Cascade)
+
+  @@index([ticketId])
+  @@index([userId])
+  @@schema("public")
+}
+
+model tickets {
+  id                            String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  title                         String            @db.VarChar(255)
+  description                   String?
+  status                        String            @default("new") @db.VarChar(20)
+  priority                      String            @default("medium") @db.VarChar(20)
+  createdBy                     String            @db.Uuid
+  assignedTo                    String?           @db.Uuid
+  createdAt                     DateTime          @default(now()) @db.Timestamp(6)
+  updatedAt                     DateTime          @db.Timestamp(6)
+  ticket_comments               ticket_comments[]
+  user_tickets_assignedToTouser user?             @relation("tickets_assignedToTouser", fields: [assignedTo], references: [userid])
+  user_tickets_createdByTouser  user              @relation("tickets_createdByTouser", fields: [createdBy], references: [userid], onDelete: Cascade)
+
+  @@index([status])
+  @@index([createdBy])
+  @@index([assignedTo])
+  @@index([createdAt])
+  @@schema("public")
+}
+
+model user {
+  userid                           String                    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  username                         String?                   @unique @db.VarChar
+  isadmin                          Boolean
+  canrequest                       Boolean
+  lastname                         String                    @db.VarChar
+  firstname                        String                    @db.VarChar
+  email                            String                    @unique @db.VarChar
+  lan                              String?                   @db.VarChar
+  password                         String?                   @db.VarChar
+  organizationId                   String?                   @db.Uuid
+  departmentId                     String?                   @db.Uuid
+  creation_date                    DateTime                  @db.Timestamp(6)
+  change_date                      DateTime?                 @db.Timestamp(6)
+  mfaEnabled                       Boolean                   @default(false)
+  mfaSecret                        String?                   @db.VarChar(255)
+  mfaBackupCodes                   String[]
+  // Phase 4A: LDAP/SSO fields
+  authProvider                     String                    @default("local") @db.VarChar(20)
+  externalId                       String?                   @db.VarChar(255)
+  ldapDN                           String?
+  lastSyncedAt                     DateTime?                 @db.Timestamp(6)
+  isActive                         Boolean                   @default(true)
+  accessExpiresAt                  DateTime?                 @db.Timestamp(6)
+  // Phase 4B: SCIM fields
+  scimProviderId                   String?                   @db.VarChar(255)
+  scimLastSync                     DateTime?                 @db.Timestamp(6)
+  emailVerified                    Boolean                   @default(false)
+  image                            String?
+  twoFactorEnabled                 Boolean?
+  updatedAt                        DateTime                  @default(now())
+  accounts                         accounts[]
+  app_notifications                app_notification[]
+  asset_attachments                asset_attachments[]
+  assetReservations                AssetReservation[]
+  audit_logs                       audit_logs[]
+  department                       Department?               @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  importJobs                       ImportJob[]
+  licence                          licence[]
+  maintenance_logs                 maintenance_logs[]
+  maintenance_schedules            maintenance_schedules[]
+  notification_preferences         notification_preferences?
+  notification_queue               notification_queue[]
+  organization                     Organization?             @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  roles                            UserRole[]
+  saved_filters                    saved_filters[]
+  sessions                         sessions[]
+  ticket_comments                  ticket_comments[]
+  tickets_tickets_assignedToTouser tickets[]                 @relation("tickets_assignedToTouser")
+  tickets_tickets_createdByTouser  tickets[]                 @relation("tickets_createdByTouser")
+  user_preferences                 user_preferences?
+  consumable_checkouts             consumable_checkouts[]
+  userAccessoires                  userAccessoires[]
+  userAssets                       userAssets[]
+  userHistory                      userHistory[]
+  approvalRequests                 ApprovalRequest[]         @relation("approval_requester")
+  approvalDecisions                ApprovalRequest[]         @relation("approval_approver")
+  automationRules                  AutomationRule[]          @relation("automation_creator")
+  checkoutsReceived                AssetCheckout[]           @relation("checkout_to")
+  checkoutsInitiated               AssetCheckout[]           @relation("checkout_by")
+  componentCheckoutsInitiated      ComponentCheckout[]       @relation("component_checkout_by")
+  licenceSeatAssignments           LicenceSeatAssignment[]   @relation("licence_seat_user")
+  licenceSeatAssignmentsGranted    LicenceSeatAssignment[]   @relation("licence_seat_assigner")
+  teamInvitations                  TeamInvitation[]          @relation("invitation_inviter")
+  dashboardWidgets                 DashboardWidget[]
+  eulaAcceptances                  EulaAcceptance[]
+  auditCampaignsCreated            AuditCampaign[]           @relation("audit_campaign_creator")
+  auditCampaignAuditorRoles        AuditCampaignAuditor[]
+  auditEntriesAudited              AuditEntry[]              @relation("audit_entry_auditor")
+  twoFactorEntries                 twoFactor[]
+  apiKeys                          ApiKey[]
+  itemRequestsCreated              ItemRequest[]             @relation("item_request_user")
+  itemRequestsApproved             ItemRequest[]             @relation("item_request_approver")
+  reportSchedules                  ReportSchedule[]
+  purchaseRequestsCreated          PurchaseRequest[]         @relation("pr_requester")
+  purchaseRequestsApproved         PurchaseRequest[]         @relation("pr_approver")
+  goodsReceiptsRecorded            GoodsReceipt[]            @relation("gr_receiver")
+  employeeProfile                  Employee?                 @relation("employee_user")
+
+  @@index([firstname, lastname])
+  @@index([organizationId])
+  @@index([departmentId])
+  @@index([organizationId, lastname, firstname])
+  @@index([isActive, accessExpiresAt])
+  @@schema("public")
+}
+
+model ApiKey {
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId     String    @db.Uuid
+  user       user      @relation(fields: [userId], references: [userid], onDelete: Cascade)
+  name       String    @db.VarChar(100)
+  keyPrefix  String    @db.VarChar(8)
+  keyHash    String    @db.VarChar(255)
+  scopes     String[]  @default([])
+  lastUsedAt DateTime? @db.Timestamp(6)
+  expiresAt  DateTime? @db.Timestamp(6)
+  isActive   Boolean   @default(true)
+  createdAt  DateTime  @default(now()) @db.Timestamp(6)
+
+  @@index([userId])
+  @@index([keyPrefix])
+  @@index([isActive])
+  @@map("api_keys")
+  @@schema("public")
+}
+
+model ReportSchedule {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId         String    @db.Uuid
+  user           user      @relation(fields: [userId], references: [userid], onDelete: Cascade)
+  organizationId String?   @db.Uuid
+  reportType     String    @db.VarChar(30)
+  frequency      String    @db.VarChar(10)
+  format         String    @default("csv") @db.VarChar(10)
+  isActive       Boolean   @default(true)
+  lastSentAt     DateTime? @db.Timestamp(6)
+  nextRunAt      DateTime  @db.Timestamp(6)
+  createdAt      DateTime  @default(now()) @db.Timestamp(6)
+  updatedAt      DateTime  @updatedAt @db.Timestamp(6)
+
+  @@index([userId])
+  @@index([organizationId])
+  @@index([isActive, nextRunAt])
+  @@map("report_schedules")
+  @@schema("public")
+}
+
+model userAccessoires {
+  useraccessoiresid String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userid            String      @db.Uuid
+  accessorieid      String      @db.Uuid
+  creation_date     DateTime    @db.Timestamp(6)
+  change_date       DateTime?   @db.Timestamp(6)
+  accessories       accessories @relation(fields: [accessorieid], references: [accessorieid], onDelete: NoAction, onUpdate: NoAction, map: "fk_useraccessoires_accessories_c_accessorieid")
+  user              user        @relation(fields: [userid], references: [userid], onDelete: NoAction, onUpdate: NoAction, map: "fk_useraccessoires_user_c_userid")
+
+  @@index([userid])
+  @@index([accessorieid])
+  @@schema("public")
+}
+
+model userAssets {
+  userassetsid  String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userid        String    @db.Uuid
+  assetid       String    @db.Uuid
+  creation_date DateTime  @db.Timestamp(6)
+  change_date   DateTime? @db.Timestamp(6)
+  asset         asset     @relation(fields: [assetid], references: [assetid], onDelete: NoAction, onUpdate: NoAction, map: "fk_userassets_asset_c_assetid")
+  user          user      @relation(fields: [userid], references: [userid], onDelete: NoAction, onUpdate: NoAction, map: "fk_userassets_user_c_userid")
+
+  @@index([userid])
+  @@index([assetid])
+  @@schema("public")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model userHistory {
+  historyid      String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  referenceid    String?   @db.Uuid
+  referencetable String?   @db.VarChar(20)
+  userid         String    @db.Uuid
+  actionname     String    @db.VarChar
+  updatedate     DateTime? @db.Date
+  checkedout     DateTime? @db.Date
+  checkedin      DateTime? @db.Date
+  creation_date  DateTime  @db.Timestamp(6)
+  change_date    DateTime? @db.Timestamp(6)
+  user           user      @relation(fields: [userid], references: [userid], onDelete: NoAction, onUpdate: NoAction, map: "fk_userhistory_user_c_userid")
+
+  @@index([userid])
+  @@index([referenceid])
+  @@index([creation_date])
+  @@schema("public")
+}
+
+model user_preferences {
+  id                  String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId              String   @unique @db.Uuid
+  theme               String   @default("system") @db.VarChar(20)
+  locale              String   @default("en") @db.VarChar(10)
+  timezone            String   @default("UTC") @db.VarChar(50)
+  currency            String   @default("USD") @db.VarChar(10)
+  dateFormat          String   @default("MM/DD/YYYY") @db.VarChar(20)
+  numberFormat        String   @default("1,234.56") @db.VarChar(20)
+  pageSize            Int      @default(20)
+  onboardingCompleted Boolean  @default(false)
+  dashboardLayout     Json?
+  helpDismissed       Json?
+  createdAt           DateTime @default(now()) @db.Timestamp(6)
+  updatedAt           DateTime @db.Timestamp(6)
+  user                user     @relation(fields: [userId], references: [userid], onDelete: Cascade)
+
+  @@schema("public")
+}
+
+model consumable_checkouts {
+  id           String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  consumableId String     @db.Uuid
+  userId       String     @db.Uuid
+  quantity     Int        @default(1)
+  notes        String?
+  checkedOutAt DateTime   @default(now()) @db.Timestamp(6)
+  createdAt    DateTime   @default(now()) @db.Timestamp(6)
+  consumable   consumable @relation(fields: [consumableId], references: [consumableid], onDelete: Cascade)
+  user         user       @relation(fields: [userId], references: [userid])
+
+  @@index([consumableId])
+  @@index([userId])
+  @@schema("public")
+}
+
+model verification {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @default(now())
+
+  @@map("verification")
+  @@schema("public")
+}
+
+model twoFactor {
+  id          String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  secret      String
+  backupCodes String
+  userId      String @db.Uuid
+  user        user   @relation(fields: [userId], references: [userid], onDelete: Cascade)
+
+  @@map("twoFactor")
+  @@schema("public")
+}
+
+// Asset Check-in/Check-out History (Phase 1B: Polymorphic Checkout)
+model AssetCheckout {
+  id                     String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  assetId                String          @db.Uuid
+  asset                  asset           @relation(fields: [assetId], references: [assetid], onDelete: Cascade)
+  checkedOutToType       String          @default("user") @db.VarChar(20) // user, location, asset
+  checkedOutTo           String?         @db.Uuid
+  checkedOutToUser       user?           @relation("checkout_to", fields: [checkedOutTo], references: [userid], onDelete: Cascade)
+  checkedOutToLocationId String?         @db.Uuid
+  checkedOutToLocation   location?       @relation("checkout_to_location", fields: [checkedOutToLocationId], references: [locationid])
+  checkedOutToAssetId    String?         @db.Uuid
+  checkedOutToAsset      asset?          @relation("checkout_to_asset", fields: [checkedOutToAssetId], references: [assetid])
+  checkedOutBy           String          @db.Uuid
+  checkedOutByUser       user            @relation("checkout_by", fields: [checkedOutBy], references: [userid], onDelete: Cascade)
+  checkoutDate           DateTime        @default(now()) @db.Timestamp(6)
+  expectedReturn         DateTime?       @db.Timestamp(6)
+  returnDate             DateTime?       @db.Timestamp(6)
+  notes                  String?
+  status                 String          @default("checked_out") @db.VarChar(20) // checked_out, returned, overdue
+  createdAt              DateTime        @default(now()) @db.Timestamp(6)
+  updatedAt              DateTime        @updatedAt @db.Timestamp(6)
+  eulaAcceptance         EulaAcceptance?
+
+  @@index([assetId])
+  @@index([checkedOutTo])
+  @@index([checkedOutToLocationId])
+  @@index([checkedOutToAssetId])
+  @@index([status])
+  @@index([assetId, status])
+  @@map("asset_checkouts")
+  @@schema("public")
+}
+
+// Team Invitation System
+model TeamInvitation {
+  id             String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email          String       @db.VarChar(255)
+  organizationId String       @db.Uuid
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  roleId         String?      @db.Uuid
+  role           Role?        @relation(fields: [roleId], references: [id], onDelete: SetNull)
+  invitedBy      String       @db.Uuid
+  inviter        user         @relation("invitation_inviter", fields: [invitedBy], references: [userid], onDelete: Cascade)
+  token          String       @unique @db.VarChar(255)
+  status         String       @default("pending") @db.VarChar(20) // pending, accepted, expired, revoked
+  expiresAt      DateTime     @db.Timestamp(6)
+  acceptedAt     DateTime?    @db.Timestamp(6)
+  createdAt      DateTime     @default(now()) @db.Timestamp(6)
+  updatedAt      DateTime     @updatedAt @db.Timestamp(6)
+
+  @@index([organizationId])
+  @@index([email])
+  @@index([token])
+  @@index([status])
+  @@map("team_invitations")
+  @@schema("public")
+}
+
+// ============================================================================
+// Phase 1A: Components Tracking
+// ============================================================================
+
+model ComponentCategory {
+  id             String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name           String        @db.VarChar(100)
+  organizationId String?       @db.Uuid
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  components Component[]
+
+  @@index([organizationId])
+  @@map("component_categories")
+  @@schema("public")
+}
+
+model Component {
+  id                String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name              String            @db.VarChar(255)
+  serialNumber      String?           @db.VarChar(255)
+  categoryId        String            @db.Uuid
+  category          ComponentCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  totalQuantity     Int               @default(0)
+  remainingQuantity Int               @default(0)
+  purchasePrice     Decimal?          @db.Decimal(10, 2)
+  purchaseDate      DateTime?         @db.Date
+  minQuantity       Int               @default(0)
+  manufacturerId    String?           @db.Uuid
+  manufacturer      manufacturer?     @relation(fields: [manufacturerId], references: [manufacturerid])
+  supplierId        String?           @db.Uuid
+  supplier          supplier?         @relation(fields: [supplierId], references: [supplierid])
+  locationId        String?           @db.Uuid
+  location          location?         @relation(fields: [locationId], references: [locationid])
+  organizationId    String?           @db.Uuid
+  organization      Organization?     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdAt         DateTime          @default(now()) @db.Timestamp(6)
+  updatedAt         DateTime          @updatedAt @db.Timestamp(6)
+
+  checkouts ComponentCheckout[]
+
+  @@index([categoryId])
+  @@index([organizationId])
+  @@index([manufacturerId])
+  @@index([supplierId])
+  @@index([locationId])
+  @@map("components")
+  @@schema("public")
+}
+
+model ComponentCheckout {
+  id               String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  componentId      String    @db.Uuid
+  component        Component @relation(fields: [componentId], references: [id], onDelete: Cascade)
+  assetId          String    @db.Uuid
+  asset            asset     @relation(fields: [assetId], references: [assetid], onDelete: Cascade)
+  quantity         Int       @default(1)
+  checkedOutBy     String    @db.Uuid
+  checkedOutByUser user      @relation("component_checkout_by", fields: [checkedOutBy], references: [userid])
+  checkedOutAt     DateTime  @default(now()) @db.Timestamp(6)
+  returnedAt       DateTime? @db.Timestamp(6)
+  notes            String?
+
+  @@index([componentId])
+  @@index([assetId])
+  @@map("component_checkouts")
+  @@schema("public")
+}
+
+// ============================================================================
+// Phase 1C: Multi-seat License Management
+// ============================================================================
+
+model LicenceSeatAssignment {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  licenceId      String    @db.Uuid
+  licence        licence   @relation(fields: [licenceId], references: [licenceid], onDelete: Cascade)
+  userId         String    @db.Uuid
+  user           user      @relation("licence_seat_user", fields: [userId], references: [userid], onDelete: Cascade)
+  seatNumber     Int
+  assignedAt     DateTime  @default(now()) @db.Timestamp(6)
+  assignedBy     String?   @db.Uuid
+  assignedByUser user?     @relation("licence_seat_assigner", fields: [assignedBy], references: [userid])
+  unassignedAt   DateTime? @db.Timestamp(6)
+  notes          String?
+
+  @@unique([licenceId, seatNumber])
+  @@unique([licenceId, userId])
+  @@index([licenceId])
+  @@index([userId])
+  @@map("licence_seat_assignments")
+  @@schema("public")
+}
+
+// Phase 2A: EULA Templates
+model EulaTemplate {
+  id             String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name           String        @db.VarChar(200)
+  content        String // full EULA text (HTML/Markdown)
+  version        Int           @default(1)
+  isActive       Boolean       @default(true)
+  organizationId String?       @db.Uuid
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdAt      DateTime      @default(now()) @db.Timestamp(6)
+  updatedAt      DateTime      @updatedAt @db.Timestamp(6)
+
+  acceptances EulaAcceptance[]
+  categories  assetCategoryType[] @relation("category_eula")
+
+  @@index([organizationId])
+  @@index([isActive])
+  @@map("eula_templates")
+  @@schema("public")
+}
+
+// Phase 2A: EULA Acceptances (digital signatures)
+model EulaAcceptance {
+  id             String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  eulaTemplateId String        @db.Uuid
+  eulaTemplate   EulaTemplate  @relation(fields: [eulaTemplateId], references: [id], onDelete: Cascade)
+  userId         String        @db.Uuid
+  user           user          @relation(fields: [userId], references: [userid], onDelete: Cascade)
+  checkoutId     String        @unique @db.Uuid
+  checkout       AssetCheckout @relation(fields: [checkoutId], references: [id], onDelete: Cascade)
+  signatureData  String? // base64 PNG from canvas signature
+  ipAddress      String?       @db.VarChar(45)
+  userAgent      String?       @db.VarChar(500)
+  acceptedAt     DateTime      @default(now()) @db.Timestamp(6)
+
+  @@index([eulaTemplateId])
+  @@index([userId])
+  @@index([checkoutId])
+  @@map("eula_acceptances")
+  @@schema("public")
+}
+
+// Phase 3A: Predefined Kits
+model Kit {
+  id             String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name           String        @db.VarChar(200)
+  description    String?
+  isActive       Boolean       @default(true)
+  organizationId String?       @db.Uuid
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdAt      DateTime      @default(now()) @db.Timestamp(6)
+  updatedAt      DateTime      @updatedAt @db.Timestamp(6)
+
+  items KitItem[]
+
+  @@index([organizationId])
+  @@index([isActive])
+  @@map("kits")
+  @@schema("public")
+}
+
+// Phase 3A: Kit Items (references categories/templates, not specific instances)
+model KitItem {
+  id         String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  kitId      String  @db.Uuid
+  kit        Kit     @relation(fields: [kitId], references: [id], onDelete: Cascade)
+  entityType String  @db.VarChar(30) // asset_category, accessory, licence, component
+  entityId   String  @db.Uuid // ID of the category/template entity
+  quantity   Int     @default(1)
+  isRequired Boolean @default(true)
+  notes      String?
+
+  @@index([kitId])
+  @@map("kit_items")
+  @@schema("public")
+}
+
+// Phase 3B: Audit Campaigns
+model AuditCampaign {
+  id             String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name           String        @db.VarChar(200)
+  description    String?
+  status         String        @default("draft") @db.VarChar(20) // draft, active, completed, cancelled
+  startDate      DateTime?     @db.Timestamp(6)
+  dueDate        DateTime?     @db.Timestamp(6)
+  completedAt    DateTime?     @db.Timestamp(6)
+  organizationId String?       @db.Uuid
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdBy      String        @db.Uuid
+  creator        user          @relation("audit_campaign_creator", fields: [createdBy], references: [userid])
+  scopeType      String        @default("all") @db.VarChar(20) // all, location, category
+  scopeId        String?       @db.Uuid
+  createdAt      DateTime      @default(now()) @db.Timestamp(6)
+  updatedAt      DateTime      @updatedAt @db.Timestamp(6)
+
+  auditors AuditCampaignAuditor[]
+  entries  AuditEntry[]
+
+  @@index([organizationId])
+  @@index([status])
+  @@index([createdBy])
+  @@map("audit_campaigns")
+  @@schema("public")
+}
+
+// Phase 3B: Audit Campaign Auditors
+model AuditCampaignAuditor {
+  id         String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  campaignId String        @db.Uuid
+  campaign   AuditCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  userId     String        @db.Uuid
+  user       user          @relation(fields: [userId], references: [userid], onDelete: Cascade)
+
+  @@unique([campaignId, userId])
+  @@map("audit_campaign_auditors")
+  @@schema("public")
+}
+
+// Phase 3B: Audit Entries (one per asset per campaign)
+model AuditEntry {
+  id         String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  campaignId String        @db.Uuid
+  campaign   AuditCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  assetId    String        @db.Uuid
+  asset      asset         @relation(fields: [assetId], references: [assetid], onDelete: Cascade)
+  status     String        @default("unscanned") @db.VarChar(20) // unscanned, found, missing, moved
+  auditedBy  String?       @db.Uuid
+  auditor    user?         @relation("audit_entry_auditor", fields: [auditedBy], references: [userid])
+  auditedAt  DateTime?     @db.Timestamp(6)
+  locationId String?       @db.Uuid
+  location   location?     @relation(fields: [locationId], references: [locationid])
+  notes      String?
+
+  @@unique([campaignId, assetId])
+  @@index([campaignId])
+  @@index([assetId])
+  @@index([status])
+  @@map("audit_entries")
+  @@schema("public")
+}
+
+// Phase 4A: LDAP Sync Log
+model LdapSyncLog {
+  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  status           String   @db.VarChar(20) // success, failed, partial
+  usersCreated     Int      @default(0)
+  usersUpdated     Int      @default(0)
+  usersDeactivated Int      @default(0)
+  errors           Json?
+  triggeredBy      String?  @db.VarChar(50) // cron, manual, api
+  durationMs       Int?
+  createdAt        DateTime @default(now()) @db.Timestamp(6)
+
+  @@index([createdAt])
+  @@map("ldap_sync_logs")
+  @@schema("public")
+}
+
+// Customizable Dashboard Widgets
+model DashboardWidget {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId     String   @db.Uuid
+  user       user     @relation(fields: [userId], references: [userid], onDelete: Cascade)
+  widgetType String   @db.VarChar(50) // stats, assetsByStatus, recentActivity, upcomingMaintenance, expiringLicences, costOverview
+  position   Int
+  visible    Boolean  @default(true)
+  config     Json?
+  createdAt  DateTime @default(now()) @db.Timestamp(6)
+  updatedAt  DateTime @updatedAt @db.Timestamp(6)
+
+  @@index([userId])
+  @@index([userId, position])
+  @@map("dashboard_widgets")
+  @@schema("public")
+}
+
+// ============================================================================
+// Unified Item Request System
+// ============================================================================
+
+model ItemRequest {
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  entityType String    @db.VarChar(30)
+  entityId   String    @db.Uuid
+  userId     String    @db.Uuid
+  status     String    @default("pending") @db.VarChar(20)
+  startDate  DateTime? @db.Date
+  endDate    DateTime? @db.Date
+  notes      String?
+  quantity   Int       @default(1)
+  approvedBy String?   @db.Uuid
+  approvedAt DateTime? @db.Timestamp(6)
+  returnedAt DateTime? @db.Timestamp(6)
+  createdAt  DateTime  @default(now()) @db.Timestamp(6)
+  updatedAt  DateTime  @db.Timestamp(6)
+  user       user      @relation("item_request_user", fields: [userId], references: [userid], onDelete: Cascade)
+  approver   user?     @relation("item_request_approver", fields: [approvedBy], references: [userid])
+
+  @@index([userId])
+  @@index([status])
+  @@index([entityType, entityId])
+  @@map("item_requests")
+  @@schema("public")
+}
+
+// ---------------------------------------------------------------------------
+// Procurement Workflow
+// ---------------------------------------------------------------------------
+
+model PurchaseRequest {
+  id             String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  title          String       @db.VarChar(255)
+  description    String?
+  requesterId    String       @db.Uuid
+  requester      user         @relation("pr_requester", fields: [requesterId], references: [userid], onDelete: Cascade)
+  departmentId   String?      @db.Uuid
+  department     Department?  @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  organizationId String       @db.Uuid
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  status         String       @default("draft") @db.VarChar(30)
+  priority       String       @default("medium") @db.VarChar(20)
+  estimatedTotal Decimal?     @db.Decimal(12, 2)
+  approvedBy     String?      @db.Uuid
+  approver       user?        @relation("pr_approver", fields: [approvedBy], references: [userid], onDelete: SetNull)
+  approvedAt     DateTime?    @db.Timestamp(6)
+  notes          String?
+  createdAt      DateTime     @default(now()) @db.Timestamp(6)
+  updatedAt      DateTime     @updatedAt @db.Timestamp(6)
+
+  items          PurchaseRequestItem[]
+  purchaseOrders PurchaseOrder[]
+
+  @@index([organizationId])
+  @@index([status])
+  @@index([requesterId])
+  @@map("purchase_requests")
+  @@schema("public")
+}
+
+model PurchaseRequestItem {
+  id                String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  purchaseRequestId String          @db.Uuid
+  purchaseRequest   PurchaseRequest @relation(fields: [purchaseRequestId], references: [id], onDelete: Cascade)
+  entityType        String          @default("other") @db.VarChar(30)
+  description       String          @db.VarChar(500)
+  quantity          Int             @default(1)
+  estimatedUnitCost Decimal?        @db.Decimal(10, 2)
+  supplierId        String?         @db.Uuid
+  supplier          supplier?       @relation(fields: [supplierId], references: [supplierid], onDelete: SetNull)
+  receivedQuantity  Int             @default(0)
+  notes             String?
+
+  @@index([purchaseRequestId])
+  @@map("purchase_request_items")
+  @@schema("public")
+}
+
+model PurchaseOrder {
+  id                   String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  purchaseRequestId    String?          @db.Uuid
+  purchaseRequest      PurchaseRequest? @relation(fields: [purchaseRequestId], references: [id], onDelete: SetNull)
+  poNumber             String           @unique @db.VarChar(50)
+  supplierId           String?          @db.Uuid
+  supplier             supplier?        @relation(fields: [supplierId], references: [supplierid], onDelete: SetNull)
+  organizationId       String           @db.Uuid
+  organization         Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  status               String           @default("draft") @db.VarChar(30)
+  totalAmount          Decimal?         @db.Decimal(12, 2)
+  sentAt               DateTime?        @db.Timestamp(6)
+  expectedDeliveryDate DateTime?        @db.Date
+  notes                String?
+  createdAt            DateTime         @default(now()) @db.Timestamp(6)
+  updatedAt            DateTime         @updatedAt @db.Timestamp(6)
+
+  goodsReceipts GoodsReceipt[]
+
+  @@index([organizationId])
+  @@index([status])
+  @@index([purchaseRequestId])
+  @@map("purchase_orders")
+  @@schema("public")
+}
+
+model GoodsReceipt {
+  id              String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  purchaseOrderId String        @db.Uuid
+  purchaseOrder   PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  receivedBy      String        @db.Uuid
+  receiver        user          @relation("gr_receiver", fields: [receivedBy], references: [userid], onDelete: Cascade)
+  receivedAt      DateTime      @default(now()) @db.Timestamp(6)
+  notes           String?
+  items           Json          @default("[]")
+
+  @@index([purchaseOrderId])
+  @@map("goods_receipts")
+  @@schema("public")
+}
+
+model Employee {
+  id             String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String       @db.Uuid
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  // Linked system user (optional) — enables tie-in with login accounts
+  userid String? @unique @db.Uuid
+  user   user?   @relation("employee_user", fields: [userid], references: [userid], onDelete: SetNull)
+
+  // Department
+  departmentId String?     @db.Uuid
+  department   Department? @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+
+  // Reporting manager (self-reference)
+  managerId String?    @db.Uuid
+  manager   Employee?  @relation("EmployeeManager", fields: [managerId], references: [id], onDelete: SetNull)
+  reports   Employee[] @relation("EmployeeManager")
+
+  // House Queue decision ledger (one current allocation thread per employee)
+  allocations HouseAllocation[]
+
+  // Personal information
+  employeeNumber String    @unique @db.VarChar(50)
+  firstname      String    @db.VarChar(100)
+  lastname       String    @db.VarChar(100)
+  email          String    @unique @db.VarChar(254)
+  phone          String?   @db.VarChar(25)
+  dateOfBirth    DateTime? @db.Date
+  gender         String?   @db.VarChar(20)
+  address        String?   @db.VarChar(255)
+  city           String?   @db.VarChar(100)
+  state          String?   @db.VarChar(100)
+  country        String?   @db.VarChar(100)
+  postalCode     String?   @db.VarChar(20)
+
+  // Employment information
+  jobTitle         String?   @db.VarChar(100)
+  employmentType   String    @default("full_time") @db.VarChar(30)
+  employmentStatus String    @default("active") @db.VarChar(30)
+  jobGrade         Int?      @db.SmallInt
+  hireDate         DateTime? @db.Date
+  terminationDate  DateTime? @db.Date
+  notes            String?   @db.VarChar(1000)
+
+  // Housing indicators (used by the House Queue eligibility engine)
+  maritalStatus    String?  @db.VarChar(20)
+  familySize       Int?     @db.SmallInt
+  disabilityStatus Boolean? @default(false)
+
+  createdAt DateTime @default(now()) @db.Timestamp(6)
+  updatedAt DateTime @updatedAt @db.Timestamp(6)
+
+  @@index([organizationId])
+  @@index([departmentId])
+  @@index([managerId])
+  @@index([employmentStatus])
+  @@index([organizationId, jobGrade])
+  @@index([organizationId, lastname, firstname])
+  @@schema("public")
+}
+
+model Household {
+  id              String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  srNo            Int                  @unique @default(autoincrement())
+  hid             String               @db.VarChar(50)
+  houseType       String               @db.VarChar(20)
+  staffCategory   String?              @db.VarChar(10)
+  houseNumber     String               @db.VarChar(50)
+  rgType          String               @db.VarChar(20)
+  locationId      String?              @db.Uuid
+  locationName    String?              @db.VarChar(255)
+  status          String               @default("Active") @db.VarChar(20)
+  // Occupancy state managed by the House Queue decision service (allocated
+  // → Occupied, released → Vacant) and the register's activate/deactivate
+  // path (→ Vacant / Maintenance). New houses start Vacant.
+  occupancyStatus HouseOccupancyStatus @default(Vacant)
+
+  // Inside items (structured)
+  bedCount    Int @default(0)
+  chairsCount Int @default(0)
+  lockerCount Int @default(0)
+  tablesCount Int @default(0)
+
+  // Damage information (required only when Status = Inactive)
+  damageWindow      Boolean @default(false)
+  damageDoor        Boolean @default(false)
+  damageWaterPanel  Boolean @default(false)
+  damageRoof        Boolean @default(false)
+  damageWall        Boolean @default(false)
+  damageElectricity Boolean @default(false)
+  damageNotes       String? @db.VarChar(1000)
+
+  // Multi-tenancy & audit
+  organizationId String       @db.Uuid
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  location       location?    @relation(fields: [locationId], references: [locationid], onDelete: SetNull)
+  createdBy      String?      @db.Uuid
+  createdAt      DateTime     @default(now()) @db.Timestamp(6)
+  updatedAt      DateTime     @updatedAt @db.Timestamp(6)
+
+  allocations         HouseAllocation[]
+  previousAllocations HouseAllocation[] @relation("AllocationPreviousHousehold")
+  inspections         HouseInspection[]
+
+  @@unique([organizationId, hid])
+  @@unique([organizationId, houseNumber])
+  @@index([organizationId])
+  @@index([status])
+  @@index([houseType])
+  @@index([locationId])
+  @@map("households")
+  @@schema("public")
+}
+
+// House Queue decision ledger / state machine.
+// Stores ONLY decisions and snapshots - it never duplicates employee or
+// household records. The priority engine (Engine A) and house recommendation
+// (Engine B) are re-computed live on every read; this table persists the
+// resulting allocation / skip / defer / release decisions so they survive
+// recomputation and are fully auditable.
+// The ledger is historied (append-only with updates): at most ONE row per
+// employee per organization has status 'allocated' (enforced by the partial
+// unique index), while any number of terminated rows remain for the Terminated
+// Houses archive. A transfer is folded into this table as terminate-old +
+// create-new within a single transaction.
+model HouseAllocation {
+  id             String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String  @db.Uuid
+  employeeId     String  @db.Uuid
+  householdId    String? @db.Uuid
+  status         String  @default("ready_for_allocation") @db.VarChar(30)
+
+  // Engine-verified snapshots at decision time (never authoritative - the
+  // live engine always wins on read)
+  recommendedHouseId String?   @db.Uuid
+  mcdScore           Float?
+  priorityRank       Int?
+  reason             String?   @db.VarChar(500)
+  decidedBy          String?   @db.Uuid
+  decidedAt          DateTime? @db.Timestamp(6)
+
+  // Termination (release-with-reason) fields. Populated once by the Queue
+  // release action; archived by the Terminated Houses view. `householdId` is
+  // retained on release so the archival record keeps "who lived where".
+  terminationReason HouseTerminationReason?
+  terminatedAt      DateTime?               @db.Timestamp(6)
+  terminatedBy      String?                 @db.Uuid
+
+  // Relocation (transfer / reassignment) history. Filled when the Queue
+  // reassigns a live allocation to a different house: the vacated house is
+  // frozen here so house-move prints and audits show former → new.
+  previousHouseholdId String?   @db.Uuid
+  movedAt             DateTime? @db.Timestamp(6)
+  moveCount           Int       @default(0)
+
+  createdAt DateTime @default(now()) @db.Timestamp(6)
+  updatedAt DateTime @updatedAt @db.Timestamp(6)
+
+  organization Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  employee     Employee         @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  household    Household?       @relation(fields: [householdId], references: [id], onDelete: SetNull)
+  householdPrev Household?      @relation("AllocationPreviousHousehold", fields: [previousHouseholdId], references: [id], onDelete: SetNull)
+  inspection   HouseInspection?
+
+  @@index([organizationId, employeeId])
+  @@index([organizationId])
+  @@index([employeeId])
+  @@index([householdId])
+  @@index([status])
+  @@map("house_allocations")
+  @@schema("public")
+}
+
+// Inspection record raised the moment a house is vacated through the Release
+// Workflow. Created 1:1 with the terminated (release) HouseAllocation row so
+// "who vacated + what we found on handback" is one auditable pair. The house
+// stays OUT of the Active pool from release until this inspection resolves it
+// to `Active` (back into the pool) or `UnderMaintenance` (stays out of pool,
+// damage checklist mirrored onto the household). Checkbox fields mirror the
+// household damage taxonomy. Written exclusively by the inspection service.
+model HouseInspection {
+  id             String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String @db.Uuid
+  // 1:1 link back to the terminated release row that produced this inspection.
+  allocationId   String @unique @db.Uuid
+  // Denormalized copy of allocation.householdId for direct worklist queries.
+  householdId    String @db.Uuid
+
+  // Scheduling (nullable until a Facility inspector is assigned a date)
+  inspectorId   String?   @db.Uuid
+  scheduledDate DateTime? @db.Date
+
+  // Handback checklist - mirrors the household damage taxonomy
+  checklistWindow      Boolean  @default(false)
+  checklistDoor        Boolean  @default(false)
+  checklistWaterPanel  Boolean  @default(false)
+  checklistRoof        Boolean  @default(false)
+  checklistWall        Boolean  @default(false)
+  checklistElectricity Boolean  @default(false)
+  conditionNote        String?  @db.VarChar(1000)
+  photoUrls            String[]
+  // Count of photos attached before retention rollup purged the URLs.
+  photoCount           Int      @default(0) @db.Integer
+
+  // Resolution (null = open / pending inspection)
+  resolvedTo  String?   @db.VarChar(20)
+  completedAt DateTime? @db.Timestamp(6)
+  completedBy String?   @db.Uuid
+
+  createdBy String?  @db.Uuid
+  createdAt DateTime @default(now()) @db.Timestamp(6)
+  updatedAt DateTime @updatedAt @db.Timestamp(6)
+
+  organization Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  allocation   HouseAllocation @relation(fields: [allocationId], references: [id], onDelete: Cascade)
+  household    Household       @relation(fields: [householdId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([householdId])
+  @@index([inspectorId])
+  @@index([resolvedTo])
+  @@map("house_inspections")
+  @@schema("public")
+}
+
+// General Asset: non-IT fixed-asset inventory for the factory floor
+// (SR No, Item Type, PID / Asset ID, Category, Location, Condition, Brand,
+//  Reviews Date, Remark)
+model GeneralAsset {
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  srNo         Int       @unique @default(autoincrement())
+  itemType     String    @db.VarChar(100)
+  pid          String    @db.VarChar(50)
+  category     String    @db.VarChar(100)
+  locationId   String?   @db.Uuid
+  locationName String?   @db.VarChar(255)
+  condition    String    @db.VarChar(50)
+  brand        String?   @db.VarChar(100)
+  reviewsDate  DateTime? @db.Date
+  remark       String?   @db.VarChar(1000)
+
+  // Multi-tenancy & audit
+  organizationId String       @db.Uuid
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  location       location?    @relation(fields: [locationId], references: [locationid], onDelete: SetNull)
+  createdBy      String?      @db.Uuid
+  createdAt      DateTime     @default(now()) @db.Timestamp(6)
+  updatedAt      DateTime     @updatedAt @db.Timestamp(6)
+
+  @@unique([organizationId, pid])
+  @@index([organizationId])
+  @@index([itemType])
+  @@index([category])
+  @@index([condition])
+  @@index([locationId])
+  @@index([reviewsDate])
+  @@map("general_assets")
+  @@schema("public")
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// House Queue engine configuration (versioned, draft → preview → publish)
+// ────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Versioned engine configuration for the House Queue priority / house
+ * recommendation system.
+ * Lifecycle (DRAFT → ACTIVE, with history retained):
+ * - at most ONE version per organization has status 'active' at a time, and
+ * at most ONE has status 'draft' (enforced by partial unique indexes at the
+ * DB level — Prisma cannot express those in schema.prisma),
+ * - editing creates/updates a draft and never affects the live queue,
+ * - publishing supersedes the previous active version — it is archived, never
+ * deleted, so rollback means publishing a copy of an old version's payload
+ * as a new version,
+ * - the payload is stored per section as JSON so the whole history is
+ * diffable and revertible.
+ * The HouseAllocation decision ledger is deliberately EXCLUDED from the
+ * retention policy configured here: allocations are governed by
+ * `service.ts`, not by any retention/archive toggle on this page.
+ */
+model EngineConfigVersion {
+  id                  String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId      String @db.Uuid
+  versionNumber       Int    @db.Integer
+  // draft | active | archived
+  status              String @default("draft") @db.VarChar(20)
+  weights             Json
+  eligibilityBands    Json
+  recommendationRules Json
+
+  changeSummary  String?   @db.VarChar(1000)
+  createdBy      String?   @db.Uuid
+  createdAt      DateTime  @default(now()) @db.Timestamp(6)
+  updatedAt      DateTime  @updatedAt @db.Timestamp(6)
+  publishedBy    String?   @db.Uuid
+  publishedAt    DateTime? @db.Timestamp(6)
+  // The version this one replaced (NULL for the first ever publish).
+  supersededById String?   @db.Uuid
+
+  organization Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  auditEntries ConfigAuditEntry[]
+
+  @@unique([organizationId, versionNumber])
+  @@index([organizationId, status])
+  @@index([organizationId, createdAt])
+  @@map("engine_config_versions")
+  @@schema("public")
+}
+
+/**
+ * Append-only, FIELD-level audit trail for engine configuration changes.
+ * One row per changed `fieldPath` (e.g. "weights.service_years"). Never
+ * updated or deleted by any code path.
+ */
+model ConfigAuditEntry {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String   @db.Uuid
+  versionId      String   @db.Uuid
+  // Dotted path into the config payload, e.g. "weights.service_years".
+  fieldPath      String   @db.VarChar(200)
+  oldValue       String?  @db.Text
+  newValue       String?  @db.Text
+  // draft_save | publish | rollback | manual_run | manual_purge | auto_run | auto_purge
+  action         String   @db.VarChar(30)
+  changedBy      String?  @db.Uuid
+  changedAt      DateTime @default(now()) @db.Timestamp(6)
+  ipAddress      String?  @db.VarChar(64)
+  changeSummary  String?  @db.VarChar(1000)
+
+  version      EngineConfigVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+  organization Organization        @relation(fields: [organizationId], references: [id])
+
+  @@index([organizationId, versionId])
+  @@index([organizationId, changedAt])
+  @@index([action])
+  @@map("config_audit_entries")
+  @@schema("public")
+}
+
+/**
+ * Cold-storage copy of a resolved `HouseInspection` that has exceeded its
+ * warm retention window with cold archive enabled. Written by the retention
+ * purge job; the original row is then deleted. Fields mirror
+ * `HouseInspection` plus provenance metadata.
+ */
+model HouseInspectionArchive {
+  id             String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String @db.Uuid
+
+  allocationId  String    @db.Uuid
+  householdId   String    @db.Uuid
+  inspectorId   String?   @db.Uuid
+  scheduledDate DateTime? @db.Date
+
+  checklistWindow      Boolean  @default(false)
+  checklistDoor        Boolean  @default(false)
+  checklistWaterPanel  Boolean  @default(false)
+  checklistRoof        Boolean  @default(false)
+  checklistWall        Boolean  @default(false)
+  checklistElectricity Boolean  @default(false)
+  conditionNote        String?  @db.VarChar(1000)
+  photoUrls            String[]
+  photoCount           Int      @default(0) @db.Integer
+
+  resolvedTo  String?   @db.VarChar(20)
+  completedAt DateTime? @db.Timestamp(6)
+  completedBy String?   @db.Uuid
+  createdBy   String?   @db.Uuid
+  createdAt   DateTime  @db.Timestamp(6)
+
+  // Provenance — how this row was archived and when.
+  coldCompression String   @default("none") @db.VarChar(20)
+  archivedAt      DateTime @default(now()) @db.Timestamp(6)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([householdId])
+  @@index([archivedAt])
+  @@map("house_inspection_archives")
+  @@schema("public")
+}

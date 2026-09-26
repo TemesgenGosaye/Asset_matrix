@@ -1,0 +1,623 @@
+/**
+ * BetterAuth server instance
+ *
+ * Central auth configuration.
+ * Uses database-backed sessions with cookie caching.
+ */
+
+import { betterAuth } from "better-auth";
+import { prismaAdapter } from "better-auth/adapters/prisma";
+import { twoFactor } from "better-auth/plugins/two-factor";
+import {
+  genericOAuth,
+  microsoftEntraId,
+} from "better-auth/plugins/generic-oauth";
+import { nextCookies } from "better-auth/next-js";
+import { createAuthMiddleware } from "@better-auth/core/api";
+import prisma from "@/lib/prisma";
+import bcrypt from "bcryptjs";
+import { logger } from "@/lib/logger";
+import {
+  isAccountLocked,
+  recordFailedAttempt,
+  recordSuccessfulLogin,
+} from "@/lib/account-lockout";
+import { createAuditLog, AUDIT_ACTIONS, AUDIT_ENTITIES } from "@/lib/audit-log";
+import { parseDeviceName, parseBrowser } from "@/lib/session-tracking";
+import {
+  recordLoginAttempt,
+  checkSuspiciousActivity,
+  logSuspiciousActivity,
+} from "@/lib/suspicious-activity";
+
+// OAuth profiles expose arbitrary claim fields as `unknown`; normalize before use.
+const oauthString = (value: unknown): string =>
+  typeof value === "string" ? value : "";
+
+/**
+ * BetterAuth-specific Prisma client extension.
+ *
+ * BetterAuth's adapter factory has a bug: it overwrites the `id` field schema
+ * in both transformInput and transformOutput, destroying any custom field name
+ * mapping (e.g. `id: "userid"`). This extension works around the bug by
+ * translating `id` ↔ `userid` at the Prisma query level for the user model.
+ */
+function translateIdToUserid(where: Record<string, unknown>) {
+  if (!where || typeof where !== "object") return;
+  if ("id" in where) {
+    (where as Record<string, unknown>).userid = where.id;
+    delete where.id;
+  }
+  for (const key of ["AND", "OR", "NOT"]) {
+    const val = (where as Record<string, unknown>)[key];
+    if (Array.isArray(val)) {
+      val.forEach((clause: Record<string, unknown>) =>
+        translateIdToUserid(clause),
+      );
+    } else if (val && typeof val === "object") {
+      translateIdToUserid(val as Record<string, unknown>);
+    }
+  }
+}
+
+const authPrisma = (
+  prisma as unknown as Record<string, unknown> & { $extends: Function }
+).$extends({
+  result: {
+    user: {
+      id: {
+        needs: { userid: true },
+        compute(user: { userid: string }) {
+          return user.userid;
+        },
+      },
+    },
+  },
+  query: {
+    user: {
+      $allOperations({
+        args,
+        query,
+      }: {
+        args: Record<string, unknown>;
+        query: Function;
+      }) {
+        if (args.where)
+          translateIdToUserid(args.where as Record<string, unknown>);
+        if (
+          args.data &&
+          typeof args.data === "object" &&
+          "id" in (args.data as Record<string, unknown>)
+        ) {
+          const data = args.data as Record<string, unknown>;
+          data.userid = data.id;
+          delete data.id;
+        }
+        if (
+          args.select &&
+          typeof args.select === "object" &&
+          "id" in (args.select as Record<string, unknown>)
+        ) {
+          const select = args.select as Record<string, unknown>;
+          select.userid = select.id;
+          delete select.id;
+        }
+        return query(args);
+      },
+    },
+  },
+});
+
+export const auth = betterAuth({
+  appName: "AssetTracker",
+  baseURL: process.env.BETTER_AUTH_URL,
+  basePath: "/api/auth",
+  secret: process.env.BETTER_AUTH_SECRET,
+  trustedOrigins: process.env.BETTER_AUTH_TRUSTED_ORIGINS
+    ? process.env.BETTER_AUTH_TRUSTED_ORIGINS.split(",").map((o) => o.trim())
+    : [],
+
+  database: prismaAdapter(authPrisma, { provider: "postgresql" }),
+
+  emailAndPassword: {
+    enabled: true,
+    minPasswordLength: 8,
+    password: {
+      async hash(password: string) {
+        return bcrypt.hash(password, 12);
+      },
+      async verify({ hash, password }: { hash: string; password: string }) {
+        return bcrypt.compare(password, hash);
+      },
+    },
+    autoSignIn: true,
+    sendResetEmail: false,
+    requireEmailVerification: false,
+  },
+
+  user: {
+    modelName: "user",
+    fields: {
+      // Note: `id` is excluded from BetterAuth's fields type on purpose.
+      // The id ↔ userid translation is handled by the authPrisma extension above.
+      name: "firstname", // BetterAuth expects 'name', map to firstname
+      email: "email",
+      emailVerified: "emailVerified",
+      image: "image",
+      createdAt: "creation_date",
+      updatedAt: "updatedAt",
+    },
+    additionalFields: {
+      username: {
+        type: "string",
+        required: false,
+        input: true,
+      },
+      lastname: {
+        type: "string",
+        required: false,
+        defaultValue: "",
+        input: true,
+      },
+      isadmin: {
+        type: "boolean",
+        required: false,
+        defaultValue: false,
+      },
+      canrequest: {
+        type: "boolean",
+        required: false,
+        defaultValue: true,
+      },
+      organizationId: {
+        type: "string",
+        required: false,
+      },
+      departmentId: {
+        type: "string",
+        required: false,
+      },
+      authProvider: {
+        type: "string",
+        required: false,
+        defaultValue: "local",
+      },
+      isActive: {
+        type: "boolean",
+        required: false,
+        defaultValue: true,
+      },
+      mfaEnabled: {
+        type: "boolean",
+        required: false,
+        defaultValue: false,
+      },
+      password: {
+        type: "string",
+        required: false,
+      },
+    },
+  },
+
+  account: {
+    accountLinking: {
+      enabled: true,
+      trustedProviders: ["microsoft"],
+    },
+    modelName: "accounts",
+    fields: {
+      userId: "userId",
+      accountId: "accountId",
+      providerId: "providerId",
+      accessToken: "accessToken",
+      refreshToken: "refreshToken",
+      accessTokenExpiresAt: "accessTokenExpiresAt",
+      refreshTokenExpiresAt: "refreshTokenExpiresAt",
+      scope: "scope",
+      idToken: "idToken",
+      password: "password",
+      createdAt: "createdAt",
+      updatedAt: "updatedAt",
+    },
+  },
+
+  session: {
+    modelName: "sessions",
+    fields: {
+      token: "token",
+      userId: "userId",
+      expiresAt: "expiresAt",
+      ipAddress: "ipAddress",
+      userAgent: "userAgent",
+      createdAt: "createdAt",
+      updatedAt: "updatedAt",
+    },
+    expiresIn: 60 * 60 * 24 * 7,
+    updateAge: 60 * 60 * 24,
+    cookieCache: {
+      enabled: true,
+      maxAge: 5 * 60,
+    },
+  },
+
+  plugins: [
+    twoFactor({
+      issuer: "AssetTracker",
+    }),
+    ...(process.env.MICROSOFT_CLIENT_ID && process.env.MICROSOFT_CLIENT_SECRET
+      ? [
+          genericOAuth({
+            config: [
+              {
+                ...microsoftEntraId({
+                  clientId: process.env.MICROSOFT_CLIENT_ID!,
+                  clientSecret: process.env.MICROSOFT_CLIENT_SECRET!,
+                  tenantId: process.env.MICROSOFT_TENANT_ID || "common",
+                }),
+                providerId: "microsoft",
+                mapProfileToUser(profile) {
+                  const givenName =
+                    oauthString(profile.given_name) ||
+                    oauthString(profile.givenName);
+                  const familyName =
+                    oauthString(profile.family_name) ||
+                    oauthString(profile.surname);
+                  // Fallback: split displayName if individual parts are missing
+                  const displayName =
+                    oauthString(profile.name) ||
+                    oauthString(profile.displayName);
+                  const firstName =
+                    givenName || displayName.split(" ")[0] || "";
+                  const lastName =
+                    familyName ||
+                    displayName.split(" ").slice(1).join(" ") ||
+                    "";
+
+                  return {
+                    name: firstName,
+                    lastname: lastName,
+                    email:
+                      oauthString(profile.email) ||
+                      oauthString(profile.mail) ||
+                      oauthString(profile.preferred_username) ||
+                      "",
+                    image:
+                      oauthString(profile.picture) ||
+                      oauthString(profile.photo) ||
+                      null,
+                  };
+                },
+              },
+            ],
+          }),
+        ]
+      : []),
+    // Note: To restrict to a specific Google Workspace domain, add:
+    // authorizationUrl: "https://accounts.google.com/o/oauth2/v2/auth?hd=yourdomain.com"
+    // For multi-tenant SaaS, domain enforcement should be done post-login via organization settings.
+    ...(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET
+      ? [
+          genericOAuth({
+            config: [
+              {
+                providerId: "google",
+                clientId: process.env.GOOGLE_CLIENT_ID!,
+                clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+                discoveryUrl:
+                  "https://accounts.google.com/.well-known/openid-configuration",
+                scopes: ["openid", "email", "profile"],
+                mapProfileToUser(profile) {
+                  const name =
+                    oauthString(profile.given_name) ||
+                    oauthString(profile.name).split(" ")[0] ||
+                    "";
+                  const lastname =
+                    oauthString(profile.family_name) ||
+                    oauthString(profile.name).split(" ").slice(1).join(" ") ||
+                    "";
+                  return {
+                    name,
+                    lastname,
+                    email: oauthString(profile.email) || "",
+                    image: oauthString(profile.picture) || null,
+                  };
+                },
+              },
+            ],
+          }),
+        ]
+      : []),
+    nextCookies(),
+  ],
+
+  advanced: {
+    database: {
+      generateId: () => crypto.randomUUID(),
+    },
+  },
+
+  hooks: {
+    before: createAuthMiddleware(async (ctx) => {
+      // Block BetterAuth's built-in sign-up — all registration must go through
+      // /api/auth/register which enforces org creation.
+      if (ctx.path === "/sign-up/email") {
+        throw new Error("Registration is not available via this endpoint");
+      }
+
+      if (ctx.path !== "/sign-in/email") return;
+
+      const body = ctx.body as
+        | { email?: string; password?: string }
+        | undefined;
+      if (!body?.email) return;
+      const rawIdentifier = body.email.trim();
+
+      // If the identifier doesn't look like an email, try to resolve it to an email.
+      // Username comparison is case-insensitive so login works regardless of typing case.
+      if (!rawIdentifier.includes('@')) {
+        const user = await prisma.user.findFirst({
+          where: { username: { equals: rawIdentifier, mode: "insensitive" } },
+          select: { email: true },
+        });
+        if (user?.email) {
+          body.email = user.email;
+          console.log('[Auth Hook] Resolved username to email:', rawIdentifier, '->', user.email);
+        } else {
+          console.log('[Auth Hook] User not found for username:', rawIdentifier);
+        }
+      }
+
+      // Cloudflare Turnstile verification (opt-in: only when secret key is configured)
+      const turnstileSecret = process.env.TURNSTILE_SECRET_KEY;
+      if (turnstileSecret) {
+        const turnstileToken = ctx.headers?.get("x-turnstile-token") || "";
+        if (!turnstileToken) {
+          throw new Error("CAPTCHA verification required");
+        }
+
+        const ip =
+          ctx.headers?.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+          ctx.headers?.get("x-real-ip") ||
+          undefined;
+
+        const verifyRes = await fetch(
+          "https://challenges.cloudflare.com/turnstile/v0/siteverify",
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              secret: turnstileSecret,
+              response: turnstileToken,
+              ...(ip && { remoteip: ip }),
+            }),
+          },
+        );
+
+        const verifyData = (await verifyRes.json()) as { success: boolean };
+        if (!verifyData.success) {
+          logger.securityEvent("Turnstile CAPTCHA verification failed", {
+            identifier: rawIdentifier,
+            ip: ip || "unknown",
+          });
+          throw new Error("CAPTCHA verification failed");
+        }
+      }
+
+      // Look up user by email OR username (case-insensitive — BetterAuth lowercases
+      // the sign-in email, so mixed-case identifiers must still match)
+      console.log('[Auth Hook] Looking up user for identifier:', rawIdentifier);
+      const user = await prisma.user.findFirst({
+        where: {
+          OR: [
+            { email: { equals: rawIdentifier, mode: "insensitive" } },
+            { username: { equals: rawIdentifier, mode: "insensitive" } },
+          ],
+        },
+        select: {
+          userid: true,
+          email: true,
+          authProvider: true,
+          username: true,
+          isActive: true,
+        },
+      });
+      console.log('[Auth Hook] User lookup result:', user ? `Found: ${user.username} (${user.email})` : 'Not found');
+
+      // Use canonical email for lockout tracking (consistent key)
+      const lockoutKey = user?.email ?? rawIdentifier;
+
+      // Check account lockout
+      const lockStatus = await isAccountLocked(lockoutKey);
+      if (lockStatus.locked) {
+        logger.securityEvent("Login attempt on locked account", {
+          identifier: lockoutKey,
+        });
+        throw new Error("Invalid credentials");
+      }
+
+      if (user && !user.isActive) {
+        throw new Error("Invalid credentials");
+      }
+
+      // Canonicalize the identifier so BetterAuth finds the user exactly. Emails are
+      // stored lowercased (see addUser/register routes), which matches BetterAuth's
+      // own lowercase lookup on sign-in.
+      if (user?.email) {
+        body.email = user.email;
+      }
+
+      // Handle LDAP users — sync password to credential account
+      if (user?.authProvider === "ldap" && body?.password) {
+        const { authenticateUser: ldapAuth } = await import("@/lib/ldap");
+        const ldapResult = await ldapAuth(
+          user.username || rawIdentifier,
+          body.password,
+        );
+
+        if (!ldapResult.success) {
+          // Don't record here — after hook handles all failed attempt tracking
+          throw new Error("Invalid credentials");
+        }
+
+        // LDAP auth succeeded — sync password hash so BetterAuth can verify
+        const hashedPassword = await bcrypt.hash(body.password, 12);
+        await prisma.accounts.upsert({
+          where: {
+            providerId_accountId: {
+              providerId: "credential",
+              accountId: user.userid,
+            },
+          },
+          update: { password: hashedPassword },
+          create: {
+            userId: user.userid,
+            providerId: "credential",
+            accountId: user.userid,
+            issuer: "local:credential",
+            password: hashedPassword,
+          },
+        });
+      }
+
+      // Migrate legacy users: create credential account from user.password if missing
+      if (user && user.authProvider !== "ldap") {
+        const fullUser = await prisma.user.findUnique({
+          where: { userid: user.userid },
+          select: { password: true },
+        });
+
+        if (fullUser?.password) {
+          await prisma.accounts.upsert({
+            where: {
+              providerId_accountId: {
+                providerId: "credential",
+                accountId: user.userid,
+              },
+            },
+            update: {},
+            create: {
+              userId: user.userid,
+              providerId: "credential",
+              accountId: user.userid,
+              issuer: "local:credential",
+              password: fullUser.password,
+            },
+          });
+        }
+      }
+    }),
+    after: createAuthMiddleware(async (ctx) => {
+      if (ctx.path !== "/sign-in/email") return;
+
+      const body = ctx.body as { email?: string } | undefined;
+      if (!body?.email) return;
+      const identifier = body.email;
+
+      // Check if login succeeded (session cookie was set)
+      const setCookie = ctx.context.responseHeaders?.get("set-cookie");
+      if (setCookie) {
+        await recordSuccessfulLogin(identifier);
+
+        const user = await prisma.user.findFirst({
+          where: {
+            OR: [{ email: identifier }, { username: identifier }],
+          },
+          select: { userid: true, username: true },
+        });
+
+        if (user) {
+          await createAuditLog({
+            userId: user.userid,
+            action: AUDIT_ACTIONS.LOGIN,
+            entity: AUDIT_ENTITIES.USER,
+            entityId: user.userid,
+            details: {
+              username: user.username,
+              method: "credentials",
+            },
+          });
+
+          // Enrich the most recent session with device info
+          const ip =
+            ctx.headers?.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+            ctx.headers?.get("x-real-ip") ||
+            null;
+          const userAgent = ctx.headers?.get("user-agent") || null;
+          const deviceName = `${parseDeviceName(userAgent)} - ${parseBrowser(userAgent)}`;
+
+          try {
+            const latestSession = await prisma.sessions.findFirst({
+              where: { userId: user.userid },
+              orderBy: { createdAt: "desc" },
+            });
+            if (latestSession) {
+              await prisma.sessions.update({
+                where: { id: latestSession.id },
+                data: {
+                  deviceName,
+                  lastActive: new Date(),
+                  isCurrent: true,
+                },
+              });
+            }
+          } catch {
+            // Non-critical — don't break login
+          }
+
+          // --- Suspicious activity detection ---
+          try {
+            recordLoginAttempt(
+              user.userid,
+              ip || "unknown",
+              userAgent || "unknown",
+              true,
+            );
+            const suspiciousResult = checkSuspiciousActivity(
+              user.userid,
+              ip || "unknown",
+              userAgent || "unknown",
+            );
+            logSuspiciousActivity(
+              user.userid,
+              ip || "unknown",
+              userAgent || "unknown",
+              suspiciousResult,
+            );
+
+            // Persist suspicious events to audit_logs
+            if (suspiciousResult.suspicious) {
+              await createAuditLog({
+                userId: user.userid,
+                action: AUDIT_ACTIONS.SECURITY_ALERT,
+                entity: AUDIT_ENTITIES.USER,
+                entityId: user.userid,
+                details: {
+                  type: "suspicious_login",
+                  reasons: suspiciousResult.reasons,
+                  ip: ip || "unknown",
+                  userAgent: userAgent || "unknown",
+                },
+              });
+            }
+          } catch {
+            // Non-critical — don't break login
+          }
+        }
+      } else {
+        // Login failed — single place for recording failed attempts
+        await recordFailedAttempt(identifier);
+
+        // Record failed attempt for suspicious activity detection (IP-based)
+        const failedIp =
+          ctx.headers?.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+          ctx.headers?.get("x-real-ip") ||
+          "unknown";
+        const failedUa = ctx.headers?.get("user-agent") || "unknown";
+        recordLoginAttempt(null, failedIp, failedUa, false);
+      }
+    }),
+  },
+});
+
+export type Session = typeof auth.$Infer.Session;
+export type User = typeof auth.$Infer.Session.user;

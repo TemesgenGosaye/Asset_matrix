@@ -1,0 +1,123 @@
+"use client";
+
+import { useState } from "react";
+import { authClient } from "@/lib/auth-client";
+import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+
+export default function MfaVerifyForm() {
+  const router = useRouter();
+  const [code, setCode] = useState("");
+  const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [useBackupCode, setUseBackupCode] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    setIsLoading(true);
+
+    try {
+      // Use BetterAuth's two-factor verification
+      const verifyFn = useBackupCode
+        ? authClient.twoFactor.verifyBackupCode
+        : authClient.twoFactor.verifyTotp;
+      const result = await verifyFn({ code: code.trim() });
+
+      if (result?.error) {
+        setError(
+          useBackupCode
+            ? "Invalid backup code. Please try again."
+            : "Invalid verification code. Please try again.",
+        );
+        setIsLoading(false);
+      } else {
+        // MFA verified — redirect to home
+        router.push("/dashboard");
+        router.refresh();
+      }
+    } catch (err) {
+      console.error("MFA verification error:", err);
+      setError("An error occurred during verification");
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-gradient-to-br from-slate-50 via-white to-slate-100 p-4 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950">
+      <div aria-hidden className="pointer-events-none absolute inset-0">
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-blue-100/30 via-transparent to-transparent dark:from-blue-900/10" />
+      </div>
+      <Card className="relative z-10 w-full max-w-md">
+        <CardHeader className="space-y-1">
+          <CardTitle className="text-2xl font-bold">
+            Two-Factor Authentication
+          </CardTitle>
+          <CardDescription>
+            {useBackupCode
+              ? "Enter one of your backup codes to continue"
+              : "Enter the 6-digit code from your authenticator app"}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="code">
+                {useBackupCode ? "Backup Code" : "Verification Code"}
+              </Label>
+              <Input
+                id="code"
+                type="text"
+                placeholder={useBackupCode ? "Enter backup code" : "000000"}
+                value={code}
+                onChange={(e) => setCode(e.target.value)}
+                disabled={isLoading}
+                autoComplete="one-time-code"
+                inputMode={useBackupCode ? "text" : "numeric"}
+                maxLength={useBackupCode ? 20 : 6}
+                required
+                autoFocus
+              />
+            </div>
+
+            {error && (
+              <div className="bg-destructive/10 text-destructive rounded-md p-3 text-sm">
+                {error}
+              </div>
+            )}
+
+            <Button type="submit" className="w-full" disabled={isLoading}>
+              {isLoading ? "Verifying..." : "Verify"}
+            </Button>
+
+            <div className="text-center">
+              <Button
+                type="button"
+                variant="link"
+                className="text-muted-foreground hover:text-foreground text-sm underline"
+                onClick={() => {
+                  setUseBackupCode(!useBackupCode);
+                  setCode("");
+                  setError("");
+                }}
+              >
+                {useBackupCode
+                  ? "Use authenticator app instead"
+                  : "Use a backup code instead"}
+              </Button>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
