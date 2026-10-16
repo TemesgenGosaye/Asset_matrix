@@ -20,7 +20,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { toast } from "sonner";
+import { notify } from "@/lib/feedback/notify";
 import { Loader2, Plus, Trash2, ShoppingCart, Send, Save } from "lucide-react";
 
 interface LineItem {
@@ -86,7 +86,7 @@ export default function CreatePurchaseRequest() {
   const handleRemoveItem = (itemId: string) => {
     setItems((prev) => {
       if (prev.length <= 1) {
-        toast.error("At least one line item is required");
+        notify.error("At least one line item is required");
         return prev;
       }
       return prev.filter((item) => item.id !== itemId);
@@ -107,20 +107,20 @@ export default function CreatePurchaseRequest() {
 
   const validateForm = (): boolean => {
     if (!title.trim()) {
-      toast.error("Title is required");
+      notify.error("Title is required");
       return false;
     }
     for (const item of items) {
       if (!item.description.trim()) {
-        toast.error("All line items must have a description");
+        notify.error("All line items must have a description");
         return false;
       }
       if (item.quantity < 1) {
-        toast.error("Quantity must be at least 1");
+        notify.error("Quantity must be at least 1");
         return false;
       }
       if (item.estimatedUnitCost < 0) {
-        toast.error("Unit cost cannot be negative");
+        notify.error("Unit cost cannot be negative");
         return false;
       }
     }
@@ -148,7 +148,7 @@ export default function CreatePurchaseRequest() {
 
       if (!response.ok) {
         const data = await response.json();
-        toast.error(data.error || "Failed to create purchase request");
+        notify.error(data.error || "Failed to create purchase request");
         return;
       }
 
@@ -162,21 +162,21 @@ export default function CreatePurchaseRequest() {
         );
         if (!submitResponse.ok) {
           const submitData = await submitResponse.json();
-          toast.error(
+          notify.error(
             submitData.error ||
               "Request saved but failed to submit for approval",
           );
           router.push(`/procurement/${requestId}`);
           return;
         }
-        toast.success("Purchase request submitted for approval");
+        notify.success("Purchase request submitted for approval");
       } else {
-        toast.success("Purchase request saved as draft");
+        notify.success("Purchase request saved as draft");
       }
 
       router.push(`/procurement/${requestId}`);
     } catch {
-      toast.error("Failed to connect to the server");
+      notify.error("Failed to connect to the server");
     } finally {
       setIsSubmitting(false);
     }

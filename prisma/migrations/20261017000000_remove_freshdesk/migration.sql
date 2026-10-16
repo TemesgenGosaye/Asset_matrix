@@ -1,0 +1,48 @@
+-- Migration: remove the Freshdesk integration
+--
+-- WHY
+--   Freshdesk was a read-only mirror of an external helpdesk shown at `/tickets`,
+--   configurable from Admin Settings. Nothing wrote to Freshdesk — the client
+--   exposed only GET methods — and nothing else in the application consumed it:
+--   the local `tickets` / `ticket_comments` tables and the `/admin/tickets`
+--   kanban and `/user/tickets` list are the ticket system that is actually used,
+--   and they never called Freshdesk.
+--
+--   The settings UI described a two-way integration that was never built. The
+--   outbound half did not exist and the inbound half had already rotted: the
+--   page fetched `/api/tickets` without its `?source=freshdesk` parameter, so it
+--   read the local route's array response as `{ tickets }` and rendered an empty
+--   list against a "Loading… from Freshdesk" heading. Six live surfaces — the
+--   sidebar Tools entry, three ticket notifications, the help CTA, and the AI
+--   assistant's links and screen context — still pointed at that page.
+--
+--   Those six now point at `/user/tickets`, the local list. No schema changes are
+--   needed: Freshdesk had no dedicated model, table, column or enum.
+--
+-- WHAT
+--   1. Delete the two `system_settings` rows Freshdesk occupied.
+--
+--   Freshdesk shares the `system_settings` key/value table with Slack, Microsoft
+--   Teams, Email, SCIM, General and Notifications, but in a completely disjoint
+--   namespace: Freshdesk keys are `freshdesk_*` under `category = 'freshdesk'`,
+--   while Slack and Teams are `integrations.slack.*` / `integrations.teams.*`
+--   under `category = 'integrations'`, and the readers filter on
+--   `startsWith: 'integrations.'`. Those prefix queries cannot overlap, so this
+--   DELETE provably touches no sibling integration's configuration.
+--
+--   Both the key pattern AND the category are matched so the statement is correct
+--   whether or not the category was populated on an older row.
+--
+--   `freshdesk_api_key` is an ENCRYPTED CREDENTIAL (written with `isEncrypted:
+--   true` and stored via `src/lib/encryption`). It is not "unused configuration"
+--   — it is a live secret for a third-party account, and the reason it is worth
+--   deleting rather than merely leaving behind and orphaned. If that Freshdesk
+--   account still exists, rotate the key there too: this migration removes the
+--   copy the app held, not the key itself.
+--
+--   Idempotent, and safe to re-run.
+
+-- 1. Remove the Freshdesk configuration, including the stored API key.
+DELETE FROM "public"."system_settings"
+ WHERE "settingKey" LIKE 'freshdesk\_%'
+    OR "category" = 'freshdesk';

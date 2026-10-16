@@ -7,7 +7,7 @@ import {
   replayQueue,
   type ReplayResult,
 } from "@/lib/offline-queue";
-import { toast } from "sonner";
+import { notify } from "@/lib/feedback/notify";
 
 interface UseOfflineQueueReturn {
   pendingCount: number;
@@ -38,18 +38,18 @@ export function useOfflineQueue(): UseOfflineQueueReturn {
     try {
       const result: ReplayResult = await replayQueue();
       if (result.succeeded > 0) {
-        toast.success(
+        notify.success(
           `Synced ${result.succeeded} offline change${result.succeeded > 1 ? "s" : ""}`,
         );
       }
       if (result.failed > 0) {
-        toast.error(
+        notify.error(
           `${result.failed} change${result.failed > 1 ? "s" : ""} failed to sync`,
         );
       }
       await refreshCount();
     } catch {
-      toast.error("Failed to sync offline changes");
+      notify.error("Failed to sync offline changes");
     } finally {
       setIsSyncing(false);
       syncingRef.current = false;

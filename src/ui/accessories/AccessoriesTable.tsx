@@ -37,7 +37,7 @@ import {
   MoreVertical,
   CalendarPlusIcon,
 } from "../Icons";
-import { toast } from "sonner";
+import { notify } from "@/lib/feedback/notify";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import RequestItemDialog from "@/components/RequestItemDialog";
 
@@ -228,8 +228,9 @@ export default function AccessoriesTable({
 
       const result = await response.json();
 
-      toast.success(result.message, {
-        description: `${accessoryId} deleted successfully`,
+      notify.success({
+        title: result.message,
+        description: `${accessoryId} deleted`,
       });
 
       setAccessoriesData((prevItems) =>
@@ -238,7 +239,7 @@ export default function AccessoriesTable({
       setIsDeleteModalOpen(false);
     } catch (error) {
       console.error("Error deleting accessory:", error);
-      toast.error("Failed to delete accessory");
+      notify.error("Failed to delete accessory");
     }
   };
 
@@ -256,11 +257,11 @@ export default function AccessoriesTable({
       setAccessoriesData((prev) =>
         prev.filter((item) => !selectedKeys.has(item.accessorieid)),
       );
-      toast.success(`Deleted ${ids.length} accessory(ies)`);
+      notify.success(`Deleted ${ids.length} accessory(ies)`);
       setSelectedKeys(new Set());
       setShowBulkDelete(false);
     } catch (error) {
-      toast.error("Failed to delete some accessories");
+      notify.error("Failed to delete some accessories");
     } finally {
       setBulkDeleting(false);
     }

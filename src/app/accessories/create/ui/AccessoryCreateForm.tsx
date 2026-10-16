@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import { notify } from "@/lib/feedback/notify";
 import SelectWithQuickCreate, {
   type QuickCreateOption,
 } from "@/components/SelectWithQuickCreate";
@@ -159,7 +159,7 @@ export default function AccessoryCreateForm({
 
       if (res.status === 409) {
         const err = await res.json().catch(() => ({}));
-        toast.error(
+        notify.error(
           err.error ||
             "This item was modified by someone else. Please refresh and try again.",
         );
@@ -184,10 +184,10 @@ export default function AccessoryCreateForm({
           }),
         });
       }
-      toast.success(
-        mode === "edit" ? "Accessory updated" : "Accessory created",
-        { description: created.accessorietag },
-      );
+      notify.success({
+        title: mode === "edit" ? "Accessory updated" : "Accessory created",
+        description: created.accessorietag,
+      });
       router.push(
         mode === "edit" && initialData?.accessorieid
           ? `/accessories`
@@ -196,7 +196,7 @@ export default function AccessoryCreateForm({
       router.refresh();
     } catch (err) {
       setError(err.message);
-      toast.error("Create failed", { description: err.message });
+      notify.error({ title: "Create failed", description: err.message });
     } finally {
       setSubmitting(false);
     }

@@ -1,10 +1,43 @@
 @import "tailwindcss";
 
-/* Use class-based dark mode so next-themes' .dark on <html> drives all dark: variants */
-@custom-variant dark (&:where(.dark, .dark *));
+/*
+ * Class-based dark mode, driven by whichever theme class next-themes writes on
+ * <html> (`attribute="class"`).
+ *
+ * The selector list below is the ONLY place that decides what counts as "dark",
+ * and it must stay in sync with `isDark: true` entries in src/lib/themes.ts —
+ * `src/lib/__tests__/themes.test.ts` fails the build if they drift. Adding a
+ * dark theme without adding it here would silently leave all 500+ `dark:`
+ * utilities inert on that theme.
+ */
+@custom-variant dark (
+  &:where(
+    .dark,
+    .oled,
+    .midnight,
+    .forest,
+    .contrast,
+    .dark *,
+    .oled *,
+    .midnight *,
+    .forest *,
+    .contrast *
+  )
+);
 
 @theme {
-  --font-family-sans: var(--font-geist-sans);
+  /*
+   * Geist carries no Ethiopic glyphs. The organisation name in the app chrome
+   * (sidebar, top bar, mobile sheet) is Amharic, so without an explicit Ethiopic
+   * fallback those characters resolve against whatever the OS happens to pick —
+   * correct on one machine, tofu or a mismatched face on another. Naming the
+   * Ethiopic faces here makes the brand render identically everywhere, and
+   * mirrors the stack the printed receipts already use (see
+   * `src/ui/receipt/house-style.tsx`).
+   */
+  --font-family-sans:
+    var(--font-geist-sans), "Noto Sans Ethiopic", Nyala, "Abyssinica SIL",
+    ui-sans-serif, system-ui, sans-serif;
   --font-family-mono: var(--font-geist-mono);
 
   --color-border: hsl(var(--border));
@@ -89,14 +122,76 @@
   /* Residential module: serif display for house numbers / bilingual labels */
   .housing-serif {
     font-family:
-      "Source Serif 4", "Noto Serif Ethiopic", Georgia, "Times New Roman",
-      serif;
+      "Source Serif 4", "Noto Serif Ethiopic", Georgia, "Times New Roman", serif;
     letter-spacing: 0.01em;
+  }
+
+  /*
+   * Navigation top bar — a solid raised surface, not a decorative fill.
+   *
+   * The previous mesh (two `--primary`/`--accent` radials over a vertical
+   * settle) existed only to fake separation: in the light theme `--card` and
+   * `--background` are BOTH pure white, so the bar and the page canvas were the
+   * same colour and only a tint could tell them apart. Tinting the bar to make
+   * it legible also tinted the page title, the global search field and the
+   * notification count — decoration paid for in legibility.
+   *
+   * `--muted` is the one token every theme already separates from its own
+   * canvas, so a solid `--card` → `--muted` falloff reads as a proper raised
+   * app bar in all seven appearances with no per-theme override: cool slate
+   * under Light, lifted navy under Midnight, near-black under OLED. Depth comes
+   * from that short gradient plus the border and `--shadow-sm` on the <nav>,
+   * not from colour noise behind text.
+   */
+  .nav-mesh {
+    background-color: hsl(var(--muted));
+    background-image: linear-gradient(
+      180deg,
+      hsl(var(--card)) 0%,
+      hsl(var(--muted)) 100%
+    );
+  }
+
+  /*
+   * High Contrast opts out of the gradient entirely.
+   *
+   * That theme exists so the UI is legible at maximum separation; a tinted
+   * falloff behind body text works against that. The solid `--muted` fill stays,
+   * because it is a flat colour rather than decoration and is what keeps the bar
+   * distinguishable from the canvas at all.
+   */
+  html.contrast .nav-mesh {
+    background-image: none;
+  }
+
+  /*
+   * Paper is a warm, print-like appearance for reading long documents. The
+   * falloff is pulled almost flat so the bar still belongs to the theme without
+   * shading what is meant to look like paper.
+   */
+  html.paper .nav-mesh {
+    background-image: linear-gradient(
+      180deg,
+      hsl(var(--background)) 70%,
+      hsl(var(--muted)) 100%
+    );
   }
 }
 
 @layer base {
+  /*
+   * THEME TOKENS.
+   *
+   * One block per appearance, selected by the class next-themes writes on
+   * <html>. The ids here must match `THEMES` in src/lib/themes.ts, and every
+   * dark theme's id must also appear in the `@custom-variant dark` selector
+   * list at the top of this file.
+   *
+   * Values are bare HSL triplets so `@theme`'s `hsl(var(--token))` mapping
+   * stays the single place that turns a token into a colour.
+   */
   :root {
+    /* -- Light (default) ------------------------------------------- */
     --background: 0 0% 100%;
     --foreground: 220 9% 12%;
     --card: 0 0% 100%;
@@ -133,10 +228,16 @@
     --info-foreground: 221 83% 24%;
     --info-bg: 214 95% 94%;
 
+    /* Which way the assistant accent is mixed, so the single
+     * `.assistant-prose` rule serves both directions. */
+    --assist-mix-target: 0 0% 0%;
+
     --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.03), 0 1px 3px 0 rgb(0 0 0 / 0.04);
     --shadow-md:
       0 2px 4px -1px rgb(0 0 0 / 0.04), 0 4px 12px -2px rgb(0 0 0 / 0.06);
   }
+
+  /* -- Dark: neutral slate --------------------------------------- */
   .dark {
     --background: 220 13% 6%;
     --foreground: 0 0% 98%;
@@ -149,7 +250,7 @@
     --secondary: 220 10% 16%;
     --secondary-foreground: 0 0% 98%;
     --muted: 220 10% 16%;
-    --muted-foreground: 0 0% 63.9%;
+    --muted-foreground: 220 10% 63.9%;
     --accent: 220 10% 16%;
     --accent-foreground: 0 0% 98%;
     --destructive: 0 62.8% 30.6%;
@@ -173,9 +274,244 @@
     --info-foreground: 214 95% 80%;
     --info-bg: 220 50% 12%;
 
+    --assist-mix-target: 0 0% 100%;
+
     --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.08), 0 1px 3px 0 rgb(0 0 0 / 0.1);
     --shadow-md:
       0 2px 4px -1px rgb(0 0 0 / 0.1), 0 4px 12px -2px rgb(0 0 0 / 0.15);
+  }
+
+  /*
+   * -- OLED: true black
+   *
+   * Background is #000 so OLED pixels switch off entirely. Shadows cannot
+   * express elevation against pure black, so separation is carried by the
+   * borders - which is why they are stronger here than in neutral dark.
+   */
+  .oled {
+    --background: 0 0% 0%;
+    --foreground: 0 0% 96%;
+    --card: 0 0% 4%;
+    --card-foreground: 0 0% 96%;
+    --popover: 0 0% 7%;
+    --popover-foreground: 0 0% 96%;
+    --primary: 213 94% 62%;
+    --primary-foreground: 222 47% 8%;
+    --secondary: 0 0% 12%;
+    --secondary-foreground: 0 0% 96%;
+    --muted: 0 0% 10%;
+    --muted-foreground: 0 0% 65%;
+    --accent: 0 0% 14%;
+    --accent-foreground: 0 0% 98%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 0 0% 18%;
+    --input: 0 0% 18%;
+    --ring: 213 94% 62%;
+    --chart-1: 213 94% 62%;
+    --chart-2: 160 72% 45%;
+    --chart-3: 38 96% 60%;
+    --chart-4: 280 80% 66%;
+    --chart-5: 340 84% 62%;
+
+    --success: 142 72% 50%;
+    --success-foreground: 144 70% 82%;
+    --success-bg: 144 55% 10%;
+    --warning: 38 96% 58%;
+    --warning-foreground: 48 96% 82%;
+    --warning-bg: 36 60% 10%;
+    --info: 213 94% 66%;
+    --info-foreground: 213 94% 86%;
+    --info-bg: 213 60% 12%;
+
+    --assist-mix-target: 0 0% 100%;
+
+    /* An elevation shadow reads as a smudge on pure black, not as depth. */
+    --shadow-sm: 0 0 0 0 rgb(0 0 0 / 0);
+    --shadow-md: 0 0 0 0 rgb(0 0 0 / 0);
+  }
+
+  /* -- Midnight: deep navy --------------------------------------- */
+  .midnight {
+    --background: 224 47% 7%;
+    --foreground: 210 40% 96%;
+    --card: 224 44% 10%;
+    --card-foreground: 210 40% 96%;
+    --popover: 224 44% 11%;
+    --popover-foreground: 210 40% 96%;
+    --primary: 199 89% 60%;
+    --primary-foreground: 224 60% 10%;
+    --secondary: 223 40% 17%;
+    --secondary-foreground: 210 40% 96%;
+    --muted: 223 38% 15%;
+    --muted-foreground: 215 25% 70%;
+    --accent: 223 40% 19%;
+    --accent-foreground: 210 40% 98%;
+    --destructive: 0 70% 52%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 223 34% 22%;
+    --input: 223 34% 22%;
+    --ring: 199 89% 60%;
+    --chart-1: 199 89% 60%;
+    --chart-2: 168 76% 50%;
+    --chart-3: 43 88% 62%;
+    --chart-4: 265 80% 70%;
+    --chart-5: 340 82% 66%;
+
+    --success: 158 70% 48%;
+    --success-foreground: 156 68% 84%;
+    --success-bg: 158 55% 12%;
+    --warning: 40 92% 58%;
+    --warning-foreground: 42 96% 84%;
+    --warning-bg: 40 58% 12%;
+    --info: 199 89% 62%;
+    --info-foreground: 199 88% 86%;
+    --info-bg: 199 58% 14%;
+
+    --assist-mix-target: 0 0% 100%;
+
+    --shadow-sm: 0 1px 2px 0 rgb(2 6 23 / 0.4), 0 1px 3px 0 rgb(2 6 23 / 0.45);
+    --shadow-md:
+      0 2px 4px -1px rgb(2 6 23 / 0.45), 0 4px 12px -2px rgb(2 6 23 / 0.55);
+  }
+
+  /* -- Forest: muted greens --------------------------------------- */
+  .forest {
+    --background: 150 15% 7%;
+    --foreground: 140 20% 95%;
+    --card: 150 14% 10%;
+    --card-foreground: 140 20% 95%;
+    --popover: 150 14% 11%;
+    --popover-foreground: 140 20% 95%;
+    --primary: 142 55% 50%;
+    --primary-foreground: 150 40% 7%;
+    --secondary: 150 12% 17%;
+    --secondary-foreground: 140 20% 95%;
+    --muted: 150 12% 15%;
+    --muted-foreground: 145 12% 68%;
+    --accent: 150 14% 19%;
+    --accent-foreground: 140 20% 98%;
+    --destructive: 0 68% 50%;
+    --destructive-foreground: 140 20% 98%;
+    --border: 150 12% 21%;
+    --input: 150 12% 21%;
+    --ring: 142 55% 50%;
+    --chart-1: 142 55% 50%;
+    --chart-2: 172 52% 44%;
+    --chart-3: 46 74% 58%;
+    --chart-4: 196 60% 54%;
+    --chart-5: 340 58% 60%;
+
+    --success: 142 60% 48%;
+    --success-foreground: 142 60% 84%;
+    --success-bg: 142 48% 12%;
+    --warning: 44 92% 56%;
+    --warning-foreground: 46 94% 84%;
+    --warning-bg: 44 54% 12%;
+    --info: 196 62% 54%;
+    --info-foreground: 196 70% 86%;
+    --info-bg: 196 48% 13%;
+
+    --assist-mix-target: 0 0% 100%;
+
+    --shadow-sm:
+      0 1px 2px 0 rgb(0 20 10 / 0.4), 0 1px 3px 0 rgb(0 20 10 / 0.45);
+    --shadow-md:
+      0 2px 4px -1px rgb(0 20 10 / 0.45), 0 4px 12px -2px rgb(0 20 10 / 0.55);
+  }
+
+  /*
+   * -- High Contrast
+   *
+   * Accessibility-first: pure black/white text, a very bright accent, and
+   * borders strong enough to define every surface without relying on a
+   * low-contrast fill. The focus ring is near-white so it is never lost.
+   */
+  .contrast {
+    --background: 0 0% 0%;
+    --foreground: 0 0% 100%;
+    --card: 0 0% 4%;
+    --card-foreground: 0 0% 100%;
+    --popover: 0 0% 6%;
+    --popover-foreground: 0 0% 100%;
+    --primary: 210 100% 70%;
+    --primary-foreground: 0 0% 0%;
+    --secondary: 0 0% 16%;
+    --secondary-foreground: 0 0% 100%;
+    --muted: 0 0% 12%;
+    --muted-foreground: 0 0% 82%;
+    --accent: 0 0% 22%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 100% 65%;
+    --destructive-foreground: 0 0% 0%;
+    --border: 0 0% 45%;
+    --input: 0 0% 45%;
+    --ring: 0 0% 100%;
+    --chart-1: 210 100% 70%;
+    --chart-2: 120 90% 65%;
+    --chart-3: 50 100% 65%;
+    --chart-4: 300 100% 75%;
+    --chart-5: 0 100% 70%;
+
+    --success: 120 90% 60%;
+    --success-foreground: 0 0% 0%;
+    --success-bg: 120 60% 8%;
+    --warning: 50 100% 62%;
+    --warning-foreground: 0 0% 0%;
+    --warning-bg: 50 60% 8%;
+    --info: 210 100% 70%;
+    --info-foreground: 0 0% 0%;
+    --info-bg: 210 60% 8%;
+
+    --assist-mix-target: 0 0% 100%;
+
+    --shadow-sm: 0 0 0 1px rgb(255 255 255 / 0.25);
+    --shadow-md: 0 0 0 1px rgb(255 255 255 / 0.35);
+  }
+
+  /* -- Paper: warm sepia ----------------------------------------- */
+  .paper {
+    --background: 40 30% 96%;
+    --foreground: 25 30% 15%;
+    --card: 40 35% 98%;
+    --card-foreground: 25 30% 15%;
+    --popover: 40 40% 99%;
+    --popover-foreground: 25 30% 15%;
+    --primary: 25 65% 38%;
+    --primary-foreground: 40 40% 98%;
+    --secondary: 40 25% 90%;
+    --secondary-foreground: 25 30% 18%;
+    --muted: 40 22% 91%;
+    --muted-foreground: 30 12% 42%;
+    --accent: 40 28% 88%;
+    --accent-foreground: 25 35% 15%;
+    --destructive: 4 72% 46%;
+    --destructive-foreground: 40 40% 98%;
+    --border: 38 22% 82%;
+    --input: 38 22% 82%;
+    --ring: 25 65% 38%;
+    --chart-1: 12 62% 48%;
+    --chart-2: 158 44% 36%;
+    --chart-3: 200 38% 34%;
+    --chart-4: 43 68% 48%;
+    --chart-5: 24 72% 50%;
+
+    --success: 140 52% 32%;
+    --success-foreground: 140 60% 16%;
+    --success-bg: 140 44% 90%;
+    --warning: 36 84% 40%;
+    --warning-foreground: 32 84% 22%;
+    --warning-bg: 44 88% 88%;
+    --info: 210 62% 42%;
+    --info-foreground: 218 72% 26%;
+    --info-bg: 212 68% 90%;
+
+    --assist-mix-target: 0 0% 0%;
+
+    --shadow-sm:
+      0 1px 2px 0 rgb(80 60 30 / 0.06), 0 1px 3px 0 rgb(80 60 30 / 0.07);
+    --shadow-md:
+      0 2px 4px -1px rgb(80 60 30 / 0.07), 0 4px 12px -2px rgb(80 60 30 / 0.09);
   }
 }
 
@@ -183,26 +519,39 @@
   :root {
     color-scheme: light;
   }
-  .dark {
+
+  /* Every dark theme declares a dark colour scheme, so native form controls,
+     scrollbars and the caret follow the theme. */
+  .dark,
+  .oled,
+  .midnight,
+  .forest,
+  .contrast {
     color-scheme: dark;
   }
+
   * {
     @apply border-border;
     scrollbar-color: hsl(var(--muted-foreground) / 0.3) transparent;
   }
   html {
     @apply bg-background text-foreground;
-    transition: background-color 0.3s ease, color 0.3s ease;
+    transition:
+      background-color 0.3s ease,
+      color 0.3s ease;
   }
   body {
     @apply bg-background text-foreground;
-    transition: background-color 0.3s ease, color 0.3s ease;
+    transition:
+      background-color 0.3s ease,
+      color 0.3s ease;
   }
   /* Smooth dark-mode transition on all elements */
   *,
   *::before,
   *::after {
-    transition-property: background-color, border-color, color, fill, stroke, box-shadow;
+    transition-property:
+      background-color, border-color, color, fill, stroke, box-shadow;
     transition-duration: 0.25s;
     transition-timing-function: ease;
   }
@@ -243,58 +592,96 @@
   }
 }
 
-/* MapLibre popup dark mode */
-.dark .maplibregl-popup-content {
-  background: hsl(220 13% 10%);
-  color: hsl(0 0% 98%);
-  border: 1px solid hsl(220 10% 20%);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+/*
+ * MapLibre popup chrome.
+ *
+ * Previously scoped to `.dark` with hard-coded navy values, which meant the
+ * popups kept the old slate colours on OLED, Midnight, Forest and High Contrast.
+ * They now read the portal's own surface tokens and apply to EVERY theme, so a
+ * popup is always made of the same material as the rest of the app.
+ */
+.maplibregl-popup-content {
+  background: hsl(var(--popover));
+  color: hsl(var(--popover-foreground));
+  border: 1px solid hsl(var(--border));
+  box-shadow: var(--shadow-md);
 }
 
-.dark .maplibregl-popup-tip {
-  border-top-color: hsl(220 13% 10%);
+.maplibregl-popup-tip {
+  border-top-color: hsl(var(--popover));
+  border-bottom-color: hsl(var(--popover));
 }
 
-.dark .maplibregl-popup-close-button {
-  color: hsl(0 0% 64%);
+.maplibregl-popup-close-button {
+  color: hsl(var(--muted-foreground));
 }
 
-.dark .maplibregl-popup-close-button:hover {
-  color: hsl(0 0% 98%);
-  background: hsl(220 10% 16%);
+.maplibregl-popup-close-button:hover {
+  color: hsl(var(--popover-foreground));
+  background: hsl(var(--accent));
 }
-
 
 /* ── Login page animations ── */
 
 @keyframes fade-in {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 @keyframes slide-in-from-top {
-  from { transform: translateY(-10px); opacity: 0; }
-  to { transform: translateY(0); opacity: 1; }
+  from {
+    transform: translateY(-10px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
 }
 
 /* Card entrance - smooth and subtle */
 @keyframes login-card-in {
-  from { opacity: 0; transform: translateY(20px); }
-  to   { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* Section stagger entrance - subtle */
 @keyframes login-section-in {
-  from { opacity: 0; transform: translateY(8px); }
-  to   { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* Error shake - gentle */
 @keyframes login-shake {
-  0%, 100% { transform: translateX(0); }
-  25%      { transform: translateX(-4px); }
-  50%      { transform: translateX(4px); }
-  75%      { transform: translateX(-2px); }
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-4px);
+  }
+  50% {
+    transform: translateX(4px);
+  }
+  75% {
+    transform: translateX(-2px);
+  }
 }
 
 /* ── Utility classes ── */
@@ -317,20 +704,608 @@
 }
 
 /* Staggered section entrances - more subtle timing */
-.login-section:nth-child(1) { animation: login-section-in 0.4s ease-out 0.05s both; }
-.login-section:nth-child(2) { animation: login-section-in 0.4s ease-out 0.10s both; }
-.login-section:nth-child(3) { animation: login-section-in 0.4s ease-out 0.15s both; }
-.login-section:nth-child(4) { animation: login-section-in 0.4s ease-out 0.20s both; }
-.login-section:nth-child(5) { animation: login-section-in 0.4s ease-out 0.25s both; }
-.login-section:nth-child(6) { animation: login-section-in 0.4s ease-out 0.30s both; }
-.login-section:nth-child(7) { animation: login-section-in 0.4s ease-out 0.35s both; }
-.login-section:nth-child(8) { animation: login-section-in 0.4s ease-out 0.40s both; }
-.login-section:nth-child(9) { animation: login-section-in 0.4s ease-out 0.45s both; }
-.login-section:nth-child(10) { animation: login-section-in 0.4s ease-out 0.50s both; }
+.login-section:nth-child(1) {
+  animation: login-section-in 0.4s ease-out 0.05s both;
+}
+.login-section:nth-child(2) {
+  animation: login-section-in 0.4s ease-out 0.1s both;
+}
+.login-section:nth-child(3) {
+  animation: login-section-in 0.4s ease-out 0.15s both;
+}
+.login-section:nth-child(4) {
+  animation: login-section-in 0.4s ease-out 0.2s both;
+}
+.login-section:nth-child(5) {
+  animation: login-section-in 0.4s ease-out 0.25s both;
+}
+.login-section:nth-child(6) {
+  animation: login-section-in 0.4s ease-out 0.3s both;
+}
+.login-section:nth-child(7) {
+  animation: login-section-in 0.4s ease-out 0.35s both;
+}
+.login-section:nth-child(8) {
+  animation: login-section-in 0.4s ease-out 0.4s both;
+}
+.login-section:nth-child(9) {
+  animation: login-section-in 0.4s ease-out 0.45s both;
+}
+.login-section:nth-child(10) {
+  animation: login-section-in 0.4s ease-out 0.5s both;
+}
 
 /* Error shake */
 .login-shake {
   animation: login-shake 0.4s ease-in-out;
+}
+
+/* ──────────────────────────────────────────────────────────────────────────
+   Feedback toasts.
+
+   One centre-screen card, one style, every variant. Everything a toast needs
+   is defined here rather than in the component so the two can change
+   independently, and so the reduced-motion block below has a single, complete
+   list of what it has to neutralise.
+
+   The surface tokens are declared once for light and overridden once for every
+   dark appearance (the selector list matches `@custom-variant dark` at the top
+   of this file). A toast is therefore built from the same material as the page
+   it appears over, on all six themes — rather than being a hard-coded black
+   card that reads as a foreign object on a light page.
+   ────────────────────────────────────────────────────────────────────────── */
+
+:root {
+  --fb-surface: 0 0% 100%;
+  --fb-surface-alpha: 0.97;
+  --fb-foreground: 222 24% 11%;
+  --fb-muted: 220 7% 44%;
+  --fb-faint: 220 6% 60%;
+  --fb-border: 220 13% 90%;
+  --fb-hover: 220 20% 95%;
+  --fb-shadow:
+    0 0 0 1px rgb(15 23 42 / 0.04), 0 2px 4px -2px rgb(15 23 42 / 0.07),
+    0 18px 40px -12px rgb(15 23 42 / 0.16),
+    0 32px 64px -24px rgb(15 23 42 / 0.2);
+}
+
+.dark,
+.oled,
+.midnight,
+.forest,
+.contrast {
+  --fb-surface: 226 24% 9%;
+  --fb-surface-alpha: 0.94;
+  --fb-foreground: 0 0% 98%;
+  --fb-muted: 220 12% 71%;
+  --fb-faint: 220 10% 54%;
+  --fb-border: 220 14% 22%;
+  --fb-hover: 220 16% 24%;
+  --fb-shadow:
+    0 0 0 1px rgb(255 255 255 / 0.06), 0 2px 4px -2px rgb(0 0 0 / 0.4),
+    0 18px 40px -12px rgb(0 0 0 / 0.55), 0 32px 64px -24px rgb(0 0 0 / 0.6);
+}
+
+/* ── Card surface ──────────────────────────────────────────────────────── */
+
+.fb-card {
+  background-color: hsl(var(--fb-surface) / var(--fb-surface-alpha));
+  color: hsl(var(--fb-foreground));
+  border: 1px solid hsl(var(--fb-border));
+  box-shadow: var(--fb-shadow);
+}
+
+/*
+ * The card is a true square — width and height locked to the same value — so
+ * every toast reads as the same shape regardless of how long its text is.
+ *
+ * The edge length is `min()` of a viewport width, a comfortable reading cap and
+ * 60svh, so it stays square on a phone in portrait, on a desktop and on a
+ * short landscape screen without ever outgrowing the safe area.
+ */
+.fb-square {
+  width: min(90vw, 25rem, 60svh);
+  aspect-ratio: 1 / 1;
+}
+
+/* ── Icon animation ─────────────────────────────────────────────────────── */
+
+/*
+ * The icon is the loudest thing in the card, so it gets a three-part entrance
+ * rather than a fade:
+ *
+ *   1. an expanding halo that reads as a ripple off the surface,
+ *   2. the badge springing into place with a single overshoot,
+ *   3. the glyph itself drawing on a delay, so it lands last.
+ *
+ * The ripple is a sibling rather than part of the badge because the badge
+ * already animates its own box-shadow (see `toast-badge`); two animations
+ * writing box-shadow on one element would fight over the same property.
+ */
+.toast-ripple-success {
+  --ripple: 16 185 129;
+}
+.toast-ripple-error {
+  --ripple: 239 68 68;
+}
+.toast-ripple-warning {
+  --ripple: 245 158 11;
+}
+.toast-ripple-info {
+  --ripple: 14 165 233;
+}
+.toast-ripple-loading {
+  --ripple: 113 113 122;
+}
+
+.toast-ripple {
+  animation: toast-ripple 0.75s cubic-bezier(0.16, 1, 0.3, 1) 0.02s both;
+}
+
+/* ── Variant gradients ─────────────────────────────────────────────────── */
+
+/* Icon badge */
+.toast-badge {
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.4),
+    inset 0 -1px 0 rgb(0 0 0 / 0.14),
+    0 6px 18px -6px var(--fb-badge-glow);
+}
+.toast-badge-success {
+  --fb-badge-glow: rgb(16 185 129 / 0.5);
+  background-image: linear-gradient(
+    150deg,
+    #6ee7b7 0%,
+    #10b981 52%,
+    #059669 100%
+  );
+}
+.toast-badge-error {
+  --fb-badge-glow: rgb(239 68 68 / 0.5);
+  background-image: linear-gradient(
+    150deg,
+    #fca5a5 0%,
+    #ef4444 52%,
+    #dc2626 100%
+  );
+}
+.toast-badge-warning {
+  --fb-badge-glow: rgb(245 158 11 / 0.5);
+  background-image: linear-gradient(
+    150deg,
+    #fde68a 0%,
+    #f59e0b 52%,
+    #d97706 100%
+  );
+}
+.toast-badge-info {
+  --fb-badge-glow: rgb(14 165 233 / 0.5);
+  background-image: linear-gradient(
+    150deg,
+    #7dd3fc 0%,
+    #0ea5e9 52%,
+    #0284c7 100%
+  );
+}
+.toast-badge-loading {
+  --fb-badge-glow: rgb(113 113 122 / 0.45);
+  background-image: linear-gradient(
+    150deg,
+    #d4d4d8 0%,
+    #a1a1aa 52%,
+    #71717a 100%
+  );
+}
+
+/* Countdown bar at the foot of the card */
+.toast-progress-success {
+  background-image: linear-gradient(90deg, #059669, #34d399);
+}
+.toast-progress-error {
+  background-image: linear-gradient(90deg, #dc2626, #f87171);
+}
+.toast-progress-warning {
+  background-image: linear-gradient(90deg, #d97706, #fbbf24);
+}
+.toast-progress-info {
+  background-image: linear-gradient(90deg, #0284c7, #38bdf8);
+}
+.toast-progress-loading {
+  background-image: linear-gradient(90deg, #52525b, #a1a1aa);
+}
+
+/* ── Motion ────────────────────────────────────────────────────────────── */
+
+/*
+ * Entrance — a short spring with a single overshoot plus a blur that resolves
+ * inside the first third. The overshoot is the part that reads as physical:
+ * the card arrives, settles past its resting size, and comes back.
+ */
+@keyframes toast-in {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 28px, 0) scale(0.9);
+    filter: blur(10px);
+  }
+  40% {
+    opacity: 1;
+    filter: blur(0px);
+  }
+  70% {
+    transform: translate3d(0, -4px, 0) scale(1.02);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+    filter: blur(0px);
+  }
+}
+
+/*
+ * Exit — lifts and dissolves. Deliberately faster than the entrance: the
+ * entrance is what the user watches, the dismissal only has to feel instant.
+ */
+@keyframes toast-out {
+  0% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+    filter: blur(0px);
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(0, -16px, 0) scale(0.94);
+    filter: blur(6px);
+  }
+}
+
+/*
+ * Check mark drawn by its own stroke — the dashoffset technique behind every
+ * professional icon animation. The path carries `pathLength="1"`, which
+ * normalises its measured length to exactly 1 unit, so both the dasharray and
+ * the starting offset are literal 1s regardless of the path's real geometry.
+ */
+@keyframes toast-check-draw {
+  0% {
+    stroke-dashoffset: 1;
+    opacity: 0.25;
+  }
+  100% {
+    stroke-dashoffset: 0;
+    opacity: 1;
+  }
+}
+
+/* Badge lands with its own spring, on a delay so the card reads first. */
+@keyframes toast-badge-in {
+  0% {
+    transform: scale(0.3);
+    opacity: 0;
+  }
+  65% {
+    transform: scale(1.12);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/*
+ * Both strokes of the × draw simultaneously. Normalised with `pathLength="1"`
+ * on each path, for the same reason as the check mark.
+ */
+@keyframes toast-x-draw {
+  0% {
+    stroke-dashoffset: 1;
+    opacity: 0.25;
+  }
+  100% {
+    stroke-dashoffset: 0;
+    opacity: 1;
+  }
+}
+
+/* One decisive shake, fired after the strokes land. */
+@keyframes toast-badge-shake {
+  0%,
+  100% {
+    transform: scale(1) rotate(0deg);
+  }
+  20% {
+    transform: scale(1.1) rotate(-10deg);
+  }
+  40% {
+    transform: scale(1.1) rotate(10deg);
+  }
+  65% {
+    transform: scale(1.04) rotate(-4deg);
+  }
+  82% {
+    transform: scale(1.04) rotate(4deg);
+  }
+}
+
+/*
+ * The ripple: a ring that expands past the badge and fades as it goes, so the
+ * icon reads as energy arriving on the surface rather than being pasted onto it.
+ */
+@keyframes toast-ripple {
+  0% {
+    opacity: 0.55;
+    transform: scale(0.72);
+  }
+  70% {
+    opacity: 0;
+    transform: scale(1.9);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.9);
+  }
+}
+
+/* ── Wiring ────────────────────────────────────────────────────────────── */
+
+.toast-enter {
+  animation: toast-in 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.toast-exit {
+  animation: toast-out 0.2s cubic-bezier(0.55, 0, 1, 1) both;
+}
+
+/*
+ * The glow is a separate animation because it overrides box-shadow, which the
+ * badge's own inset/drop-shadow stack also sets. Two animations on one element
+ * both writing box-shadow would fight; splitting them across two nested
+ * elements would cost a wrapper. Instead the badge keeps its shadow and only
+ * the ring-in/shake (transform + opacity) is animated here — the halo is
+ * carried by the card-level `--fb-shadow`, which already carries a coloured
+ * 1px halo per variant.
+ */
+.toast-badge-anim-success,
+.toast-badge-anim-warning,
+.toast-badge-anim-info {
+  animation: toast-badge-in 0.42s cubic-bezier(0.16, 1, 0.3, 1) 0.06s both;
+}
+.toast-badge-anim-error {
+  animation:
+    toast-badge-in 0.42s cubic-bezier(0.16, 1, 0.3, 1) 0.06s both,
+    toast-badge-shake 0.5s cubic-bezier(0.36, 0.07, 0.19, 0.97) 0.26s both;
+}
+
+.toast-check-path {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: toast-check-draw 0.42s cubic-bezier(0.16, 1, 0.3, 1) 0.18s both;
+}
+.toast-x-path {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: toast-x-draw 0.32s cubic-bezier(0.16, 1, 0.3, 1) 0.22s both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toast-enter {
+    animation: fade-in 0.15s ease-out both;
+  }
+  .toast-exit {
+    animation: none;
+    opacity: 0;
+  }
+  .toast-badge-anim-success,
+  .toast-badge-anim-error,
+  .toast-badge-anim-warning,
+  .toast-badge-anim-info,
+  .toast-ripple {
+    animation: fade-in 0.15s ease-out both;
+  }
+  .toast-check-path,
+  .toast-x-path {
+    animation: none;
+    stroke-dashoffset: 0;
+    opacity: 1;
+  }
+}
+
+/* ── Assistant (Meri) surfaces ── */
+
+@keyframes assistant-rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.94);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Floating launcher entrance. Cubic ease so it settles rather than snaps. */
+.assistant-rise {
+  animation: assistant-rise 0.34s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes turn-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Each new transcript turn eases in, so an arriving answer reads as an arrival. */
+.turn-in {
+  animation: turn-in 0.26s ease-out both;
+}
+
+/*
+ * Answer body.
+ *
+ * Lives here rather than as a wall of arbitrary selectors on the element because
+ * a reasoning answer is mostly markdown, and markdown needs real typographic
+ * rules — headings, code, quotes, rules, tables. They also need to survive a
+ * design change: one class to restyle beats forty utility classes to hunt down.
+ */
+.assistant-prose {
+  /*
+   * The assistant wears the system accent. Text needs more contrast than a
+   * 13px interactive label does, so the accent is mixed toward
+   * `--assist-mix-target` — which every theme sets to black or white — rather
+   * than used raw. Same hue family, readable on all seven appearances, and it
+   * still follows `--primary` if the brand colour ever changes.
+   *
+   * This replaces the old `.dark .assistant-prose` override: the dark themes
+   * used to need a second rule with hand-picked percentages, which meant every
+   * new theme had to remember to add one.
+   */
+  --assist-accent: color-mix(
+    in srgb,
+    var(--color-primary) 78%,
+    var(--assist-mix-target, black)
+  );
+  --assist-rule: color-mix(in srgb, var(--color-primary) 45%, transparent);
+
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--color-foreground);
+  overflow-wrap: anywhere;
+}
+
+.assistant-prose > :first-child {
+  margin-top: 0;
+}
+.assistant-prose > :last-child {
+  margin-bottom: 0;
+}
+
+.assistant-prose p {
+  margin: 0.5rem 0;
+}
+
+.assistant-prose strong {
+  font-weight: 600;
+  color: var(--color-foreground);
+}
+
+/* Accent headings, serif — the app's convention for display type. */
+.assistant-prose h1,
+.assistant-prose h2,
+.assistant-prose h3,
+.assistant-prose h4 {
+  font-family:
+    "Source Serif 4", "Noto Serif Ethiopic", Georgia, "Times New Roman", serif;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--assist-accent);
+  margin: 0.9rem 0 0.35rem;
+}
+.assistant-prose h1 {
+  font-size: 1.05rem;
+}
+.assistant-prose h2 {
+  font-size: 1rem;
+}
+.assistant-prose h3,
+.assistant-prose h4 {
+  font-size: 0.9rem;
+}
+
+.assistant-prose a {
+  color: var(--assist-accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.assistant-prose ul,
+.assistant-prose ol {
+  margin: 0.5rem 0;
+  padding-left: 1.15rem;
+}
+.assistant-prose ul {
+  list-style: disc;
+}
+.assistant-prose ol {
+  list-style: decimal;
+}
+.assistant-prose li {
+  margin: 0.2rem 0;
+}
+.assistant-prose li::marker {
+  color: var(--assist-accent);
+}
+
+/* Quotes read as cited guidance — the assistant restating a policy. */
+.assistant-prose blockquote {
+  margin: 0.6rem 0;
+  border-left: 2px solid var(--assist-rule);
+  padding-left: 0.75rem;
+  color: var(--color-muted-foreground);
+  font-style: italic;
+}
+
+.assistant-prose hr {
+  margin: 0.9rem 0;
+  border: 0;
+  border-top: 1px solid var(--color-border);
+}
+
+.assistant-prose code {
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 0.78em;
+  background: var(--color-muted);
+  border: 1px solid var(--color-border);
+  border-radius: calc(var(--radius) - 4px);
+  padding: 0.05em 0.3em;
+}
+
+.assistant-prose pre {
+  margin: 0.6rem 0;
+  overflow-x: auto;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-muted);
+  padding: 0.65rem 0.75rem;
+}
+.assistant-prose pre code {
+  background: none;
+  border: 0;
+  padding: 0;
+  font-size: 11px;
+}
+
+/* Answers quote figures, so tables have to survive a 620px panel. */
+.assistant-prose table {
+  display: block;
+  width: 100%;
+  overflow-x: auto;
+  border-collapse: collapse;
+  font-size: 12px;
+  margin: 0.6rem 0;
+}
+.assistant-prose th {
+  text-align: left;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-size: 10px;
+  color: var(--color-muted-foreground);
+  background: var(--color-muted);
+  border-bottom: 1px solid var(--color-border);
+  padding: 0.35rem 0.5rem;
+  white-space: nowrap;
+}
+.assistant-prose td {
+  border-bottom: 1px solid
+    color-mix(in srgb, var(--color-border) 50%, transparent);
+  padding: 0.35rem 0.5rem;
+  white-space: nowrap;
+}
+.assistant-prose tr:last-child td {
+  border-bottom: 0;
 }
 
 /* ── Print: allocation receipt (Original + Duplicate) ── */
@@ -368,5 +1343,125 @@
   .allocation-receipt-copy {
     break-inside: avoid;
     page-break-inside: avoid;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+ * Pay Rent receipt / lease statement print output.
+ *
+ * Mirrors the .allocation-receipt-print block above: the printable copy is
+ * portalled into <body> and everything else is hidden while printing, so the
+ * browser's print dialog sees only the document.
+ * --------------------------------------------------------------------------- */
+.rent-receipt-print {
+  display: none;
+}
+
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 8mm;
+  }
+
+  body > *:not(.rent-receipt-print) {
+    display: none !important;
+  }
+
+  .rent-receipt-print {
+    display: block !important;
+    background: #fff;
+    color: #000;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* A long lease statement spans pages: repeat the schedule header on each one
+     and never split a row. `thead { display: table-header-group }` is what makes
+     the header repeat, so it must not be overridden by a flex/grid layout. */
+  .rent-receipt-print table {
+    break-inside: auto;
+  }
+
+  .rent-receipt-print thead {
+    display: table-header-group;
+  }
+
+  .rent-receipt-print tr {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  /* The stamp and seal are absolutely positioned inside the frame; without this
+     they repeat on every printed page, overlapping the schedule rows. */
+  .rent-receipt-print [data-print-overlay="true"],
+  .allocation-receipt-print [data-print-overlay="true"] {
+    position: absolute;
+  }
+
+  /* Print exactly what the preview showed - no hover-only affordances. */
+  .rent-receipt-print a {
+    text-decoration: none;
+    color: inherit;
+  }
+
+  /* Feedback is screen-only. A confirmation that lands while a form is being
+     printed onto an official receipt would otherwise be baked into the paper. */
+  [data-feedback-variant] {
+    display: none !important;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+ * House Request acknowledgement print output.
+ *
+ * A confirmation the employee can be handed. Same mechanism as the two receipts
+ * above — the printable copy is portalled into <body> and everything else is
+ * hidden while printing — so the browser's print dialog sees only the document.
+ *
+ * Deliberately NOT a Tailwind component: the whole document is inline
+ * `React.CSSProperties`, because it is also rasterised to PDF through
+ * html2canvas, which only reproduces inline styles faithfully.
+ * --------------------------------------------------------------------------- */
+.house-request-receipt-print {
+  display: none;
+}
+
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 12mm;
+  }
+
+  body > *:not(.house-request-receipt-print) {
+    display: none !important;
+  }
+
+  .house-request-receipt-print {
+    display: block !important;
+    background: #fff;
+    color: #000;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .house-request-receipt-copy {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+}
+
+/* ── Reduced motion ──────────────────────────────────────────────────────────
+   The feedback viewport animates two things: the toast's own entrance and the
+   progress bar's sweep. Neither is load-bearing — the bar still reports the
+   remaining time, stepped rather than swept — so both are simply stopped rather
+   than replaced with something slower, which is the usual way this preference
+   ends up half-honoured. */
+@media (prefers-reduced-motion: reduce) {
+  [data-feedback-variant],
+  [data-feedback-variant] * {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
   }
 }

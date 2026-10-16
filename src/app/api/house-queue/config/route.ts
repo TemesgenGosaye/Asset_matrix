@@ -8,17 +8,22 @@ import {
 import { getConfigState, saveDraft } from "@/lib/house-queue/config/service";
 import { validateEngineConfigPayload } from "@/lib/house-queue/config/validate";
 import type { EngineConfigPayload } from "@/lib/house-queue/config/types";
-import { getClientIp, serializeState } from "./_shared";
+import { buildPublishGate, getClientIp, serializeState } from "./_shared";
 
 // GET /api/house-queue/config
 // Full state snapshot: active version, draft (if any), archived history,
-// editing baseline and last-run/publish timestamps. Seed v1 on first access.
+// editing baseline, last-run/publish timestamps, and the caller's publish
+// gate. Seed v1 on first access.
 export async function GET() {
   try {
-    await requirePermission("house_queue:manage");
+    const requester = await requirePermission("house_queue:manage");
     const orgId = await requireOrgId();
     const state = await getConfigState(orgId);
-    return NextResponse.json({ state: serializeState(state) }, { status: 200 });
+    const publishGate = await buildPublishGate(state, requester.id ?? null);
+    return NextResponse.json(
+      { state: serializeState(state, publishGate) },
+      { status: 200 },
+    );
   } catch (e) {
     return handleRouteError(e, {
       label: "GET /api/house-queue/config",
@@ -63,7 +68,13 @@ export async function POST(req: NextRequest) {
     });
 
     const state = await getConfigState(orgId);
-    return NextResponse.json({ state: serializeState(state) }, { status: 200 });
+    // Re-derived from the draft that was just written, so the client's publish
+    // button reflects the save it just made rather than the one before it.
+    const publishGate = await buildPublishGate(state, requester.id ?? null);
+    return NextResponse.json(
+      { state: serializeState(state, publishGate) },
+      { status: 200 },
+    );
   } catch (e) {
     return handleRouteError(e, {
       label: "POST /api/house-queue/config",

@@ -28,7 +28,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { toast } from "sonner";
+import { notify } from "@/lib/feedback/notify";
 
 interface Invitation {
   id: string;
@@ -101,10 +101,10 @@ export default function TeamInvitationsClient() {
         const data = await response.json();
         setInvitations(data);
       } else {
-        toast.error("Failed to load invitations");
+        notify.error("Failed to load invitations");
       }
     } catch {
-      toast.error("Failed to load invitations");
+      notify.error("Failed to load invitations");
     } finally {
       setLoading(false);
     }
@@ -144,17 +144,17 @@ export default function TeamInvitationsClient() {
       const data = await response.json();
 
       if (!response.ok) {
-        toast.error(data.error || "Failed to send invitation");
+        notify.error(data.error || "Failed to send invitation");
         return;
       }
 
-      toast.success(`Invitation sent to ${email}`);
+      notify.success(`Invitation sent to ${email}`);
       setDialogOpen(false);
       setEmail("");
       setSelectedRoleId("");
       fetchInvitations();
     } catch {
-      toast.error("Failed to send invitation");
+      notify.error("Failed to send invitation");
     } finally {
       setSubmitting(false);
     }
@@ -169,14 +169,14 @@ export default function TeamInvitationsClient() {
       });
 
       if (!response.ok) {
-        toast.error("Failed to revoke invitation");
+        notify.error("Failed to revoke invitation");
         return;
       }
 
-      toast.success("Invitation revoked");
+      notify.success("Invitation revoked");
       fetchInvitations();
     } catch {
-      toast.error("Failed to revoke invitation");
+      notify.error("Failed to revoke invitation");
     }
   }
 

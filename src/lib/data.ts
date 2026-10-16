@@ -625,25 +625,6 @@ export async function getComponentCategoryById(id: string) {
   return category;
 }
 
-// EULA Templates
-export async function getEulaTemplates() {
-  return cached(
-    "eula_templates",
-    () =>
-      prisma.eulaTemplate.findMany({
-        orderBy: { createdAt: "desc" },
-      }),
-    2 * 60 * 1000,
-  );
-}
-
-export async function getEulaTemplateById(id: string) {
-  if (!id) throw new Error("Invalid ID parameter");
-  const template = await prisma.eulaTemplate.findUnique({ where: { id } });
-  if (!template) throw new Error(`EULA template with ID ${id} not found`);
-  return template;
-}
-
 // Kits
 export async function getKits() {
   const where = await strictOrgWhere();
@@ -768,7 +749,6 @@ const employeeBaseSelect = {
   employeeNumber: true,
   firstname: true,
   lastname: true,
-  email: true,
   phone: true,
   dateOfBirth: true,
   gender: true,
@@ -782,6 +762,7 @@ const employeeBaseSelect = {
   employmentStatus: true,
   jobGrade: true,
   maritalStatus: true,
+  nationalId: true,
   familySize: true,
   disabilityStatus: true,
   hireDate: true,
@@ -791,6 +772,13 @@ const employeeBaseSelect = {
   updatedAt: true,
 } as const;
 
+/**
+ * Live employees for the current organization.
+ *
+ * Soft-deleted (archived) employees are excluded: the rest of the application
+ * resolves employees by active employment, and an archived record must not feed
+ * housing, reporting or reporting widgets.
+ */
 export async function getEmployees() {
   const where = await strictOrgWhere();
   const key = `employees_all:${JSON.stringify(where)}`;
@@ -798,7 +786,7 @@ export async function getEmployees() {
     key,
     () =>
       prisma.employee.findMany({
-        where,
+        where: { ...where, deletedAt: null },
         select: {
           ...employeeBaseSelect,
           manager: {
@@ -819,8 +807,12 @@ export async function getEmployeeById(id: string) {
     throw new Error("Invalid ID parameter");
   }
 
-  const employee = await prisma.employee.findUnique({
-    where: { id },
+  // Must be org-scoped like every other read path here — an unscoped lookup
+  // by primary key alone would resolve employees belonging to another tenant.
+  const where = await strictOrgWhere();
+
+  const employee = await prisma.employee.findFirst({
+    where: { ...where, id, deletedAt: null },
     select: {
       ...employeeBaseSelect,
       manager: {

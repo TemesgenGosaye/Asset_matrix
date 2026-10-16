@@ -40,7 +40,7 @@ import {
 import WarrantyReport from "./WarrantyReport";
 import DepreciationReport from "./DepreciationReport";
 import type { DepreciationMethod } from "@/lib/depreciation";
-import { toast } from "sonner";
+import { notify } from "@/lib/feedback/notify";
 import HelpTooltip from "@/components/HelpTooltip";
 import AssetLifecycleChart from "@/components/charts/AssetLifecycleChart";
 import CostBreakdownChart from "@/components/charts/CostBreakdownChart";
@@ -173,7 +173,7 @@ function AdvancedCharts() {
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : "Unknown error";
         setError(message);
-        toast.error("Failed to load advanced reports");
+        notify.error("Failed to load advanced reports");
       } finally {
         setLoading(false);
       }
@@ -484,7 +484,7 @@ export default function ReportsPage({
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    toast.success("Report exported to CSV");
+    notify.success("Report exported to CSV");
   };
 
   const exportToExcel = async () => {
@@ -501,9 +501,9 @@ export default function ReportsPage({
       link.click();
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
-      toast.success("Report exported to Excel");
+      notify.success("Report exported to Excel");
     } catch {
-      toast.error("Failed to export Excel report");
+      notify.error("Failed to export Excel report");
     }
   };
 
@@ -511,7 +511,7 @@ export default function ReportsPage({
     // For PDF export, we'll generate a printable HTML and use browser print
     const printWindow = window.open("", "_blank");
     if (!printWindow) {
-      toast.error("Please allow popups to export PDF");
+      notify.error("Please allow popups to export PDF");
       return;
     }
 
@@ -584,7 +584,7 @@ export default function ReportsPage({
 
     printWindow.document.write(html);
     printWindow.document.close();
-    toast.success("PDF report opened in new tab");
+    notify.success("PDF report opened in new tab");
   };
 
   return (

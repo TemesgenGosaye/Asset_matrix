@@ -11,19 +11,13 @@ import {
   FileText,
   Bell,
   Shield,
-  Ticket,
   Building2,
   FolderTree,
-  Webhook,
-  KeyRound,
-  Server,
   MessageSquare,
   MapPin,
   GitBranch,
   FileKey,
-  ScrollText,
   LayoutTemplate,
-  Monitor,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -42,19 +36,13 @@ import DepreciationSettingsTab from "./DepreciationSettingsTab";
 import CustomFieldsAdminTab from "./CustomFieldsAdminTab";
 import NotificationSettingsTab from "./NotificationSettingsTab";
 import GeneralSettingsTab from "./GeneralSettingsTab";
-import FreshdeskSettingsTab from "./FreshdeskSettingsTab";
 import OrganizationsTab from "./OrganizationsTab";
 import DepartmentsTab from "./DepartmentsTab";
 import RolesTab from "./RolesTab";
-import WebhooksTab from "./WebhooksTab";
-import SSOSettingsTab from "./SSOSettingsTab";
-import LDAPSettingsTab from "./LDAPSettingsTab";
-import IntuneSettingsTab from "./IntuneSettingsTab";
 import IntegrationsTab from "./IntegrationsTab";
 import LocationTrackingTab from "./LocationTrackingTab";
 import StatusWorkflowTab from "./StatusWorkflowTab";
 import ApiKeysTab from "./ApiKeysTab";
-import EulaTab from "./EulaTab";
 import AssetTemplatesTab from "./AssetTemplatesTab";
 
 interface NavItem {
@@ -95,7 +83,6 @@ const settingsNav: NavGroup[] = [
         label: "Asset Templates",
         icon: LayoutTemplate,
       },
-      { value: "eula", label: "EULA Templates", icon: ScrollText },
     ],
   },
   {
@@ -103,17 +90,12 @@ const settingsNav: NavGroup[] = [
     items: [
       { value: "roles", label: "Roles", icon: Shield },
       { value: "api-keys", label: "API Keys", icon: FileKey },
-      { value: "sso", label: "SSO", icon: KeyRound },
-      { value: "ldap", label: "LDAP", icon: Server },
-      { value: "intune", label: "Intune", icon: Monitor },
       { value: "locationTracking", label: "Location Tracking", icon: MapPin },
     ],
   },
   {
     title: "Integrations",
     items: [
-      { value: "freshdesk", label: "Freshdesk", icon: Ticket },
-      { value: "webhooks", label: "Webhooks", icon: Webhook },
       { value: "integrations", label: "Integrations", icon: MessageSquare },
       { value: "organizations", label: "Organizations", icon: Building2 },
       { value: "departments", label: "Departments", icon: FolderTree },
@@ -304,9 +286,6 @@ export default function AdminSettingsPage({
               envEmailConfig={envEmailConfig}
             />
           )}
-          {activeTab === "freshdesk" && (
-            <FreshdeskSettingsTab settings={settings.freshdesk || []} />
-          )}
           {activeTab === "notifications" && (
             <NotificationSettingsTab settings={settings.notifications || []} />
           )}
@@ -321,17 +300,12 @@ export default function AdminSettingsPage({
           {activeTab === "organizations" && <OrganizationsTab />}
           {activeTab === "departments" && <DepartmentsTab />}
           {activeTab === "roles" && <RolesTab />}
-          {activeTab === "webhooks" && <WebhooksTab />}
-          {activeTab === "sso" && <SSOSettingsTab />}
-          {activeTab === "ldap" && <LDAPSettingsTab />}
-          {activeTab === "intune" && <IntuneSettingsTab />}
           {activeTab === "integrations" && <IntegrationsTab />}
           {activeTab === "locationTracking" && <LocationTrackingTab />}
           {activeTab === "status-workflow" && (
             <StatusWorkflowTab statuses={statuses} />
           )}
           {activeTab === "api-keys" && <ApiKeysTab />}
-          {activeTab === "eula" && <EulaTab />}
           {activeTab === "asset-templates" && <AssetTemplatesTab />}
         </div>
       </div>

@@ -1,9 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import {
-  requireNotDemoMode,
-  requirePermission,
-} from "@/lib/api-auth";
+import { requireNotDemoMode, requirePermission } from "@/lib/api-auth";
 import {
   createHouseholdSchema,
   updateHouseholdSchema,
@@ -146,10 +143,7 @@ export async function POST(req: NextRequest) {
       data.staffCategory,
     );
     if (!prefixCheck.valid) {
-      return NextResponse.json(
-        { error: prefixCheck.error },
-        { status: 400 },
-      );
+      return NextResponse.json({ error: prefixCheck.error }, { status: 400 });
     }
 
     // Resolve location name if locationId provided
@@ -292,10 +286,7 @@ export async function PUT(req: NextRequest) {
       effectiveStaffCategory,
     );
     if (!prefixCheck.valid) {
-      return NextResponse.json(
-        { error: prefixCheck.error },
-        { status: 400 },
-      );
+      return NextResponse.json({ error: prefixCheck.error }, { status: 400 });
     }
 
     // Check duplicate houseNumber if changed
@@ -358,13 +349,20 @@ export async function PUT(req: NextRequest) {
         damageNotes: null,
       };
     } else {
-      if (data.damageWindow !== undefined) damageUpdates.damageWindow = data.damageWindow;
-      if (data.damageDoor !== undefined) damageUpdates.damageDoor = data.damageDoor;
-      if (data.damageWaterPanel !== undefined) damageUpdates.damageWaterPanel = data.damageWaterPanel;
-      if (data.damageRoof !== undefined) damageUpdates.damageRoof = data.damageRoof;
-      if (data.damageWall !== undefined) damageUpdates.damageWall = data.damageWall;
-      if (data.damageElectricity !== undefined) damageUpdates.damageElectricity = data.damageElectricity;
-      if (data.damageNotes !== undefined) damageUpdates.damageNotes = data.damageNotes;
+      if (data.damageWindow !== undefined)
+        damageUpdates.damageWindow = data.damageWindow;
+      if (data.damageDoor !== undefined)
+        damageUpdates.damageDoor = data.damageDoor;
+      if (data.damageWaterPanel !== undefined)
+        damageUpdates.damageWaterPanel = data.damageWaterPanel;
+      if (data.damageRoof !== undefined)
+        damageUpdates.damageRoof = data.damageRoof;
+      if (data.damageWall !== undefined)
+        damageUpdates.damageWall = data.damageWall;
+      if (data.damageElectricity !== undefined)
+        damageUpdates.damageElectricity = data.damageElectricity;
+      if (data.damageNotes !== undefined)
+        damageUpdates.damageNotes = data.damageNotes;
     }
 
     const updated = await prisma.household.update({
@@ -375,13 +373,21 @@ export async function PUT(req: NextRequest) {
         staffCategory: effectiveStaffCategory,
         ...(data.houseNumber && { houseNumber: data.houseNumber }),
         ...(data.rgType && { rgType: data.rgType }),
-        ...(data.locationId !== undefined && { locationId: data.locationId || null }),
+        ...(data.locationId !== undefined && {
+          locationId: data.locationId || null,
+        }),
         ...(locationName !== undefined && { locationName }),
         ...(data.status && { status: data.status }),
         ...(data.bedCount !== undefined && { bedCount: data.bedCount }),
-        ...(data.chairsCount !== undefined && { chairsCount: data.chairsCount }),
-        ...(data.lockerCount !== undefined && { lockerCount: data.lockerCount }),
-        ...(data.tablesCount !== undefined && { tablesCount: data.tablesCount }),
+        ...(data.chairsCount !== undefined && {
+          chairsCount: data.chairsCount,
+        }),
+        ...(data.lockerCount !== undefined && {
+          lockerCount: data.lockerCount,
+        }),
+        ...(data.tablesCount !== undefined && {
+          tablesCount: data.tablesCount,
+        }),
         ...damageUpdates,
       },
       include: householdInclude,
@@ -433,6 +439,26 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json(
         { error: "Household not found" },
         { status: 404 },
+      );
+    }
+
+    // A handback inspection is a permanent record: it is the evidence that this
+    // house was inspected, by whom, and that it was properly returned to stock.
+    // The FK is RESTRICT at the database level, so this delete would throw a raw
+    // constraint violation — check up front instead and explain the refusal in
+    // terms the caller can act on.
+    const inspectionCount = await prisma.houseInspection.count({
+      where: { householdId: id, organizationId: orgId },
+    });
+    if (inspectionCount > 0) {
+      return NextResponse.json(
+        {
+          error:
+            "This house has a handback inspection record, which is permanent and cannot be deleted. Remove the house from service instead.",
+          code: "HOUSE_HAS_INSPECTION_RECORD",
+          inspectionCount,
+        },
+        { status: 409 },
       );
     }
 

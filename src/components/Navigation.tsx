@@ -10,8 +10,17 @@ import React, {
 import Link from "next/link";
 import { useSession, signOut, type SessionUser } from "@/lib/auth-client";
 import GlobalSearch from "./GlobalSearch";
-import { Search, X, Loader2, Bell, Check, Settings, User, LogOut, Compass } from "lucide-react";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import {
+  Search,
+  X,
+  Loader2,
+  Bell,
+  Check,
+  Settings,
+  User,
+  LogOut,
+  Sparkles,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
@@ -27,7 +36,8 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import ThemeSwitcher from "./ThemeSwitcher";
 import { ASSISTANT_BRAND } from "@/lib/ai/brand";
-import { toast } from "sonner";
+import { TOGGLE_ASSISTANT_EVENT } from "@/lib/ai/events";
+import { notify } from "@/lib/feedback/notify";
 import { notificationCategoryStyle } from "@/ui/notifications/category-styles";
 
 interface Notification {
@@ -66,10 +76,6 @@ const Navigation = React.memo(function Navigation() {
   const { data: session } = useSession();
   const user = session?.user as SessionUser | undefined;
 
-  const userInitials = user
-    ? `${(user.firstname || "")[0] || ""}${(user.lastname || "")[0] || ""}`.toUpperCase() || "U"
-    : "U";
-
   const handleLogout = async () => {
     await signOut();
     router.push("/login");
@@ -105,9 +111,7 @@ const Navigation = React.memo(function Navigation() {
         const wasUnread = target?.readAt == null;
         return {
           notifications: current.notifications.map((n) =>
-            n.id === action.id
-              ? { ...n, readAt: new Date().toISOString() }
-              : n,
+            n.id === action.id ? { ...n, readAt: new Date().toISOString() } : n,
           ),
           unreadCount: wasUnread
             ? Math.max(0, current.unreadCount - 1)
@@ -189,7 +193,7 @@ const Navigation = React.memo(function Navigation() {
         });
       } catch (error) {
         console.error("Failed to mark notification as read:", error);
-        toast.error("Couldn't mark as read");
+        notify.error("Couldn't mark as read");
         // Optimistic update auto-reverts when this transition ends
       }
     });
@@ -218,7 +222,7 @@ const Navigation = React.memo(function Navigation() {
         }));
       } catch (error) {
         console.error("Failed to mark all notifications as read:", error);
-        toast.error("Couldn't mark all as read");
+        notify.error("Couldn't mark all as read");
         fetchNotifications();
       }
     });
@@ -243,10 +247,10 @@ const Navigation = React.memo(function Navigation() {
               : prev.unreadCount,
           };
         });
-        toast.success("Notification deleted");
+        notify.success("Notification deleted");
       } catch (error) {
         console.error("Failed to delete notification:", error);
-        toast.error("Failed to delete notification");
+        notify.error("Failed to delete notification");
       }
     });
   };
@@ -261,10 +265,10 @@ const Navigation = React.memo(function Navigation() {
         });
         if (!response.ok) throw new Error("Request failed");
         setState({ notifications: [], unreadCount: 0 });
-        toast.success("All notifications deleted");
+        notify.success("All notifications deleted");
       } catch (error) {
         console.error("Failed to delete all notifications:", error);
-        toast.error("Failed to delete notifications");
+        notify.error("Failed to delete notifications");
       }
     });
   };
@@ -273,6 +277,8 @@ const Navigation = React.memo(function Navigation() {
   // The initial fetch is deferred off the critical path (idle callback) so it
   // does not block first paint / navigation.
   useEffect(() => {
+    if (!session?.user?.id) return;
+
     let rafId: number | null = null;
     const idleCb =
       typeof requestIdleCallback === "function"
@@ -316,7 +322,7 @@ const Navigation = React.memo(function Navigation() {
       stopPolling();
       document.removeEventListener("visibilitychange", handleVisibility);
     };
-  }, [fetchNotifications]);
+  }, [session?.user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Listen for Cmd+K / Ctrl+K
   useEffect(() => {
@@ -332,11 +338,22 @@ const Navigation = React.memo(function Navigation() {
   }, []);
 
   return (
-    <nav className="border-border/60 bg-background/95 border-b backdrop-blur-sm">
+    // `nav-mesh` supplies the fill (see globals.css) and `--shadow-sm` the lift,
+    // which together raise the bar above the canvas without any backdrop filter.
+    // It replaced the old `bg-background/95 backdrop-blur-sm`: `main` is the
+    // scroll container, not the page, so nothing ever passed underneath this bar
+    // and the blur had nothing to sample — it cost a backdrop filter on every
+    // frame for no visible difference.
+    <nav className="nav-mesh border-border border-b shadow-[var(--shadow-sm)]">
       <div className="flex h-16 items-center px-4 md:px-6">
         <div className="flex flex-1 items-center gap-4">
-          <Link href="/dashboard" className="text-lg font-bold">
-            MSF Asset and House Portal
+          <Link href="/dashboard" className="flex items-center gap-2">
+            <span className="text-foreground text-lg font-bold">
+              የመተሐራ ስኳር ፋብሪካ
+            </span>
+            <span className="text-foreground text-lg font-bold">
+              የንብረትና የቤት አስተዳደር ፖርታል
+            </span>
           </Link>
         </div>
 
@@ -412,7 +429,9 @@ const Navigation = React.memo(function Navigation() {
                   {optimisticState.notifications.map((notification) => {
                     const isUnread = notification.readAt == null;
                     const timeAgo = formatTimeAgo(notification.createdAt);
-                    const style = notificationCategoryStyle(notification.category);
+                    const style = notificationCategoryStyle(
+                      notification.category,
+                    );
                     const Icon = style.icon;
                     return (
                       <div
@@ -444,7 +463,12 @@ const Navigation = React.memo(function Navigation() {
                               .slice(0, 120)}
                           </p>
                           <div className="mt-1 flex items-center gap-1.5">
-                            <span className={cn("inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium", style.className)}>
+                            <span
+                              className={cn(
+                                "inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium",
+                                style.className,
+                              )}
+                            >
                               <Icon className="h-3 w-3" />
                               {style.label}
                             </span>
@@ -513,14 +537,14 @@ const Navigation = React.memo(function Navigation() {
             size="sm"
             onClick={() => {
               if (typeof window !== "undefined") {
-                window.dispatchEvent(new CustomEvent("toggle-ai-copilot"));
+                window.dispatchEvent(new CustomEvent(TOGGLE_ASSISTANT_EVENT));
               }
             }}
-            className="flex items-center gap-1.5 rounded-full border border-brass-500/30 px-2.5 py-1 text-xs font-medium text-brass-600 transition-colors hover:border-brass-500/60 hover:bg-brass-500/10 hover:text-brass-600 dark:text-brass-300 dark:hover:bg-brass-500/15"
+            className="border-primary/30 text-primary hover:border-primary/60 hover:bg-primary/10 hover:text-primary dark:hover:bg-primary/15 flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors"
             title={`Open ${ASSISTANT_BRAND.lockup} (Ctrl+J)`}
             aria-label={`Open ${ASSISTANT_BRAND.latin}, the system assistant`}
           >
-            <Compass className="h-4 w-4 text-brass-500" />
+            <Sparkles className="text-primary h-4 w-4" />
             <span className="hidden md:inline">{ASSISTANT_BRAND.name}</span>
           </Button>
 
@@ -533,14 +557,10 @@ const Navigation = React.memo(function Navigation() {
               <Button
                 variant="ghost"
                 size="icon"
-                className="relative h-8 w-8 rounded-full"
+                className="hover:bg-accent hover:text-accent-foreground focus-visible:ring-ring relative h-9 w-9 rounded-md transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
                 aria-label="Account menu"
               >
-                <Avatar className="h-8 w-8">
-                  <AvatarFallback className="bg-primary/10 text-primary text-xs font-semibold">
-                    {userInitials}
-                  </AvatarFallback>
-                </Avatar>
+                <User className="h-5 w-5" strokeWidth={2} />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56">

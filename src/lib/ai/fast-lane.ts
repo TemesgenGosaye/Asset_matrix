@@ -13,6 +13,7 @@
  */
 
 import prisma from "@/lib/prisma";
+import type { Prisma } from "@prisma/client";
 import {
   CACHE_DOMAIN,
   CACHE_TTL,
@@ -36,8 +37,14 @@ export interface HousingOverview {
   vacant: number;
   occupied: number;
   maintenance: number;
-  byType: { type: string; total: number; active: number }[];
-  activeByType: { type: string; occupied: number; vacant: number; maintenance: number; total: number }[];
+  /** Per-house-type occupancy split. `total` is the size of that type. */
+  byType: {
+    type: string;
+    occupied: number;
+    vacant: number;
+    maintenance: number;
+    total: number;
+  }[];
   occupancyRate: number;
   vacantRate: number;
 }
@@ -103,7 +110,6 @@ async function loadHousingOverview(organizationId: string): Promise<HousingOverv
   return {
     ...base,
     byType,
-    activeByType: byType,
     occupancyRate: base.total > 0 ? Math.round((base.occupied / base.total) * 100) : 0,
     vacantRate: base.total > 0 ? Math.round((base.vacant / base.total) * 100) : 0,
   };
@@ -146,11 +152,18 @@ async function loadAssetOverview(organizationId: string) {
     }),
   ]);
 
+  // `assetCategoryType` is keyed by `assetcategorytypeid`, not `id`.
   const categories = await prisma.assetCategoryType.findMany({
-    where: { id: { in: byCategory.map((r) => r.assetcategorytypeid).filter(Boolean) as string[] } },
-    select: { id: true, assetcategorytypename: true },
+    where: {
+      assetcategorytypeid: {
+        in: byCategory.map((r) => r.assetcategorytypeid).filter(Boolean) as string[],
+      },
+    },
+    select: { assetcategorytypeid: true, assetcategorytypename: true },
   });
-  const nameById = new Map(categories.map((c) => [c.id, c.assetcategorytypename]));
+  const nameById = new Map(
+    categories.map((c) => [c.assetcategorytypeid, c.assetcategorytypename]),
+  );
 
   return {
     total,
@@ -175,18 +188,20 @@ function getAssetOverview(organizationId: string) {
 }
 
 async function loadEmployeeCounts(organizationId: string) {
+  // Archived (soft-deleted) employees are excluded from these counts so the
+  // assistant's view of headcount matches the employee register.
   const [byStatus, byGrade, total] = await Promise.all([
     prisma.employee.groupBy({
       by: ["employmentStatus"],
-      where: { organizationId },
+      where: { organizationId, deletedAt: null },
       _count: { id: true },
     }),
     prisma.employee.groupBy({
       by: ["jobGrade"],
-      where: { organizationId, employmentStatus: "active" },
+      where: { organizationId, employmentStatus: "active", deletedAt: null },
       _count: { id: true },
     }),
-    prisma.employee.count({ where: { organizationId } }),
+    prisma.employee.count({ where: { organizationId, deletedAt: null } }),
   ]);
   return {
     total,
@@ -207,8 +222,14 @@ function getEmployeeCounts(organizationId: string) {
 
 async function loadTicketSummary(organizationId: string, limit: number) {
   // `tickets` has no organizationId column; tenancy is reached through the
-  // creating user. Scoping via the relation is the only correct filter.
-  const orgWhere = { createdBy: { user: { organizationId } } };
+  // creating user. The relation must be the named one
+  // (`user_tickets_createdByTouser`): the `createdBy: { user: ... }` shorthand
+  // resolves to a different relation, which would drop the filter entirely and
+  // leak every tenant's tickets. Annotating with `Prisma.ticketsWhereInput`
+  // also keeps `groupBy` from tripping over its own circular aggregate type.
+  const orgWhere: Prisma.ticketsWhereInput = {
+    user_tickets_createdByTouser: { organizationId },
+  };
 
   const [byStatus, byPriority, recent] = await Promise.all([
     prisma.tickets.groupBy({
@@ -340,7 +361,7 @@ async function resolveCapabilities(): Promise<FastCard> {
       { label: "Active houses", href: "/houses" },
       { label: "House queue", href: "/house-queue" },
       { label: "Assets", href: "/assets" },
-      { label: "Tickets", href: "/tickets" },
+      { label: "Tickets", href: "/user/tickets" },
     ],
     footnote:
       "Answers always read live data scoped to your organization — never estimates.",
@@ -1027,7 +1048,11 @@ async function resolveStockAlerts(
         consumablename: true,
         quantity: true,
         minQuantity: true,
-        location: { select: { locationname: true } },
+        // `consumable` has no location relation; the category is the nearest
+        // meaningful grouping the schema actually offers.
+        consumableCategoryType: {
+          select: { consumablecategorytypename: true },
+        },
       },
     }),
     prisma.licence.findMany({
@@ -1073,7 +1098,7 @@ async function resolveStockAlerts(
       c.consumablename,
       c.quantity,
       c.minQuantity,
-      c.location?.locationname ?? "Main Store",
+      c.consumableCategoryType?.consumablecategorytypename ?? "Uncategorised",
     ]),
     ...strained.slice(0, limit).map((l) => [
       "Licence",
@@ -1102,7 +1127,7 @@ async function resolveStockAlerts(
     ],
     table: rows.length
       ? {
-          columns: ["Type", "Item", "On hand", "Threshold", "Location / expiry"],
+          columns: ["Type", "Item", "On hand", "Threshold", "Category / expiry"],
           rows,
           rowTones: rows.map((_, i) =>
             i < lowStock.length ? "caution" : "neutral",
@@ -1241,7 +1266,7 @@ async function resolveTicketSummary(
           ),
         }
       : undefined,
-    actions: [{ label: "Open tickets", href: "/tickets" }],
+    actions: [{ label: "Open tickets", href: "/user/tickets" }],
     footnote: "Scoped to tickets raised by users in your organization.",
   };
 }

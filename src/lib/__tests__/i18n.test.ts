@@ -4,8 +4,11 @@ import {
   setLocale,
   getLocale,
   registerLocale,
+  isSupportedLocale,
   AVAILABLE_LOCALES,
 } from "@/lib/i18n";
+import en from "@/lib/i18n/locales/en";
+import am from "@/lib/i18n/locales/am";
 
 // Reset locale to English before each test
 beforeEach(() => {
@@ -16,9 +19,10 @@ beforeEach(() => {
 // 1. AVAILABLE_LOCALES
 // ---------------------------------------------------------------------------
 describe("AVAILABLE_LOCALES", () => {
-  it("contains all 5 locale codes with display names", () => {
+  it("names every locale in its own language, Amharic included", () => {
     expect(AVAILABLE_LOCALES).toEqual({
       en: "English",
+      am: "አማርኛ",
       de: "Deutsch",
       fr: "Français",
       es: "Español",
@@ -26,8 +30,25 @@ describe("AVAILABLE_LOCALES", () => {
     });
   });
 
-  it("has exactly 5 entries", () => {
-    expect(Object.keys(AVAILABLE_LOCALES)).toHaveLength(5);
+  it("agrees with the translation store", () => {
+    // The original assertion here was a hardcoded count, which is a test that
+    // fails every time a language is added and proves nothing when it passes.
+    // The invariant worth protecting is that every locale a user can pick has
+    // translations behind it — otherwise the picker offers a language that
+    // renders the whole interface in English.
+    for (const code of Object.keys(AVAILABLE_LOCALES)) {
+      expect(isSupportedLocale(code)).toBe(true);
+    }
+  });
+
+  it("has no Amharic key that English cannot fall back to", () => {
+    // A key present in `am` but missing from `en` renders as English at best
+    // and as a raw `feedback.x.y` at worst, and the fallback chain hides it: a
+    // half-translated catalog looks complete. This has already happened once
+    // (the whole `feedback.*` namespace shipped in Amharic only), which is
+    // exactly the kind of mistake that needs a test rather than a review.
+    const orphans = Object.keys(am).filter((key) => !(key in en));
+    expect(orphans).toEqual([]);
   });
 });
 
@@ -86,9 +107,7 @@ describe("t() with interpolation", () => {
   });
 
   it("replaces multiple placeholders in one string", () => {
-    expect(t("pageOf", { current: "3", total: "10" })).toBe(
-      "Page 3 of 10"
-    );
+    expect(t("pageOf", { current: "3", total: "10" })).toBe("Page 3 of 10");
   });
 
   it("works with the welcome key", () => {

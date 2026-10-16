@@ -11,6 +11,8 @@ import React, {
 } from "react";
 import { useSession } from "@/lib/auth-client";
 import { useTheme } from "next-themes";
+import { isAcceptedThemeId, SYSTEM_THEME_ID } from "@/lib/themes";
+import { isSupportedLocale, setLocale } from "@/lib/i18n";
 
 export interface UserPreferences {
   theme: string;
@@ -26,7 +28,7 @@ export interface UserPreferences {
 }
 
 const DEFAULT_PREFERENCES: UserPreferences = {
-  theme: "system",
+  theme: SYSTEM_THEME_ID,
   locale: "en",
   timezone: "UTC",
   currency: "USD",
@@ -85,13 +87,29 @@ export function UserPreferencesProvider({
             // Apply the stored theme to next-themes so the whole page reacts.
             // Only do this if the client hasn't made an explicit theme choice
             // (still "system") — otherwise a late/preferences re-fetch would
-            // instantly snap the page back to dark after toggling to light.
+            // instantly snap the page back after the user picked a theme.
+            //
+            // Validated against the theme registry rather than a hard-coded
+            // list, so a stored "oled" / "forest" / "contrast" applies and a
+            // stale or bogus value is ignored instead of writing a dead class
+            // onto <html>.
             if (
-              data.theme &&
-              ["light", "dark", "system"].includes(data.theme) &&
-              themeRef.current === "system"
+              isAcceptedThemeId(data.theme) &&
+              themeRef.current === SYSTEM_THEME_ID
             ) {
               setTheme(data.theme);
+            }
+
+            // Apply the stored language too. This was stored since the
+            // preferences table shipped but read by nothing except the Intl
+            // formatters, so a user who picked a language saw no translated
+            // text anywhere. `isSupportedLocale` guards it because the column is
+            // free text and an unknown value would silently blank the catalog.
+            if (
+              typeof data.locale === "string" &&
+              isSupportedLocale(data.locale)
+            ) {
+              setLocale(data.locale);
             }
           }
         }

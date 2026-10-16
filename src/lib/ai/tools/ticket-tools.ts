@@ -7,7 +7,7 @@ export function createTicketTools(organizationId: string, userId: string) {
     searchTickets: tool({
       description:
         "Search active maintenance and support tickets by status, priority, or keyword.",
-      parameters: z.object({
+      inputSchema: z.object({
         status: z
           .enum(["new", "in_progress", "resolved", "closed"])
           .optional()
@@ -25,10 +25,12 @@ export function createTicketTools(organizationId: string, userId: string) {
       }),
       execute: async ({ status, priority, query, limit }) => {
         // `tickets` carries no organizationId column, so tenancy is reached
-        // through the creating user. Without this filter the tool would return
-        // every tenant's tickets to any authenticated assistant user.
+        // through the creating user. The relation is the named one
+        // (`user_tickets_createdByTouser`), not the field-name shorthand — the
+        // shorthand resolves to a different relation and would silently drop
+        // the filter, returning every tenant's tickets to any assistant user.
         const whereClause: Record<string, unknown> = {
-          createdBy: { user: { organizationId } },
+          user_tickets_createdByTouser: { organizationId },
         };
 
         if (status) whereClause.status = status;
@@ -74,11 +76,13 @@ export function createTicketTools(organizationId: string, userId: string) {
     draftMaintenanceTicket: tool({
       description:
         "Draft a new maintenance or repair ticket for an asset or house. Returns a formatted preview for human confirmation before submission.",
-      parameters: z.object({
+      inputSchema: z.object({
         title: z.string().describe("Clear summary title for the ticket"),
         description: z
           .string()
-          .describe("Detailed description of the issue or maintenance required"),
+          .describe(
+            "Detailed description of the issue or maintenance required",
+          ),
         priority: z
           .enum(["low", "medium", "high", "critical"])
           .default("medium")

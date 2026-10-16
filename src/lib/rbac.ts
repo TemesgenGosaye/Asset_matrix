@@ -78,10 +78,6 @@ export const PERMISSIONS = {
   "component:edit": "Edit components",
   "component:delete": "Delete components",
 
-  // EULA
-  "eula:view": "View EULA templates",
-  "eula:manage": "Manage EULA templates",
-
   // Kits
   "kit:view": "View predefined kits",
   "kit:create": "Create predefined kits",
@@ -100,6 +96,15 @@ export const PERMISSIONS = {
   "employee:create": "Create employees",
   "employee:edit": "Edit employees",
   "employee:delete": "Delete employees",
+  "employee:restore": "Restore archived (soft-deleted) employees",
+  "employee:export": "Export the employee register",
+  "employee:import": "Bulk import employees from a spreadsheet",
+  /**
+   * Reveal unmasked National ID values. Not required for `employee:edit`, but
+   * the default employee list/detail responses treat the absence of this
+   * permission as "mask the National ID" rather than "hide the column".
+   */
+  "employee:sensitive_view": "View unmasked National ID values",
 
   // Household Management
   "household:view": "View households",
@@ -119,15 +124,48 @@ export const PERMISSIONS = {
   "house_queue:manage": "Skip, defer, release and recalculate the house queue",
   "house_queue:audit": "View house queue audit trails",
 
+  // House Requests (the employee's own application that admits them to the queue)
+  "house_request:create":
+    "Look up an employee and submit a house request on their behalf",
+  "house_request:view": "View house requests and their current status",
+  "house_request:manage": "Cancel or close house requests",
+
   // House Queue Engine Configuration
   "engine_config:view": "View engine configuration and version history",
   "engine_config:edit": "Create and edit a draft engine configuration",
   "engine_config:preview": "Preview the impact of a draft before publishing",
-  "engine_config:publish": "Publish low/medium blast-radius config changes (recommendation rules)",
-  "engine_config:publish_high_risk": "Publish high/critical config changes (weights, eligibility bands). Server requires Admin.",
+  "engine_config:publish":
+    "Publish low/medium blast-radius config changes (recommendation rules)",
+  "engine_config:publish_high_risk":
+    "Publish high/critical config changes (weights, eligibility bands). Server requires Admin.",
   "engine_config:run": "Manually trigger an engine recompute (Run Now)",
-  "engine_config:rollback": "Roll back to an archived engine configuration. Server requires Admin.",
-  "engine_config:audit": "View the field-level engine configuration audit trail",
+  "engine_config:rollback":
+    "Roll back to an archived engine configuration. Server requires Admin.",
+  "engine_config:audit":
+    "View the field-level engine configuration audit trail",
+
+  // Pay Rent (house / shop / grocery rent management)
+  "rent:view": "View renters, their rent schedules and payment history",
+  "rent:create": "Register a renter and generate their rent schedule",
+  "rent:update": "Edit renter details and unpaid months' rent amount",
+  "rent:pay": "Record a rent payment and issue a receipt",
+  "rent:void": "Void a recorded rent payment (month reverts to unpaid)",
+  "rent:terminate": "Terminate a lease, voiding its remaining unpaid months",
+  "rent:archive": "Archive and restore renter records",
+  "rent:export": "Export the rent register and printable statements",
+  /**
+   * Elevated: change the rent start date or lease term after payments exist.
+   * Requires a written reason and is fully audited. The service still refuses to
+   * regenerate a schedule that would re-date an already-issued receipt.
+   */
+  "rent:override_terms":
+    "Change the rent start date or lease term after payments exist",
+  /**
+   * Reveal unmasked National ID values. `rent:view` alone yields masked values;
+   * `rent:update` / `rent:terminate` imply it because you cannot verify the
+   * identifier you are editing while it is masked.
+   */
+  "rent:sensitive_view": "View unmasked renter National ID values",
 } as const;
 
 export type Permission = keyof typeof PERMISSIONS;
@@ -162,6 +200,8 @@ export const DEFAULT_ROLES = {
       "kit:view",
       "kit:checkout",
       "employee:view",
+      "employee:export",
+      "employee:sensitive_view",
       "household:view",
       "household:create",
       "household:edit",
@@ -172,12 +212,28 @@ export const DEFAULT_ROLES = {
       "house_queue:allocate",
       "house_queue:manage",
       "house_queue:audit",
+      "house_request:create",
+      "house_request:view",
+      "house_request:manage",
       "engine_config:view",
       "engine_config:edit",
       "engine_config:preview",
       "engine_config:publish",
       "engine_config:run",
       "engine_config:audit",
+      // Pay Rent: the Facility & House module's finance surface. Same audience as
+      // the rest of the housing permissions (Asset Manager + Admin).
+      "rent:view",
+      "rent:create",
+      "rent:update",
+      "rent:pay",
+      "rent:void",
+      "rent:terminate",
+      "rent:archive",
+      "rent:export",
+      "rent:sensitive_view",
+      // `rent:override_terms` is intentionally NOT granted to the Asset Manager:
+      // changing a schedule after money has been collected is an elevated act.
       "audit_campaign:view",
       "audit_campaign:scan",
       "reservation:view",
@@ -200,6 +256,11 @@ export const DEFAULT_ROLES = {
       "reservation:view",
       "reservation:create",
       "report:view",
+      // Any signed-in employee may file their own house request; that request is
+      // what places them in the House Queue. Closing someone else's request
+      // stays with `house_request:manage` (Asset Manager / Admin only).
+      "house_request:create",
+      "house_request:view",
     ] as Permission[],
     isSystem: true,
   },

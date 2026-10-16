@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import { notify } from "@/lib/feedback/notify";
 import { X, Eye, EyeOff, Check } from "lucide-react";
 
 const MIN_PASSWORD_LENGTH = 12;
@@ -92,14 +92,14 @@ export default function UserEditForm({
         body: JSON.stringify({ roleId }),
       });
       if (res.ok) {
-        toast.success("Role assigned");
+        notify.success("Role assigned");
         refreshRoles();
       } else {
         const err = await res.json();
-        toast.error(err.error || "Failed to assign role");
+        notify.error(err.error || "Failed to assign role");
       }
     } catch {
-      toast.error("Failed to assign role");
+      notify.error("Failed to assign role");
     }
   };
 
@@ -111,11 +111,11 @@ export default function UserEditForm({
         body: JSON.stringify({ roleId }),
       });
       if (res.ok) {
-        toast.success("Role removed");
+        notify.success("Role removed");
         refreshRoles();
       }
     } catch {
-      toast.error("Failed to remove role");
+      notify.error("Failed to remove role");
     }
   };
   const initialSnapshot = useMemo(
@@ -244,10 +244,8 @@ export default function UserEditForm({
       });
       if (res.status === 409) {
         const err = await res.json().catch(() => ({}));
-        toast.error(
-          err.error ||
-            "This item was modified by someone else. Please refresh and try again.",
-        );
+        notify.error(err.error ||
+            "This item was modified by someone else. Please refresh and try again.");
         setSaving(false);
         return;
       }
@@ -256,13 +254,14 @@ export default function UserEditForm({
         throw new Error(err?.error || "Failed to update user");
       }
       const updated = await res.json();
-      toast.success("User updated", {
-        description: updated.email || updated.username || "",
-      });
+      notify.success({
+      title: "User updated",
+      description: updated.email || updated.username || "",
+    });
       router.push(`/user/${updated.userid}`);
     } catch (e) {
       setError(e.message);
-      toast.error("Update failed", { description: e.message });
+      notify.error({ title: "Update failed", description: e.message });
     } finally {
       setSaving(false);
     }

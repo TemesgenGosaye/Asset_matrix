@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { toast } from "sonner";
+import { notify } from "@/lib/feedback/notify";
 import { Monitor, Smartphone, Globe, Clock, Trash2, RefreshCw, ShieldAlert } from "lucide-react";
 
 interface SessionInfo {
@@ -59,9 +59,10 @@ export default function SessionManagement() {
       const data = await res.json();
       setSessions(data.sessions || []);
     } catch (err) {
-      toast.error("Failed to load sessions", {
-        description: (err as Error).message,
-      });
+      notify.error({
+      title: "Failed to load sessions",
+      description: (err as Error).message,
+    });
     } finally {
       setLoading(false);
     }
@@ -81,12 +82,13 @@ export default function SessionManagement() {
         const err = await res.json().catch(() => ({}));
         throw new Error(err?.error || "Failed to revoke session");
       }
-      toast.success("Session revoked");
+      notify.success("Session revoked");
       await fetchSessions();
     } catch (err) {
-      toast.error("Failed to revoke session", {
-        description: (err as Error).message,
-      });
+      notify.error({
+      title: "Failed to revoke session",
+      description: (err as Error).message,
+    });
     } finally {
       setRevokingId(null);
     }
@@ -95,7 +97,7 @@ export default function SessionManagement() {
   const handleRevokeAll = async () => {
     const currentSession = sessions.find((s) => s.isCurrent);
     if (!currentSession) {
-      toast.error("Could not identify current session");
+      notify.error("Could not identify current session");
       return;
     }
 
@@ -111,12 +113,13 @@ export default function SessionManagement() {
         throw new Error(err?.error || "Failed to revoke sessions");
       }
       const data = await res.json();
-      toast.success(`Revoked ${data.revokedCount} session${data.revokedCount === 1 ? "" : "s"}`);
+      notify.success(`Revoked ${data.revokedCount} session${data.revokedCount === 1 ? "" : "s"}`);
       await fetchSessions();
     } catch (err) {
-      toast.error("Failed to revoke sessions", {
-        description: (err as Error).message,
-      });
+      notify.error({
+      title: "Failed to revoke sessions",
+      description: (err as Error).message,
+    });
     } finally {
       setRevokingAll(false);
     }

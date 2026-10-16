@@ -12,7 +12,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { toast } from "sonner";
+import { notify } from "@/lib/feedback/notify";
 import { Shield, ShieldCheck, ShieldOff, Copy, Check } from "lucide-react";
 
 interface MfaSettingsProps {
@@ -67,9 +67,10 @@ export default function MfaSettings({
       setStep("qr");
       setDialogOpen(true);
     } catch (err) {
-      toast.error("Failed to start MFA setup", {
-        description: (err as Error).message,
-      });
+      notify.error({
+      title: "Failed to start MFA setup",
+      description: (err as Error).message,
+    });
     } finally {
       setIsLoading(false);
     }
@@ -91,7 +92,7 @@ export default function MfaSettings({
       setBackupCodes(data.backupCodes);
       setMfaEnabled(true);
       setStep("backup");
-      toast.success("MFA has been enabled successfully");
+      notify.success("MFA enabled");
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -114,7 +115,7 @@ export default function MfaSettings({
       }
       setMfaEnabled(false);
       resetState();
-      toast.success("MFA has been disabled");
+      notify.success("MFA has been disabled");
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -130,7 +131,7 @@ export default function MfaSettings({
 
   const copyAllBackupCodes = () => {
     navigator.clipboard.writeText(backupCodes.join("\n"));
-    toast.success("All backup codes copied to clipboard");
+    notify.success("All backup codes copied to clipboard");
   };
 
   return (
@@ -227,7 +228,7 @@ export default function MfaSettings({
                       size="sm"
                       onClick={() => {
                         navigator.clipboard.writeText(secret);
-                        toast.success("Secret copied to clipboard");
+                        notify.success("Secret copied to clipboard");
                       }}
                     >
                       <Copy className="h-3 w-3" />

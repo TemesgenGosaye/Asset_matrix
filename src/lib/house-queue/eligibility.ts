@@ -93,6 +93,24 @@ export function jobGradeRangeLabel(rule: JobGradeRule): string {
 }
 
 /**
+ * The job-grade range that maps to a house category, e.g. `B` → `12 – 14`.
+ *
+ * Used wherever the UI shows a category badge next to the concrete cohort it
+ * covers, so an allocator can see at a glance that "Band B" and "job grade 13"
+ * are the same rule stated two ways. Returns null for an unmapped category
+ * (including a re-cut config that no longer covers it).
+ */
+export function jobGradeBandLabel(
+  category: string | null | undefined,
+  bands: readonly JobGradeRule[] = JOB_GRADE_HOUSE_RULES,
+): string | null {
+  if (!category) return null;
+  const rule = bands.find((r) => r.category === category);
+  if (!rule) return null;
+  return `job grades ${jobGradeRangeLabel(rule)}`;
+}
+
+/**
  * One-line eligibility legend, e.g. `> 17 → Staff · 15 – 17 → A · …`.
  * Used by the Employee form so the hint can never drift from the rule.
  */

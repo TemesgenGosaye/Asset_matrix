@@ -58,14 +58,14 @@ export async function proxy(req: NextRequest) {
 
   // Public routes that don't require authentication
   const publicRoutes = [
+    // `/` stays here so the redirect in `app/page.tsx` can actually run — the
+    // proxy sends every non-public path to /login before the page is reached.
     "/",
     "/login",
     "/register",
     "/setup",
     "/forgot-password",
     "/reset-password",
-    "/terms",
-    "/privacy",
     "/offline",
     "/invite",
   ];
@@ -86,7 +86,9 @@ export async function proxy(req: NextRequest) {
     pathname.startsWith("/icons/") ||
     pathname === "/sw.js" ||
     pathname === "/manifest.json" ||
-    pathname.match(/\.(png|jpg|jpeg|gif|svg|ico|webp|js|css|woff|woff2|ttf|eot)$/);
+    pathname.match(
+      /\.(png|jpg|jpeg|gif|svg|ico|webp|js|css|woff|woff2|ttf|eot)$/,
+    );
 
   if (isStaticFile) {
     return nextWithNonce();

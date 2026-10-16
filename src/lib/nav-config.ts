@@ -16,7 +16,6 @@ import {
   Tags,
   CircleDot,
   Ticket,
-  FileJson,
   ClipboardCheck,
   QrCode,
   Upload,
@@ -42,8 +41,11 @@ import {
   Archive,
   SlidersHorizontal,
   Bell,
+  FileText,
+  Banknote,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import type { Permission } from "@/lib/rbac";
 
 export interface NavItem {
   label: string;
@@ -51,6 +53,14 @@ export interface NavItem {
   icon: LucideIcon;
   exact?: boolean;
   adminOnly?: boolean;
+  /**
+   * Hide this item unless the signed-in user holds the permission.
+   *
+   * Presentation only - every route behind a nav item re-checks its permission on
+   * the server. Hiding a link is a courtesy to the user, never the enforcement.
+   * Items with no `permission` are visible to everyone (subject to `adminOnly`).
+   */
+  permission?: Permission;
 }
 
 export interface NavSection {
@@ -70,7 +80,12 @@ export const navSections: NavSection[] = [
         exact: true,
       },
       { label: "Users", href: "/user", icon: Users, adminOnly: true },
-      { label: "Employees", href: "/employees", icon: UsersRound, adminOnly: true },
+      {
+        label: "Employees",
+        href: "/employees",
+        icon: UsersRound,
+        adminOnly: true,
+      },
       { label: "Assets", href: "/assets", icon: Boxes },
       { label: "General Asset", href: "/general-asset", icon: Warehouse },
       { label: "Accessories", href: "/accessories", icon: Puzzle },
@@ -78,8 +93,7 @@ export const navSections: NavSection[] = [
     ],
   },
   {
-    title: "Facility & House",
-    collapsible: true,
+    title: "House Admin",
     items: [
       {
         label: "HAMS Dashboard",
@@ -97,6 +111,11 @@ export const navSections: NavSection[] = [
         icon: ListOrdered,
       },
       {
+        label: "House Request",
+        href: "/house-request",
+        icon: FileText,
+      },
+      {
         label: "Allocated Houses",
         href: "/houses/allocated",
         icon: KeyRound,
@@ -110,6 +129,12 @@ export const navSections: NavSection[] = [
         label: "Inspections",
         href: "/houses/inspections",
         icon: ClipboardCheck,
+      },
+      {
+        label: "Pay Rent",
+        href: "/facility/pay-rent",
+        icon: Banknote,
+        permission: "rent:view",
       },
       {
         label: "Queue Config",
@@ -192,7 +217,7 @@ export const navSections: NavSection[] = [
     title: "Tools",
     items: [
       { label: "Advanced Search", href: "/search", icon: Filter },
-      { label: "Ticket", href: "/tickets", icon: Ticket },
+      { label: "Ticket", href: "/user/tickets", icon: Ticket },
       {
         label: "Maintenance",
         href: "/maintenance",
@@ -242,7 +267,6 @@ export const navSections: NavSection[] = [
         icon: Zap,
         adminOnly: true,
       },
-      { label: "API Docs", href: "/api-docs", icon: FileJson, adminOnly: true },
       {
         label: "Audit Logs",
         href: "/admin/audit-logs",
@@ -286,17 +310,36 @@ export function isActivePath(pathname: string, href: string, exact = false) {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
+/**
+ * Strip items the signed-in user must not see.
+ *
+ * Three independent gates, in order:
+ *   1. `adminOnly`  - hidden from non-admins (unchanged legacy behaviour);
+ *   2. `permission` - hidden unless the user's role grants it;
+ *   3. empty sections are dropped so no orphaned group header is rendered.
+ *
+ * `permissions` is the caller's permission set. Admins implicitly hold every
+ * permission, so a null/empty set never hides anything from them.
+ */
 export function filterSectionsForUser(
   sections: NavSection[],
   isAdmin: boolean,
+  permissions?: ReadonlySet<string> | null,
 ): NavSection[] {
-  if (isAdmin) return sections;
   return sections.reduce<NavSection[]>((acc, section) => {
-    if (!section.items.some((item) => item.adminOnly)) {
-      acc.push(section);
-      return acc;
-    }
-    const filtered = section.items.filter((item) => !item.adminOnly);
+    const filtered = section.items.filter((item) => {
+      if (item.adminOnly && !isAdmin) return false;
+      // Fail CLOSED: while `permissions` is undefined (session still resolving)
+      // the previous `&& permissions` short-circuit let every gated item through,
+      // so a Standard User briefly saw links like Pay Rent before they
+      // disappeared. The page and every API route re-check server-side, so this
+      // is a UI leak of module existence rather than an access hole - still not
+      // worth showing.
+      if (item.permission && !isAdmin && !permissions?.has(item.permission)) {
+        return false;
+      }
+      return true;
+    });
     if (filtered.length > 0) acc.push({ ...section, items: filtered });
     return acc;
   }, []);

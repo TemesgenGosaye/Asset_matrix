@@ -101,12 +101,22 @@ export function handleRouteError(
     );
   }
 
+  // `code` is emitted on every branch so a client can branch on a stable token
+  // instead of string-matching the message. Without it a client that does not
+  // recognise a response has to guess, and a guessed code is how "Insufficient
+  // permissions" ends up displayed to the user as "Employee ID not found".
   if (e instanceof Error && e.message === "Unauthorized") {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json(
+      { error: "Unauthorized", code: "UNAUTHORIZED" },
+      { status: 401 },
+    );
   }
   if (e instanceof Error && e.message.startsWith("Forbidden")) {
     return NextResponse.json(
-      { error: e.message.replace(/^Forbidden:?\s*/, "") },
+      {
+        error: e.message.replace(/^Forbidden:?\s*/, ""),
+        code: "FORBIDDEN",
+      },
       { status: 403 },
     );
   }
@@ -121,14 +131,18 @@ export function handleRouteError(
     if (e.message.startsWith("HOUSE_NUMBER_EXISTS:")) {
       const num = e.message.replace("HOUSE_NUMBER_EXISTS:", "");
       return NextResponse.json(
-        { error: `House number '${num}' is already registered in this organization.` },
+        {
+          error: `House number '${num}' is already registered in this organization.`,
+        },
         { status: 409 },
       );
     }
     if (e.message.startsWith("HOUSE_ID_EXISTS:")) {
       const hid = e.message.replace("HOUSE_ID_EXISTS:", "");
       return NextResponse.json(
-        { error: `House ID '${hid}' is already registered in this organization.` },
+        {
+          error: `House ID '${hid}' is already registered in this organization.`,
+        },
         { status: 409 },
       );
     }
@@ -154,5 +168,8 @@ export function handleRouteError(
   }
 
   logger.error(opts.label, { error: e });
-  return NextResponse.json({ error: opts.message }, { status: 500 });
+  return NextResponse.json(
+    { error: opts.message, code: "SERVER_ERROR" },
+    { status: 500 },
+  );
 }

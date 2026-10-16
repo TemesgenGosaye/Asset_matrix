@@ -61,7 +61,9 @@ export interface HamsCohortAlert {
  * Fetch all high-level KPIs for the HAMS dashboard in parallel using Prisma DB aggregates
  * and authoritative engine computations.
  */
-export async function getHamsKpis(organizationId: string): Promise<HamsKpiData> {
+export async function getHamsKpis(
+  organizationId: string,
+): Promise<HamsKpiData> {
   const now = new Date();
   const startOfThisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
   const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
@@ -196,7 +198,10 @@ export async function getHamsOccupancyByType(
     _count: { id: true },
   });
 
-  const matrix = new Map<string, { occupied: number; vacant: number; maintenance: number }>();
+  const matrix = new Map<
+    string,
+    { occupied: number; vacant: number; maintenance: number }
+  >();
   for (const cat of categories) {
     matrix.set(cat, { occupied: 0, vacant: 0, maintenance: 0 });
   }
@@ -209,7 +214,8 @@ export async function getHamsOccupancyByType(
     const bucket = matrix.get(cat)!;
     if (row.occupancyStatus === "Occupied") bucket.occupied += row._count.id;
     else if (row.occupancyStatus === "Vacant") bucket.vacant += row._count.id;
-    else if (row.occupancyStatus === "Maintenance") bucket.maintenance += row._count.id;
+    else if (row.occupancyStatus === "Maintenance")
+      bucket.maintenance += row._count.id;
   }
 
   return categories.map((cat) => {
@@ -237,7 +243,7 @@ export async function getHamsRecentActivity(
       select: { userid: true },
     }),
     prisma.employee.findMany({
-      where: { organizationId },
+      where: { organizationId, deletedAt: null },
       select: { id: true },
     }),
   ]);
@@ -282,13 +288,12 @@ export async function getHamsRecentActivity(
     }
 
     const employeeName =
-      (parsed.employeeName as string) ||
-      (parsed.name as string) ||
-      "—";
+      (parsed.employeeName as string) || (parsed.name as string) || "—";
     const employeeNumber = (parsed.employeeNumber as string) || "";
     const houseNumber = (parsed.houseNumber as string) || "";
     const hid = (parsed.hid as string) || "";
-    const employeeId = (log.entityId as string) || (parsed.employeeId as string) || null;
+    const employeeId =
+      (log.entityId as string) || (parsed.employeeId as string) || null;
     const houseId = (parsed.householdId as string) || null;
 
     // Determine target link based on decision action
@@ -302,7 +307,9 @@ export async function getHamsRecentActivity(
     }
 
     const actorName = log.user
-      ? `${log.user.firstname || ""} ${log.user.lastname || ""}`.trim() || log.user.email || "System"
+      ? `${log.user.firstname || ""} ${log.user.lastname || ""}`.trim() ||
+        log.user.email ||
+        "System"
       : "System";
 
     return {

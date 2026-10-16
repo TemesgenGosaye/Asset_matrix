@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import { notify } from "@/lib/feedback/notify";
 
 export default function StatusTypeCreateForm({
   initialData = null,
@@ -52,16 +52,14 @@ export default function StatusTypeCreateForm({
       }
 
       const created = await res.json();
-      toast.success(
-        mode === "edit" ? "Status type updated" : "Status type created",
-        {
-          description: created.statustypename,
-        },
-      );
+      notify.success({
+        title: mode === "edit" ? "Status type updated" : "Status type created",
+        description: created.statustypename,
+      });
       router.push("/statusTypes");
     } catch (err) {
       setError(err.message);
-      toast.error("Save failed", { description: err.message });
+      notify.error({ title: "Save failed", description: err.message });
     } finally {
       setSubmitting(false);
     }

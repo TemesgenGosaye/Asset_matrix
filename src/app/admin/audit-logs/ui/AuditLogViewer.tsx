@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { toast } from "sonner";
+import { notify } from "@/lib/feedback/notify";
 import {
   Dialog,
   DialogContent,
@@ -179,8 +179,7 @@ function DetailPanel({
   }
 
   const changes = parsed.changes as
-    | Record<string, { from: unknown; to: unknown }>
-    | undefined;
+    Record<string, { from: unknown; to: unknown }> | undefined;
   const otherDetails = { ...parsed };
   delete otherDetails.changes;
   delete otherDetails.before;
@@ -385,11 +384,11 @@ export default function AuditLogViewer() {
         const errorData = await res.json().catch(() => ({}));
         throw new Error(errorData.error || "Failed to revert change");
       }
-      toast.success("Change reverted successfully");
+      notify.success("Change reverted");
       setRevertTarget(null);
       fetchLogs();
     } catch (err) {
-      toast.error(
+      notify.error(
         err instanceof Error ? err.message : "Failed to revert change",
       );
     } finally {
@@ -423,7 +422,7 @@ export default function AuditLogViewer() {
       setTotalPages(data.totalPages);
       setTotal(data.total);
     } catch (err) {
-      toast.error(
+      notify.error(
         err instanceof Error ? err.message : "Failed to fetch audit logs",
       );
     } finally {

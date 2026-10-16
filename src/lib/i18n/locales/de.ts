@@ -23,7 +23,6 @@ const de: Record<string, string> = {
   "nav.qrScanner": "QR-Scanner",
   "nav.reports": "Berichte",
   "nav.workflows": "Workflows",
-  "nav.apiDocs": "API-Dokumentation",
   "nav.auditLogs": "Audit-Protokolle",
   "nav.gdpr": "DSGVO",
   "nav.compliance": "Compliance",
@@ -188,18 +187,6 @@ const de: Record<string, string> = {
   "checkout.type": "Ausgabetyp",
   "checkout.bulk": "Sammelausgabe",
 
-  // EULA
-  "eula.title": "EULA-Vorlagen",
-  "eula.create": "EULA-Vorlage erstellen",
-  "eula.edit": "EULA-Vorlage bearbeiten",
-  "eula.accept": "EULA akzeptieren",
-  "eula.signature": "Digitale Unterschrift",
-  "eula.signBelow": "Unterschreiben Sie unten zur Best\u00e4tigung",
-  "eula.required": "EULA-Akzeptanz erforderlich",
-  "eula.version": "Version",
-  "eula.active": "Aktiv",
-  "eula.inactive": "Inaktiv",
-
   // Bulk Checkout
   "checkout.bulkTitle": "Sammelausgabe von Anlagen",
   "checkout.selectedAssets": "{{count}} Anlagen ausgew\u00e4hlt",
@@ -224,8 +211,10 @@ const de: Record<string, string> = {
   "ldap.title": "LDAP / Active Directory",
   "ldap.testConnection": "Verbindung testen",
   "ldap.syncNow": "Jetzt synchronisieren",
-  "ldap.syncComplete": "Synchronisierung abgeschlossen: {{created}} erstellt, {{updated}} aktualisiert, {{deactivated}} deaktiviert",
-  "ldap.connectionSuccess": "Verbindung erfolgreich. {{count}} Benutzer gefunden.",
+  "ldap.syncComplete":
+    "Synchronisierung abgeschlossen: {{created}} erstellt, {{updated}} aktualisiert, {{deactivated}} deaktiviert",
+  "ldap.connectionSuccess":
+    "Verbindung erfolgreich. {{count}} Benutzer gefunden.",
   "ldap.connectionFailed": "Verbindung fehlgeschlagen: {{message}}",
   "sso.title": "Single Sign-On",
   "sso.signInWith": "Anmelden mit {{provider}}",
@@ -235,10 +224,10 @@ const de: Record<string, string> = {
   "sso.disabled": "SSO deaktiviert",
 
   // Greeting / interpolation example
-  "greeting": "Guten Tag, {{name}}",
-  "welcome": "Willkommen zur\u00fcck, {{name}}",
-  "itemCount": "{{count}} Eintr\u00e4ge gefunden",
-  "pageOf": "Seite {{current}} von {{total}}",
+  greeting: "Guten Tag, {{name}}",
+  welcome: "Willkommen zur\u00fcck, {{name}}",
+  itemCount: "{{count}} Eintr\u00e4ge gefunden",
+  pageOf: "Seite {{current}} von {{total}}",
 };
 
 export default de;

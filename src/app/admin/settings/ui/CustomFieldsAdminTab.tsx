@@ -36,7 +36,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { toast } from "sonner";
+import { notify } from "@/lib/feedback/notify";
 import { Plus, Pencil, Trash2, Loader2 } from "lucide-react";
 
 interface CustomFieldDefinition {
@@ -104,7 +104,7 @@ export default function CustomFieldsAdminTab() {
       const data = await response.json();
       setFields(data);
     } catch {
-      toast.error("Failed to fetch custom field definitions");
+      notify.error("Failed to fetch custom field definitions");
     } finally {
       setLoading(false);
     }
@@ -144,7 +144,7 @@ export default function CustomFieldsAdminTab() {
 
   const handleSubmit = async () => {
     if (!formData.name.trim()) {
-      toast.error("Name is required");
+      notify.error("Name is required");
       return;
     }
 
@@ -182,7 +182,7 @@ export default function CustomFieldsAdminTab() {
         setFields((prev) =>
           prev.map((f) => (f.id === editingId ? updated : f)),
         );
-        toast.success("Custom field updated successfully");
+        notify.success("Custom field updated");
       } else {
         const response = await fetch("/api/admin/custom-fields", {
           method: "POST",
@@ -197,13 +197,13 @@ export default function CustomFieldsAdminTab() {
 
         const created = await response.json();
         setFields((prev) => [...prev, created]);
-        toast.success("Custom field created successfully");
+        notify.success("Custom field created");
       }
 
       setDialogOpen(false);
       resetForm();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Operation failed");
+      notify.error(error instanceof Error ? error.message : "Operation failed");
     } finally {
       setSubmitting(false);
     }
@@ -224,9 +224,9 @@ export default function CustomFieldsAdminTab() {
       }
 
       setFields((prev) => prev.filter((f) => f.id !== deletingField.id));
-      toast.success("Custom field deleted successfully");
+      notify.success("Custom field deleted");
     } catch (error) {
-      toast.error(
+      notify.error(
         error instanceof Error
           ? error.message
           : "Failed to delete custom field",

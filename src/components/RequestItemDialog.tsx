@@ -13,7 +13,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { toast } from "sonner";
+import { notify } from "@/lib/feedback/notify";
 import { CheckCircle, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -68,7 +68,7 @@ export default function RequestItemDialog({
       }
       setSubmitted(true);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Request failed");
+      notify.error(err instanceof Error ? err.message : "Request failed");
     } finally {
       setSubmitting(false);
     }

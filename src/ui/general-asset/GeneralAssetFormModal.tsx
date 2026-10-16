@@ -31,7 +31,7 @@ import {
   CalendarClock,
   Tag,
 } from "lucide-react";
-import { toast } from "sonner";
+import { notify } from "@/lib/feedback/notify";
 import {
   GENERAL_ASSET_ITEM_TYPES,
   GENERAL_ASSET_CONDITIONS,
@@ -125,7 +125,10 @@ export default function GeneralAssetFormModal({
   const fetchNextPid = async (type: string) => {
     setFetchingPid(true);
     try {
-      const url = new URL("/api/general-asset/next-pid", window.location.origin);
+      const url = new URL(
+        "/api/general-asset/next-pid",
+        window.location.origin,
+      );
       url.searchParams.set("itemType", type);
       const res = await fetch(url.toString());
       if (res.ok) {
@@ -201,10 +204,10 @@ export default function GeneralAssetFormModal({
         throw new Error(responseData.error || "Failed to save general asset.");
       }
 
-      toast.success(
+      notify.success(
         isEditing
-          ? `General asset ${responseData.pid} updated successfully.`
-          : `General asset ${responseData.pid} registered successfully.`,
+          ? `General asset ${responseData.pid} updated`
+          : `General asset ${responseData.pid} registered`,
       );
 
       onSuccess(responseData);
@@ -213,7 +216,7 @@ export default function GeneralAssetFormModal({
       const msg =
         err instanceof Error ? err.message : "An unexpected error occurred.";
       setFormError(msg);
-      toast.error(msg);
+      notify.error(msg);
     } finally {
       setLoading(false);
     }
@@ -224,7 +227,7 @@ export default function GeneralAssetFormModal({
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-xl font-semibold">
-            <Warehouse className="h-5 w-5 text-primary" />
+            <Warehouse className="text-primary h-5 w-5" />
             {isEditing
               ? `Edit General Asset: ${initialData?.pid}`
               : "Register New General Asset"}
@@ -237,7 +240,7 @@ export default function GeneralAssetFormModal({
         </DialogHeader>
 
         {formError && (
-          <div className="flex items-center gap-2 rounded-md bg-destructive/15 p-3 text-sm text-destructive">
+          <div className="bg-destructive/15 text-destructive flex items-center gap-2 rounded-md p-3 text-sm">
             <AlertTriangle className="h-4 w-4 shrink-0" />
             <span>{formError}</span>
           </div>
@@ -246,7 +249,7 @@ export default function GeneralAssetFormModal({
         <form onSubmit={handleSubmit} className="space-y-5 py-2">
           {/* ─── Section 1: Identification ─── */}
           <div className="space-y-4">
-            <h4 className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+            <h4 className="text-muted-foreground text-xs font-semibold tracking-wider uppercase">
               1. Asset Identification
             </h4>
 
@@ -303,7 +306,7 @@ export default function GeneralAssetFormModal({
                     </Button>
                   )}
                 </div>
-                <p className="text-[11px] text-muted-foreground">
+                <p className="text-muted-foreground text-[11px]">
                   Auto-generated from item type prefix (e.g. MCH-001, VEH-004).
                 </p>
               </div>
@@ -343,7 +346,7 @@ export default function GeneralAssetFormModal({
 
           {/* ─── Section 2: Location & Condition ─── */}
           <div className="space-y-4">
-            <h4 className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+            <h4 className="text-muted-foreground text-xs font-semibold tracking-wider uppercase">
               2. Placement &amp; Condition
             </h4>
 
@@ -406,7 +409,7 @@ export default function GeneralAssetFormModal({
                   onChange={(e) => setReviewsDate(e.target.value)}
                   className="text-xs"
                 />
-                <p className="text-[11px] text-muted-foreground">
+                <p className="text-muted-foreground text-[11px]">
                   Date of last / next physical asset review.
                 </p>
               </div>
@@ -417,7 +420,7 @@ export default function GeneralAssetFormModal({
 
           {/* ─── Section 3: Remark ─── */}
           <div className="space-y-3">
-            <h4 className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+            <h4 className="text-muted-foreground text-xs font-semibold tracking-wider uppercase">
               3. Remark
             </h4>
             <div className="space-y-1.5">

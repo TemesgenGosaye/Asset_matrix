@@ -20,7 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { toast } from "sonner";
+import { notify } from "@/lib/feedback/notify";
 
 interface BulkCheckoutResult {
   success: Array<{ id: string; assetId: string }>;
@@ -49,7 +49,7 @@ export function BulkCheckoutModal({
 
   const handleSubmit = async () => {
     if (!targetId.trim()) {
-      toast.error("Please enter a target ID");
+      notify.error("Please enter a target ID");
       return;
     }
 
@@ -80,7 +80,7 @@ export function BulkCheckoutModal({
 
       if (!res.ok) {
         const err = await res.json();
-        toast.error(err.error || "Bulk checkout failed");
+        notify.error(err.error || "Bulk checkout failed");
         return;
       }
 
@@ -91,16 +91,14 @@ export function BulkCheckoutModal({
       const failedCount = data.failed.length;
 
       if (failedCount === 0) {
-        toast.success(`${successCount} asset(s) checked out successfully`);
+        notify.success(`${successCount} asset(s) checked out successfully`);
       } else {
-        toast.warning(
-          `${successCount} succeeded, ${failedCount} failed`,
-        );
+        notify.warning(`${successCount} succeeded, ${failedCount} failed`);
       }
 
       onSuccess();
     } catch {
-      toast.error("An unexpected error occurred");
+      notify.error("An unexpected error occurred");
     } finally {
       setIsSubmitting(false);
     }
@@ -198,12 +196,12 @@ export function BulkCheckoutModal({
           </div>
         ) : (
           <div className="space-y-4">
-            <div className="rounded-lg border bg-muted/50 p-4">
+            <div className="bg-muted/50 rounded-lg border p-4">
               <p className="text-sm font-medium">
                 {result.success.length} asset(s) checked out successfully
               </p>
               {result.failed.length > 0 && (
-                <p className="text-sm text-destructive mt-1">
+                <p className="text-destructive mt-1 text-sm">
                   {result.failed.length} asset(s) failed
                 </p>
               )}
@@ -211,7 +209,7 @@ export function BulkCheckoutModal({
 
             {result.failed.length > 0 && (
               <div>
-                <Label className="text-sm font-medium text-destructive">
+                <Label className="text-destructive text-sm font-medium">
                   Failed Assets
                 </Label>
                 <ul className="mt-1 space-y-1 text-sm">

@@ -16,7 +16,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { QRCodeCanvas } from "qrcode.react";
-import { toast } from "sonner";
+import { notify } from "@/lib/feedback/notify";
 import { useRouter } from "next/navigation";
 import { Copy } from "lucide-react";
 
@@ -46,11 +46,11 @@ export default function AssetDetailActions({
         body: JSON.stringify({ assetId: asset.assetid, userId: selectedUser }),
       });
       if (!res.ok) throw new Error("Failed to assign user");
-      toast.success("Assigned", { description: asset.assettag });
+      notify.success({ title: "Assigned", description: asset.assettag });
       setAssignOpen(false);
       onAssigned?.(selectedUser);
     } catch (e) {
-      toast.error("Assign failed", { description: e.message });
+      notify.error({ title: "Assign failed", description: e.message });
     }
   }, [asset, selectedUser, onAssigned]);
 

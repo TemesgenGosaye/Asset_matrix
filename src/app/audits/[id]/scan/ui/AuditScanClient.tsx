@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Camera, CheckCircle2, Loader2, Search, XCircle } from "lucide-react";
-import { toast } from "sonner";
+import { notify } from "@/lib/feedback/notify";
 
 interface AuditScanProps {
   campaignId: string;
@@ -81,10 +81,10 @@ export default function AuditScanClient({
         videoRef.current.srcObject = stream;
       }
       setCameraPermission("granted");
-      toast.success("Camera access granted");
+      notify.success("Camera access granted");
     } catch {
       setCameraPermission("denied");
-      toast.error("Camera access denied. Please allow camera permissions.");
+      notify.error("Camera access denied. Please allow camera permissions.");
     }
   }, []);
 
@@ -115,7 +115,7 @@ export default function AuditScanClient({
       // Check if already scanned
       const entry = entries.find((e) => e.assetId === assetId);
       if (entry && entry.status !== "unscanned") {
-        toast.info(`${entry.asset.assetname} already scanned`);
+        notify.info(`${entry.asset.assetname} already scanned`);
         return;
       }
 
@@ -157,9 +157,9 @@ export default function AuditScanClient({
           ...prev,
         ]);
 
-        toast.success(`Scanned: ${assetName}`);
+        notify.success(`Scanned: ${assetName}`);
       } catch (err: any) {
-        toast.error(err.message || "Failed to scan asset");
+        notify.error(err.message || "Failed to scan asset");
       } finally {
         scanningAssetRef.current.delete(assetId);
       }
@@ -277,7 +277,7 @@ export default function AuditScanClient({
     );
 
     if (!matchedEntry) {
-      toast.error(`No asset with tag "${tag}" found in this audit`);
+      notify.error(`No asset with tag "${tag}" found in this audit`);
       setManualLoading(false);
       return;
     }

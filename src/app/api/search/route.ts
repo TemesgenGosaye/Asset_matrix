@@ -8,7 +8,7 @@ import {
 import { logger } from "@/lib/logger";
 
 interface SearchResult {
-  type: "asset" | "user" | "consumable";
+  type: "asset" | "user" | "consumable" | "house" | "employee";
   id: string;
   label: string;
   sublabel?: string;
@@ -103,8 +103,74 @@ export async function GET(req: Request) {
       });
     });
 
-    // Ensure max 8 results total
-    return NextResponse.json({ results: results.slice(0, 8) });
+    // Search houses (max 3)
+    const houses = await prisma.household.findMany({
+      where: scopeToOrganization(
+        {
+          OR: [
+            { houseNumber: { contains: query, mode: "insensitive" } },
+            { hid: { contains: query, mode: "insensitive" } },
+          ],
+        },
+        orgId,
+      ),
+      select: {
+        id: true,
+        houseNumber: true,
+        hid: true,
+        houseType: true,
+        status: true,
+        occupancyStatus: true,
+      },
+      take: 3,
+    });
+
+    houses.forEach((house) => {
+      results.push({
+        type: "house",
+        id: house.id,
+        label: house.houseNumber || house.hid || "Unknown",
+        sublabel: `${house.houseType} - ${house.occupancyStatus}`,
+        href: `/household/register?search=${encodeURIComponent(house.houseNumber || house.hid || "")}`,
+      });
+    });
+
+    // Search employees (max 2)
+    const employees = await prisma.employee.findMany({
+      where: scopeToOrganization(
+        {
+          OR: [
+            { firstname: { contains: query, mode: "insensitive" } },
+            { lastname: { contains: query, mode: "insensitive" } },
+            { employeeNumber: { contains: query, mode: "insensitive" } },
+          ],
+        },
+        orgId,
+      ),
+      select: {
+        id: true,
+        firstname: true,
+        lastname: true,
+        employeeNumber: true,
+        department: { select: { name: true } },
+      },
+      take: 2,
+    });
+
+    employees.forEach((emp) => {
+      if (emp.id) {
+        results.push({
+          type: "employee",
+          id: emp.id,
+          label: `${emp.firstname} ${emp.lastname}`,
+          sublabel: `${emp.employeeNumber} - ${emp.department?.name || "No Dept"}`,
+          href: `/employees/${emp.id}`,
+        });
+      }
+    });
+
+    // Ensure max 10 results total (increased from 8 to accommodate houses)
+    return NextResponse.json({ results: results.slice(0, 10) });
   } catch (error) {
     if (error instanceof Error && error.message === "Unauthorized") {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

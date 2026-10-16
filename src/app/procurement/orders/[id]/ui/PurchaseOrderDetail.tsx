@@ -38,7 +38,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { toast } from "sonner";
+import { notify } from "@/lib/feedback/notify";
 import {
   Loader2,
   FileText,
@@ -167,13 +167,13 @@ export default function PurchaseOrderDetail() {
       const response = await fetch(`/api/procurement/orders/${orderId}`);
       if (!response.ok) {
         const data = await response.json();
-        toast.error(data.error || "Failed to fetch purchase order");
+        notify.error(data.error || "Failed to fetch purchase order");
         return;
       }
       const data = await response.json();
       setOrder(data);
     } catch {
-      toast.error("Failed to connect to the server");
+      notify.error("Failed to connect to the server");
     } finally {
       setIsLoading(false);
     }
@@ -217,7 +217,7 @@ export default function PurchaseOrderDetail() {
   const handleSubmitReceipt = async () => {
     const hasAnyQuantity = receiptLines.some((l) => l.quantityReceived > 0);
     if (!hasAnyQuantity) {
-      toast.error(
+      notify.error(
         "At least one item must have a received quantity greater than 0",
       );
       return;
@@ -225,13 +225,13 @@ export default function PurchaseOrderDetail() {
 
     for (const line of receiptLines) {
       if (line.quantityReceived > line.maxQuantity) {
-        toast.error(
+        notify.error(
           `Received quantity for "${line.description}" exceeds remaining quantity`,
         );
         return;
       }
       if (line.quantityReceived < 0) {
-        toast.error("Received quantity cannot be negative");
+        notify.error("Received quantity cannot be negative");
         return;
       }
     }
@@ -260,15 +260,15 @@ export default function PurchaseOrderDetail() {
 
       if (!response.ok) {
         const data = await response.json();
-        toast.error(data.error || "Failed to record receipt");
+        notify.error(data.error || "Failed to record receipt");
         return;
       }
 
-      toast.success("Goods receipt recorded successfully");
+      notify.success("Goods receipt recorded");
       setReceiptDialogOpen(false);
       fetchOrder();
     } catch {
-      toast.error("Failed to connect to the server");
+      notify.error("Failed to connect to the server");
     } finally {
       setIsSubmittingReceipt(false);
     }

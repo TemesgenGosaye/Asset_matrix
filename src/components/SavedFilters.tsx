@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Bookmark, Star, Trash2, Save } from "lucide-react";
-import { toast } from "sonner";
+import { notify } from "@/lib/feedback/notify";
 
 interface SavedFilter {
   id: string;
@@ -80,7 +80,7 @@ export default function SavedFilters({
 
   const handleSave = async () => {
     if (!filterName.trim()) {
-      toast.error("Please enter a filter name");
+      notify.error("Please enter a filter name");
       return;
     }
 
@@ -98,13 +98,13 @@ export default function SavedFilters({
 
       if (!res.ok) throw new Error("Failed to save");
 
-      toast.success("Filter saved");
+      notify.success("Filter saved");
       setIsDialogOpen(false);
       setFilterName("");
       setIsDefault(false);
       fetchFilters();
     } catch {
-      toast.error("Failed to save filter");
+      notify.error("Failed to save filter");
     }
   };
 
@@ -112,9 +112,9 @@ export default function SavedFilters({
     try {
       const parsed = JSON.parse(filter.filters);
       onApplyFilter(parsed);
-      toast.success(`Applied filter: ${filter.name}`);
+      notify.success(`Applied filter: ${filter.name}`);
     } catch {
-      toast.error("Invalid filter data");
+      notify.error("Invalid filter data");
     }
   };
 
@@ -122,10 +122,10 @@ export default function SavedFilters({
     try {
       const res = await fetch(`/api/saved-filters/${id}`, { method: "DELETE" });
       if (!res.ok) throw new Error("Failed to delete");
-      toast.success("Filter deleted");
+      notify.success("Filter deleted");
       fetchFilters();
     } catch {
-      toast.error("Failed to delete filter");
+      notify.error("Failed to delete filter");
     }
   };
 
@@ -139,7 +139,7 @@ export default function SavedFilters({
       if (!res.ok) throw new Error("Failed to update");
       fetchFilters();
     } catch {
-      toast.error("Failed to update filter");
+      notify.error("Failed to update filter");
     }
   };
 

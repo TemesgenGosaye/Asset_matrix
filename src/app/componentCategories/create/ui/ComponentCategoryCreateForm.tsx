@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import { notify } from "@/lib/feedback/notify";
 
 interface ComponentCategoryData {
   id: string;
@@ -55,20 +55,19 @@ export default function ComponentCategoryCreateForm({
       }
 
       const created = await res.json();
-      toast.success(
-        mode === "edit"
-          ? "Component category updated"
-          : "Component category created",
-        {
-          description: created.name,
-        },
-      );
+      notify.success({
+        title:
+          mode === "edit"
+            ? "Component category updated"
+            : "Component category created",
+        description: created.name,
+      });
       router.push("/componentCategories");
     } catch (err: unknown) {
       const message =
         err instanceof Error ? err.message : "An unexpected error occurred";
       setError(message);
-      toast.error("Save failed", { description: message });
+      notify.error({ title: "Save failed", description: message });
     } finally {
       setSubmitting(false);
     }

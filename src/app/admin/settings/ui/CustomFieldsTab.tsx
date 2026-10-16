@@ -37,7 +37,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { toast } from "sonner";
+import { notify } from "@/lib/feedback/notify";
 import { Plus, Edit, Trash2, GripVertical } from "lucide-react";
 
 interface CustomFieldsTabProps {
@@ -113,12 +113,12 @@ export default function CustomFieldsTab({
         setFields([...fields, newField]);
         setIsDialogOpen(false);
         resetForm();
-        toast.success("Custom field created");
+        notify.success("Custom field created");
       } else {
-        toast.error("Failed to create custom field");
+        notify.error("Failed to create custom field");
       }
     } catch (error) {
-      toast.error("Failed to create custom field");
+      notify.error("Failed to create custom field");
     }
   };
 
@@ -144,12 +144,12 @@ export default function CustomFieldsTab({
         setIsDialogOpen(false);
         setEditingId(null);
         resetForm();
-        toast.success("Custom field updated");
+        notify.success("Custom field updated");
       } else {
-        toast.error("Failed to update custom field");
+        notify.error("Failed to update custom field");
       }
     } catch (error) {
-      toast.error("Failed to update custom field");
+      notify.error("Failed to update custom field");
     }
   };
 
@@ -168,12 +168,12 @@ export default function CustomFieldsTab({
 
       if (response.ok) {
         setFields(fields.filter((f) => f.id !== id));
-        toast.success("Custom field deleted");
+        notify.success("Custom field deleted");
       } else {
-        toast.error("Failed to delete custom field");
+        notify.error("Failed to delete custom field");
       }
     } catch (error) {
-      toast.error("Failed to delete custom field");
+      notify.error("Failed to delete custom field");
     }
   };
 
@@ -187,12 +187,12 @@ export default function CustomFieldsTab({
 
       if (response.ok) {
         setFields(fields.map((f) => (f.id === id ? { ...f, isActive } : f)));
-        toast.success(`Custom field ${isActive ? "enabled" : "disabled"}`);
+        notify.success(`Custom field ${isActive ? "enabled" : "disabled"}`);
       } else {
-        toast.error("Failed to update custom field");
+        notify.error("Failed to update custom field");
       }
     } catch (error) {
-      toast.error("Failed to update custom field");
+      notify.error("Failed to update custom field");
     }
   };
 

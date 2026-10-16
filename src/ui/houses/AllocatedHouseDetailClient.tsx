@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   Dialog,
   DialogContent,
@@ -31,7 +31,7 @@ import {
   Image as ImageIcon,
   Truck,
 } from "lucide-react";
-import { toast } from "sonner";
+import { notify } from "@/lib/feedback/notify";
 import Link from "next/link";
 import {
   formatDate,
@@ -45,9 +45,12 @@ import {
   QueueStatusBadge,
 } from "@/ui/household/house-status";
 import { houseCategoryForJobGrade } from "@/lib/house-queue/eligibility";
+import { isReleasePending } from "@/lib/house-queue/state";
+import { canPrintHouseReceipt } from "@/lib/house-queue/receipt-gate";
 import type { AllocationDetailView } from "@/lib/house-queue/views";
 import type { HouseQueueCapabilities } from "../house-queue/HouseQueueClient";
 import ReleaseWorkflowDialog from "../house-queue/ReleaseWorkflowDialog";
+
 import AllocationReceiptPrint from "./AllocationReceiptPrint";
 
 const OCCUPANCY_META: Record<string, { label: string; className: string }> = {
@@ -89,7 +92,7 @@ function Field({
 }) {
   return (
     <div>
-      <dt className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+      <dt className="text-muted-foreground text-[11px] font-semibold tracking-wide uppercase">
         {label}
       </dt>
       <dd className="mt-0.5 text-sm font-medium">{children}</dd>
@@ -113,47 +116,46 @@ interface AvailableHouse {
 function ReassignHouseDialog({
   open,
   onOpenChange,
-  category,
+  employeeId,
   employeeName,
   onSubmit,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  category: string | null;
+  employeeId: string;
   employeeName: string;
   onSubmit: (payload: { employeeId: string; householdId: string }) => Promise<{
     ok: boolean;
     message?: string;
   }>;
 }) {
-  const [employeeId, setEmployeeId] = useState<string | null>(null);
   const [houses, setHouses] = useState<AvailableHouse[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   const load = useCallback(async () => {
-    if (!category) return;
+    if (!employeeId) return;
     setLoading(true);
     setHouses([]);
     setSelectedId(null);
     try {
       const res = await fetch(
-        `/api/house-queue/available-houses?houseType=${encodeURIComponent(category)}`,
+        `/api/house-queue/transfer/candidates?employeeId=${encodeURIComponent(employeeId)}`,
       );
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
-        toast.error(body.error ?? "Failed to load available houses");
+        notify.error(body.error ?? "Failed to load available houses");
         return;
       }
       const data = (await res.json()) as { houses: AvailableHouse[] };
       setHouses(data.houses);
     } catch {
-      toast.error("Failed to load available houses");
+      notify.error("Failed to load available houses");
     } finally {
       setLoading(false);
     }
-  }, [category]);
+  }, [employeeId]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: load when the dialog opens
@@ -174,20 +176,20 @@ function ReassignHouseDialog({
         <DialogHeader>
           <DialogTitle>Reassign house</DialogTitle>
           <DialogDescription>
-            Choose a free {category} house for {employeeName}.
+            Choose an eligible house for {employeeName}.
           </DialogDescription>
         </DialogHeader>
 
         <div className="max-h-72 space-y-1.5 overflow-y-auto pr-1">
           {loading && (
-            <div className="flex items-center justify-center gap-2 py-6 text-sm text-muted-foreground">
+            <div className="text-muted-foreground flex items-center justify-center gap-2 py-6 text-sm">
               <Loader2 className="h-4 w-4 animate-spin" />
               Loading houses…
             </div>
           )}
           {!loading && houses.length === 0 && (
-            <p className="py-6 text-center text-sm text-muted-foreground">
-              No free {category} houses available.
+            <p className="text-muted-foreground py-6 text-center text-sm">
+              No eligible houses available.
             </p>
           )}
           {houses.map((house) => {
@@ -205,7 +207,7 @@ function ReassignHouseDialog({
               >
                 <div>
                   <div className="font-semibold">{house.houseNumber}</div>
-                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                  <div className="text-muted-foreground flex items-center gap-1 text-xs">
                     <MapPin className="h-3 w-3" />
                     {house.locationName ?? "Location not set"}
                   </div>
@@ -240,7 +242,7 @@ function ReassignHouseDialog({
 
 function ChecklistRow({ label, ok }: { label: string; ok: boolean }) {
   return (
-    <div className="flex items-center justify-between gap-2 rounded-lg border bg-muted/40 px-3 py-1.5 text-sm">
+    <div className="bg-muted/40 flex items-center justify-between gap-2 rounded-lg border px-3 py-1.5 text-sm">
       <span className="text-muted-foreground">{label}</span>
       {ok ? (
         <Badge variant="success" className="gap-1">
@@ -277,25 +279,25 @@ function InspectionCard({
         )}
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="flex flex-wrap gap-x-6 gap-y-1 text-xs text-muted-foreground">
+        <div className="text-muted-foreground flex flex-wrap gap-x-6 gap-y-1 text-xs">
           {inspection.scheduledDate && (
             <span>
               Scheduled{" "}
-              <span className="font-semibold text-foreground">
+              <span className="text-foreground font-semibold">
                 {formatDate(inspection.scheduledDate)}
               </span>
             </span>
           )}
           <span>
             Inspector{" "}
-            <span className="font-semibold text-foreground">
+            <span className="text-foreground font-semibold">
               {inspection.inspectorName ?? "not assigned"}
             </span>
           </span>
           {inspection.completedAt && (
             <span>
               Completed{" "}
-              <span className="font-semibold text-foreground">
+              <span className="text-foreground font-semibold">
                 {formatDateTime(inspection.completedAt)}
               </span>
             </span>
@@ -303,25 +305,31 @@ function InspectionCard({
         </div>
 
         <div>
-          <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+          <p className="text-muted-foreground mb-1.5 text-[11px] font-semibold tracking-wide uppercase">
             Damage checklist
           </p>
           <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
             <ChecklistRow label="Window" ok={!inspection.checklistWindow} />
             <ChecklistRow label="Door" ok={!inspection.checklistDoor} />
-            <ChecklistRow label="Water panel" ok={!inspection.checklistWaterPanel} />
+            <ChecklistRow
+              label="Water panel"
+              ok={!inspection.checklistWaterPanel}
+            />
             <ChecklistRow label="Roof" ok={!inspection.checklistRoof} />
             <ChecklistRow label="Wall" ok={!inspection.checklistWall} />
-            <ChecklistRow label="Electricity" ok={!inspection.checklistElectricity} />
+            <ChecklistRow
+              label="Electricity"
+              ok={!inspection.checklistElectricity}
+            />
           </div>
         </div>
 
         {inspection.conditionNote && (
           <div>
-            <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+            <p className="text-muted-foreground mb-1 text-[11px] font-semibold tracking-wide uppercase">
               Condition note
             </p>
-            <p className="rounded-lg border bg-muted/40 p-3 text-sm">
+            <p className="bg-muted/40 rounded-lg border p-3 text-sm">
               {inspection.conditionNote}
             </p>
           </div>
@@ -329,7 +337,7 @@ function InspectionCard({
 
         {inspection.photoUrls.length > 0 && (
           <div>
-            <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+            <p className="text-muted-foreground mb-1.5 text-[11px] font-semibold tracking-wide uppercase">
               Photos ({inspection.photoUrls.length})
             </p>
             <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-6">
@@ -339,7 +347,7 @@ function InspectionCard({
                   href={url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex h-16 items-center justify-center rounded-lg border bg-muted/40 text-muted-foreground transition-colors hover:border-primary/50"
+                  className="bg-muted/40 text-muted-foreground hover:border-primary/50 flex h-16 items-center justify-center rounded-lg border transition-colors"
                 >
                   <ImageIcon className="h-5 w-5" />
                 </a>
@@ -372,12 +380,14 @@ function AuditTrailCard({ employeeId }: { employeeId: string }) {
   useEffect(() => {
     let cancelled = false;
     fetch(`/api/house-queue/audit?employeeId=${encodeURIComponent(employeeId)}`)
-      .then((res) => (res.ok ? res.json() : Promise.reject(new Error("failed"))))
+      .then((res) =>
+        res.ok ? res.json() : Promise.reject(new Error("failed")),
+      )
       .then((data: { logs: AuditEntry[] }) => {
         if (!cancelled) setEntries(data.logs);
       })
       .catch(() => {
-        if (!cancelled) toast.error("Failed to load the audit trail");
+        if (!cancelled) notify.error("Failed to load the audit trail");
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -397,31 +407,31 @@ function AuditTrailCard({ employeeId }: { employeeId: string }) {
       </CardHeader>
       <CardContent className="max-h-72 space-y-2 overflow-y-auto pr-1">
         {loading && (
-          <div className="flex items-center justify-center gap-2 py-6 text-sm text-muted-foreground">
+          <div className="text-muted-foreground flex items-center justify-center gap-2 py-6 text-sm">
             <Loader2 className="h-4 w-4 animate-spin" />
             Loading…
           </div>
         )}
         {!loading && entries.length === 0 && (
-          <p className="py-6 text-center text-sm text-muted-foreground">
+          <p className="text-muted-foreground py-6 text-center text-sm">
             No recorded decisions yet.
           </p>
         )}
         {entries.map((entry) => (
           <div
             key={entry.id}
-            className="space-y-1 rounded-lg border bg-card p-3 text-sm"
+            className="bg-card space-y-1 rounded-lg border p-3 text-sm"
           >
             <div className="flex flex-wrap items-center justify-between gap-2">
               <Badge variant="outline" className="font-semibold">
                 {entry.action}
               </Badge>
-              <span className="text-xs text-muted-foreground">
+              <span className="text-muted-foreground text-xs">
                 {formatDateTime(entry.createdAt)}
               </span>
             </div>
             {entry.user && (
-              <p className="text-xs text-muted-foreground">
+              <p className="text-muted-foreground text-xs">
                 By {entry.user.firstname} {entry.user.lastname}
               </p>
             )}
@@ -441,47 +451,58 @@ interface AllocatedHouseDetailClientProps {
   capabilities: HouseQueueCapabilities;
 }
 
-type DialogKey =
-  | "reassign"
-  | "release"
-  | null;
+type DialogKey = "reassign" | "release" | null;
 
 export default function AllocatedHouseDetailClient({
   detail,
   capabilities,
 }: AllocatedHouseDetailClientProps) {
   const router = useRouter();
-  const [dialog, setDialog] = useState<DialogKey>(null);
+  const searchParams = useSearchParams();
+
+  /**
+   * Deep link from another page: `?action=release` / `?action=transfer`.
+   *
+   * The House Request page refuses a second request from an employee who already
+   * holds a house, and the useful response to that is not "go and look" but
+   * "start the release". Carrying the intent in the URL means the button that
+   * sent the user here does not have to re-implement either workflow, and a
+   * refresh or a shared link still lands on the right step.
+   *
+   * Read once, at arrival, rather than tracked as a param: after the user closes
+   * the dialog the param is still in the address bar, and a component that
+   * re-opened on every param change would make it impossible to dismiss.
+   */
+  const [requestedAction] = useState(searchParams.get("action"));
+
+  const [dialog, setDialog] = useState<DialogKey>(
+    requestedAction === "release" ? "release" : null,
+  );
   const [acting, setActing] = useState(false);
   const [receiptOpen, setReceiptOpen] = useState(false);
-  const [moveOpen, setMoveOpen] = useState(false);
+  const [moveOpen, setMoveOpen] = useState(requestedAction === "transfer");
 
-  const isTerminated = detail.status === "terminated";
-  const category = houseCategoryForJobGrade(detail.employee.jobGrade);
-
-  const runAction = useCallback(
-    async (payload: Record<string, unknown>) => {
-      try {
-        const res = await fetch("/api/house-queue/action", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
-        const body = (await res.json().catch(() => ({}))) as { error?: string };
-        if (!res.ok) return { ok: false as const, message: body.error ?? "Action failed" };
-        return { ok: true as const };
-      } catch {
-        return { ok: false as const, message: "Network error" };
-      }
-    },
-    [],
-  );
+  const runAction = useCallback(async (payload: Record<string, unknown>) => {
+    try {
+      const res = await fetch("/api/house-queue/action", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const body = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok)
+        return { ok: false as const, message: body.error ?? "Action failed" };
+      return { ok: true as const };
+    } catch {
+      return { ok: false as const, message: "Network error" };
+    }
+  }, []);
 
   const handleReassign = useCallback(
     async (payload: { employeeId: string; householdId: string }) => {
       const result = await runAction({ action: "reassign", ...payload });
       if (result.ok) {
-        toast.success("Allocation reassigned.");
+        notify.success("Allocation reassigned");
         router.refresh();
       }
       return result;
@@ -489,17 +510,58 @@ export default function AllocatedHouseDetailClient({
     [runAction, router],
   );
 
+  // Handle missing employee data
+  if (!detail.employee) {
+    return (
+      <div className="border-destructive bg-destructive/5 rounded-xl border p-6">
+        <h2 className="text-destructive text-lg font-semibold">
+          Missing Employee Data
+        </h2>
+        <p className="text-muted-foreground mt-2 text-sm">
+          This allocation record is missing employee information and cannot be
+          displayed properly.
+        </p>
+      </div>
+    );
+  }
+
+  const isReleasePendingState = isReleasePending(detail.status);
+  const isTerminated =
+    detail.status === "terminated" || detail.status === "released";
+
+  /**
+   * Termination and transfer receipts may only be printed once the handback
+   * inspection is complete, since completing it is what finalises the release.
+   * The component enforces this too; computing it here lets the buttons explain
+   * themselves instead of opening a dialog that immediately refuses.
+   */
+  // Narrowed to the refusal branch once declared, so `message` is reachable
+  // without a cast at each use site.
+  const receiptGate = canPrintHouseReceipt({
+    variant: "handover",
+    inspection: detail.inspection ?? null,
+  });
+  const moveGate = canPrintHouseReceipt({
+    variant: "move",
+    inspection: detail.inspection ?? null,
+  });
+  const receiptBlocked = !receiptGate.allowed;
+  const moveBlocked = !moveGate.allowed;
+  const receiptBlockMessage = receiptBlocked ? receiptGate.message : undefined;
+  const moveBlockMessage = moveBlocked ? moveGate.message : undefined;
+  const category = houseCategoryForJobGrade(detail.employee.jobGrade);
+
   return (
     <div className="space-y-6">
       {/* ─── Header card ─── */}
-      <div className="rounded-xl border bg-card p-5 shadow-sm">
+      <div className="bg-card rounded-xl border p-5 shadow-sm">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <div className="flex flex-wrap items-center gap-2">
-              <h1 className="housing-serif text-3xl font-bold tracking-tight text-brass-500 dark:text-brass-300">
+              <h1 className="housing-serif text-brass-500 dark:text-brass-300 text-3xl font-bold tracking-tight">
                 {detail.house?.houseNumber ?? "Unassigned house"}
               </h1>
-              <span className="text-sm text-muted-foreground">
+              <span className="text-muted-foreground text-sm">
                 ({detail.house?.hid ?? "no hid"})
               </span>
             </div>
@@ -520,10 +582,15 @@ export default function AllocatedHouseDetailClient({
               <RefreshCw className="h-4 w-4" />
               Reload
             </Button>
+            {/* `auto` resolves to the handback form once the allocation is terminated, so
+                the button inherits the gate for that case and stays open for the
+                handover form. */}
             <Button
               variant="outline"
               size="sm"
               onClick={() => setReceiptOpen(true)}
+              disabled={isTerminated && receiptBlocked}
+              title={isTerminated ? receiptBlockMessage : undefined}
             >
               <Printer className="h-4 w-4" />
               Print Receipt
@@ -533,19 +600,31 @@ export default function AllocatedHouseDetailClient({
                 variant="outline"
                 size="sm"
                 onClick={() => setMoveOpen(true)}
+                disabled={moveBlocked}
+                title={moveBlockMessage}
               >
                 <Truck className="h-4 w-4" />
                 Moving / Transfer Request
               </Button>
             )}
-            {!isTerminated && capabilities.allocate && (
-              <Button variant="outline" size="sm" onClick={() => setDialog("reassign")}>
-                <Repeat className="h-4 w-4" />
-                Reassign
-              </Button>
-            )}
-            {!isTerminated && capabilities.manage && (
-              <Button variant="destructive" size="sm" onClick={() => setDialog("release")}>
+            {!isTerminated &&
+              !isReleasePendingState &&
+              capabilities.allocate && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setDialog("reassign")}
+                >
+                  <Repeat className="h-4 w-4" />
+                  Reassign
+                </Button>
+              )}
+            {!isTerminated && !isReleasePendingState && capabilities.manage && (
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() => setDialog("release")}
+              >
                 <Undo2 className="h-4 w-4" />
                 Release
               </Button>
@@ -553,34 +632,53 @@ export default function AllocatedHouseDetailClient({
           </div>
         </div>
         {detail.house?.locationName && (
-          <p className="mt-3 flex items-center gap-1.5 text-sm text-muted-foreground">
+          <p className="text-muted-foreground mt-3 flex items-center gap-1.5 text-sm">
             <MapPin className="h-4 w-4" />
             {detail.house.locationName}
           </p>
         )}
       </div>
 
+      {/* ─── Release Pending banner ─── */}
+      {isReleasePendingState && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm dark:border-amber-900 dark:bg-amber-950/50">
+          <div className="flex items-center gap-3">
+            <ClipboardCheck className="h-5 w-5 text-amber-600" />
+            <div>
+              <p className="font-semibold text-amber-900 dark:text-amber-200">
+                Release pending — awaiting handback inspection
+              </p>
+              <p className="text-xs text-amber-700 dark:text-amber-300">
+                The house is vacated and held out of the pool. Completing the
+                handback inspection finalises the release: it records the
+                damage, returns the house to stock, and files this allocation on
+                the Terminated Houses page.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ─── Terminated archive banner ─── */}
       {isTerminated && (
         <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm dark:border-slate-800 dark:bg-slate-950/50">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-3">
-              <ArchiveRestore className="h-5 w-5 text-muted-foreground" />
+              <ArchiveRestore className="text-muted-foreground h-5 w-5" />
               <div>
                 <p className="font-semibold">
-                  Allocation terminated at{" "}
-                  {formatDateTime(detail.terminatedAt)}
+                  Allocation terminated at {formatDateTime(detail.terminatedAt)}
                 </p>
-                <p className="text-xs text-muted-foreground">
-                  {detail.terminatedByName ?? "Unknown user"} closed this allocation •{" "}
-                  reason: {detail.terminationReason ?? "—"}
+                <p className="text-muted-foreground text-xs">
+                  {detail.terminatedByName ?? "Unknown user"} closed this
+                  allocation • reason: {detail.terminationReason ?? "—"}
                   {detail.reason ? ` • ${detail.reason}` : ""}
                 </p>
               </div>
             </div>
             <Link
               href="/houses/terminated"
-              className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
+              className="text-primary inline-flex items-center gap-1 text-xs font-semibold hover:underline"
             >
               View terminations archive →
             </Link>
@@ -599,14 +697,14 @@ export default function AllocatedHouseDetailClient({
           </CardHeader>
           <CardContent>
             <div className="flex items-center gap-3">
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-primary/10 text-lg font-bold text-primary">
+              <div className="bg-primary/10 text-primary flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-lg font-bold">
                 {detail.employee.firstname.charAt(0).toUpperCase()}
               </div>
               <div>
                 <div className="text-base font-semibold">
                   {fullName(detail.employee)}
                 </div>
-                <div className="text-xs text-muted-foreground">
+                <div className="text-muted-foreground text-xs">
                   {detail.employee.employeeNumber}
                 </div>
               </div>
@@ -615,9 +713,7 @@ export default function AllocatedHouseDetailClient({
               <Field label="Department">
                 {detail.employee.department?.name ?? "—"}
               </Field>
-              <Field label="Job Grade">
-                {detail.employee.jobGrade ?? "—"}
-              </Field>
+              <Field label="Job Grade">{detail.employee.jobGrade ?? "—"}</Field>
               <Field label="Gender">{detail.employee.gender ?? "—"}</Field>
               <Field label="Marital Status">
                 {detail.employee.maritalStatus ?? "—"}
@@ -652,9 +748,7 @@ export default function AllocatedHouseDetailClient({
                 </span>
               </Field>
               <Field label="Priority rank">
-                {detail.priorityRank != null
-                  ? `#${detail.priorityRank}`
-                  : "—"}
+                {detail.priorityRank != null ? `#${detail.priorityRank}` : "—"}
               </Field>
               <Field label="Decision approved by">
                 {detail.decidedByName ?? "—"}
@@ -714,7 +808,7 @@ export default function AllocatedHouseDetailClient({
         <ReassignHouseDialog
           open
           onOpenChange={(open) => !open && setDialog(null)}
-          category={category}
+          employeeId={detail.employee.id}
           employeeName={fullName(detail.employee)}
           onSubmit={handleReassign}
         />

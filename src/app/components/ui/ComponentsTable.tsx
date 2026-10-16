@@ -11,7 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { toast } from "sonner";
+import { notify } from "@/lib/feedback/notify";
 
 interface ComponentItem {
   id: string;
@@ -59,10 +59,10 @@ export default function ComponentsTable({
     try {
       const res = await fetch(`/api/components/${id}`, { method: "DELETE" });
       if (!res.ok) throw new Error("Failed to delete");
-      toast.success("Component deleted", { description: name });
+      notify.success({ title: "Component deleted", description: name });
       window.location.reload();
     } catch {
-      toast.error("Failed to delete component");
+      notify.error("Failed to delete component");
     }
   };
 

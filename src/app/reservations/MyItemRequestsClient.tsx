@@ -13,7 +13,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Loader2, PackageOpen, XCircle } from "lucide-react";
-import { toast } from "sonner";
+import { notify } from "@/lib/feedback/notify";
 import ReturnItemButton from "@/components/ReturnItemButton";
 
 interface ItemRequest {
@@ -171,13 +171,13 @@ export default function MyItemRequestsClient() {
       });
       if (!res.ok) {
         const data = await res.json();
-        toast.error(data.error || "Failed to cancel request");
+        notify.error(data.error || "Failed to cancel request");
         return;
       }
-      toast.success("Request cancelled");
+      notify.success("Request cancelled");
       fetchRequests();
     } catch {
-      toast.error("Failed to cancel request");
+      notify.error("Failed to cancel request");
     }
   };
 

@@ -42,7 +42,7 @@ import {
   CalendarClock,
   AlertTriangle,
 } from "lucide-react";
-import { toast } from "sonner";
+import { notify } from "@/lib/feedback/notify";
 import GeneralAssetFormModal from "./GeneralAssetFormModal";
 import {
   GENERAL_ASSET_CONDITION_META,
@@ -151,7 +151,7 @@ export default function GeneralAssetClient({
         setSummary({ total, underMaintenance, newItems, disposed });
       }
     } catch {
-      toast.error("Failed to reload general assets");
+      notify.error("Failed to reload general assets");
     } finally {
       setLoading(false);
     }
@@ -256,7 +256,7 @@ export default function GeneralAssetClient({
         throw new Error(data.error || "Failed to delete general asset");
       }
 
-      toast.success(`General asset ${deletingItem.pid} deleted successfully.`);
+      notify.success(`General asset ${deletingItem.pid} deleted`);
       setItems((prev) => prev.filter((i) => i.id !== deletingItem.id));
       setSummary((prev) => ({ ...prev, total: Math.max(0, prev.total - 1) }));
       setDeleteModalOpen(false);
@@ -264,7 +264,7 @@ export default function GeneralAssetClient({
     } catch (err: unknown) {
       const msg =
         err instanceof Error ? err.message : "Failed to delete general asset";
-      toast.error(msg);
+      notify.error(msg);
     } finally {
       setDeleteLoading(false);
     }
@@ -310,7 +310,7 @@ export default function GeneralAssetClient({
       switch (columnKey) {
         case "srNo":
           return (
-            <span className="font-mono text-xs font-semibold text-muted-foreground">
+            <span className="text-muted-foreground font-mono text-xs font-semibold">
               #{item.srNo}
             </span>
           );
@@ -329,23 +329,24 @@ export default function GeneralAssetClient({
 
         case "itemType":
           return (
-            <span className="text-sm font-semibold text-foreground whitespace-nowrap">
+            <span className="text-foreground text-sm font-semibold whitespace-nowrap">
               {item.itemType}
             </span>
           );
 
         case "category":
           return (
-            <span className="text-xs text-muted-foreground whitespace-nowrap">
+            <span className="text-muted-foreground text-xs whitespace-nowrap">
               {item.category}
             </span>
           );
 
         case "location": {
-          const locName = item.location?.locationname || item.locationName || "—";
+          const locName =
+            item.location?.locationname || item.locationName || "—";
           return (
             <span
-              className="block max-w-[150px] truncate text-xs text-muted-foreground whitespace-nowrap"
+              className="text-muted-foreground block max-w-[150px] truncate text-xs whitespace-nowrap"
               title={locName}
             >
               {locName}
@@ -364,7 +365,10 @@ export default function GeneralAssetClient({
                   ? "bg-sky-100 text-sky-700 hover:bg-sky-100 dark:bg-sky-500/15 dark:text-sky-300"
                   : "border-border bg-muted/50 text-muted-foreground";
           return (
-            <Badge variant="outline" className={`gap-1 text-[11px] ${variantClass}`}>
+            <Badge
+              variant="outline"
+              className={`gap-1 text-[11px] ${variantClass}`}
+            >
               {meta.variant === "destructive" && (
                 <AlertTriangle className="h-3 w-3" />
               )}
@@ -375,14 +379,14 @@ export default function GeneralAssetClient({
 
         case "brand":
           return (
-            <span className="text-xs text-muted-foreground whitespace-nowrap">
+            <span className="text-muted-foreground text-xs whitespace-nowrap">
               {item.brand || "—"}
             </span>
           );
 
         case "reviewsDate":
           return (
-            <span className="flex items-center gap-1.5 text-xs text-muted-foreground whitespace-nowrap">
+            <span className="text-muted-foreground flex items-center gap-1.5 text-xs whitespace-nowrap">
               <CalendarClock className="h-3.5 w-3.5" />
               {formatDate(item.reviewsDate)}
             </span>
@@ -391,7 +395,7 @@ export default function GeneralAssetClient({
         case "remark":
           return (
             <span
-              className="block max-w-[220px] truncate text-xs text-muted-foreground"
+              className="text-muted-foreground block max-w-[220px] truncate text-xs"
               title={item.remark || ""}
             >
               {item.remark || "—"}
@@ -437,11 +441,11 @@ export default function GeneralAssetClient({
       {/* ─── Header & Primary CTA ─── */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight text-foreground">
-            <Warehouse className="h-7 w-7 text-primary" />
+          <h1 className="text-foreground flex items-center gap-2 text-2xl font-bold tracking-tight">
+            <Warehouse className="text-primary h-7 w-7" />
             General Asset Inventory
           </h1>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-muted-foreground text-sm">
             Track non-IT fixed assets across the factory — machinery, buildings,
             vehicles, furniture, and equipment.
           </p>
@@ -468,22 +472,22 @@ export default function GeneralAssetClient({
 
       {/* ─── Metric Stat Cards ─── */}
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <div className="rounded-xl border bg-card p-4 shadow-sm">
+        <div className="bg-card rounded-xl border p-4 shadow-sm">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-muted-foreground">
+            <span className="text-muted-foreground text-xs font-medium">
               Total Assets
             </span>
-            <Warehouse className="h-4 w-4 text-primary" />
+            <Warehouse className="text-primary h-4 w-4" />
           </div>
           <div className="mt-2 text-2xl font-bold">{summary.total}</div>
-          <p className="mt-1 text-[11px] text-muted-foreground">
+          <p className="text-muted-foreground mt-1 text-[11px]">
             All registered items
           </p>
         </div>
 
-        <div className="rounded-xl border bg-card p-4 shadow-sm">
+        <div className="bg-card rounded-xl border p-4 shadow-sm">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-muted-foreground">
+            <span className="text-muted-foreground text-xs font-medium">
               New Items
             </span>
             <PackageCheck className="h-4 w-4 text-emerald-600" />
@@ -491,14 +495,14 @@ export default function GeneralAssetClient({
           <div className="mt-2 text-2xl font-bold text-emerald-600 dark:text-emerald-400">
             {summary.newItems}
           </div>
-          <p className="mt-1 text-[11px] text-muted-foreground">
+          <p className="text-muted-foreground mt-1 text-[11px]">
             Newly acquired
           </p>
         </div>
 
-        <div className="rounded-xl border bg-card p-4 shadow-sm">
+        <div className="bg-card rounded-xl border p-4 shadow-sm">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-muted-foreground">
+            <span className="text-muted-foreground text-xs font-medium">
               Under Maintenance
             </span>
             <Wrench className="h-4 w-4 text-amber-600" />
@@ -506,31 +510,31 @@ export default function GeneralAssetClient({
           <div className="mt-2 text-2xl font-bold text-amber-600 dark:text-amber-400">
             {summary.underMaintenance}
           </div>
-          <p className="mt-1 text-[11px] text-muted-foreground">
+          <p className="text-muted-foreground mt-1 text-[11px]">
             In workshop / repair
           </p>
         </div>
 
-        <div className="rounded-xl border bg-card p-4 shadow-sm">
+        <div className="bg-card rounded-xl border p-4 shadow-sm">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-muted-foreground">
+            <span className="text-muted-foreground text-xs font-medium">
               Disposed / Scrapped
             </span>
-            <PackageX className="h-4 w-4 text-destructive" />
+            <PackageX className="text-destructive h-4 w-4" />
           </div>
-          <div className="mt-2 text-2xl font-bold text-destructive">
+          <div className="text-destructive mt-2 text-2xl font-bold">
             {summary.disposed}
           </div>
-          <p className="mt-1 text-[11px] text-muted-foreground">
+          <p className="text-muted-foreground mt-1 text-[11px]">
             Written off from register
           </p>
         </div>
       </div>
 
       {/* ─── Search & Filters Bar ─── */}
-      <div className="flex flex-col gap-3 rounded-xl border bg-card p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+      <div className="bg-card flex flex-col gap-3 rounded-xl border p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
         <div className="relative max-w-sm flex-1">
-          <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Search className="text-muted-foreground absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />
           <Input
             value={search}
             onChange={(e) => {
@@ -646,7 +650,7 @@ export default function GeneralAssetClient({
                 setLocationFilter("all");
                 setPage(1);
               }}
-              className="h-8 text-xs text-muted-foreground hover:text-foreground"
+              className="text-muted-foreground hover:text-foreground h-8 text-xs"
             >
               Clear
             </Button>
@@ -655,7 +659,7 @@ export default function GeneralAssetClient({
       </div>
 
       {/* ─── Responsive Data Table ─── */}
-      <div className="rounded-xl border bg-card shadow-sm">
+      <div className="bg-card rounded-xl border shadow-sm">
         <ResponsiveTable<GeneralAssetItem>
           columns={columns}
           data={paginatedItems}
@@ -679,7 +683,7 @@ export default function GeneralAssetClient({
         />
 
         {/* ─── Table Pagination Bar ─── */}
-        <div className="flex flex-col items-center justify-between gap-3 border-t p-3 text-xs text-muted-foreground sm:flex-row">
+        <div className="text-muted-foreground flex flex-col items-center justify-between gap-3 border-t p-3 text-xs sm:flex-row">
           <div className="flex items-center gap-2">
             <span>Rows per page:</span>
             <Select
@@ -749,16 +753,14 @@ export default function GeneralAssetClient({
       <Dialog open={deleteModalOpen} onOpenChange={setDeleteModalOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-destructive">
+            <DialogTitle className="text-destructive flex items-center gap-2">
               <AlertTriangle className="h-5 w-5" />
               Confirm Asset Deletion
             </DialogTitle>
             <DialogDescription>
               Are you sure you want to permanently delete general asset{" "}
-              <strong className="text-foreground">
-                {deletingItem?.pid}
-              </strong>{" "}
-              ({deletingItem?.itemType})? This action cannot be undone.
+              <strong className="text-foreground">{deletingItem?.pid}</strong> (
+              {deletingItem?.itemType})? This action cannot be undone.
             </DialogDescription>
           </DialogHeader>
 

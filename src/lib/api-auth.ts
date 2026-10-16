@@ -164,7 +164,7 @@ export async function requireApiAdmin(): Promise<AuthUser> {
  *
  * Super-admins are identified by email via the SUPER_ADMIN_EMAILS env var
  * (comma-separated). This gates access to platform-wide configuration
- * (SSO, LDAP, Freshdesk, integrations) that affects all tenants.
+ * (SSO, LDAP, integrations) that affects all tenants.
  */
 export async function requireSuperAdmin(): Promise<AuthUser> {
   const user = await requireApiAdmin();

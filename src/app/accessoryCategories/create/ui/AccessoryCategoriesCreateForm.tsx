@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import { notify } from "@/lib/feedback/notify";
 
 export default function AccessoryCategoriesCreateForm({
   initialData = null,
@@ -47,18 +47,17 @@ export default function AccessoryCategoriesCreateForm({
       }
 
       const created = await res.json();
-      toast.success(
-        mode === "edit"
-          ? "Accessory category updated"
-          : "Accessory category created",
-        {
-          description: created.accessoriecategorytypename,
-        },
-      );
+      notify.success({
+        title:
+          mode === "edit"
+            ? "Accessory category updated"
+            : "Accessory category created",
+        description: created.accessoriecategorytypename,
+      });
       router.push("/accessoryCategories");
     } catch (err) {
       setError(err.message);
-      toast.error("Save failed", { description: err.message });
+      notify.error({ title: "Save failed", description: err.message });
     } finally {
       setSubmitting(false);
     }

@@ -19,7 +19,7 @@ import {
   ShieldAlert,
   Trash2,
 } from "lucide-react";
-import { toast } from "sonner";
+import { notify } from "@/lib/feedback/notify";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -61,7 +61,6 @@ import {
   diffSections,
   DEFAULT_ENGINE_CONFIG,
   ENGINE_CONFIG_SECTIONS,
-  includesAdminOnlySection,
   MCDA_SINGLE_WEIGHT_CAP,
   type EngineConfigPayload,
   type EngineConfigSection,
@@ -99,6 +98,21 @@ interface ConfigVersionView {
   supersededById: string | null;
 }
 
+/**
+ * What the server says the caller may publish, and what it will demand first.
+ *
+ * Deliberately NOT re-derived on the client: the publish endpoint diffs the
+ * SAVED draft against the active version, while the page also holds unsaved
+ * local edits. Deriving it here meant the two could disagree, and the failure
+ * mode was a bare `403` with no password field on screen.
+ */
+interface PublishGateView {
+  changedSections: EngineConfigSection[];
+  requiresReauth: boolean;
+  mfaRequired: boolean;
+  hasPublishableChanges: boolean;
+}
+
 interface ConfigStateView {
   active: ConfigVersionView;
   draft: ConfigVersionView | null;
@@ -107,6 +121,7 @@ interface ConfigStateView {
   lastAuditAt: string | null;
   lastPublishedAt: string | null;
   lastRunAt: string | null;
+  publishGate: PublishGateView;
 }
 
 interface PreviewRowView {
@@ -308,6 +323,14 @@ export default function EngineConfigClient() {
   const [password, setPassword] = useState("");
   const [totpCode, setTotpCode] = useState("");
   const [isBackupCode, setIsBackupCode] = useState(false);
+  /**
+   * Inline identity errors, kept beside the fields rather than only in a toast:
+   * a toast disappears, and the user's next action is to retype the password.
+   */
+  const [reauthError, setReauthError] = useState<string | null>(null);
+  const [reauthFieldError, setReauthFieldError] = useState<
+    "password" | "totpCode" | null
+  >(null);
 
   // Rollback
   const [rollbackTarget, setRollbackTarget] =
@@ -439,7 +462,7 @@ export default function EngineConfigClient() {
     setRecommendation((editingBase ?? DEFAULT_ENGINE_CONFIG).recommendation);
     setPassword("");
     setTotpCode("");
-    toast.info("Discarded unsaved changes");
+    notify.info("Discarded unsaved changes");
   };
 
   // -------------------------------------------------------------------------
@@ -447,7 +470,7 @@ export default function EngineConfigClient() {
   // -------------------------------------------------------------------------
   const saveDraft = async () => {
     if (errors.length > 0) {
-      toast.error("Fix validation errors before saving the draft");
+      notify.error("Fix validation errors before saving the draft");
       return;
     }
     setSaving(true);
@@ -459,14 +482,14 @@ export default function EngineConfigClient() {
       });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) {
-        if (body.details?.length) toast.error(body.details[0]);
-        else toast.error(body.error ?? "Failed to save the draft");
+        if (body.details?.length) notify.error(body.details[0]);
+        else notify.error(body.error ?? "Failed to save the draft");
         return;
       }
       setState(body.state);
-      toast.success("Draft saved");
+      notify.success("Draft saved");
     } catch {
-      toast.error("Failed to save the draft");
+      notify.error("Failed to save the draft");
     } finally {
       setSaving(false);
     }
@@ -474,7 +497,7 @@ export default function EngineConfigClient() {
 
   const previewImpact = async () => {
     if (errors.length > 0) {
-      toast.error("Fix validation errors before previewing");
+      notify.error("Fix validation errors before previewing");
       return;
     }
     setPreviewLoading(true);
@@ -486,7 +509,7 @@ export default function EngineConfigClient() {
       });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) {
-        toast.error(body.error ?? "Failed to compute the preview");
+        notify.error(body.error ?? "Failed to compute the preview");
         return;
       }
       setPreviewData({
@@ -495,7 +518,7 @@ export default function EngineConfigClient() {
       });
       setPreviewOpen(true);
     } catch {
-      toast.error("Failed to compute the preview");
+      notify.error("Failed to compute the preview");
     } finally {
       setPreviewLoading(false);
     }
@@ -512,9 +535,17 @@ export default function EngineConfigClient() {
     });
     const body = await res.json().catch(() => ({}));
     if (!res.ok) {
-      toast.error(body.error ?? "Identity verification failed");
+      // Shown against the field the server blamed, not only as a toast, so a
+      // rejected code is attached to the code box and a rejected password to
+      // the password box.
+      const field = body.field === "totpCode" ? "totpCode" : "password";
+      setReauthError(body.error ?? "Identity verification failed");
+      setReauthFieldError(field);
+      if (field === "password") setPassword("");
       return false;
     }
+    setReauthError(null);
+    setReauthFieldError(null);
     return true;
   };
 
@@ -523,16 +554,23 @@ export default function EngineConfigClient() {
       ? diffSections(editingBase, effectiveDraft)
       : [];
     if (changed.length === 0) {
-      toast.info(
-        "Nothing to publish — the draft matches the live configuration",
-      );
+      notify.info("Nothing to publish — the draft matches the live configuration");
       setPublishOpen(false);
       return;
     }
-    const needsReauth = includesAdminOnlySection(changed);
+    // Unsaved edits are invisible to the publish endpoint, which reads the
+    // saved draft. Publishing while `isDirty` silently drops them, so the user
+    // is told to save first.
+    if (isDirty) {
+      notify.error({
+      title: "Save the draft before publishing",
+      description: "Publishing promotes the saved draft. Unsaved edits would not be included.",
+    });
+      return;
+    }
     setPublishLoading(true);
     try {
-      if (needsReauth) {
+      if (needsReauthPublish) {
         const ok = await postReauth();
         if (!ok) return;
       }
@@ -543,7 +581,18 @@ export default function EngineConfigClient() {
       });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) {
-        toast.error(body.error ?? "Failed to publish the configuration");
+        notify.error(body.error ?? "Failed to publish the configuration");
+        // The endpoint ships its gate with the rejection. Adopt it so the
+        // identity prompt appears, instead of the user retrying into the same
+        // 403.
+        if (body.publishGate) {
+          setState((prev) =>
+            prev ? { ...prev, publishGate: body.publishGate } : prev,
+          );
+          setReauthError(
+            "Your identity must be confirmed before this change can be published.",
+          );
+        }
         return;
       }
       setState(body.state);
@@ -551,9 +600,10 @@ export default function EngineConfigClient() {
       setPublishSummary("");
       setPassword("");
       setTotpCode("");
-      toast.success("Configuration published");
+      setReauthError(null);
+      notify.success("Configuration published");
     } catch {
-      toast.error("Failed to publish the configuration");
+      notify.error("Failed to publish the configuration");
     } finally {
       setPublishLoading(false);
     }
@@ -575,7 +625,7 @@ export default function EngineConfigClient() {
       });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) {
-        toast.error(body.error ?? "Failed to roll back the configuration");
+        notify.error(body.error ?? "Failed to roll back the configuration");
         return;
       }
       setState(body.state);
@@ -583,11 +633,9 @@ export default function EngineConfigClient() {
       setRollbackSummary("");
       setPassword("");
       setTotpCode("");
-      toast.success(
-        "Configuration rolled back to v" + rollbackTarget.versionNumber,
-      );
+      notify.success("Configuration rolled back to v" + rollbackTarget.versionNumber);
     } catch {
-      toast.error("Failed to roll back the configuration");
+      notify.error("Failed to roll back the configuration");
     } finally {
       setPublishLoading(false);
     }
@@ -601,13 +649,13 @@ export default function EngineConfigClient() {
       });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) {
-        toast.error(body.error ?? "Failed to run the engine");
+        notify.error(body.error ?? "Failed to run the engine");
         return;
       }
-      toast.success("House queue engine run recorded");
+      notify.success("House queue engine run recorded");
       void load();
     } catch {
-      toast.error("Failed to run the house queue engine");
+      notify.error("Failed to run the house queue engine");
     } finally {
       setRunLoading(false);
     }
@@ -619,22 +667,37 @@ export default function EngineConfigClient() {
       const res = await fetch("/api/house-queue/config/audit?limit=100");
       const body = await res.json().catch(() => ({}));
       if (!res.ok) {
-        toast.error(body.error ?? "Failed to load the audit trail");
+        notify.error(body.error ?? "Failed to load the audit trail");
         return;
       }
       setAuditEntries(body.entries ?? []);
       setAuditLoaded(true);
     } catch {
-      toast.error("Failed to load the audit trail");
+      notify.error("Failed to load the audit trail");
     } finally {
       setAuditLoading(false);
     }
   };
 
-  const needsReauthPublish = useMemo(() => {
-    if (!editingBase) return false;
-    return includesAdminOnlySection(diffSections(editingBase, effectiveDraft));
-  }, [editingBase, effectiveDraft]);
+  /**
+   * Whether publishing the SAVED draft will demand a password.
+   *
+   * Read from the server rather than derived from local edits. The old version
+   * diffed `editors`/`recommendation` — unsaved local state — while
+   * `POST /publish` diffs the saved draft, so the two could disagree and the
+   * publish would come back `403 REAUTH_REQUIRED` with no way for the user to
+   * satisfy it.
+   */
+  const needsReauthPublish = state?.publishGate.requiresReauth ?? false;
+
+  /**
+   * Whether the second-factor field is mandatory.
+   *
+   * The re-auth endpoint demands a code whenever the account has MFA enabled,
+   * and this used to be hard-labelled "(optional)", which sent the user into a
+   * guaranteed `400`.
+   */
+  const mfaRequired = state?.publishGate.mfaRequired ?? false;
 
   // -------------------------------------------------------------------------
   // Render helpers
@@ -642,26 +705,63 @@ export default function EngineConfigClient() {
   const renderIdentity = () => (
     <div className="space-y-3">
       <div className="space-y-1.5">
-        <Label htmlFor="cfg-reauth-password">Password</Label>
+        <Label htmlFor="cfg-reauth-password">
+          Password <span className="text-muted-foreground">(required)</span>
+        </Label>
         <Input
           id="cfg-reauth-password"
           type="password"
           value={password}
-          onChange={(e) => setPassword(e.target.value)}
+          onChange={(e) => {
+            setPassword(e.target.value);
+            if (reauthFieldError === "password") setReauthFieldError(null);
+          }}
+          aria-invalid={reauthFieldError === "password"}
           placeholder="Re-enter your password"
+          className={
+            reauthFieldError === "password" ? "border-destructive" : ""
+          }
         />
+        {reauthFieldError === "password" && reauthError && (
+          <p role="alert" className="text-destructive text-xs">
+            {reauthError}
+          </p>
+        )}
       </div>
       <div className="space-y-1.5">
         <Label htmlFor="cfg-reauth-totp">
           Two-factor code{" "}
-          <span className="text-muted-foreground">(optional)</span>
+          {/*
+            Labelled from the server's answer, not a guess. The re-auth endpoint
+            rejects a code-less request whenever MFA is on, so calling this
+            "optional" guaranteed a 400 for exactly the users who needed it.
+          */}
+          {mfaRequired ? (
+            <span className="text-destructive">(required)</span>
+          ) : (
+            <span className="text-muted-foreground">
+              (optional — not enabled on your account)
+            </span>
+          )}
         </Label>
         <Input
           id="cfg-reauth-totp"
           value={totpCode}
-          onChange={(e) => setTotpCode(e.target.value)}
+          onChange={(e) => {
+            setTotpCode(e.target.value);
+            if (reauthFieldError === "totpCode") setReauthFieldError(null);
+          }}
+          aria-invalid={reauthFieldError === "totpCode"}
           placeholder="TOTP or backup code"
+          className={
+            reauthFieldError === "totpCode" ? "border-destructive" : ""
+          }
         />
+        {reauthFieldError === "totpCode" && reauthError && (
+          <p role="alert" className="text-destructive text-xs">
+            {reauthError}
+          </p>
+        )}
         <label className="text-muted-foreground flex items-center gap-2 text-xs">
           <input
             type="checkbox"
@@ -774,6 +874,17 @@ export default function EngineConfigClient() {
     ENGINE_CONFIG_SECTIONS.find((m) => m.key === s)!,
   );
 
+  /**
+   * The sections the saved draft would actually publish.
+   *
+   * Deliberately not `changedMeta`: that describes unsaved local edits, which
+   * are not what goes live. The publish dialog used to list the local set, so it
+   * could promise a change that was never going to be published.
+   */
+  const publishChangedMeta = (state?.publishGate.changedSections ?? []).map(
+    (s) => ENGINE_CONFIG_SECTIONS.find((m) => m.key === s)!,
+  );
+
   return (
     <div className="space-y-6 pb-16">
       {/* ─── Heading ─── */}
@@ -829,7 +940,54 @@ export default function EngineConfigClient() {
         <span className="text-muted-foreground text-xs">
           Last run: {fmtTime(state.lastRunAt)}
         </span>
+
+        {/*
+          The saved draft's own publish action.
+
+          This used to live only inside the "Unsaved changes" footer, which made
+          it unreachable in the one case that matters most: a draft that was
+          saved, differs from the active version, and therefore can and should
+          be published — but has no unsaved edits, so the footer never rendered.
+          The gate comes from the server, so this button appears exactly when
+          `POST /publish` would accept the request.
+        */}
+        {state.publishGate.hasPublishableChanges && (
+          <Button
+            size="sm"
+            className="ml-auto"
+            onClick={() => {
+              setReauthError(null);
+              setReauthFieldError(null);
+              setPublishOpen(true);
+            }}
+            disabled={isDirty}
+            title={
+              isDirty ? "Save or discard your unsaved changes first" : undefined
+            }
+          >
+            {state.publishGate.requiresReauth && (
+              <ShieldAlert className="h-4 w-4" />
+            )}
+            Publish Draft v{state.draft?.versionNumber}
+          </Button>
+        )}
       </div>
+
+      {/*
+        A saved draft is waiting to go live but the page has unsaved edits on
+        top of it. Publishing now would promote the saved draft and silently
+        drop the edits, so say so rather than letting the user discover it.
+      */}
+      {isDirty && state.publishGate.hasPublishableChanges && (
+        <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-300">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+          <div>
+            The saved draft has changes waiting to be published, and you also
+            have unsaved edits on this page. Save or discard your edits first —
+            publishing promotes the saved draft only.
+          </div>
+        </div>
+      )}
 
       {/* ─── Section tabs ─── */}
       <Tabs
@@ -1129,10 +1287,12 @@ export default function EngineConfigClient() {
                 <Eye className="h-4 w-4" />
                 Preview
               </Button>
-              <Button size="sm" onClick={() => setPublishOpen(true)}>
-                {needsReauthPublish && <ShieldAlert className="h-4 w-4" />}
-                Publish
-              </Button>
+              {/*
+                No Publish button here. Publishing promoted the SAVED draft, so
+                offering it next to unsaved edits invited a publish that
+                silently dropped them. The status banner owns the single publish
+                entry point, gated on the server's own view of the draft.
+              */}
             </div>
           </div>
         </div>
@@ -1342,7 +1502,12 @@ export default function EngineConfigClient() {
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-1.5">
-              {changedMeta.map((m) => (
+              {/*
+                The sections being published are the SAVED draft's, not the
+                local dirty set. Listing the latter here would describe a change
+                that is not the one about to go live.
+              */}
+              {publishChangedMeta.map((m) => (
                 <div
                   key={m.key}
                   className="bg-muted/40 flex items-center justify-between rounded-lg border px-3 py-2"

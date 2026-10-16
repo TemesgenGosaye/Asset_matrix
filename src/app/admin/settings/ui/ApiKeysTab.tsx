@@ -28,7 +28,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { toast } from "sonner";
+import { notify } from "@/lib/feedback/notify";
 import {
   Plus,
   Trash2,
@@ -84,7 +84,6 @@ const READ_SCOPES = [
   { value: "org:view", label: "Organizations" },
   { value: "dept:view", label: "Departments" },
   { value: "webhook:view", label: "Webhooks" },
-  { value: "eula:view", label: "EULA Templates" },
   { value: "settings:view", label: "Settings" },
 ];
 
@@ -121,7 +120,6 @@ const WRITE_SCOPES = [
   { value: "org:manage", label: "Organizations — Manage" },
   { value: "dept:manage", label: "Departments — Manage" },
   { value: "webhook:manage", label: "Webhooks — Manage" },
-  { value: "eula:manage", label: "EULA Templates — Manage" },
   { value: "settings:edit", label: "Settings — Edit" },
   { value: "import:execute", label: "Import — Execute" },
 ];
@@ -244,7 +242,7 @@ export default function ApiKeysTab() {
       const data = await res.json();
       setKeys(data.keys ?? []);
     } catch {
-      toast.error("Failed to load API keys");
+      notify.error("Failed to load API keys");
     }
   }, []);
 
@@ -280,14 +278,14 @@ export default function ApiKeysTab() {
   function handleCopyKey() {
     if (!createdKey) return;
     navigator.clipboard.writeText(createdKey.key);
-    toast.success("API key copied to clipboard");
+    notify.success("API key copied to clipboard");
   }
 
   // ---- Create key ---------------------------------------------------------
 
   async function handleCreate() {
     if (!formName.trim()) {
-      toast.error("API key name is required");
+      notify.error("API key name is required");
       return;
     }
 
@@ -314,7 +312,7 @@ export default function ApiKeysTab() {
           typeof err.error === "string"
             ? err.error
             : "Failed to create API key";
-        toast.error(message);
+        notify.error(message);
         return;
       }
 
@@ -323,9 +321,9 @@ export default function ApiKeysTab() {
       setCreateDialogOpen(false);
       setRevealDialogOpen(true);
       await fetchKeys();
-      toast.success("API key created successfully");
+      notify.success("API key created");
     } catch {
-      toast.error("Failed to create API key");
+      notify.error("Failed to create API key");
     } finally {
       setIsSaving(false);
     }
@@ -348,16 +346,16 @@ export default function ApiKeysTab() {
           typeof err.error === "string"
             ? err.error
             : "Failed to revoke API key";
-        toast.error(message);
+        notify.error(message);
         return;
       }
 
-      toast.success("API key revoked successfully");
+      notify.success("API key revoked");
       setDeleteDialogOpen(false);
       setDeletingKey(null);
       await fetchKeys();
     } catch {
-      toast.error("Failed to revoke API key");
+      notify.error("Failed to revoke API key");
     } finally {
       setIsDeleting(false);
     }

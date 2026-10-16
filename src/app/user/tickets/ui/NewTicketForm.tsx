@@ -12,7 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { toast } from "sonner";
+import { notify } from "@/lib/feedback/notify";
 
 interface NewTicketFormProps {
   onTicketCreated: (ticket: any) => void;
@@ -36,7 +36,7 @@ export function NewTicketForm({ onTicketCreated, onCancel }: NewTicketFormProps)
     e.preventDefault();
 
     if (!title.trim()) {
-      toast.error("Please enter a title");
+      notify.error("Please enter a title");
       return;
     }
 
@@ -60,11 +60,11 @@ export function NewTicketForm({ onTicketCreated, onCancel }: NewTicketFormProps)
       }
 
       const newTicket = await response.json();
-      toast.success("Ticket created successfully");
+      notify.success("Ticket created");
       onTicketCreated(newTicket);
     } catch (error) {
       console.error("Error creating ticket:", error);
-      toast.error("Failed to create ticket");
+      notify.error("Failed to create ticket");
     } finally {
       setIsSubmitting(false);
     }

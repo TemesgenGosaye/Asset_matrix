@@ -5,14 +5,24 @@ import { handleRouteError, requireOrgId } from "@/lib/api-route";
 import { compareHouses } from "@/lib/house-queue/recommendation";
 import { getActiveConfig } from "@/lib/house-queue/config/service";
 import { HOUSE_TYPES } from "@/lib/household-constants";
+import { LIVE_ALLOCATION_STATUSES } from "@/lib/house-queue/state";
 
 // GET /api/house-queue/available-houses?houseType=A
 // Decision-support list used by the Reassign dialog and the Release Workflow's
 // TRANSFER panel: active, unallocated houses of one category, ordered by the
 // deterministic Engine B ranking. Read-only — any queue capability may use it.
+//
+// NOTE: this endpoint trusts the caller's `houseType` and applies no
+// eligibility filter, so it is only a raw stock lookup. Anything that offers a
+// house *to an employee* must use /api/house-queue/transfer/candidates, which
+// derives the category from the employee's grade in the database.
 export async function GET(req: NextRequest) {
   try {
-    await requirePermission("house_queue:view", "house_queue:allocate", "house_queue:manage");
+    await requirePermission(
+      "house_queue:view",
+      "house_queue:allocate",
+      "house_queue:manage",
+    );
 
     const orgId = await requireOrgId();
     const houseType = req.nextUrl.searchParams.get("houseType");
@@ -39,7 +49,13 @@ export async function GET(req: NextRequest) {
         orderBy: { houseNumber: "asc" },
       }),
       prisma.houseAllocation.findMany({
-        where: { organizationId: orgId, status: "allocated" },
+        // Every status that still ties an employee to a house. Narrowing this to
+        // `allocated` would offer a house whose occupant is still in residence
+        // awaiting handback inspection.
+        where: {
+          organizationId: orgId,
+          status: { in: [...LIVE_ALLOCATION_STATUSES] },
+        },
         select: { householdId: true },
       }),
     ]);

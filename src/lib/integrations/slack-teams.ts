@@ -170,11 +170,6 @@ function getEventMessage(
         title: "Bulk Asset Checkout",
         description: `${data.count ?? "?"} assets bulk-checked out to *${data.targetLabel || "Unknown"}*`,
       };
-    case "eula.accepted":
-      return {
-        title: "EULA Accepted",
-        description: `*${data.userName || "Unknown"}* accepted EULA *${data.eulaName || "Unknown"}* for asset checkout`,
-      };
     case "ldap.sync_completed":
       return {
         title: "LDAP Sync Completed",

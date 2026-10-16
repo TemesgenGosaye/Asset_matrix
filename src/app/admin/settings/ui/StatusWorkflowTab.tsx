@@ -37,7 +37,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { toast } from "sonner";
+import { notify } from "@/lib/feedback/notify";
 import { Plus, Trash2, ArrowRight } from "lucide-react";
 
 interface StatusType {
@@ -75,7 +75,7 @@ export default function StatusWorkflowTab({
       const res = await fetch("/api/admin/status-workflow");
       if (res.ok) setTransitions(await res.json());
     } catch {
-      toast.error("Failed to fetch workflow transitions");
+      notify.error("Failed to fetch workflow transitions");
     } finally {
       setLoading(false);
     }
@@ -87,7 +87,7 @@ export default function StatusWorkflowTab({
 
   const handleCreate = async () => {
     if (!formData.fromStatusId || !formData.toStatusId) {
-      toast.error("Select both from and to status");
+      notify.error("Select both from and to status");
       return;
     }
     try {
@@ -109,13 +109,13 @@ export default function StatusWorkflowTab({
           requiredRole: "",
           notifyOnTransition: false,
         });
-        toast.success("Transition added");
+        notify.success("Transition added");
       } else {
         const err = await res.json();
-        toast.error(err.error || "Failed to create transition");
+        notify.error(err.error || "Failed to create transition");
       }
     } catch {
-      toast.error("Failed to create transition");
+      notify.error("Failed to create transition");
     }
   };
 
@@ -128,10 +128,10 @@ export default function StatusWorkflowTab({
       });
       if (res.ok) {
         setTransitions(transitions.filter((t) => t.id !== id));
-        toast.success("Transition removed");
+        notify.success("Transition removed");
       }
     } catch {
-      toast.error("Failed to remove transition");
+      notify.error("Failed to remove transition");
     }
   };
 

@@ -2,7 +2,7 @@
 
 import React, { useRef, useState, useCallback } from "react";
 import { UploadCloud } from "lucide-react";
-import { toast } from "sonner";
+import { notify } from "@/lib/feedback/notify";
 
 interface FileDropZoneProps {
   onFilesSelected: (files: File[]) => void;
@@ -32,7 +32,8 @@ export function FileDropZone({
   const validateFile = useCallback(
     (file: File): boolean => {
       if (maxSizeMb && file.size > maxSizeMb * 1024 * 1024) {
-        toast.error(`File too large: ${file.name}`, {
+        notify.error({
+          title: `File too large: ${file.name}`,
           description: `Max size is ${maxSizeMb} MB`,
         });
         return false;
@@ -47,7 +48,8 @@ export function FileDropZone({
           return mime === t;
         });
         if (!matches) {
-          toast.error(`File type not accepted: ${file.name}`, {
+          notify.error({
+            title: `File type not accepted: ${file.name}`,
             description: `Accepted: ${accept}`,
           });
           return false;
@@ -56,7 +58,7 @@ export function FileDropZone({
 
       return true;
     },
-    [maxSizeMb, acceptedTypes, accept]
+    [maxSizeMb, acceptedTypes, accept],
   );
 
   const handleFiles = useCallback(
@@ -68,7 +70,7 @@ export function FileDropZone({
         onFilesSelected(multiple ? valid : [valid[0]]);
       }
     },
-    [validateFile, onFilesSelected, multiple]
+    [validateFile, onFilesSelected, multiple],
   );
 
   const handleDragEnter = useCallback((e: React.DragEvent) => {
@@ -98,7 +100,7 @@ export function FileDropZone({
       setDragging(false);
       handleFiles(e.dataTransfer.files);
     },
-    [handleFiles]
+    [handleFiles],
   );
 
   const handleInputChange = useCallback(
@@ -106,7 +108,7 @@ export function FileDropZone({
       handleFiles(e.target.files);
       if (inputRef.current) inputRef.current.value = "";
     },
-    [handleFiles]
+    [handleFiles],
   );
 
   return (
@@ -124,12 +126,7 @@ export function FileDropZone({
       onDragLeave={handleDragLeave}
       onDragOver={handleDragOver}
       onDrop={handleDrop}
-      className={`
-        relative flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed p-6
-        cursor-pointer transition-colors
-        ${dragging ? "border-primary bg-primary/5" : "border-muted-foreground/25 hover:border-muted-foreground/50"}
-        ${uploading ? "pointer-events-none opacity-60" : ""}
-      `}
+      className={`relative flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed p-6 transition-colors ${dragging ? "border-primary bg-primary/5" : "border-muted-foreground/25 hover:border-muted-foreground/50"} ${uploading ? "pointer-events-none opacity-60" : ""} `}
     >
       <input
         ref={inputRef}
@@ -139,11 +136,13 @@ export function FileDropZone({
         multiple={multiple}
         onChange={handleInputChange}
       />
-      <UploadCloud className={`h-8 w-8 ${dragging ? "text-primary" : "text-muted-foreground"}`} />
-      <p className="text-sm text-muted-foreground text-center">{label}</p>
+      <UploadCloud
+        className={`h-8 w-8 ${dragging ? "text-primary" : "text-muted-foreground"}`}
+      />
+      <p className="text-muted-foreground text-center text-sm">{label}</p>
       {uploading && (
-        <div className="absolute bottom-0 left-0 right-0 h-1 overflow-hidden rounded-b-lg">
-          <div className="h-full w-full bg-primary/30 animate-pulse" />
+        <div className="absolute right-0 bottom-0 left-0 h-1 overflow-hidden rounded-b-lg">
+          <div className="bg-primary/30 h-full w-full animate-pulse" />
         </div>
       )}
     </div>

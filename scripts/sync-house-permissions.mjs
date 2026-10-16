@@ -72,8 +72,6 @@ const ALL_PERMISSIONS = [
   "component:create",
   "component:edit",
   "component:delete",
-  "eula:view",
-  "eula:manage",
   "kit:view",
   "kit:create",
   "kit:edit",

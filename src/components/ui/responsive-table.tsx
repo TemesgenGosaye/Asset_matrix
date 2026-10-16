@@ -30,6 +30,18 @@ export interface Column {
   hideable?: boolean;
   align?: "left" | "center" | "right";
   className?: string;
+  /** Optional adornment rendered after the label (e.g. a sort indicator). */
+  icon?: ReactNode;
+  /** When provided, the header becomes a button that invokes this handler. */
+  onHeaderClick?: () => void;
+  /**
+   * Current sort state for this column, applied as `aria-sort` on the `<th>`.
+   *
+   * Without it the sort direction exists only as an icon inside a button whose
+   * accessible name is "Sort by X", so assistive tech cannot tell which column
+   * is sorted or how.
+   */
+  ariaSort?: "ascending" | "descending" | "none";
 }
 
 export interface ResponsiveTableProps<T> {
@@ -64,6 +76,35 @@ export interface ResponsiveTableProps<T> {
   overscan?: number;
 }
 
+/** Renders a column label, optionally as a sort control. */
+function ColumnHeaderContent({ col }: { col: Column }) {
+  if (!col.onHeaderClick) {
+    return (
+      <>
+        {col.label}
+        {col.icon}
+      </>
+    );
+  }
+  return (
+    <button
+      type="button"
+      onClick={col.onHeaderClick}
+      aria-label={
+        col.ariaSort && col.ariaSort !== "none"
+          ? `Sort by ${col.label}, currently sorted ${
+              col.ariaSort === "ascending" ? "ascending" : "descending"
+            }`
+          : `Sort by ${col.label}`
+      }
+      className="hover:text-primary -mx-1 inline-flex items-center gap-1 rounded px-1"
+    >
+      {col.label}
+      {col.icon}
+    </button>
+  );
+}
+
 export function ResponsiveTable<T>({
   columns = [],
   data = [],
@@ -90,7 +131,10 @@ export function ResponsiveTable<T>({
   overscan = 10,
 }: ResponsiveTableProps<T>) {
   const safeColumns = useMemo(() => columns || [], [columns]);
-  const allColumnKeys = useMemo(() => safeColumns.map((c) => c.key), [safeColumns]);
+  const allColumnKeys = useMemo(
+    () => safeColumns.map((c) => c.key),
+    [safeColumns],
+  );
   const [persistedColumns, setPersistedColumns] = usePersistentState<string[]>(
     storageKey || "__unused",
     defaultVisibleColumns || allColumnKeys,
@@ -187,26 +231,33 @@ export function ResponsiveTable<T>({
   const columnToggleUI = storageKey ? (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs font-medium">
-          <Columns3 className="h-3.5 w-3.5 text-muted-foreground" />
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-8 gap-1.5 text-xs font-medium"
+        >
+          <Columns3 className="text-muted-foreground h-3.5 w-3.5" />
           <span>Columns</span>
-          <Badge variant="secondary" className="h-4 px-1 text-[10px] font-semibold ml-0.5">
+          <Badge
+            variant="secondary"
+            className="ml-0.5 h-4 px-1 text-[10px] font-semibold"
+          >
             {visibleColumns.length}/{safeColumns.length}
           </Badge>
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-52 text-xs">
-        <div className="flex items-center justify-between px-2 py-1.5 font-semibold text-xs text-muted-foreground border-b mb-1">
+        <div className="text-muted-foreground mb-1 flex items-center justify-between border-b px-2 py-1.5 text-xs font-semibold">
           <span>Toggle Visible Columns</span>
           <button
             type="button"
             onClick={handleResetColumns}
-            className="text-[11px] text-primary hover:underline font-medium"
+            className="text-primary text-[11px] font-medium hover:underline"
           >
             Show All
           </button>
         </div>
-        <div className="max-h-56 overflow-y-auto space-y-0.5">
+        <div className="max-h-56 space-y-0.5 overflow-y-auto">
           {safeColumns.map((col) => {
             if (col.hideable === false) return null;
             const isVisible = visibleColumnKeys.has(col.key);
@@ -217,7 +268,7 @@ export function ResponsiveTable<T>({
                   e.preventDefault();
                   handleColumnToggle(col.key);
                 }}
-                className="flex items-center justify-between text-xs py-1.5 cursor-pointer"
+                className="flex cursor-pointer items-center justify-between py-1.5 text-xs"
               >
                 <div className="flex items-center gap-2">
                   <Checkbox
@@ -227,7 +278,7 @@ export function ResponsiveTable<T>({
                   />
                   <span>{col.label}</span>
                 </div>
-                {isVisible && <Check className="w-3.5 h-3.5 text-primary" />}
+                {isVisible && <Check className="text-primary h-3.5 w-3.5" />}
               </DropdownMenuItem>
             );
           })}
@@ -239,17 +290,17 @@ export function ResponsiveTable<T>({
   // Bulk actions toolbar
   const bulkBar =
     selectable && selectedKeys && selectedKeys.size > 0 ? (
-      <div className="bg-primary/10 border border-primary/30 flex items-center gap-3 rounded-lg px-3.5 py-1.5 text-xs">
-        <span className="font-semibold text-foreground">
+      <div className="bg-primary/10 border-primary/30 flex items-center gap-3 rounded-lg border px-3.5 py-1.5 text-xs">
+        <span className="text-foreground font-semibold">
           {selectedKeys.size} row{selectedKeys.size > 1 ? "s" : ""} selected
         </span>
-        <div className="h-4 w-px bg-border" />
+        <div className="bg-border h-4 w-px" />
         {bulkActions}
         <Button
           variant="ghost"
           size="sm"
           onClick={() => onSelectionChange?.(new Set())}
-          className="h-6 px-2 text-xs text-muted-foreground hover:text-foreground"
+          className="text-muted-foreground hover:text-foreground h-6 px-2 text-xs"
         >
           <X className="mr-1 h-3 w-3" />
           Deselect all
@@ -270,20 +321,30 @@ export function ResponsiveTable<T>({
     return (
       <>
         {toolbarContent}
-        <div className="w-full rounded-xl border border-dashed border-border bg-card p-12 text-center flex flex-col items-center justify-center gap-2.5 shadow-xs">
-          <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center text-muted-foreground mb-1">
-            {emptyIcon || <Inbox className="w-6 h-6 text-muted-foreground/70" />}
+        <div className="border-border bg-card flex w-full flex-col items-center justify-center gap-2.5 rounded-xl border border-dashed p-12 text-center shadow-xs">
+          <div className="bg-muted text-muted-foreground mb-1 flex h-12 w-12 items-center justify-center rounded-full">
+            {emptyIcon || (
+              <Inbox className="text-muted-foreground/70 h-6 w-6" />
+            )}
           </div>
-          <h3 className="text-sm font-semibold text-foreground">{emptyMessage}</h3>
-          <p className="text-xs text-muted-foreground max-w-sm">{emptyDescription}</p>
+          <h3 className="text-foreground text-sm font-semibold">
+            {emptyMessage}
+          </h3>
+          <p className="text-muted-foreground max-w-sm text-xs">
+            {emptyDescription}
+          </p>
         </div>
       </>
     );
   }
 
   // 100% Solid column divider styling
-  const cellBorderClass = columnDividers ? "border-r border-border last:border-r-0" : "";
-  const headBorderClass = columnDividers ? "border-r border-border last:border-r-0" : "";
+  const cellBorderClass = columnDividers
+    ? "border-r border-border last:border-r-0"
+    : "";
+  const headBorderClass = columnDividers
+    ? "border-r border-border last:border-r-0"
+    : "";
 
   // Mobile card view mode
   if (mobileCardView) {
@@ -297,11 +358,11 @@ export function ResponsiveTable<T>({
             return (
               <Card
                 key={itemKey}
-                className="overflow-hidden border border-border bg-card shadow-xs transition-all hover:border-primary/50"
+                className="border-border bg-card hover:border-primary/50 overflow-hidden border shadow-xs transition-all"
               >
-                <CardContent className="p-4 space-y-2.5">
+                <CardContent className="space-y-2.5 p-4">
                   {selectable && (
-                    <div className="flex items-center gap-2 pb-1.5 border-b border-border">
+                    <div className="border-border flex items-center gap-2 border-b pb-1.5">
                       <Checkbox
                         checked={selectedKeys?.has(itemKey) ?? false}
                         onCheckedChange={() => handleSelectRow(itemKey)}
@@ -312,11 +373,14 @@ export function ResponsiveTable<T>({
                     </div>
                   )}
                   {visibleColumns.map((col) => (
-                    <div key={col.key} className="flex justify-between items-center gap-4 py-0.5 border-b border-border/40 last:border-b-0">
-                      <span className="text-muted-foreground text-xs font-medium shrink-0">
+                    <div
+                      key={col.key}
+                      className="border-border/40 flex items-center justify-between gap-4 border-b py-0.5 last:border-b-0"
+                    >
+                      <span className="text-muted-foreground shrink-0 text-xs font-medium">
                         {col.label}:
                       </span>
-                      <div className="text-right text-xs font-normal whitespace-nowrap overflow-x-auto scrollbar-none">
+                      <div className="scrollbar-none overflow-x-auto text-right text-xs font-normal whitespace-nowrap">
                         {renderCell(item, col.key, data.indexOf(item))}
                       </div>
                     </div>
@@ -328,13 +392,23 @@ export function ResponsiveTable<T>({
         </div>
 
         {/* Desktop: 100% Solid Table view */}
-        <div className="hidden overflow-hidden rounded-xl border border-border bg-background shadow-xs lg:block">
-          <div className="overflow-x-auto scrollbar-thin">
+        <div className="border-border bg-background hidden overflow-hidden rounded-xl border shadow-xs lg:block">
+          <div className="scrollbar-thin overflow-x-auto">
             <Table style={{ minWidth }}>
-              <TableHeader className={cn(stickyHeader ? "sticky top-0 z-10" : "", "bg-muted dark:bg-slate-900 border-b-2 border-border")}>
-                <TableRow className="hover:bg-muted dark:hover:bg-slate-900 border-b-2 border-border">
+              <TableHeader
+                className={cn(
+                  stickyHeader ? "sticky top-0 z-10" : "",
+                  "bg-muted border-border border-b-2 dark:bg-slate-900",
+                )}
+              >
+                <TableRow className="hover:bg-muted border-border border-b-2 dark:hover:bg-slate-900">
                   {selectable && (
-                    <TableHead className={cn("w-10 px-3.5 border-b-2 border-border", headBorderClass)}>
+                    <TableHead
+                      className={cn(
+                        "border-border w-10 border-b-2 px-3.5",
+                        headBorderClass,
+                      )}
+                    >
                       <Checkbox
                         checked={allSelected}
                         ref={(el) => {
@@ -349,19 +423,24 @@ export function ResponsiveTable<T>({
                   {visibleColumns.map((col) => (
                     <TableHead
                       key={col.key}
+                      aria-sort={col.ariaSort}
                       className={cn(
-                        "whitespace-nowrap font-bold text-xs uppercase tracking-wider text-foreground border-b-2 border-border",
-                        col.align === "right" ? "text-right" : col.align === "center" ? "text-center" : "text-left",
+                        "text-foreground border-border border-b-2 text-xs font-bold tracking-wider whitespace-nowrap uppercase",
+                        col.align === "right"
+                          ? "text-right"
+                          : col.align === "center"
+                            ? "text-center"
+                            : "text-left",
                         headBorderClass,
-                        col.className
+                        col.className,
                       )}
                     >
-                      {col.label}
+                      <ColumnHeaderContent col={col} />
                     </TableHead>
                   ))}
                 </TableRow>
               </TableHeader>
-              <TableBody className="bg-background divide-y divide-border">
+              <TableBody className="bg-background divide-border divide-y">
                 {data.map((item, idx) => {
                   const itemKey = String(keyExtractor(item));
                   const isSelected = selectedKeys?.has(itemKey) ?? false;
@@ -370,16 +449,21 @@ export function ResponsiveTable<T>({
                       key={itemKey}
                       data-state={isSelected ? "selected" : undefined}
                       className={cn(
-                        "transition-colors duration-150 border-b border-border",
+                        "border-border border-b transition-colors duration-150",
                         isSelected
                           ? "bg-primary/10"
                           : striped && idx % 2 === 1
-                          ? "bg-muted/40 hover:bg-muted dark:bg-slate-900/40 dark:hover:bg-slate-800"
-                          : "bg-background hover:bg-muted/90 dark:hover:bg-slate-800/90"
+                            ? "bg-muted/40 hover:bg-muted dark:bg-slate-900/40 dark:hover:bg-slate-800"
+                            : "bg-background hover:bg-muted/90 dark:hover:bg-slate-800/90",
                       )}
                     >
                       {selectable && (
-                        <TableCell className={cn("w-10 px-3.5 border-b border-border", cellBorderClass)}>
+                        <TableCell
+                          className={cn(
+                            "border-border w-10 border-b px-3.5",
+                            cellBorderClass,
+                          )}
+                        >
                           <Checkbox
                             checked={isSelected}
                             onCheckedChange={() => handleSelectRow(itemKey)}
@@ -390,10 +474,14 @@ export function ResponsiveTable<T>({
                         <TableCell
                           key={col.key}
                           className={cn(
-                            "whitespace-nowrap px-4 py-3 text-sm font-normal text-foreground border-b border-border",
-                            col.align === "right" ? "text-right" : col.align === "center" ? "text-center" : "text-left",
+                            "text-foreground border-border border-b px-4 py-3 text-sm font-normal whitespace-nowrap",
+                            col.align === "right"
+                              ? "text-right"
+                              : col.align === "center"
+                                ? "text-center"
+                                : "text-left",
                             cellBorderClass,
-                            col.className
+                            col.className,
                           )}
                         >
                           {renderCell(item, col.key, idx)}
@@ -419,17 +507,22 @@ export function ResponsiveTable<T>({
     return (
       <>
         {toolbarContent}
-        <div className="w-full overflow-hidden rounded-xl border border-border bg-background shadow-xs">
+        <div className="border-border bg-background w-full overflow-hidden rounded-xl border shadow-xs">
           <div
             ref={scrollContainerRef}
-            className="overflow-auto scrollbar-thin"
+            className="scrollbar-thin overflow-auto"
             style={{ maxHeight: virtualMaxHeight }}
           >
             <Table style={{ minWidth }}>
-              <TableHeader className="sticky top-0 z-10 bg-muted dark:bg-slate-900 border-b-2 border-border shadow-xs">
-                <TableRow className="hover:bg-muted dark:hover:bg-slate-900 border-b-2 border-border">
+              <TableHeader className="bg-muted border-border sticky top-0 z-10 border-b-2 shadow-xs dark:bg-slate-900">
+                <TableRow className="hover:bg-muted border-border border-b-2 dark:hover:bg-slate-900">
                   {selectable && (
-                    <TableHead className={cn("w-10 px-3.5 border-b-2 border-border", headBorderClass)}>
+                    <TableHead
+                      className={cn(
+                        "border-border w-10 border-b-2 px-3.5",
+                        headBorderClass,
+                      )}
+                    >
                       <Checkbox
                         checked={allSelected}
                         ref={(el) => {
@@ -444,19 +537,24 @@ export function ResponsiveTable<T>({
                   {visibleColumns.map((col) => (
                     <TableHead
                       key={col.key}
+                      aria-sort={col.ariaSort}
                       className={cn(
-                        "whitespace-nowrap font-bold text-xs uppercase tracking-wider text-foreground border-b-2 border-border",
-                        col.align === "right" ? "text-right" : col.align === "center" ? "text-center" : "text-left",
+                        "text-foreground border-border border-b-2 text-xs font-bold tracking-wider whitespace-nowrap uppercase",
+                        col.align === "right"
+                          ? "text-right"
+                          : col.align === "center"
+                            ? "text-center"
+                            : "text-left",
                         headBorderClass,
-                        col.className
+                        col.className,
                       )}
                     >
-                      {col.label}
+                      <ColumnHeaderContent col={col} />
                     </TableHead>
                   ))}
                 </TableRow>
               </TableHeader>
-              <TableBody className="bg-background divide-y divide-border">
+              <TableBody className="bg-background divide-border divide-y">
                 {virtualItems.length > 0 && (
                   <tr>
                     <td
@@ -476,16 +574,21 @@ export function ResponsiveTable<T>({
                       data-state={isSelected ? "selected" : undefined}
                       ref={measureRef}
                       className={cn(
-                        "transition-colors duration-150 border-b border-border",
+                        "border-border border-b transition-colors duration-150",
                         isSelected
                           ? "bg-primary/10"
                           : striped && idx % 2 === 1
-                          ? "bg-muted/40 hover:bg-muted dark:bg-slate-900/40 dark:hover:bg-slate-800"
-                          : "bg-background hover:bg-muted/90 dark:hover:bg-slate-800/90"
+                            ? "bg-muted/40 hover:bg-muted dark:bg-slate-900/40 dark:hover:bg-slate-800"
+                            : "bg-background hover:bg-muted/90 dark:hover:bg-slate-800/90",
                       )}
                     >
                       {selectable && (
-                        <TableCell className={cn("w-10 px-3.5 border-b border-border", cellBorderClass)}>
+                        <TableCell
+                          className={cn(
+                            "border-border w-10 border-b px-3.5",
+                            cellBorderClass,
+                          )}
+                        >
                           <Checkbox
                             checked={isSelected}
                             onCheckedChange={() => handleSelectRow(itemKey)}
@@ -496,10 +599,14 @@ export function ResponsiveTable<T>({
                         <TableCell
                           key={col.key}
                           className={cn(
-                            "whitespace-nowrap px-4 py-3 text-sm font-normal text-foreground border-b border-border",
-                            col.align === "right" ? "text-right" : col.align === "center" ? "text-center" : "text-left",
+                            "text-foreground border-border border-b px-4 py-3 text-sm font-normal whitespace-nowrap",
+                            col.align === "right"
+                              ? "text-right"
+                              : col.align === "center"
+                                ? "text-center"
+                                : "text-left",
                             cellBorderClass,
-                            col.className
+                            col.className,
                           )}
                         >
                           {renderCell(item, col.key, virtualRow.index)}
@@ -532,13 +639,23 @@ export function ResponsiveTable<T>({
   return (
     <>
       {toolbarContent}
-      <div className="w-full overflow-hidden rounded-xl border border-border bg-background shadow-xs">
-        <div className="overflow-x-auto scrollbar-thin">
+      <div className="border-border bg-background w-full overflow-hidden rounded-xl border shadow-xs">
+        <div className="scrollbar-thin overflow-x-auto">
           <Table style={{ minWidth }}>
-            <TableHeader className={cn(stickyHeader ? "sticky top-0 z-10" : "", "bg-muted dark:bg-slate-900 border-b-2 border-border")}>
-              <TableRow className="hover:bg-muted dark:hover:bg-slate-900 border-b-2 border-border">
+            <TableHeader
+              className={cn(
+                stickyHeader ? "sticky top-0 z-10" : "",
+                "bg-muted border-border border-b-2 dark:bg-slate-900",
+              )}
+            >
+              <TableRow className="hover:bg-muted border-border border-b-2 dark:hover:bg-slate-900">
                 {selectable && (
-                  <TableHead className={cn("w-10 px-3.5 border-b-2 border-border", headBorderClass)}>
+                  <TableHead
+                    className={cn(
+                      "border-border w-10 border-b-2 px-3.5",
+                      headBorderClass,
+                    )}
+                  >
                     <Checkbox
                       checked={allSelected}
                       ref={(el) => {
@@ -553,19 +670,24 @@ export function ResponsiveTable<T>({
                 {visibleColumns.map((col) => (
                   <TableHead
                     key={col.key}
+                    aria-sort={col.ariaSort}
                     className={cn(
-                      "whitespace-nowrap font-bold text-xs uppercase tracking-wider text-foreground border-b-2 border-border",
-                      col.align === "right" ? "text-right" : col.align === "center" ? "text-center" : "text-left",
+                      "text-foreground border-border border-b-2 text-xs font-bold tracking-wider whitespace-nowrap uppercase",
+                      col.align === "right"
+                        ? "text-right"
+                        : col.align === "center"
+                          ? "text-center"
+                          : "text-left",
                       headBorderClass,
-                      col.className
+                      col.className,
                     )}
                   >
-                    {col.label}
+                    <ColumnHeaderContent col={col} />
                   </TableHead>
                 ))}
               </TableRow>
             </TableHeader>
-            <TableBody className="bg-background divide-y divide-border">
+            <TableBody className="bg-background divide-border divide-y">
               {data.map((item, idx) => {
                 const itemKey = String(keyExtractor(item));
                 const isSelected = selectedKeys?.has(itemKey) ?? false;
@@ -574,16 +696,21 @@ export function ResponsiveTable<T>({
                     key={itemKey}
                     data-state={isSelected ? "selected" : undefined}
                     className={cn(
-                      "transition-colors duration-150 border-b border-border",
+                      "border-border border-b transition-colors duration-150",
                       isSelected
                         ? "bg-primary/10"
                         : striped && idx % 2 === 1
-                        ? "bg-muted/40 hover:bg-muted dark:bg-slate-900/40 dark:hover:bg-slate-800"
-                        : "bg-background hover:bg-muted/90 dark:hover:bg-slate-800/90"
+                          ? "bg-muted/40 hover:bg-muted dark:bg-slate-900/40 dark:hover:bg-slate-800"
+                          : "bg-background hover:bg-muted/90 dark:hover:bg-slate-800/90",
                     )}
                   >
                     {selectable && (
-                      <TableCell className={cn("w-10 px-3.5 border-b border-border", cellBorderClass)}>
+                      <TableCell
+                        className={cn(
+                          "border-border w-10 border-b px-3.5",
+                          cellBorderClass,
+                        )}
+                      >
                         <Checkbox
                           checked={isSelected}
                           onCheckedChange={() => handleSelectRow(itemKey)}
@@ -594,10 +721,14 @@ export function ResponsiveTable<T>({
                       <TableCell
                         key={col.key}
                         className={cn(
-                          "whitespace-nowrap px-4 py-3 text-sm font-normal text-foreground border-b border-border",
-                          col.align === "right" ? "text-right" : col.align === "center" ? "text-center" : "text-left",
+                          "text-foreground border-border border-b px-4 py-3 text-sm font-normal whitespace-nowrap",
+                          col.align === "right"
+                            ? "text-right"
+                            : col.align === "center"
+                              ? "text-center"
+                              : "text-left",
                           cellBorderClass,
-                          col.className
+                          col.className,
                         )}
                       >
                         {renderCell(item, col.key, idx)}

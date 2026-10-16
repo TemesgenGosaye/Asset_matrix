@@ -20,7 +20,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
-import { toast } from "sonner";
+import { notify } from "@/lib/feedback/notify";
 import { PackageMinus, PackagePlus, Bell } from "lucide-react";
 
 interface User {
@@ -71,16 +71,17 @@ export default function ConsumableDetailClient({
 
   const handleCheckout = async () => {
     if (!checkoutUserId) {
-      toast.error("Please select a user");
+      notify.error("Please select a user");
       return;
     }
     const amount = Number(checkoutQty);
     if (!amount || amount < 1) {
-      toast.error("Quantity must be at least 1");
+      notify.error("Quantity must be at least 1");
       return;
     }
     if (amount > qty) {
-      toast.error("Insufficient stock", {
+      notify.error({
+        title: "Insufficient stock",
         description: `Only ${qty} available`,
       });
       return;
@@ -104,7 +105,8 @@ export default function ConsumableDetailClient({
         throw new Error(err?.error || "Checkout failed");
       }
 
-      toast.success("Checkout successful", {
+      notify.success({
+        title: "Checkout successful",
         description: `${amount} item(s) checked out`,
       });
       setQty((prev) => prev - amount);
@@ -113,7 +115,8 @@ export default function ConsumableDetailClient({
       setCheckoutQty("1");
       setCheckoutNotes("");
     } catch (err) {
-      toast.error("Checkout failed", {
+      notify.error({
+        title: "Checkout failed",
         description: (err as Error).message,
       });
     } finally {
@@ -124,7 +127,7 @@ export default function ConsumableDetailClient({
   const handleRestock = async () => {
     const amount = Number(restockQty);
     if (!amount || amount < 1) {
-      toast.error("Quantity must be at least 1");
+      notify.error("Quantity must be at least 1");
       return;
     }
 
@@ -144,14 +147,16 @@ export default function ConsumableDetailClient({
         throw new Error(err?.error || "Restock failed");
       }
 
-      toast.success("Restock successful", {
+      notify.success({
+        title: "Restock successful",
         description: `Added ${amount} item(s) to stock`,
       });
       setQty((prev) => prev + amount);
       setRestockOpen(false);
       setRestockQty("1");
     } catch (err) {
-      toast.error("Restock failed", {
+      notify.error({
+        title: "Restock failed",
         description: (err as Error).message,
       });
     } finally {
@@ -163,7 +168,7 @@ export default function ConsumableDetailClient({
     const minVal = Number(alertMin);
     const critVal = Number(alertCritical);
     if (critVal > minVal) {
-      toast.error("Critical threshold must be less than minimum threshold");
+      notify.error("Critical threshold must be less than minimum threshold");
       return;
     }
 
@@ -186,10 +191,11 @@ export default function ConsumableDetailClient({
         throw new Error(err?.error || "Failed to create alert");
       }
 
-      toast.success("Stock alert created");
+      notify.success("Stock alert created");
       setAlertOpen(false);
     } catch (err) {
-      toast.error("Failed to create alert", {
+      notify.error({
+        title: "Failed to create alert",
         description: (err as Error).message,
       });
     } finally {

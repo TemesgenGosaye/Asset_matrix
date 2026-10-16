@@ -6,6 +6,7 @@ import { CalendarPlus } from "lucide-react";
 import AssetDetailActions from "./AssetDetailActions";
 import ReportProblemButton from "@/components/ReportProblemButton";
 import RequestItemDialog from "@/components/RequestItemDialog";
+import { AskMeriButton } from "@/components/ai/AskMeriButton";
 
 function StatusChip({ name }) {
   const cls = useMemo(() => {
@@ -57,6 +58,11 @@ export default function AssetDetailHeader({
       </div>
       <div className="flex items-center gap-2">
         <StatusChip name={statusName} />
+        <AskMeriButton
+          variant="outline"
+          size="sm"
+          question={`Give me a full picture of asset ${asset.assettag} (${asset.assetname}): its current status, warranty position, maintenance history, and anything that looks overdue.`}
+        />
         <ReportProblemButton
           entityType="asset"
           entityId={asset.assetid}

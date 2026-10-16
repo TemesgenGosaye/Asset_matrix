@@ -12,7 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { toast } from "sonner";
+import { notify } from "@/lib/feedback/notify";
 
 interface Asset {
   assetid: string;
@@ -48,7 +48,7 @@ export default function ComponentDetailClient({
 
   const handleCheckout = async () => {
     if (!checkoutAssetId) {
-      toast.error("Please select an asset");
+      notify.error("Please select an asset");
       return;
     }
     setSubmitting(true);
@@ -69,10 +69,10 @@ export default function ComponentDetailClient({
         throw new Error(err?.error || "Checkout failed");
       }
 
-      toast.success("Component checked out to asset");
+      notify.success("Component checked out to asset");
       window.location.reload();
     } catch (err: any) {
-      toast.error("Checkout failed", { description: err.message });
+      notify.error({ title: "Checkout failed", description: err.message });
     } finally {
       setSubmitting(false);
     }
@@ -87,10 +87,10 @@ export default function ComponentDetailClient({
         body: JSON.stringify({ notes: "Returned" }),
       });
       if (!res.ok) throw new Error("Check-in failed");
-      toast.success("Component returned");
+      notify.success("Component returned");
       window.location.reload();
     } catch {
-      toast.error("Check-in failed");
+      notify.error("Check-in failed");
     }
   };
 

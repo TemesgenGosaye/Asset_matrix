@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Paperclip, Trash2, Star, Image as ImageIcon } from "lucide-react";
-import { toast } from "sonner";
+import { notify } from "@/lib/feedback/notify";
 import { FileDropZone } from "@/components/FileDropZone";
 import AssetPhotoGallery from "@/components/AssetPhotoGallery";
 
@@ -82,11 +82,11 @@ export default function AssetAttachments({
       try {
         for (const file of files) {
           await uploadFile(file);
-          toast.success("File uploaded", { description: file.name });
+          notify.success({ title: "File uploaded", description: file.name });
         }
         fetchAttachments();
       } catch (err) {
-        toast.error("Upload failed", { description: (err as Error).message });
+        notify.error({ title: "Upload failed", description: (err as Error).message });
       } finally {
         setUploading(false);
       }
@@ -101,10 +101,10 @@ export default function AssetAttachments({
         method: "DELETE",
       });
       if (!res.ok) throw new Error("Delete failed");
-      toast.success("Attachment deleted");
+      notify.success("Attachment deleted");
       setAttachments((prev) => prev.filter((a) => a.id !== id));
     } catch {
-      toast.error("Failed to delete attachment");
+      notify.error("Failed to delete attachment");
     }
   };
 
@@ -118,7 +118,7 @@ export default function AssetAttachments({
       if (!res.ok) throw new Error("Failed to set primary");
       fetchAttachments();
     } catch {
-      toast.error("Failed to set as primary");
+      notify.error("Failed to set as primary");
     }
   };
 

@@ -8,7 +8,7 @@ export function createAssetTools(organizationId: string) {
     searchAssets: tool({
       description:
         "Search assets by name, asset tag, serial number, or model name.",
-      parameters: z.object({
+      inputSchema: z.object({
         query: z
           .string()
           .describe(
@@ -78,7 +78,7 @@ export function createAssetTools(organizationId: string) {
     getExpiringWarranties: tool({
       description:
         "List physical or IT assets whose manufacturer warranties expire within the specified number of days.",
-      parameters: z.object({
+      inputSchema: z.object({
         daysAhead: z
           .number()
           .optional()
@@ -139,47 +139,54 @@ export function createAssetTools(organizationId: string) {
     getAssetCount: tool({
       description:
         "Fast aggregate: total registered assets, total purchase value, warranty count expiring within 60 days, and the per-category asset count. Use this instead of searchAssets when the user only needs a count or the estate value.",
-      parameters: z.object({}),
+      inputSchema: z.object({}),
       execute: async () => {
         try {
           const data = await cached(
             `${orgScope(organizationId)}:assets:overview`,
             CACHE_TTL.aggregates,
             async () => {
-              const [total, value, warrantySoon, byCategory] = await Promise.all([
-                prisma.asset.count({ where: { organizationId } }),
-                prisma.asset.aggregate({
-                  where: { organizationId },
-                  _sum: { purchaseprice: true },
-                }),
-                prisma.asset.count({
-                  where: {
-                    organizationId,
-                    warrantyExpires: {
-                      gte: new Date(),
-                      lte: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000),
+              const [total, value, warrantySoon, byCategory] =
+                await Promise.all([
+                  prisma.asset.count({ where: { organizationId } }),
+                  prisma.asset.aggregate({
+                    where: { organizationId },
+                    _sum: { purchaseprice: true },
+                  }),
+                  prisma.asset.count({
+                    where: {
+                      organizationId,
+                      warrantyExpires: {
+                        gte: new Date(),
+                        lte: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000),
+                      },
                     },
-                  },
-                }),
-                prisma.asset.groupBy({
-                  by: ["assetcategorytypeid"],
-                  where: { organizationId },
-                  _count: { assetid: true },
-                }),
-              ]);
+                  }),
+                  prisma.asset.groupBy({
+                    by: ["assetcategorytypeid"],
+                    where: { organizationId },
+                    _count: { assetid: true },
+                  }),
+                ]);
 
               const categories = await prisma.assetCategoryType.findMany({
                 where: {
-                  id: {
+                  assetcategorytypeid: {
                     in: byCategory
                       .map((r) => r.assetcategorytypeid)
                       .filter(Boolean) as string[],
                   },
                 },
-                select: { id: true, assetcategorytypename: true },
+                select: {
+                  assetcategorytypeid: true,
+                  assetcategorytypename: true,
+                },
               });
               const nameById = new Map(
-                categories.map((c) => [c.id, c.assetcategorytypename]),
+                categories.map((c) => [
+                  c.assetcategorytypeid,
+                  c.assetcategorytypename,
+                ]),
               );
 
               return {
@@ -210,7 +217,7 @@ export function createAssetTools(organizationId: string) {
     getStockAlerts: tool({
       description:
         "Retrieve low-stock inventory alerts for consumables (quantity at or below the reorder minimum) and licence seats that are nearly exhausted (10% or fewer seats free).",
-      parameters: z.object({
+      inputSchema: z.object({
         limit: z
           .number()
           .optional()
@@ -232,7 +239,10 @@ export function createAssetTools(organizationId: string) {
                 consumablename: true,
                 quantity: true,
                 minQuantity: true,
-                location: { select: { locationname: true } },
+                consumableCategoryType: {
+                  select: { consumablecategorytypename: true },
+                },
+                manufacturer: { select: { manufacturername: true } },
               },
             }),
             prisma.licence.findMany({
@@ -261,7 +271,10 @@ export function createAssetTools(organizationId: string) {
               name: c.consumablename,
               currentQuantity: c.quantity,
               minThreshold: c.minQuantity,
-              location: c.location?.locationname || "Main Store",
+              category:
+                c.consumableCategoryType?.consumablecategorytypename ||
+                "Uncategorised",
+              manufacturer: c.manufacturer?.manufacturername || "Unknown",
             }));
 
           const strainedLicences = licences
@@ -281,15 +294,15 @@ export function createAssetTools(organizationId: string) {
               };
             })
             .filter(
-              (l) => l.seatsAvailable <= Math.max(1, Math.floor(l.totalSeats * 0.1)),
+              (l) =>
+                l.seatsAvailable <= Math.max(1, Math.floor(l.totalSeats * 0.1)),
             )
             .slice(0, limit);
 
           return {
             lowStockConsumables,
             strainedLicences,
-            note:
-              "A consumable is low when on-hand quantity is at or below its minimum. A licence is strained at 10% or fewer free seats.",
+            note: "A consumable is low when on-hand quantity is at or below its minimum. A licence is strained at 10% or fewer free seats.",
           };
         } catch (err: unknown) {
           const message = err instanceof Error ? err.message : String(err);
@@ -301,7 +314,7 @@ export function createAssetTools(organizationId: string) {
     getAssetDetails: tool({
       description:
         "Fetch full details, specs, location, and maintenance notes for a specific asset by its tag or ID.",
-      parameters: z.object({
+      inputSchema: z.object({
         identifier: z
           .string()
           .describe("The asset tag (e.g. AST-0012) or UUID of the asset"),
@@ -319,9 +332,12 @@ export function createAssetTools(organizationId: string) {
             department: true,
             location: true,
             statusType: true,
+            // Ordered by the due date, which is the field that actually exists
+            // on the schedule. `title` is the human label; `isActive` separates
+            // a live schedule from a retired one.
             maintenance_schedules: {
               take: 3,
-              orderBy: { scheduledDate: "desc" },
+              orderBy: { nextDueDate: "desc" },
             },
           },
         });
@@ -353,8 +369,12 @@ export function createAssetTools(organizationId: string) {
             : null,
           recentMaintenance: asset.maintenance_schedules.map((m) => ({
             title: m.title,
-            status: m.status,
-            date: m.scheduledDate?.toISOString().split("T")[0],
+            frequency: m.frequency,
+            active: m.isActive,
+            nextDue: m.nextDueDate?.toISOString().split("T")[0] ?? null,
+            lastCompleted: m.lastCompletedAt
+              ? m.lastCompletedAt.toISOString().split("T")[0]
+              : null,
           })),
         };
       },

@@ -9,7 +9,6 @@ import { Badge } from "@/components/ui/badge";
 import {
   Archive,
   DoorOpen,
-  Printer,
   RefreshCw,
   Search,
   UserMinus,
@@ -22,22 +21,26 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { formatDate, formatDateTime, fullName } from "@/ui/household/house-format";
+import {
+  formatDate,
+  formatDateTime,
+  fullName,
+} from "@/ui/household/house-format";
 import {
   HouseCategoryBadge,
   HouseholdStatusBadge,
 } from "@/ui/household/house-status";
 import type { TerminatedHouseView } from "@/lib/house-queue/views";
-import AllocationReceiptPrint from "./AllocationReceiptPrint";
+import { canPrintHouseReceipt } from "@/lib/house-queue/receipt-gate";
+import { TerminationReceiptButton } from "./TerminationReceiptButton";
 
 interface TerminatedHousesClientProps {
   initialData: TerminatedHouseView[];
+  /** `house_queue:manage` — the permission the receipts endpoint enforces. */
+  canPrint: boolean;
 }
 
-const REASON_META: Record<
-  string,
-  { label: string; className: string }
-> = {
+const REASON_META: Record<string, { label: string; className: string }> = {
   TRANSFER: {
     label: "Transfer",
     className:
@@ -55,14 +58,14 @@ const REASON_META: Record<
   },
 };
 
-export function TerminationReasonBadge({
-  reason,
-}: {
-  reason: string | null;
-}) {
+export function TerminationReasonBadge({ reason }: { reason: string | null }) {
   if (!reason) return <Badge variant="outline">—</Badge>;
   const meta = REASON_META[reason] ?? REASON_META.RETIREMENT;
-  return <Badge variant="outline" className={meta.className}>{meta.label}</Badge>;
+  return (
+    <Badge variant="outline" className={meta.className}>
+      {meta.label}
+    </Badge>
+  );
 }
 
 const columns: Column[] = [
@@ -81,12 +84,12 @@ const columns: Column[] = [
 
 export default function TerminatedHousesClient({
   initialData,
+  canPrint,
 }: TerminatedHousesClientProps) {
   const router = useRouter();
   const [search, setSearch] = useState("");
   const [reasonFilter, setReasonFilter] = useState("all");
   const [refreshing, setRefreshing] = useState(false);
-  const [receiptRow, setReceiptRow] = useState<TerminatedHouseView | null>(null);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -96,10 +99,10 @@ export default function TerminatedHousesClient({
       const haystack = [
         row.house?.houseNumber,
         row.house?.hid,
-        row.employee.firstname,
-        row.employee.lastname,
-        row.employee.employeeNumber,
-        row.employee.department?.name,
+        row.employee?.firstname,
+        row.employee?.lastname,
+        row.employee?.employeeNumber,
+        row.employee?.department?.name,
       ]
         .filter(Boolean)
         .join(" ")
@@ -129,15 +132,17 @@ export default function TerminatedHousesClient({
     switch (key) {
       case "srNo":
         return (
-          <span className="tabular-nums text-muted-foreground">
+          <span className="text-muted-foreground tabular-nums">
             {filtered.indexOf(item) + 1}
           </span>
         );
       case "house":
         return (
           <div>
-            <div className="font-semibold">{item.house?.houseNumber ?? "—"}</div>
-            <div className="text-xs text-muted-foreground">
+            <div className="font-semibold">
+              {item.house?.houseNumber ?? "—"}
+            </div>
+            <div className="text-muted-foreground text-xs">
               {item.house?.hid ?? "—"}
             </div>
           </div>
@@ -145,21 +150,28 @@ export default function TerminatedHousesClient({
       case "category":
         return <HouseCategoryBadge category={item.house?.houseType ?? null} />;
       case "occupant":
+        if (!item.employee) {
+          return (
+            <div className="text-muted-foreground text-sm italic">
+              No employee data
+            </div>
+          );
+        }
         return (
           <div className="flex items-center gap-2.5">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-bold text-primary">
+            <div className="bg-primary/10 text-primary flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-bold">
               {item.employee.firstname.charAt(0).toUpperCase()}
             </div>
             <div>
               <div className="font-semibold">{fullName(item.employee)}</div>
-              <div className="text-xs text-muted-foreground">
+              <div className="text-muted-foreground text-xs">
                 {item.employee.employeeNumber}
               </div>
             </div>
           </div>
         );
       case "grade":
-        return item.employee.jobGrade != null ? (
+        return item.employee?.jobGrade != null ? (
           <span className="font-semibold tabular-nums">
             {item.employee.jobGrade}
           </span>
@@ -169,20 +181,20 @@ export default function TerminatedHousesClient({
       case "department":
         return (
           <span className="text-sm">
-            {item.employee.department?.name ?? "—"}
+            {item.employee?.department?.name ?? "—"}
           </span>
         );
       case "reason":
         return <TerminationReasonBadge reason={item.terminationReason} />;
       case "note":
         return (
-          <span className="text-sm text-muted-foreground max-w-[220px] truncate">
+          <span className="text-muted-foreground max-w-[220px] truncate text-sm">
             {item.note ?? "—"}
           </span>
         );
       case "terminatedOn":
         return (
-          <span className="text-sm text-muted-foreground whitespace-nowrap">
+          <span className="text-muted-foreground text-sm whitespace-nowrap">
             {item.terminatedAt ? formatDateTime(item.terminatedAt) : "—"}
           </span>
         );
@@ -190,22 +202,49 @@ export default function TerminatedHousesClient({
         return (
           <div className="flex flex-col items-center gap-1">
             <HouseholdStatusBadge status={item.house?.status ?? null} />
-            <span className="text-[10px] text-muted-foreground">
+            <span className="text-muted-foreground text-[10px]">
               Occupancy: {item.house?.occupancyStatus ?? "—"}
             </span>
           </div>
         );
-      case "actions":
+      case "actions": {
+        // The archive prints the SAME document the Inspections page prints: the
+        // one receipt in this app, snapshot from the handback inspection and
+        // frozen on first print. There is deliberately no archive-only variant —
+        // a second template would need its own upkeep and would be the one that
+        // silently stopped agreeing with the inspection it reports.
+        //
+        // The gate is applied here so the refusal reads as a withheld button with
+        // a reason, and again on the endpoint, which is what actually decides.
+        const gate = canPrintHouseReceipt({
+          variant: "handback",
+          inspection: item.inspection,
+        });
         return (
-          <Button
-            variant="outline"
-            size="sm"
-            title="Print handback confirmation"
-            onClick={() => setReceiptRow(item)}
-          >
-            <Printer className="h-4 w-4" />
-          </Button>
+          <TerminationReceiptButton
+            inspection={
+              item.inspection
+                ? {
+                    inspectionId: item.inspection.id,
+                    allocationId: item.allocationId,
+                    houseNumber: item.house?.houseNumber ?? "—",
+                    hid: item.house?.hid ?? "—",
+                    vacatedAt: item.terminatedAt,
+                    employee: item.employee,
+                  }
+                : null
+            }
+            disabled={!canPrint}
+            blockedReason={
+              gate.allowed
+                ? null
+                : canPrint
+                  ? gate.message
+                  : "You do not have permission to print house receipts."
+            }
+          />
         );
+      }
       default:
         return null;
     }
@@ -218,31 +257,33 @@ export default function TerminatedHousesClient({
           <h1 className="text-2xl font-bold tracking-tight">
             Terminated Houses
           </h1>
-          <div className="mt-1 h-0.5 w-16 rounded bg-gradient-to-r from-brass-400 to-transparent" />
-          <p className="mt-2 text-sm text-muted-foreground">
+          <div className="from-brass-400 mt-1 h-0.5 w-16 rounded bg-gradient-to-r to-transparent" />
+          <p className="text-muted-foreground mt-2 text-sm">
             Archived, reason-coded releases. Every termination records who, when
             and why the allocation ended.
           </p>
         </div>
         <Button variant="outline" size="sm" onClick={() => void refresh()}>
-          <RefreshCw className={refreshing ? "h-4 w-4 animate-spin" : "h-4 w-4"} />
+          <RefreshCw
+            className={refreshing ? "h-4 w-4 animate-spin" : "h-4 w-4"}
+          />
           Refresh
         </Button>
       </div>
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <div className="rounded-xl border bg-card p-4 shadow-sm">
+        <div className="bg-card rounded-xl border p-4 shadow-sm">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-muted-foreground">
+            <span className="text-muted-foreground text-xs font-medium">
               Total terminations
             </span>
-            <Archive className="h-4 w-4 text-muted-foreground" />
+            <Archive className="text-muted-foreground h-4 w-4" />
           </div>
           <div className="mt-2 text-2xl font-bold">{initialData.length}</div>
         </div>
-        <div className="rounded-xl border bg-card p-4 shadow-sm">
+        <div className="bg-card rounded-xl border p-4 shadow-sm">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-muted-foreground">
+            <span className="text-muted-foreground text-xs font-medium">
               Transfers
             </span>
             <DoorOpen className="h-4 w-4 text-sky-500" />
@@ -251,9 +292,9 @@ export default function TerminatedHousesClient({
             {counts.TRANSFER}
           </div>
         </div>
-        <div className="rounded-xl border bg-card p-4 shadow-sm">
+        <div className="bg-card rounded-xl border p-4 shadow-sm">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-muted-foreground">
+            <span className="text-muted-foreground text-xs font-medium">
               Employee leave
             </span>
             <UserMinus className="h-4 w-4 text-amber-500" />
@@ -262,9 +303,9 @@ export default function TerminatedHousesClient({
             {counts.EMPLOYEE_LEAVE}
           </div>
         </div>
-        <div className="rounded-xl border bg-card p-4 shadow-sm">
+        <div className="bg-card rounded-xl border p-4 shadow-sm">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-muted-foreground">
+            <span className="text-muted-foreground text-xs font-medium">
               Retirements
             </span>
             <Building2 className="h-4 w-4 text-slate-500" />
@@ -275,9 +316,9 @@ export default function TerminatedHousesClient({
         </div>
       </div>
 
-      <div className="flex flex-col gap-3 rounded-xl border bg-card p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
-        <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+      <div className="bg-card flex flex-col gap-3 rounded-xl border p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+        <div className="relative max-w-sm flex-1">
+          <Search className="text-muted-foreground absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />
           <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -316,15 +357,6 @@ export default function TerminatedHousesClient({
             : "Release an allocation with a reason code in the House Queue to see it here."
         }
       />
-
-      {/* ─── Print-only handback confirmation (OF/MSF/HRSM/293) ─── */}
-      {receiptRow && (
-        <AllocationReceiptPrint
-          detail={{ ...receiptRow, status: "terminated" }}
-          open
-          onClose={() => setReceiptRow(null)}
-        />
-      )}
     </div>
   );
 }

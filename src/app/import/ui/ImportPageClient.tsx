@@ -13,14 +13,18 @@ import {
 } from "@/components/ui/select";
 import { ResponsiveTable } from "@/components/ui/responsive-table";
 import { FileDropZone } from "@/components/FileDropZone";
-import { toast } from "sonner";
+import { notify } from "@/lib/feedback/notify";
 import { ArrowLeft, Download, Upload } from "lucide-react";
 import HelpTooltip from "@/components/HelpTooltip";
 import AssetImportWizard from "@/app/import/ui/AssetImportWizard";
+import EmployeeImportWizard, {
+  EMPLOYEE_IMPORT_TEMPLATE_URL,
+} from "@/app/import/ui/EmployeeImportWizard";
 import HouseholdImportWizard from "@/app/import/ui/HouseholdImportWizard";
 
 const ENTITY_TYPES = [
   { value: "asset", label: "Assets" },
+  { value: "employee", label: "Employees" },
   { value: "household", label: "House Register" },
   { value: "accessory", label: "Accessories" },
   { value: "consumable", label: "Consumables" },
@@ -305,6 +309,14 @@ export default function ImportPageClient() {
       return;
     }
 
+    // Employees use the employee module's template, which pre-fills real
+    // department names so the file shows the exact spelling the importer
+    // matches on.
+    if (entityType === "employee") {
+      window.open(EMPLOYEE_IMPORT_TEMPLATE_URL, "_blank");
+      return;
+    }
+
     // House Register uses its own XLSX template with field hints
     if (entityType === "household") {
       window.open("/api/import/household/template", "_blank");
@@ -410,11 +422,11 @@ export default function ImportPageClient() {
       });
 
       if (data.errorCount === 0) {
-        toast.success(
+        notify.success(
           `Imported ${data.successCount} ${entityType}(s) successfully`,
         );
       } else {
-        toast.warning(`Import completed with ${data.errorCount} error(s)`);
+        notify.warning(`Import completed with ${data.errorCount} error(s)`);
       }
 
       setSelectedFile(null);
@@ -424,7 +436,10 @@ export default function ImportPageClient() {
       setColumnMapping({});
       fetchHistory();
     } catch (err) {
-      toast.error("Import failed", { description: (err as Error).message });
+      notify.error({
+        title: "Import failed",
+        description: (err as Error).message,
+      });
     } finally {
       setUploading(false);
     }
@@ -503,6 +518,8 @@ export default function ImportPageClient() {
 
       {entityType === "asset" ? (
         <AssetImportWizard onComplete={fetchHistory} />
+      ) : entityType === "employee" ? (
+        <EmployeeImportWizard onComplete={fetchHistory} />
       ) : entityType === "household" ? (
         <HouseholdImportWizard onComplete={fetchHistory} />
       ) : (
@@ -537,8 +554,8 @@ export default function ImportPageClient() {
                     </Button>
                   </div>
                   <p className="text-muted-foreground text-sm">
-                    Match your CSV columns to the expected fields. Required fields
-                    are marked with *.
+                    Match your CSV columns to the expected fields. Required
+                    fields are marked with *.
                   </p>
                 </CardHeader>
                 <CardContent className="space-y-3">

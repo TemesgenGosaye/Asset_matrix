@@ -5,6 +5,7 @@ import {
   HOUSE_NUMBER_FAMILY_REGEX,
   getExpectedHouseNumberPrefix,
 } from "./household-constants";
+import { DAMAGE_ITEMS } from "./house-queue/damage";
 
 // ---------------------------------------------------------------------------
 // Validation helper
@@ -14,6 +15,10 @@ import {
  * Validate request body against a Zod schema.
  * Returns parsed data on success, or a NextResponse with 400 status and
  * field-level error messages on failure.
+ *
+ * The response carries `code: "VALIDATION_FAILED"` so a client can attach each
+ * message to its field instead of rendering a bare "Validation failed" banner
+ * that tells the user nothing about what to correct.
  *
  * Usage:
  *   const data = validateBody(schema, body);
@@ -37,7 +42,11 @@ export function validateBody<T extends z.ZodTypeAny>(
   }
 
   return NextResponse.json(
-    { error: "Validation failed", fields: fieldErrors },
+    {
+      error: "Validation failed",
+      code: "VALIDATION_FAILED",
+      fields: fieldErrors,
+    },
     { status: 400 },
   );
 }
@@ -61,6 +70,27 @@ const optionalUuid = z
   .nullable();
 const trimmedString = z.string().trim().min(1, "Required");
 const optionalString = z.string().trim().optional().nullable();
+
+/** Optional trimmed text with a maximum length. */
+const optionalLimited = (max: number) =>
+  z.string().trim().max(max).optional().nullable();
+
+/** A `YYYY-MM-DD` date string, or absent/null. */
+const dateString = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, "Use YYYY-MM-DD format")
+  .optional()
+  .nullable();
+
+/**
+ * A repair-cost field from a form: a decimal string, or a JSON number.
+ *
+ * Not `z.coerce.number()` — that would turn `""` into 0 and `"abc"` into NaN, so a
+ * damaged part with an empty or mistyped cost field would arrive as a real 0 and
+ * be recorded as free. Accepting both shapes and validating the text is what
+ * lets "left blank" stay distinguishable from "zero".
+ */
+const costInput = z.union([z.string(), z.number()]);
 
 /**
  * Email field that tolerates a blank input while still validating format.
@@ -530,19 +560,6 @@ export const unassignLicenceSeatSchema = z.object({
 });
 
 // ---------------------------------------------------------------------------
-// EULA Templates
-// ---------------------------------------------------------------------------
-
-export const createEulaTemplateSchema = z.object({
-  name: trimmedString,
-  content: z.string().min(1, "EULA content is required"),
-  version: z.number().int().positive().optional(),
-  isActive: z.boolean().optional(),
-});
-
-export const updateEulaTemplateSchema = createEulaTemplateSchema.partial();
-
-// ---------------------------------------------------------------------------
 // Bulk Checkout
 // ---------------------------------------------------------------------------
 
@@ -625,62 +642,28 @@ export const auditScanSchema = z.object({
 
 // ---------------------------------------------------------------------------
 // Employee schemas
+//
+// The employee contract now lives in `src/lib/employees/schemas.ts` (it covers
+// create, update, bulk, import and the list query). These re-exports keep the
+// long-standing `@/lib/validation` import path working.
 // ---------------------------------------------------------------------------
 
-const dateString = z
-  .string()
-  .regex(/^\d{4}-\d{2}-\d{2}$/, "Use YYYY-MM-DD format")
-  .optional()
-  .nullable();
+export {
+  createEmployeeSchema,
+  updateEmployeeSchema,
+  bulkEmployeeRequestSchema,
+  bulkEmployeeOperationSchema,
+  employeeListQuerySchema,
+  EMPLOYEE_SORT_FIELDS,
+} from "./employees/schemas";
 
-const optionalLimited = (max: number) =>
-  z.string().trim().max(max).optional().nullable();
-
-export const createEmployeeSchema = z.object({
-  employeeNumber: trimmedString.max(50),
-  firstname: trimmedString.max(100),
-  lastname: trimmedString.max(100),
-  email: z.string().email().max(254),
-  phone: optionalLimited(25),
-  dateOfBirth: dateString,
-  gender: optionalLimited(20),
-  address: optionalLimited(255),
-  city: optionalLimited(100),
-  state: optionalLimited(100),
-  country: optionalLimited(100),
-  postalCode: optionalLimited(20),
-  jobTitle: optionalLimited(100),
-  employmentType: z
-    .enum(["full_time", "part_time", "contract", "intern", "temporary"])
-    .default("full_time"),
-  employmentStatus: z
-    .enum(["active", "on_leave", "terminated", "retired"])
-    .default("active"),
-  jobGrade: z.coerce
-    .number()
-    .int("Job Grade must be a whole number")
-    .min(1, "Job Grade must be at least 1")
-    .max(50, "Job Grade must be at most 50")
-    .optional()
-    .nullable(),
-  maritalStatus: optionalLimited(20),
-  familySize: z.coerce
-    .number()
-    .int("Family Size must be a whole number")
-    .min(1, "Family Size must be at least 1")
-    .max(30, "Family Size must be at most 30")
-    .optional()
-    .nullable(),
-  disabilityStatus: z.boolean().optional().default(false),
-  hireDate: dateString,
-  terminationDate: dateString,
-  departmentId: optionalUuid,
-  managerId: optionalUuid,
-  userid: optionalUuid,
-  notes: optionalLimited(1000),
-});
-
-export const updateEmployeeSchema = createEmployeeSchema.partial();
+export type {
+  CreateEmployeeInput,
+  UpdateEmployeeInput,
+  BulkEmployeeRequest,
+  EmployeeListQuery,
+  EmployeeSortField,
+} from "./employees/schemas";
 
 // ---------------------------------------------------------------------------
 // Household schemas
@@ -703,7 +686,10 @@ export const HOUSEHOLD_STATUSES = ["Active", "Inactive"] as const;
 export const createHouseholdBaseSchema = z.object({
   hid: trimmedString
     .max(50, "HID must be at most 50 characters")
-    .regex(HOUSEHOLD_HID_REGEX, "HID must follow the canonical format 106-90-000")
+    .regex(
+      HOUSEHOLD_HID_REGEX,
+      "HID must follow the canonical format 106-90-000",
+    )
     .optional(),
   houseType: z.enum(HOUSE_TYPES),
   staffCategory: z.enum(STAFF_CATEGORIES).optional().nullable(),
@@ -717,10 +703,26 @@ export const createHouseholdBaseSchema = z.object({
   locationId: optionalUuid,
   locationName: optionalLimited(255),
   status: z.enum(HOUSEHOLD_STATUSES).default("Active"),
-  bedCount: z.coerce.number().int().min(0, "Bed count must be non-negative").default(0),
-  chairsCount: z.coerce.number().int().min(0, "Chairs count must be non-negative").default(0),
-  lockerCount: z.coerce.number().int().min(0, "Locker count must be non-negative").default(0),
-  tablesCount: z.coerce.number().int().min(0, "Tables count must be non-negative").default(0),
+  bedCount: z.coerce
+    .number()
+    .int()
+    .min(0, "Bed count must be non-negative")
+    .default(0),
+  chairsCount: z.coerce
+    .number()
+    .int()
+    .min(0, "Chairs count must be non-negative")
+    .default(0),
+  lockerCount: z.coerce
+    .number()
+    .int()
+    .min(0, "Locker count must be non-negative")
+    .default(0),
+  tablesCount: z.coerce
+    .number()
+    .int()
+    .min(0, "Tables count must be non-negative")
+    .default(0),
   damageWindow: z.boolean().default(false),
   damageDoor: z.boolean().default(false),
   damageWaterPanel: z.boolean().default(false),
@@ -741,7 +743,7 @@ export const createHouseholdSchema = createHouseholdBaseSchema
     {
       message: "Staff category is required when House Type is Staff",
       path: ["staffCategory"],
-    }
+    },
   )
   .refine(
     (data) =>
@@ -749,13 +751,14 @@ export const createHouseholdSchema = createHouseholdBaseSchema
         .trim()
         .toUpperCase()
         .startsWith(
-          getExpectedHouseNumberPrefix(data.houseType, data.staffCategory) || "",
+          getExpectedHouseNumberPrefix(data.houseType, data.staffCategory) ||
+            "",
         ),
     {
       message:
         "House number family must match the house type: Staff houses use SA-SE prefixes, categories A-E use their matching letter",
       path: ["houseNumber"],
-    }
+    },
   )
   .refine(
     (data) => {
@@ -772,9 +775,10 @@ export const createHouseholdSchema = createHouseholdBaseSchema
       return true;
     },
     {
-      message: "Damage checklist is required when Status is Inactive. Identify at least one damaged component.",
+      message:
+        "Damage checklist is required when Status is Inactive. Identify at least one damaged component.",
       path: ["damageWindow"],
-    }
+    },
   );
 
 export const updateHouseholdSchema = createHouseholdBaseSchema
@@ -792,7 +796,7 @@ export const updateHouseholdSchema = createHouseholdBaseSchema
     {
       message: "Staff category is required when House Type is Staff",
       path: ["staffCategory"],
-    }
+    },
   )
   .refine(
     (data) => {
@@ -801,13 +805,16 @@ export const updateHouseholdSchema = createHouseholdBaseSchema
         data.houseType,
         data.houseType === "Staff" ? data.staffCategory : null,
       );
-      return data.houseNumber.trim().toUpperCase().startsWith(expected || "");
+      return data.houseNumber
+        .trim()
+        .toUpperCase()
+        .startsWith(expected || "");
     },
     {
       message:
         "House number family must match the house type: Staff houses use SA-SE prefixes, categories A-E use their matching letter",
       path: ["houseNumber"],
-    }
+    },
   )
   .refine(
     (data) => {
@@ -824,40 +831,44 @@ export const updateHouseholdSchema = createHouseholdBaseSchema
       return true;
     },
     {
-      message: "Damage checklist is required when Status is Inactive. Identify at least one damaged component.",
+      message:
+        "Damage checklist is required when Status is Inactive. Identify at least one damaged component.",
       path: ["damageWindow"],
-    }
+    },
   );
 
-export const toggleHouseholdStatusSchema = z.object({
-  id: uuidField,
-  status: z.enum(HOUSEHOLD_STATUSES),
-  damageWindow: z.boolean().default(false),
-  damageDoor: z.boolean().default(false),
-  damageWaterPanel: z.boolean().default(false),
-  damageRoof: z.boolean().default(false),
-  damageWall: z.boolean().default(false),
-  damageElectricity: z.boolean().default(false),
-  damageNotes: optionalLimited(1000),
-}).refine(
-  (data) => {
-    if (data.status === "Inactive") {
-      return (
-        data.damageWindow ||
-        data.damageDoor ||
-        data.damageWaterPanel ||
-        data.damageRoof ||
-        data.damageWall ||
-        data.damageElectricity
-      );
-    }
-    return true;
-  },
-  {
-    message: "Damage checklist is required when deactivating a house. Select at least one damaged component.",
-    path: ["damageWindow"],
-  }
-);
+export const toggleHouseholdStatusSchema = z
+  .object({
+    id: uuidField,
+    status: z.enum(HOUSEHOLD_STATUSES),
+    damageWindow: z.boolean().default(false),
+    damageDoor: z.boolean().default(false),
+    damageWaterPanel: z.boolean().default(false),
+    damageRoof: z.boolean().default(false),
+    damageWall: z.boolean().default(false),
+    damageElectricity: z.boolean().default(false),
+    damageNotes: optionalLimited(1000),
+  })
+  .refine(
+    (data) => {
+      if (data.status === "Inactive") {
+        return (
+          data.damageWindow ||
+          data.damageDoor ||
+          data.damageWaterPanel ||
+          data.damageRoof ||
+          data.damageWall ||
+          data.damageElectricity
+        );
+      }
+      return true;
+    },
+    {
+      message:
+        "Damage checklist is required when deactivating a house. Select at least one damaged component.",
+      path: ["damageWindow"],
+    },
+  );
 
 // ---------------------------------------------------------------------------
 // General Asset schemas
@@ -875,19 +886,18 @@ export const createGeneralAssetSchema = z.object({
   remark: optionalLimited(1000),
 });
 
-export const updateGeneralAssetSchema = z
-  .object({
-    id: uuidField,
-    itemType: trimmedString.max(100).optional(),
-    pid: trimmedString.max(50).optional(),
-    category: trimmedString.max(100).optional(),
-    locationId: optionalUuid,
-    locationName: optionalLimited(255),
-    condition: trimmedString.max(50).optional(),
-    brand: optionalLimited(100),
-    reviewsDate: dateString,
-    remark: optionalLimited(1000),
-  });
+export const updateGeneralAssetSchema = z.object({
+  id: uuidField,
+  itemType: trimmedString.max(100).optional(),
+  pid: trimmedString.max(50).optional(),
+  category: trimmedString.max(100).optional(),
+  locationId: optionalUuid,
+  locationName: optionalLimited(255),
+  condition: trimmedString.max(50).optional(),
+  brand: optionalLimited(100),
+  reviewsDate: dateString,
+  remark: optionalLimited(1000),
+});
 
 // ---------------------------------------------------------------------------
 // House Queue schemas
@@ -915,20 +925,17 @@ export const houseTerminationReasons = [
 
 /**
  * Exit reasons that require a handback inspection before the house re-enters
- * the pool. TRANSFER is intentionally excluded: a transfer is the existing
- * Reassign action (the employee is moved to a target house and the vacated
- * house returns to the pool atomically, with no inspection gate).
+ * the pool.
  */
 export const houseInspectionReasons = [
+  "TRANSFER",
   "EMPLOYEE_LEAVE",
   "RETIREMENT",
 ] as const;
 
 /**
- * Release Workflow - Step 1 (initiate). Records which inspection-gated exit
- * branch was chosen (employee leave / retirement) with an optional note.
- * A TRANSFER is NOT a release — it is the Reassign action and never calls
- * this endpoint.
+ * Release Workflow - Step 1 (initiate). Records which exit branch was chosen
+ * (Transfer, employee leave or retirement) with an optional note.
  */
 export const houseQueueReleaseInitiateSchema = z.object({
   employeeId: uuidField,
@@ -937,20 +944,23 @@ export const houseQueueReleaseInitiateSchema = z.object({
 });
 
 /**
- * Release Workflow - Step 2 (execute). Terminates the live allocation and
- * vacates the house to `PendingInspection` with a 1:1 handback inspection.
- * Only the inspection-gated reasons (employee leave / retirement) can execute
- * a release; a transfer must go through the Reassign surface.
+ * Release Workflow - Step 2 (execute).
+ * For TRANSFER: requires `targetHouseholdId` (the replacement house chosen from Engine B free houses).
+ * In one transaction: allocates employee to new house, vacates old house to PendingInspection,
+ * marks old allocation release_pending, and auto-schedules inspection.
+ * For EMPLOYEE_LEAVE / RETIREMENT: moves allocation to release_pending, house to PendingInspection,
+ * and auto-schedules inspection.
  */
 export const houseQueueReleaseExecuteSchema = z.object({
   employeeId: uuidField,
   branch: z.enum(houseInspectionReasons),
   reason: optionalLimited(500),
+  targetHouseholdId: uuidField.optional().nullable(),
 });
 
-/** Release Workflow - Step 3 (schedule the handback inspection). */
+/** Release Workflow - Step 3 (schedule or update the handback inspection). */
 export const houseQueueInspectionScheduleSchema = z.object({
-  inspectorId: uuidField,
+  inspectorId: uuidField.optional().nullable(),
   scheduledDate: z
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/, "Use YYYY-MM-DD format"),
@@ -958,21 +968,72 @@ export const houseQueueInspectionScheduleSchema = z.object({
 
 /**
  * Release Workflow - Step 4 (complete the handback inspection). Resolves the
- * house back into the pool (Active, no damage) or out of it (UnderMaintenance,
- * with the damage checklist mirrored onto the household).
+ * house checklist (registry comparison: doors, windows, water, roof, wall, electricity, inside items).
+ * Completing it finalises the release: the allocation is archived with a
+ * `terminatedAt` and the house returns to stock, in one transaction.
+ *
+ * A repair cost accompanies every part that is marked Damaged. The per-field
+ * rules here are deliberately permissive — any value that *could* be a cost is
+ * accepted here — because the "is this part damaged, and is its cost therefore
+ * required?" question spans six fields and cannot be asked field-by-field. That
+ * cross-field judgement belongs to `validateDamage` in `./house-queue/damage`,
+ * which is also what the client form uses, so the two can never disagree about
+ * whether a submission is valid.
+ *
+ * The one thing rejected here outright is a cost with three or more decimals: no
+ * rounding is performed anywhere, because a silently rounded figure on a signed
+ * receipt is worse than a refused submission.
  */
-export const houseQueueInspectionCompleteSchema = z.object({
-  checklistWindow: z.boolean().default(false),
-  checklistDoor: z.boolean().default(false),
-  checklistWaterPanel: z.boolean().default(false),
-  checklistRoof: z.boolean().default(false),
-  checklistWall: z.boolean().default(false),
-  checklistElectricity: z.boolean().default(false),
-  conditionNote: optionalLimited(1000),
+export const houseQueueInspectionCompleteSchema = z
+  .object({
+    checklistWindow: z.boolean().default(false),
+    checklistDoor: z.boolean().default(false),
+    checklistWaterPanel: z.boolean().default(false),
+    checklistRoof: z.boolean().default(false),
+    checklistWall: z.boolean().default(false),
+    checklistElectricity: z.boolean().default(false),
+    checklistBedCount: z.coerce.number().int().min(0).optional().default(0),
+    checklistChairsCount: z.coerce.number().int().min(0).optional().default(0),
+    checklistLockerCount: z.coerce.number().int().min(0).optional().default(0),
+    checklistTablesCount: z.coerce.number().int().min(0).optional().default(0),
+    // Accepts a form field's string or a JSON number. Blank/omitted means "no
+    // cost recorded", which is legal for an OK part and rejected for a damaged
+    // one by `validateDamage`.
+    costWindow: costInput.optional(),
+    costDoor: costInput.optional(),
+    costWaterPanel: costInput.optional(),
+    costRoof: costInput.optional(),
+    costWall: costInput.optional(),
+    costElectricity: costInput.optional(),
+    conditionNote: optionalLimited(1000),
+  })
+  .superRefine((value, ctx) => {
+    for (const item of DAMAGE_ITEMS) {
+      const raw = value[item.costKey];
+      if (raw === undefined || raw === null || raw === "") continue;
+      if (!/^\d+(\.\d{1,2})?$/.test(String(raw).trim())) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: [item.costKey],
+          message: `${item.label} cost must be a positive amount in ETB with at most 2 decimals.`,
+        });
+      }
+    }
+  });
+
+/**
+ * Termination receipt — the only input is which inspection to print from.
+ *
+ * There is deliberately nothing here for the damage, the costs or the note: a
+ * receipt is populated from the completed inspection, never from the request, so
+ * a caller cannot hand-print a receipt showing a different assessment than the
+ * one the inspector recorded.
+ */
+export const houseQueueReceiptSchema = z.object({
+  inspectionId: uuidField,
 });
 
 /** Recalculate the queue, optionally for a single grade. */
 export const houseQueueRecalculateSchema = z.object({
   grade: z.coerce.number().int().min(1).optional().nullable(),
 });
-

@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Trash2, Plus, Loader2 } from "lucide-react";
-import { toast } from "sonner";
+import { notify } from "@/lib/feedback/notify";
 
 interface Schedule {
   id: string;
@@ -83,15 +83,15 @@ export default function ReportSubscriptions() {
 
       if (!res.ok) {
         const err = await res.json();
-        toast.error(err.error || "Failed to create subscription");
+        notify.error(err.error || "Failed to create subscription");
         return;
       }
 
-      toast.success("Report subscription created");
+      notify.success("Report subscription created");
       setShowForm(false);
       await fetchSchedules();
     } catch {
-      toast.error("Failed to create subscription");
+      notify.error("Failed to create subscription");
     } finally {
       setSaving(false);
     }
@@ -110,11 +110,11 @@ export default function ReportSubscriptions() {
       });
 
       if (!res.ok) {
-        toast.error("Failed to update subscription");
+        notify.error("Failed to update subscription");
         await fetchSchedules();
       }
     } catch {
-      toast.error("Failed to update subscription");
+      notify.error("Failed to update subscription");
       await fetchSchedules();
     }
   };
@@ -128,13 +128,13 @@ export default function ReportSubscriptions() {
       });
 
       if (!res.ok) {
-        toast.error("Failed to delete subscription");
+        notify.error("Failed to delete subscription");
         await fetchSchedules();
       } else {
-        toast.success("Subscription removed");
+        notify.success("Subscription removed");
       }
     } catch {
-      toast.error("Failed to delete subscription");
+      notify.error("Failed to delete subscription");
       await fetchSchedules();
     }
   };

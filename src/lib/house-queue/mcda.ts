@@ -18,6 +18,10 @@
  *   5. stable input order — the sort is the only source of truth, so results
  *      are fully reproducible.
  *
+ * `scoreAndRankCohort` returns the per-criterion `components` alongside the
+ * composite score, so the queue can display the arithmetic behind a rank rather
+ * than an unexplained number.
+ *
  * Pure module: no prisma, no I/O, so Engine A is independently unit-testable.
  * Client-safe.
  */
@@ -126,9 +130,7 @@ export function computeMCDAScores(
   const disability = normalizeMinMax(
     candidates.map((c) => disabilityLevel(c.disabilityStatus)),
   );
-  const gender = normalizeMinMax(
-    candidates.map((c) => genderLevel(c.gender)),
-  );
+  const gender = normalizeMinMax(candidates.map((c) => genderLevel(c.gender)));
 
   return candidates.map((candidate, i) => {
     const components: MCDAComponentScore = {
@@ -168,10 +170,13 @@ export function compareCandidates(a: RankableEntry, b: RankableEntry): number {
  * Stage 2 — rank scored candidates within a cohort.
  * The comparator is the single source of truth, so the result is fully
  * deterministic even when scores tie.
+ *
+ * Generic in the entry type so extra fields (the per-criterion components) are
+ * carried onto the ranked output instead of being dropped here.
  */
-export function rankCandidates(
-  entries: readonly RankableEntry[],
-): RankedEntry[] {
+export function rankCandidates<T extends RankableEntry>(
+  entries: readonly T[],
+): Array<T & { rank: number }> {
   return [...entries]
     .sort(compareCandidates)
     .map((entry, index) => ({ ...entry, rank: index + 1 }));
@@ -183,24 +188,48 @@ export interface RankCohortCandidate extends MCDACandidate {
   employeeNumber?: string | null;
 }
 
+/** A ranked candidate that still exposes WHY it scored what it scored. */
+export interface RankedCandidate extends RankedEntry {
+  /**
+   * Per-criterion normalized contributions, each in [0, 1].
+   *
+   * Carried all the way to the queue row so the UI can show the arithmetic
+   * behind the composite score instead of an unexplained number.
+   */
+  components: MCDAComponentScore;
+}
+
+/** Zeroed components — used only when a candidate id is missing from the score map. */
+const ZERO_COMPONENTS: MCDAComponentScore = {
+  serviceYears: 0,
+  maritalStatus: 0,
+  disability: 0,
+  gender: 0,
+};
+
 /**
- * One-shot convenience: score then rank a full grade cohort by MCDA.
+ * One-shot convenience: score then rank a full cohort by MCDA.
+ *
+ * The returned entries carry BOTH the composite score and the per-criterion
+ * breakdown, so the queue table can show how the score was reached.
  */
 export function scoreAndRankCohort(
   candidates: readonly RankCohortCandidate[],
   weights: WeightsInput = MCDA_WEIGHTS,
-): RankedEntry[] {
+): RankedCandidate[] {
   const scores = computeMCDAScores(candidates, weights);
-  const scoreByCandidate = new Map(
-    scores.map((s) => [s.candidateId, s.score]),
-  );
+  const scoreByCandidate = new Map(scores.map((s) => [s.candidateId, s]));
   return rankCandidates(
-    candidates.map((candidate) => ({
-      candidateId: candidate.candidateId,
-      score: scoreByCandidate.get(candidate.candidateId) ?? 0,
-      serviceYears: candidate.serviceYears,
-      hireDate: candidate.hireDate,
-      employeeNumber: candidate.employeeNumber,
-    })),
+    candidates.map((candidate) => {
+      const scored = scoreByCandidate.get(candidate.candidateId);
+      return {
+        candidateId: candidate.candidateId,
+        score: scored?.score ?? 0,
+        components: scored?.components ?? ZERO_COMPONENTS,
+        serviceYears: candidate.serviceYears,
+        hireDate: candidate.hireDate,
+        employeeNumber: candidate.employeeNumber,
+      };
+    }),
   );
 }

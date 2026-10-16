@@ -1,12 +1,62 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { requireApiAuth, requireNotDemoMode } from "@/lib/api-auth";
+import {
+  requireApiAuth,
+  requireNotDemoMode,
+  requirePermission,
+  type AuthUser,
+} from "@/lib/api-auth";
+import { hasAnyPermission } from "@/lib/rbac";
 import {
   WIDGET_DEFINITIONS,
-  DEFAULT_WIDGETS,
-  DEFAULT_USER_WIDGETS,
+  defaultWidgetsFor,
 } from "@/components/dashboard/WidgetRegistry";
 import { logger } from "@/lib/logger";
+
+/**
+ * Whether `user` may see a given widget definition at all.
+ *
+ * Admin-only widgets short-circuit on `isAdmin` because an admin holds every
+ * permission in `PERMISSIONS` by construction — see `getOrganizationContext` — but
+ * going through `hasAnyPermission` anyway means a widget whose `permission` was
+ * later renamed cannot be reached by an admin who somehow lacks it.
+ *
+ * `adminOnly` is treated as a permission in its own right, because that is what it
+ * always meant: nobody but an admin. Previously it was checked only in the client
+ * dialog, so `POST` accepted it from anyone.
+ */
+async function canUseWidget(
+  user: AuthUser,
+  widgetType: string,
+): Promise<boolean> {
+  const definition = WIDGET_DEFINITIONS.find((w) => w.type === widgetType);
+
+  // An unknown type can never be rendered, so it is never available.
+  if (!definition) return false;
+
+  if (definition.adminOnly && !user.isAdmin) return false;
+  if (!definition.permission) return true;
+  if (!user.id) return false;
+
+  return hasAnyPermission(user.id, [definition.permission]);
+}
+
+/**
+ * Drop any persisted widget the caller is no longer entitled to.
+ *
+ * Defence in depth for the read path: a row saved while the user held the
+ * permission (or added directly against the API before this was enforced) would
+ * otherwise render forever, because the grid only ever filtered on `visible`.
+ */
+async function permittedWidgets(
+  user: AuthUser,
+  widgets: Array<{ widgetType: string }>,
+) {
+  const verdicts = await Promise.all(
+    widgets.map((w) => canUseWidget(user, w.widgetType)),
+  );
+  return widgets.filter((_, i) => verdicts[i]);
+}
 
 // GET /api/dashboard/widgets — return user's widgets ordered by position
 export async function GET() {
@@ -20,12 +70,15 @@ export async function GET() {
 
     if (widgets.length === 0) {
       // Return role-appropriate defaults when user has none saved
-      const defaultSet = user.isAdmin ? DEFAULT_WIDGETS : DEFAULT_USER_WIDGETS;
-      const defaults = defaultSet.map((w, i) => ({
+      const allowedDefaults = await permittedWidgets(
+        user,
+        defaultWidgetsFor(!!user.isAdmin),
+      );
+      const defaults = allowedDefaults.map((w, i) => ({
         id: `default-${i}`,
         userId: user.id,
         widgetType: w.widgetType,
-        position: w.position,
+        position: i,
         visible: true,
         config: null,
         createdAt: new Date().toISOString(),
@@ -34,7 +87,8 @@ export async function GET() {
       return NextResponse.json(defaults);
     }
 
-    return NextResponse.json(widgets);
+    const allowed = await permittedWidgets(user, widgets);
+    return NextResponse.json(allowed);
   } catch (error) {
     if (error instanceof Error && error.message === "Unauthorized") {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -70,9 +124,15 @@ export async function PUT(req: NextRequest) {
     const hasDefaults = widgets.some((w) => w.id.startsWith("default-"));
 
     if (hasDefaults) {
-      // Create real records for default widgets
+      // Create real records for default widgets.
+      //
+      // The map is built from the ROLE-APPROPRIATE set, because these synthetic
+      // ids were minted by GET against that set. Using `DEFAULT_WIDGETS` here
+      // unconditionally meant a non-admin's first drag rewrote their persisted
+      // rows with the admin widget types — `default-0` (their "My Assets") became
+      // the admin "stats" widget.
       const defaultWidgetMap = new Map(
-        DEFAULT_WIDGETS.map((dw, i) => [`default-${i}`, dw]),
+        defaultWidgetsFor(!!user.isAdmin).map((dw, i) => [`default-${i}`, dw]),
       );
 
       const createPromises = widgets
@@ -163,20 +223,38 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Enforce the widget's permission BEFORE anything is written.
+    //
+    // This is the check that was missing. `adminOnly` used to be a client-only
+    // filter on the Add Widget dialog, so any authenticated user could POST
+    // `{ widgetType: "fleetValue" }` and then read org-wide fleet valuation off
+    // the render. Same class of leak for the housing widgets, which expose
+    // vacancy, grade cohorts and employee housing history.
+    if (!(await canUseWidget(user, widgetType))) {
+      return NextResponse.json(
+        { error: "You do not have permission to add this widget" },
+        { status: 403 },
+      );
+    }
+
     // Ensure default widgets are persisted before adding a new one
     const existingWidgets = await prisma.dashboardWidget.findMany({
       where: { userId: user.id },
     });
 
     if (existingWidgets.length === 0) {
-      // Persist default widgets first
+      // Persist the ROLE-APPROPRIATE defaults first, not always the admin set.
+      const defaults = await permittedWidgets(
+        user,
+        defaultWidgetsFor(!!user.isAdmin),
+      );
       await Promise.all(
-        DEFAULT_WIDGETS.map((dw) =>
+        defaults.map((dw, i) =>
           prisma.dashboardWidget.create({
             data: {
               userId: user.id!,
               widgetType: dw.widgetType,
-              position: dw.position,
+              position: i,
               visible: true,
             },
           }),

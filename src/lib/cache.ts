@@ -19,6 +19,8 @@
 
 import prisma from "@/lib/prisma";
 import { logger } from "@/lib/logger";
+import { invalidateAnswerCache } from "@/lib/ai/answer-cache";
+import { invalidateAssistantCache } from "@/lib/ai/cache";
 
 // ---------------------------------------------------------------------------
 // Schema-qualified table name — ensures raw queries work regardless of
@@ -256,6 +258,7 @@ export async function cached<T>(
  */
 export async function invalidateCache(key: string): Promise<void> {
   await cache.del(key);
+  dropAssistantCaches();
 }
 
 /**
@@ -263,6 +266,7 @@ export async function invalidateCache(key: string): Promise<void> {
  */
 export async function invalidateCacheByPrefix(prefix: string): Promise<void> {
   await cache.invalidatePattern(prefix);
+  dropAssistantCaches();
 }
 
 /**
@@ -270,6 +274,31 @@ export async function invalidateCacheByPrefix(prefix: string): Promise<void> {
  */
 export async function clearCache(): Promise<void> {
   await cache.clear();
+  dropAssistantCaches();
+}
+
+/**
+ * Drop the assistant's own read caches.
+ *
+ * The assistant keeps two in-memory layers that are invisible to `@/lib/cache`:
+ * the aggregate layer the fast lane reads (`invalidateAssistantCache`) and the
+ * finished-answer layer the reasoning lane replays (`invalidateAnswerCache`).
+ * Both are TTL-bounded, but a TTL is a fallback, not a correctness mechanism —
+ * "how many assets do we have" answered from a snapshot taken before the write
+ * is simply wrong.
+ *
+ * Every write path in the app already calls one of the three functions above, so
+ * this is the single place to hook rather than a call to add to hundreds of
+ * routes. Both modules are dependency-free in-memory stores, so importing them
+ * here costs nothing and introduces no cycle.
+ */
+function dropAssistantCaches(): void {
+  try {
+    invalidateAssistantCache();
+    invalidateAnswerCache();
+  } catch {
+    // Cache teardown must never fail a write that already succeeded.
+  }
 }
 
 /**

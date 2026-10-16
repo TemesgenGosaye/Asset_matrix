@@ -33,7 +33,7 @@ import {
   DeleteIcon,
   MoreVertical,
 } from "../Icons";
-import { toast } from "sonner";
+import { notify } from "@/lib/feedback/notify";
 
 const ROWS_PER_PAGE_OPTIONS = ["10", "20", "50", "100"];
 
@@ -114,8 +114,9 @@ export default function ManufacturersTable({ items }) {
 
       const result = await response.json();
 
-      toast.success(result.message, {
-        description: `${manufacturerId} deleted successfully`,
+      notify.success({
+        title: result.message,
+        description: `${manufacturerId} deleted`,
       });
 
       setManufacturersData((prevItems) =>
@@ -124,7 +125,8 @@ export default function ManufacturersTable({ items }) {
       setIsDeleteModalOpen(false);
     } catch (error) {
       console.error("Error deleting manufacturer:", error);
-      toast.error("Failed to delete manufacturer", {
+      notify.error({
+        title: "Failed to delete manufacturer",
         description: error.message,
       });
     }

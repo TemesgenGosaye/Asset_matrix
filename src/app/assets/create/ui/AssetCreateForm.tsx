@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { useRouter, useSearchParams } from "next/navigation";
-import { toast } from "sonner";
+import { notify } from "@/lib/feedback/notify";
 import { Wand2, FileText, Loader2, Info, Fingerprint } from "lucide-react";
 import CustomFieldsSection from "@/components/CustomFieldsSection";
 import SelectWithQuickCreate, {
@@ -269,9 +269,8 @@ export default function AssetCreateForm({
       // Auto-fill asset name with the selected type label if name is currently empty
       // or was previously auto-filled (matches a category label)
       assetname:
-        !f.assetname ||
-        categoryOptions.some((c) => c.label === f.assetname)
-          ? selectedType?.label ?? f.assetname
+        !f.assetname || categoryOptions.some((c) => c.label === f.assetname)
+          ? (selectedType?.label ?? f.assetname)
           : f.assetname,
     }));
   };
@@ -281,25 +280,25 @@ export default function AssetCreateForm({
     if (!form.assetname.trim()) {
       const msg = "Please enter an Asset Name.";
       setError(msg);
-      toast.error(msg);
+      notify.error(msg);
       return;
     }
     if (!form.assettag.trim()) {
       const msg = "Please enter or generate an Asset Tag.";
       setError(msg);
-      toast.error(msg);
+      notify.error(msg);
       return;
     }
     if (!form.assetcategorytypeid) {
       const msg = "Please select an Asset Type.";
       setError(msg);
-      toast.error(msg);
+      notify.error(msg);
       return;
     }
     if (!form.departmentid) {
       const msg = "Please select a Department to generate the official PID.";
       setError(msg);
-      toast.error(msg);
+      notify.error(msg);
       return;
     }
     setSubmitting(true);
@@ -347,7 +346,7 @@ export default function AssetCreateForm({
           }),
         });
       }
-      toast.success("Asset created", { description: created.assettag });
+      notify.success({ title: "Asset created", description: created.assettag });
       if (assignAfter) {
         setCreatedAsset(created);
         setAssignModalOpen(true);
@@ -356,7 +355,7 @@ export default function AssetCreateForm({
       }
     } catch (err) {
       setError(err.message);
-      toast.error("Create failed", { description: err.message });
+      notify.error({ title: "Create failed", description: err.message });
     } finally {
       setSubmitting(false);
     }
@@ -460,11 +459,13 @@ export default function AssetCreateForm({
         <div className="border-primary/20 bg-primary/5 flex items-start gap-3 rounded-lg border p-4 text-sm">
           <Info className="text-primary mt-0.5 h-4 w-4 shrink-0" />
           <div>
-            <p className="font-medium">Required fields: Summary, Specifications, Review, and Identifiers.</p>
+            <p className="font-medium">
+              Required fields: Summary, Specifications, Review, and Identifiers.
+            </p>
             <p className="text-foreground-500 mt-0.5 text-xs">
               Procurement details (supplier, purchase price, date, warranty) are
-              optional at creation and will be filled in later by the Procurement /
-              Finance team via the asset edit page.
+              optional at creation and will be filled in later by the
+              Procurement / Finance team via the asset edit page.
             </p>
           </div>
         </div>
@@ -534,7 +535,7 @@ export default function AssetCreateForm({
                   </SelectTrigger>
                   <SelectContent>
                     {departmentOptions.length === 0 && (
-                      <p className="px-3 py-2 text-sm text-muted-foreground">
+                      <p className="text-muted-foreground px-3 py-2 text-sm">
                         No departments loaded yet
                       </p>
                     )}
@@ -556,8 +557,8 @@ export default function AssetCreateForm({
                   </SelectContent>
                 </Select>
                 <p className="text-foreground-500 mt-1 text-xs">
-                  Official MSF department. The department code is used in
-                  PID and asset tag generation.
+                  Official MSF department. The department code is used in PID
+                  and asset tag generation.
                 </p>
               </div>
               <div className="flex gap-6">
@@ -620,35 +621,32 @@ export default function AssetCreateForm({
                     variant="outline"
                     size="icon"
                     className="h-9 w-9 shrink-0"
-title={
-                        !form.assetcategorytypeid
-                          ? "Select an asset type first to generate a tag"
-                          : "Generate asset tag"
-                      }
-                      disabled={generatingTag || !form.assetcategorytypeid}
-                      onClick={async () => {
-                        setGeneratingTag(true);
-                        try {
-                          const params = new URLSearchParams();
-                          if (form.assetcategorytypeid)
-                            params.set("categoryId", form.assetcategorytypeid);
-                          if (form.manufacturerid)
-                            params.set("manufacturerId", form.manufacturerid);
-                          if (form.modelid) params.set("modelId", form.modelid);
-                          if (form.departmentCode)
-                            params.set(
-                              "departmentCode",
-                              form.departmentCode,
-                            );
-                          const res = await fetch(
-                            `/api/asset/nextTag?${params.toString()}`,
-                          );
+                    title={
+                      !form.assetcategorytypeid
+                        ? "Select an asset type first to generate a tag"
+                        : "Generate asset tag"
+                    }
+                    disabled={generatingTag || !form.assetcategorytypeid}
+                    onClick={async () => {
+                      setGeneratingTag(true);
+                      try {
+                        const params = new URLSearchParams();
+                        if (form.assetcategorytypeid)
+                          params.set("categoryId", form.assetcategorytypeid);
+                        if (form.manufacturerid)
+                          params.set("manufacturerId", form.manufacturerid);
+                        if (form.modelid) params.set("modelId", form.modelid);
+                        if (form.departmentCode)
+                          params.set("departmentCode", form.departmentCode);
+                        const res = await fetch(
+                          `/api/asset/nextTag?${params.toString()}`,
+                        );
                         if (!res.ok) throw new Error("Failed to generate tag");
                         const data = await res.json();
                         setForm((f) => ({ ...f, assettag: data.tag }));
                         setAssettagTaken(false);
                       } catch (err) {
-                        toast.error("Failed to generate tag");
+                        notify.error("Failed to generate tag");
                       } finally {
                         setGeneratingTag(false);
                       }
@@ -664,13 +662,13 @@ title={
                 )}
               </div>
               <div>
-                <div className="flex items-center justify-between mb-1">
+                <div className="mb-1 flex items-center justify-between">
                   <Label htmlFor="serialnumber">PID (Property ID) *</Label>
-                  <span className="inline-flex items-center gap-1 rounded bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground border">
+                  <span className="bg-muted text-muted-foreground inline-flex items-center gap-1 rounded border px-2 py-0.5 text-[11px] font-medium">
                     🔒 System Generated
                   </span>
                 </div>
-                <div className="flex gap-1.5 items-center">
+                <div className="flex items-center gap-1.5">
                   <Input
                     id="serialnumber"
                     name="serialnumber"
@@ -683,11 +681,11 @@ title={
                           ? "Will be generated automatically"
                           : "PID will appear here"
                     }
-                    className={`font-mono bg-muted/40 cursor-not-allowed ${serialTaken ? "border-red-500" : ""}`}
+                    className={`bg-muted/40 cursor-not-allowed font-mono ${serialTaken ? "border-red-500" : ""}`}
                   />
                   {generatingPid && (
                     <div className="flex items-center px-1">
-                      <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                      <Loader2 className="text-primary h-4 w-4 animate-spin" />
                     </div>
                   )}
                 </div>
@@ -698,7 +696,8 @@ title={
                 )}
                 {!form.assetcategorytypeid || !form.departmentid ? (
                   <p className="text-foreground-500 mt-1 text-xs">
-                    Select Asset Type and Department to generate the official PID (1-06-Type-Dept-Seq).
+                    Select Asset Type and Department to generate the official
+                    PID (1-06-Type-Dept-Seq).
                   </p>
                 ) : (
                   <p className="text-muted-foreground mt-1 text-xs">
@@ -752,8 +751,6 @@ title={
                   entityLabel="Model"
                 />
               </div>
-
-
             </div>
           </section>
         </div>
@@ -806,7 +803,7 @@ title={
         </div>
 
         {/* ─── Procurement (Optional — role-gated) ─── */}
-        <div className="rounded-xl border-2 border-dashed border-muted-foreground/25 bg-muted/20 p-5">
+        <div className="border-muted-foreground/25 bg-muted/20 rounded-xl border-2 border-dashed p-5">
           <div className="mb-4">
             <h2 className="text-foreground-600 flex items-center gap-2 text-sm font-semibold">
               Procurement
@@ -881,8 +878,6 @@ title={
             </div>
           </div>
         </div>
-
-
 
         {error && (
           <p className="text-sm text-red-500" role="alert">
@@ -970,11 +965,15 @@ title={
                     }),
                   });
                   if (!res.ok) throw new Error("Failed to assign user");
-                  toast.success("User assigned", {
+                  notify.success({
+                    title: "User assigned",
                     description: createdAsset.assettag,
                   });
                 } catch (e) {
-                  toast.error("Assign failed", { description: e.message });
+                  notify.error({
+                    title: "Assign failed",
+                    description: e.message,
+                  });
                 } finally {
                   setAssignModalOpen(false);
                   router.push(`/assets/${createdAsset?.assetid}`);

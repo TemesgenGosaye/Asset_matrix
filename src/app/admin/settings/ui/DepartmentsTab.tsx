@@ -19,7 +19,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { toast } from "sonner";
+import { notify } from "@/lib/feedback/notify";
 import {
   Table,
   TableBody,
@@ -102,11 +102,11 @@ export default function DepartmentsTab() {
 
   const handleSave = async () => {
     if (!form.name.trim()) {
-      toast.error("Name is required");
+      notify.error("Name is required");
       return;
     }
     if (!form.organizationId) {
-      toast.error("Organization is required");
+      notify.error("Organization is required");
       return;
     }
 
@@ -135,11 +135,14 @@ export default function DepartmentsTab() {
         throw new Error(err?.error || "Failed to save");
       }
 
-      toast.success(editing ? "Department updated" : "Department created");
+      notify.success(editing ? "Department updated" : "Department created");
       setDialogOpen(false);
       fetchData();
     } catch (err) {
-      toast.error("Failed to save", { description: (err as Error).message });
+      notify.error({
+        title: "Failed to save",
+        description: (err as Error).message,
+      });
     } finally {
       setSubmitting(false);
     }
@@ -155,10 +158,13 @@ export default function DepartmentsTab() {
         const err = await res.json().catch(() => ({}));
         throw new Error(err?.error || "Failed to delete");
       }
-      toast.success("Department deleted");
+      notify.success("Department deleted");
       fetchData();
     } catch (err) {
-      toast.error("Failed to delete", { description: (err as Error).message });
+      notify.error({
+        title: "Failed to delete",
+        description: (err as Error).message,
+      });
     }
   };
 

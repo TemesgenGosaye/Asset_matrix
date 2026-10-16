@@ -41,22 +41,27 @@ interface AssetImportField {
 }
 
 export const ASSET_IMPORT_FIELDS: readonly AssetImportField[] = [
-  { id: "srNo",          label: "Sr. No.",         required: true,  kind: "text" },
-  { id: "assetType",     label: "Asset Type",      required: true,  kind: "reference" },
-  { id: "pid",           label: "PID (Asset ID)",  required: true,  kind: "text" },
-  { id: "condition",     label: "Condition",       required: true,  kind: "reference" },
-  { id: "location",      label: "Location",        required: true,  kind: "reference" },
-  { id: "brand",         label: "Brand",           required: true,  kind: "reference" },
-  { id: "reviewDate",    label: "Review Date",     required: true,  kind: "date" },
-  { id: "assetname",     label: "Asset Name",      required: false, kind: "text" },
-  { id: "assettag",      label: "Tag",             required: false, kind: "text" },
-  { id: "purchaseprice", label: "Purchase Price",  required: false, kind: "number" },
-  { id: "purchasedate",  label: "Purchase Date",   required: false, kind: "date" },
-  { id: "department",    label: "Department",      required: false, kind: "reference" },
-  { id: "mobile",        label: "Mobile",          required: false, kind: "boolean" },
-  { id: "requestable",   label: "Requestable",     required: false, kind: "boolean" },
-  { id: "specs",         label: "Specifications",  required: false, kind: "text" },
-  { id: "notes",         label: "Remark",          required: true,  kind: "text" },
+  { id: "srNo", label: "Sr. No.", required: true, kind: "text" },
+  { id: "assetType", label: "Asset Type", required: true, kind: "reference" },
+  { id: "pid", label: "PID (Asset ID)", required: true, kind: "text" },
+  { id: "condition", label: "Condition", required: true, kind: "reference" },
+  { id: "location", label: "Location", required: true, kind: "reference" },
+  { id: "brand", label: "Brand", required: true, kind: "reference" },
+  { id: "reviewDate", label: "Review Date", required: true, kind: "date" },
+  { id: "assetname", label: "Asset Name", required: false, kind: "text" },
+  { id: "assettag", label: "Tag", required: false, kind: "text" },
+  {
+    id: "purchaseprice",
+    label: "Purchase Price",
+    required: false,
+    kind: "number",
+  },
+  { id: "purchasedate", label: "Purchase Date", required: false, kind: "date" },
+  { id: "department", label: "Department", required: false, kind: "reference" },
+  { id: "mobile", label: "Mobile", required: false, kind: "boolean" },
+  { id: "requestable", label: "Requestable", required: false, kind: "boolean" },
+  { id: "specs", label: "Specifications", required: false, kind: "text" },
+  { id: "notes", label: "Remark", required: true, kind: "text" },
 ] as const;
 
 export const ASSET_IMPORT_FIELD_IDS: ReadonlySet<string> = new Set(
@@ -85,22 +90,139 @@ export const ASSET_CORE_FIELD_IDS: readonly AssetImportFieldId[] = [
 // ---------------------------------------------------------------------------
 
 const ALIASES: Record<AssetImportFieldId, string[]> = {
-  srNo:          ["sr no", "sr.no", "srno", "s.no", "sno", "row no", "row", "no", "#", "sl no", "sl.no"],
-  assetType:     ["asset type", "type", "category", "asset category", "category type", "assettype", "equipment type", "equipment category", "fixed asset type", "asset class", "class"],
-  pid:           ["pid", "asset id", "pid (asset id)", "serial number", "serial no", "serialno", "serial", "id", "assetid", "asset id.", "pid / asset id", "pid / assetid", "equipment id", "asset number", "fixed asset id", "equipment number", "equipment no", "asset no", "asset no.", "fixed asset no", "asset code", "equipment code"],
-  condition:     ["condition", "status", "status type", "asset condition", "condition type", "asset status", "condition/status", "working condition"],
-  location:      ["location", "location name", "site", "site name", "loc", "site/location", "location/site"],
-  brand:         ["brand", "manufacturer", "make", "manufacturer name", "brand name"],
-  reviewDate:    ["review date", "review", "reviewed date", "reviews date", "reviewdate", "inspection date", "next review", "review due"],
-  assetname:     ["asset name", "name", "asset", "assetname", "equipment name", "item name", "fixed asset name"],
-  assettag:      ["tag", "asset tag", "assettag", "qrcode", "qr code", "barcode", "tag no", "asset tag no"],
-  purchaseprice: ["purchase price", "price", "cost", "purchase cost", "price paid", "original cost", "buying price"],
-  purchasedate:  ["purchase date", "date purchased", "date of purchase", "purchasedate", "bought date", "acquisition date"],
-  department:    ["department", "dept", "department name", "department code", "dept name", "division"],
-  mobile:        ["mobile", "is mobile", "portable"],
-  requestable:   ["requestable", "can request", "can requestable", "allow request"],
-  specs:         ["specs", "specifications", "spec", "specification"],
-  notes:         ["notes", "remark", "remarks", "comment", "comments", "remarks/notes"],
+  srNo: [
+    "sr no",
+    "sr.no",
+    "srno",
+    "s.no",
+    "sno",
+    "row no",
+    "row",
+    "no",
+    "#",
+    "sl no",
+    "sl.no",
+  ],
+  assetType: [
+    "asset type",
+    "type",
+    "category",
+    "asset category",
+    "category type",
+    "assettype",
+    "equipment type",
+    "equipment category",
+    "fixed asset type",
+    "asset class",
+    "class",
+  ],
+  pid: [
+    "pid",
+    "asset id",
+    "pid (asset id)",
+    "serial number",
+    "serial no",
+    "serialno",
+    "serial",
+    "id",
+    "assetid",
+    "asset id.",
+    "pid / asset id",
+    "pid / assetid",
+    "equipment id",
+    "asset number",
+    "fixed asset id",
+    "equipment number",
+    "equipment no",
+    "asset no",
+    "asset no.",
+    "fixed asset no",
+    "asset code",
+    "equipment code",
+  ],
+  condition: [
+    "condition",
+    "status",
+    "status type",
+    "asset condition",
+    "condition type",
+    "asset status",
+    "condition/status",
+    "working condition",
+  ],
+  location: [
+    "location",
+    "location name",
+    "site",
+    "site name",
+    "loc",
+    "site/location",
+    "location/site",
+  ],
+  brand: ["brand", "manufacturer", "make", "manufacturer name", "brand name"],
+  reviewDate: [
+    "review date",
+    "review",
+    "reviewed date",
+    "reviews date",
+    "reviewdate",
+    "inspection date",
+    "next review",
+    "review due",
+  ],
+  assetname: [
+    "asset name",
+    "name",
+    "asset",
+    "assetname",
+    "equipment name",
+    "item name",
+    "fixed asset name",
+  ],
+  assettag: [
+    "tag",
+    "asset tag",
+    "assettag",
+    "qrcode",
+    "qr code",
+    "barcode",
+    "tag no",
+    "asset tag no",
+  ],
+  purchaseprice: [
+    "purchase price",
+    "price",
+    "cost",
+    "purchase cost",
+    "price paid",
+    "original cost",
+    "buying price",
+  ],
+  purchasedate: [
+    "purchase date",
+    "date purchased",
+    "date of purchase",
+    "purchasedate",
+    "bought date",
+    "acquisition date",
+  ],
+  department: [
+    "department",
+    "dept",
+    "department name",
+    "department code",
+    "dept name",
+    "division",
+  ],
+  mobile: ["mobile", "is mobile", "portable"],
+  requestable: [
+    "requestable",
+    "can request",
+    "can requestable",
+    "allow request",
+  ],
+  specs: ["specs", "specifications", "spec", "specification"],
+  notes: ["notes", "remark", "remarks", "comment", "comments", "remarks/notes"],
 };
 
 // ---------------------------------------------------------------------------
@@ -174,9 +296,7 @@ export function cellToText(value: ExcelJS.CellValue): string {
 
   // Formula / hyperlink result
   if (typeof value === "object" && value !== null && "result" in value) {
-    return cellToText(
-      (value as { result: ExcelJS.CellValue }).result,
-    );
+    return cellToText((value as { result: ExcelJS.CellValue }).result);
   }
 
   if (typeof value === "boolean") return value ? "true" : "false";
@@ -185,13 +305,22 @@ export function cellToText(value: ExcelJS.CellValue): string {
   return String(value);
 }
 
-/** Parse a flexible date value: Date, Excel serial, ISO, or common formats. */
+/**
+ * Parse a flexible date value: Date, Excel serial, ISO, or common formats.
+ *
+ * Every branch returns the date at **UTC midnight**, deliberately. Callers
+ * persist the result with `.toISOString().slice(0, 10)`, which reads the UTC
+ * calendar day - so a value built at local midnight comes back a day early
+ * anywhere east of UTC. Ethiopia is UTC+3, so a hire date of `2026-03-01`
+ * would otherwise be stored as `2026-02-28`.
+ */
 export function parseFlexibleDate(value: unknown): Date | null {
   if (value == null) return null;
   const str = String(value).trim();
   if (str === "") return null;
 
-  // Date instance
+  // Date instance. A cell that Excel handed us as a date arrives as a Date at
+  // UTC midnight already; anything else is taken at face value.
   if (value instanceof Date && !isNaN(value.getTime())) {
     return new Date(value.getTime());
   }
@@ -206,28 +335,93 @@ export function parseFlexibleDate(value: unknown): Date | null {
     return null;
   }
 
+  // Reject a value the engine would "helpfully" roll over rather than accept it.
+  // `new Date(2024, 14, 1)` is a perfectly valid Date for 2025-03-01, so a
+  // month of 15 or a day of 45 has to be caught before it silently becomes a
+  // different, plausible-looking date.
+  const utc = (y: number, m: number, d: number): Date | null => {
+    if (m < 1 || m > 12 || d < 1 || d > 31) return null;
+    const date = new Date(Date.UTC(y, m - 1, d));
+    // Reject 31 April and friends: the overflow lands in the next month.
+    if (date.getUTCMonth() !== m - 1 || date.getUTCDate() !== d) return null;
+    return date;
+  };
+
   // YYYY-MM-DD
   let m = str.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
   if (m) {
-    const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
-    if (!isNaN(d.getTime())) return d;
+    const d = utc(Number(m[1]), Number(m[2]), Number(m[3]));
+    if (d) return d;
   }
 
-  // M/D/YYYY or MM/DD/YYYY
-  m = str.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  // Numeric dates. `15/01/2024` is day-first and `01/15/2024` month-first, and
+  // the two are told apart by which number can only be a day: a first component
+  // above 12 cannot be a month. Anything genuinely ambiguous (`03/04/2024`) is
+  // read as day-first, which is the Ethiopian and European convention.
+  m = str.match(/^(\d{1,2})[/.\-](\d{1,2})[/.\-](\d{4})$/);
   if (m) {
-    const d = new Date(Number(m[3]), Number(m[1]) - 1, Number(m[2]));
-    if (!isNaN(d.getTime())) return d;
+    const a = Number(m[1]);
+    const b = Number(m[2]);
+    const year = Number(m[3]);
+    const dayFirst = a > 12 || b <= 12;
+    const d = dayFirst ? utc(year, b, a) : utc(year, a, b);
+    if (d) return d;
   }
 
-  // Month-name formats: "15 Jan 2024", "January 15, 2024"
-  const parsed = Date.parse(str);
-  if (!isNaN(parsed)) {
-    const d = new Date(parsed);
-    return d;
+  // Month-name formats: "15 Jan 2024", "January 15, 2024". Parsed as UTC so the
+  // calendar day survives the round trip.
+  const dayFirstNamed = /^(\d{1,2})[ ,-]+([A-Za-z]{3,})[ ,-]+(\d{4})$/.exec(
+    str,
+  );
+  const monthFirstNamed = /^([A-Za-z]{3,})[ ,-]+(\d{1,2})[ ,-]+(\d{4})$/.exec(
+    str,
+  );
+  if (dayFirstNamed || monthFirstNamed) {
+    const [, a, b, year] = dayFirstNamed ?? monthFirstNamed!;
+    // In the day-first form (a, b) is (day, month); in the month-first form it
+    // is (month, day).
+    const [day, monthWord] = dayFirstNamed ? [a, b] : [b, a];
+    // Accept a full name or any unambiguous 3+ letter prefix.
+    const month = MONTH_NAMES.findIndex(
+      (name) =>
+        name === monthWord.toLowerCase() ||
+        name.startsWith(monthWord.toLowerCase()),
+    );
+    if (month !== -1) {
+      const d = utc(Number(year), month + 1, Number(day));
+      if (d) return d;
+    }
   }
 
   return null;
+}
+
+const MONTH_NAMES = [
+  "january",
+  "february",
+  "march",
+  "april",
+  "may",
+  "june",
+  "july",
+  "august",
+  "september",
+  "october",
+  "november",
+  "december",
+] as const;
+
+/**
+ * Short month name for a 1-based month, for error messages.
+ *
+ * Kept local rather than pulled from `Intl` so the wording of an error is the
+ * same on every server, regardless of the machine's locale.
+ */
+export function monthName(month: number): string {
+  const index = MONTH_NAMES.findIndex(
+    (name) => name.slice(0, 3) === String(month).toLowerCase(),
+  );
+  return index === -1 ? String(month) : MONTH_NAMES[index];
 }
 
 /** Parse a string to boolean. Returns null if not recognized. */
@@ -236,7 +430,8 @@ export function parseBool(value: unknown): boolean | null {
   const s = String(value).trim().toLowerCase();
   if (s === "") return null;
   if (s === "0" || s === "false" || s === "no" || s === "n") return false;
-  if (s === "1" || s === "true" || s === "yes" || s === "y" || s === "active") return true;
+  if (s === "1" || s === "true" || s === "yes" || s === "y" || s === "active")
+    return true;
   return null;
 }
 
@@ -260,7 +455,9 @@ export function normalizeRef(s: string): string {
  * Build a lookup map: normalized name/code → record.
  * Multiple keys map to the same id.
  */
-export function buildReferenceLookup(records: ReferenceRecord[]): Map<string, string> {
+export function buildReferenceLookup(
+  records: ReferenceRecord[],
+): Map<string, string> {
   const map = new Map<string, string>();
   for (const r of records) {
     const normalName = normalizeRef(r.name);
@@ -278,7 +475,10 @@ export function buildReferenceLookup(records: ReferenceRecord[]): Map<string, st
  * Get all available names from a reference list, for helpful error messages.
  */
 export function referenceNames(records: ReferenceRecord[]): string[] {
-  return records.map((r) => r.name).filter(Boolean).sort();
+  return records
+    .map((r) => r.name)
+    .filter(Boolean)
+    .sort();
 }
 
 // ---------------------------------------------------------------------------
@@ -348,8 +548,7 @@ export interface ParsedAssetRow {
 }
 
 export type RowValidation =
-  | { status: "ok"; row: ParsedAssetRow }
-  | { status: "error"; error: string };
+  { status: "ok"; row: ParsedAssetRow } | { status: "error"; error: string };
 
 /** Map a raw cell string to an asset field, applying parsing. */
 function parseRawField(
@@ -421,13 +620,18 @@ export function validateAssetImportRow(
   fileSeen: { pids: Map<string, number>; tags: Map<string, number> },
   rowNumber: number,
 ): RowValidation {
-  const err = (msg: string): RowValidation => ({ status: "error", error: `Row ${rowNumber}: ${msg}` });
+  const err = (msg: string): RowValidation => ({
+    status: "error",
+    error: `Row ${rowNumber}: ${msg}`,
+  });
 
   // ---- PID (Asset ID) ----
   const pidRaw = parseRawField("pid", raw.pid ?? "");
-  if (!pidRaw.valid) return err("PID (Asset ID) is required and cannot be empty.");
+  if (!pidRaw.valid)
+    return err("PID (Asset ID) is required and cannot be empty.");
   const pid = pidRaw.value;
-  if (pid.length > 100) return err("PID (Asset ID) must be 100 characters or fewer.");
+  if (pid.length > 100)
+    return err("PID (Asset ID) must be 100 characters or fewer.");
   if (fileSeen.pids.has(pid)) {
     return err(
       `Duplicate PID "${pid}" — first seen on row ${fileSeen.pids.get(pid)}. Each PID must be unique within the file.`,
@@ -442,9 +646,13 @@ export function validateAssetImportRow(
   // ---- Asset Type (required reference) ----
   const assetTypeRaw = parseRawField("assetType", raw.assetType ?? "");
   if (!assetTypeRaw.valid || assetTypeRaw.value === "") {
-    return err("Asset Type is required. Enter a name or code that exists in your organization.");
+    return err(
+      "Asset Type is required. Enter a name or code that exists in your organization.",
+    );
   }
-  const assetCategoryId = lookups.categoryLookup.get(normalizeRef(assetTypeRaw.value));
+  const assetCategoryId = lookups.categoryLookup.get(
+    normalizeRef(assetTypeRaw.value),
+  );
   if (!assetCategoryId) {
     const available = referenceNames(lookups.categories).slice(0, 8).join(", ");
     return err(
@@ -479,7 +687,9 @@ export function validateAssetImportRow(
     const locationRaw = parseRawField("location", raw.location);
     const lid = lookups.locationLookup.get(normalizeRef(locationRaw.value));
     if (!lid) {
-      const available = referenceNames(lookups.locations).slice(0, 8).join(", ");
+      const available = referenceNames(lookups.locations)
+        .slice(0, 8)
+        .join(", ");
       return err(
         `Location "${locationRaw.value}" was not found. Use a location that exists (available: ${available || "none"}).`,
       );
@@ -495,7 +705,9 @@ export function validateAssetImportRow(
     const brandRaw = parseRawField("brand", raw.brand);
     const mid = lookups.manufacturerLookup.get(normalizeRef(brandRaw.value));
     if (!mid) {
-      const available = referenceNames(lookups.manufacturers).slice(0, 8).join(", ");
+      const available = referenceNames(lookups.manufacturers)
+        .slice(0, 8)
+        .join(", ");
       return err(
         `Brand "${brandRaw.value}" was not found. Use a manufacturer that exists (available: ${available || "none"}).`,
       );
@@ -512,7 +724,11 @@ export function validateAssetImportRow(
     const deptRaw = parseRawField("department", raw.department);
     const did = lookups.departmentLookup.get(normalizeRef(deptRaw.value));
     if (!did) {
-      const available = lookups.departments.map((d) => d.name).filter(Boolean).slice(0, 8).join(", ");
+      const available = lookups.departments
+        .map((d) => d.name)
+        .filter(Boolean)
+        .slice(0, 8)
+        .join(", ");
       return err(
         `Department "${deptRaw.value}" was not found. Use a department that exists in your organization (available: ${available || "none"}).`,
       );
@@ -532,7 +748,9 @@ export function validateAssetImportRow(
     const dateParsed = parseRawField("reviewDate", raw.reviewDate);
     const d = dateParsed.parsed as Date | null;
     if (!d) {
-      return err(`Review Date "${raw.reviewDate.trim()}" is not a valid date. Use YYYY-MM-DD or M/D/YYYY.`);
+      return err(
+        `Review Date "${raw.reviewDate.trim()}" is not a valid date. Use YYYY-MM-DD or M/D/YYYY.`,
+      );
     }
     reviewsDate = d;
   }
@@ -542,7 +760,9 @@ export function validateAssetImportRow(
   if (raw.purchaseprice?.trim()) {
     const priceParsed = parseRawField("purchaseprice", raw.purchaseprice);
     if (priceParsed.parsed === null && priceParsed.value !== "") {
-      return err(`Purchase Price "${raw.purchaseprice.trim()}" is not a valid number.`);
+      return err(
+        `Purchase Price "${raw.purchaseprice.trim()}" is not a valid number.`,
+      );
     }
     purchaseprice = priceParsed.parsed as number | null;
   }
@@ -553,7 +773,9 @@ export function validateAssetImportRow(
     const dateParsed = parseRawField("purchasedate", raw.purchasedate);
     const d = dateParsed.parsed as Date | null;
     if (!d) {
-      return err(`Purchase Date "${raw.purchasedate.trim()}" is not a valid date.`);
+      return err(
+        `Purchase Date "${raw.purchasedate.trim()}" is not a valid date.`,
+      );
     }
     purchasedate = d;
   }
@@ -563,7 +785,9 @@ export function validateAssetImportRow(
   if (raw.mobile?.trim()) {
     const b = parseBool(raw.mobile);
     if (b === null) {
-      return err(`Mobile "${raw.mobile.trim()}" is not valid. Use Yes/No, True/False, or 1/0.`);
+      return err(
+        `Mobile "${raw.mobile.trim()}" is not valid. Use Yes/No, True/False, or 1/0.`,
+      );
     }
     mobile = b;
   }
@@ -573,7 +797,9 @@ export function validateAssetImportRow(
   if (raw.requestable?.trim()) {
     const b = parseBool(raw.requestable);
     if (b === null) {
-      return err(`Requestable "${raw.requestable.trim()}" is not valid. Use Yes/No, True/False, or 1/0.`);
+      return err(
+        `Requestable "${raw.requestable.trim()}" is not valid. Use Yes/No, True/False, or 1/0.`,
+      );
     }
     requestable = b;
   }
@@ -661,7 +887,12 @@ export function processAssetImportRows(
   const totalRows = rows.length;
 
   if (totalRows <= dataStartIndex) {
-    return { validRows, errors: [{ row: headerRow, error: "No data rows found after the header row." }] };
+    return {
+      validRows,
+      errors: [
+        { row: headerRow, error: "No data rows found after the header row." },
+      ],
+    };
   }
 
   if (totalRows - dataStartIndex > MAX_IMPORT_ROWS) {
@@ -685,7 +916,10 @@ export function processAssetImportRows(
     if (!hasContent) continue;
 
     // Extract raw field values from mapped columns
-    const raw: Record<AssetImportFieldId, string> = {} as Record<AssetImportFieldId, string>;
+    const raw: Record<AssetImportFieldId, string> = {} as Record<
+      AssetImportFieldId,
+      string
+    >;
     for (const [fieldId, colIndex] of Object.entries(mapping)) {
       if (!ASSET_IMPORT_FIELD_IDS.has(fieldId)) continue;
       raw[fieldId as AssetImportFieldId] = rowCells[colIndex] ?? "";
@@ -757,7 +991,9 @@ async function parseExcelBuffer(buffer: Buffer): Promise<SheetData[]> {
     // Determine headers from first non-empty row
     let headerRowIdx = 0;
     while (headerRowIdx < rows.length) {
-      const nonEmptyCount = rows[headerRowIdx].filter((c) => c.trim() !== "").length;
+      const nonEmptyCount = rows[headerRowIdx].filter(
+        (c) => c.trim() !== "",
+      ).length;
       if (nonEmptyCount > 0) break;
       headerRowIdx++;
     }
@@ -825,9 +1061,7 @@ function parseCsvLine(line: string, delimiter = ","): string[] {
 
 async function parseCsvBuffer(buffer: Buffer): Promise<SheetData[]> {
   const text = buffer.toString("utf-8");
-  const lines = text
-    .split(/\r?\n/)
-    .filter((l) => l.trim() !== "");
+  const lines = text.split(/\r?\n/).filter((l) => l.trim() !== "");
   if (lines.length === 0) {
     return [{ name: "Sheet1", rowCount: 0, headers: [], rows: [] }];
   }
@@ -861,7 +1095,9 @@ function normalizeHeader(s: string): string {
  * Attempt to automatically map column headers to asset import fields.
  * Returns a mapping of fieldId → column index.
  */
-export function autoMapAssetColumns(headers: string[]): Partial<Record<AssetImportFieldId, number>> {
+export function autoMapAssetColumns(
+  headers: string[],
+): Partial<Record<AssetImportFieldId, number>> {
   const mapping: Partial<Record<AssetImportFieldId, number>> = {};
   const normalized = headers.map((h) => normalizeHeader(h));
 
@@ -870,7 +1106,10 @@ export function autoMapAssetColumns(headers: string[]): Partial<Record<AssetImpo
     const cell = normalized[i];
     if (!cell) continue;
 
-    for (const [fieldId, aliases] of Object.entries(ALIASES) as [AssetImportFieldId, string[]][]) {
+    for (const [fieldId, aliases] of Object.entries(ALIASES) as [
+      AssetImportFieldId,
+      string[],
+    ][]) {
       if (mapping[fieldId] !== undefined) continue;
       for (const alias of aliases) {
         if (cell === normalizeHeader(alias)) {
@@ -888,7 +1127,10 @@ export function autoMapAssetColumns(headers: string[]): Partial<Record<AssetImpo
     const cell = normalized[i];
     if (!cell) continue;
 
-    for (const [fieldId, aliases] of Object.entries(ALIASES) as [AssetImportFieldId, string[]][]) {
+    for (const [fieldId, aliases] of Object.entries(ALIASES) as [
+      AssetImportFieldId,
+      string[],
+    ][]) {
       if (mapping[fieldId] !== undefined) continue;
       for (const alias of aliases) {
         const a = normalizeHeader(alias);
@@ -918,7 +1160,8 @@ export function cleanColumnMapping(
   const cleaned: Partial<Record<AssetImportFieldId, number>> = {};
   for (const [fieldId, colIndex] of Object.entries(mapping)) {
     if (!ASSET_IMPORT_FIELD_IDS.has(fieldId)) continue;
-    if (typeof colIndex !== "number" || colIndex < 0 || colIndex >= maxColumns) continue;
+    if (typeof colIndex !== "number" || colIndex < 0 || colIndex >= maxColumns)
+      continue;
     cleaned[fieldId as AssetImportFieldId] = colIndex;
   }
   return cleaned;
@@ -933,7 +1176,9 @@ export function friendlyUniqueError(error: unknown): string {
   if (msg.includes("Unique constraint failed on the fields: (`assettag`)")) {
     return "A Tag already exists in the system with this value.";
   }
-  if (msg.includes("Unique constraint failed on the fields: (`serialnumber`)")) {
+  if (
+    msg.includes("Unique constraint failed on the fields: (`serialnumber`)")
+  ) {
     return "A PID (Asset ID) already exists in the system with this value.";
   }
   if (msg.includes("Unique constraint failed")) {

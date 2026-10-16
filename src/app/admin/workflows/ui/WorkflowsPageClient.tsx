@@ -24,7 +24,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { toast } from "sonner";
+import { notify } from "@/lib/feedback/notify";
 import {
   Table,
   TableBody,
@@ -171,7 +171,7 @@ export default function WorkflowsPageClient() {
       const data: AutomationRule[] = await res.json();
       setRules(data);
     } catch {
-      toast.error("Failed to load automation rules");
+      notify.error("Failed to load automation rules");
     }
   }, []);
 
@@ -250,16 +250,16 @@ export default function WorkflowsPageClient() {
 
       if (!res.ok) {
         const err = await res.json();
-        toast.error(
+        notify.error(
           typeof err.error === "string" ? err.error : "Failed to update rule",
         );
         return;
       }
 
-      toast.success(rule.isActive ? "Rule deactivated" : "Rule activated");
+      notify.success(rule.isActive ? "Rule deactivated" : "Rule activated");
       await fetchRules();
     } catch {
-      toast.error("Failed to update rule");
+      notify.error("Failed to update rule");
     } finally {
       setTogglingId(null);
     }
@@ -269,11 +269,11 @@ export default function WorkflowsPageClient() {
 
   async function handleSave() {
     if (!formName.trim()) {
-      toast.error("Rule name is required");
+      notify.error("Rule name is required");
       return;
     }
     if (!formTrigger) {
-      toast.error("Trigger is required");
+      notify.error("Trigger is required");
       return;
     }
 
@@ -303,21 +303,19 @@ export default function WorkflowsPageClient() {
 
       if (!res.ok) {
         const err = await res.json();
-        toast.error(
+        notify.error(
           typeof err.error === "string" ? err.error : "Failed to save rule",
         );
         return;
       }
 
-      toast.success(
-        isEditing
-          ? "Automation rule updated successfully"
-          : "Automation rule created successfully",
+      notify.success(
+        isEditing ? "Automation rule updated" : "Automation rule created",
       );
       setDialogOpen(false);
       await fetchRules();
     } catch {
-      toast.error("Failed to save automation rule");
+      notify.error("Failed to save automation rule");
     } finally {
       setIsSaving(false);
     }
@@ -336,18 +334,18 @@ export default function WorkflowsPageClient() {
 
       if (!res.ok) {
         const err = await res.json();
-        toast.error(
+        notify.error(
           typeof err.error === "string" ? err.error : "Failed to delete rule",
         );
         return;
       }
 
-      toast.success("Automation rule deleted successfully");
+      notify.success("Automation rule deleted");
       setDeleteDialogOpen(false);
       setDeletingRule(null);
       await fetchRules();
     } catch {
-      toast.error("Failed to delete automation rule");
+      notify.error("Failed to delete automation rule");
     } finally {
       setIsDeleting(false);
     }

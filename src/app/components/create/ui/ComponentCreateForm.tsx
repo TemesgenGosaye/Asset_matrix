@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import { notify } from "@/lib/feedback/notify";
 import CustomFieldsSection from "@/components/CustomFieldsSection";
 
 export default function ComponentCreateForm({
@@ -116,7 +116,7 @@ export default function ComponentCreateForm({
 
       if (res.status === 409) {
         const err = await res.json().catch(() => ({}));
-        toast.error(
+        notify.error(
           err.error ||
             "This item was modified by someone else. Please refresh and try again.",
         );
@@ -141,16 +141,14 @@ export default function ComponentCreateForm({
           }),
         });
       }
-      toast.success(
-        mode === "edit" ? "Component updated" : "Component created",
-        {
-          description: created.name,
-        },
-      );
+      notify.success({
+        title: mode === "edit" ? "Component updated" : "Component created",
+        description: created.name,
+      });
       router.push("/components");
     } catch (err: any) {
       setError(err.message);
-      toast.error("Save failed", { description: err.message });
+      notify.error({ title: "Save failed", description: err.message });
     } finally {
       setSubmitting(false);
     }

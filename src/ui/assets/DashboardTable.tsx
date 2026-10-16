@@ -19,7 +19,10 @@ function RelativeTime({ from }: { from: Date }) {
 
   if (!from) return <span>-</span>;
 
-  const diff = Math.max(0, Math.floor((now.getTime() - new Date(from).getTime()) / 1000));
+  const diff = Math.max(
+    0,
+    Math.floor((now.getTime() - new Date(from).getTime()) / 1000),
+  );
   let label: string;
   if (diff < 5) label = "just now";
   else if (diff < 60) label = `${diff}s ago`;
@@ -94,7 +97,7 @@ import { capitalize } from "../../utils/utils";
 import { formatCurrency } from "@/lib/depreciation";
 import QRCode from "react-qr-code";
 import { QRCodeCanvas, QRCodeSVG } from "qrcode.react";
-import { toast } from "sonner";
+import { notify } from "@/lib/feedback/notify";
 import SavedFilters from "@/components/SavedFilters";
 import PrintLabelDialog from "@/components/PrintLabelDialog";
 import RequestItemDialog from "@/components/RequestItemDialog";
@@ -227,7 +230,9 @@ export default function App({
   const [bulkStatusId, setBulkStatusId] = useState("");
   const [isBulkDepartmentModalOpen, setIsBulkDepartmentModalOpen] =
     useState(false);
-  const [bulkDepartmentStep, setBulkDepartmentStep] = useState<"select" | "confirm">("select");
+  const [bulkDepartmentStep, setBulkDepartmentStep] = useState<
+    "select" | "confirm"
+  >("select");
   const [bulkDepartmentId, setBulkDepartmentId] = useState("");
   const [bulkUpdating, setBulkUpdating] = useState(false);
 
@@ -286,7 +291,10 @@ export default function App({
           throw new Error(err?.error || "Failed to update status");
         }
         const updated = await res.json();
-        toast.success("Status updated", { description: updated.assettag });
+        notify.success({
+          title: "Status updated",
+          description: updated.assettag,
+        });
         setAssetsData((prev) =>
           prev.map((a) =>
             a.assetid === assetId
@@ -296,7 +304,7 @@ export default function App({
         );
       } catch (e) {
         console.error(e);
-        toast.error("Status update failed", { description: e.message });
+        notify.error({ title: "Status update failed", description: e.message });
       }
     },
     [setAssetsData],
@@ -316,14 +324,15 @@ export default function App({
         });
 
         if (!response.ok) {
-          toast.error("Error deleting asset");
+          notify.error("Error deleting asset");
           throw new Error("Error deleting asset");
         }
 
         const result = await response.json();
 
-        toast.success(result.message, {
-          description: `${assetId} deleted successfully`,
+        notify.success({
+          title: result.message,
+          description: `${assetId} deleted`,
         });
 
         setAssetsData((prevItems) =>
@@ -333,7 +342,7 @@ export default function App({
           prev.filter((ua) => ua.assetid !== assetId),
         );
       } catch (error) {
-        toast.error("Error deleting asset", { description: error });
+        notify.error({ title: "Error deleting asset", description: error });
         console.error(error);
       }
     },
@@ -352,13 +361,13 @@ export default function App({
         });
 
         if (!response.ok) {
-          toast.error("Error assigning asset");
+          notify.error("Error assigning asset");
           const errorData = await response.json();
           throw new Error(errorData.error || "Error assigning asset");
         }
 
         const result = await response.json();
-        toast.success("Entry assigned successfully");
+        notify.success("Entry assigned");
         // Update local userAssets mapping so UI reflects change immediately
         setUserAssetsData((prev) => {
           const existing = prev.find((ua) => ua.assetid === assetId);
@@ -467,12 +476,15 @@ export default function App({
             : a,
         ),
       );
-      toast.success(`Status updated for ${ids.length} asset(s)`);
+      notify.success(`Status updated for ${ids.length} asset(s)`);
       setIsBulkStatusModalOpen(false);
       setBulkStatusId("");
       setSelectedKeys(new Set([]));
     } catch (e) {
-      toast.error("Bulk status update failed", { description: e.message });
+      notify.error({
+        title: "Bulk status update failed",
+        description: e.message,
+      });
     } finally {
       setBulkUpdating(false);
     }
@@ -511,13 +523,14 @@ export default function App({
             : a,
         ),
       );
-      toast.success(`Department updated for ${ids.length} asset(s)`);
+      notify.success(`Department updated for ${ids.length} asset(s)`);
       setIsBulkDepartmentModalOpen(false);
       setBulkDepartmentStep("select");
       setBulkDepartmentId("");
       setSelectedKeys(new Set([]));
     } catch (e) {
-      toast.error("Bulk department update failed", {
+      notify.error({
+        title: "Bulk department update failed",
         description: (e as Error).message,
       });
     } finally {
@@ -597,7 +610,9 @@ export default function App({
     const hasAll = base.length > 0 && visibleColumns.size >= base.length;
     let cols = hasAll
       ? base
-      : base.filter((column) => Array.from(visibleColumns).includes(column.uid));
+      : base.filter((column) =>
+          Array.from(visibleColumns).includes(column.uid),
+        );
 
     // Sr.No. is a required column — always render it first, even if the
     // persisted column set (localStorage) predates it.
@@ -626,9 +641,7 @@ export default function App({
         const manufacturerMatch = manufacturers.find(
           (manu) => manu.manufacturerid === data.manufacturerid,
         );
-        const modelMatch = models.find(
-          (mod) => mod.modelid === data.modelid,
-        );
+        const modelMatch = models.find((mod) => mod.modelid === data.modelid);
         const statusMatch = status.find(
           (stat) => stat.statustypeid === data.statustypeid,
         );
@@ -695,8 +708,12 @@ export default function App({
           const departmentB = departments.find(
             (dep) => dep.id === b.departmentId,
           );
-          first = departmentA ? (departmentA.code ?? "") + " " + departmentA.name : "";
-          second = departmentB ? (departmentB.code ?? "") + " " + departmentB.name : "";
+          first = departmentA
+            ? (departmentA.code ?? "") + " " + departmentA.name
+            : "";
+          second = departmentB
+            ? (departmentB.code ?? "") + " " + departmentB.name
+            : "";
           break;
         case "manufacturerid":
           const manufacturerA = manufacturers.find(
@@ -839,7 +856,7 @@ export default function App({
             <Link
               href={`/assets/${asset.assetid}`}
               title={asset.assetid}
-              className="text-muted-foreground font-mono text-xs hover:text-foreground hover:underline"
+              className="text-muted-foreground hover:text-foreground font-mono text-xs hover:underline"
             >
               {asset.assetid.slice(0, 8)}…
             </Link>
@@ -848,7 +865,7 @@ export default function App({
           return (
             <Link
               href={`/assets/${asset.assetid}`}
-              className="text-sm font-medium text-foreground capitalize hover:text-primary hover:underline"
+              className="text-foreground hover:text-primary text-sm font-medium capitalize hover:underline"
             >
               {asset.assetname}
             </Link>
@@ -873,7 +890,7 @@ export default function App({
         case "reviewsDate":
           return (
             <div className="flex flex-col">
-              <p className="text-sm text-foreground">
+              <p className="text-foreground text-sm">
                 {asset.reviewsDate
                   ? new Date(asset.reviewsDate).toLocaleDateString("en-US", {
                       year: "numeric",
@@ -887,7 +904,7 @@ export default function App({
         case "purchasedate":
           return (
             <div className="flex flex-col">
-              <p className="text-sm text-foreground">
+              <p className="text-foreground text-sm">
                 {asset.purchasedate
                   ? new Date(asset.purchasedate).toLocaleDateString("en-US", {
                       year: "numeric",
@@ -902,7 +919,7 @@ export default function App({
           return (
             <div className="flex flex-col">
               <p
-                className="text-sm max-w-[240px] truncate text-foreground"
+                className="text-foreground max-w-[240px] truncate text-sm"
                 title={asset.remark || ""}
               >
                 {asset.remark || "-"}
@@ -916,7 +933,7 @@ export default function App({
           if (!userAssetEntry) {
             return (
               <div className="flex flex-col">
-                <p className="text-sm text-muted-foreground">-</p>
+                <p className="text-muted-foreground text-sm">-</p>
               </div>
             );
           }
@@ -929,7 +946,7 @@ export default function App({
 
           return (
             <div className="flex flex-col">
-              <p className="text-sm text-foreground capitalize">{userName}</p>
+              <p className="text-foreground text-sm capitalize">{userName}</p>
             </div>
           );
         case "manufacturerid":
@@ -938,7 +955,7 @@ export default function App({
           );
           return (
             <div className="flex flex-col">
-              <p className="text-sm text-foreground capitalize">
+              <p className="text-foreground text-sm capitalize">
                 {manu ? manu.manufacturername : "-"}
               </p>
             </div>
@@ -947,27 +964,27 @@ export default function App({
           const mod = models.find((mod) => mod.modelid === asset.modelid);
           return (
             <div className="flex flex-col">
-              <p className="text-sm text-foreground capitalize">
+              <p className="text-foreground text-sm capitalize">
                 {mod ? mod.modelname : "-"}
               </p>
             </div>
           );
         case "supplierid":
-          const supplier = suppliers.find((s) => s.supplierid === asset.supplierid);
+          const supplier = suppliers.find(
+            (s) => s.supplierid === asset.supplierid,
+          );
           return (
             <div className="flex flex-col">
-              <p className="text-sm text-foreground capitalize">
+              <p className="text-foreground text-sm capitalize">
                 {supplier ? supplier.suppliername : "-"}
               </p>
             </div>
           );
         case "locationid":
-          const loc = locations.find(
-            (l) => l.locationid === asset.locationid,
-          );
+          const loc = locations.find((l) => l.locationid === asset.locationid);
           return (
             <div className="flex flex-col">
-              <p className="text-sm text-foreground capitalize">
+              <p className="text-foreground text-sm capitalize">
                 {loc ? loc.locationname : "-"}
               </p>
             </div>
@@ -975,13 +992,13 @@ export default function App({
         case "specs":
           return (
             <div className="flex flex-col">
-              <p className="text-sm text-foreground">{asset.specs || "-"}</p>
+              <p className="text-foreground text-sm">{asset.specs || "-"}</p>
             </div>
           );
         case "notes":
           return (
             <div className="flex flex-col">
-              <p className="text-sm text-foreground capitalize">
+              <p className="text-foreground text-sm capitalize">
                 {asset.notes ? asset.notes : "-"}
               </p>
             </div>
@@ -1003,7 +1020,7 @@ export default function App({
           );
           return (
             <div className="flex flex-col">
-              <p className="text-sm text-foreground capitalize">
+              <p className="text-foreground text-sm capitalize">
                 {cat ? cat.assetcategorytypename : "Unknown"}
               </p>
             </div>
@@ -1027,7 +1044,7 @@ export default function App({
           );
           return (
             <div className="flex flex-col">
-              <p className="text-sm text-foreground capitalize">
+              <p className="text-foreground text-sm capitalize">
                 {department
                   ? `${department.code ? department.code + " — " : ""}${department.name}`
                   : "Unknown"}
@@ -1037,7 +1054,7 @@ export default function App({
         case "purchaseprice":
           return (
             <div className="flex flex-col text-right">
-              <p className="text-sm text-foreground tabular-nums">
+              <p className="text-foreground text-sm tabular-nums">
                 {asset.purchaseprice != null
                   ? formatCurrency(Number(asset.purchaseprice))
                   : "-"}
@@ -1202,84 +1219,84 @@ export default function App({
     setFilterValue("");
   }, [setFilterValue]);
 
-  const refreshData = useCallback(
-    async () => {
-      try {
-        setIsRefreshing(true);
-        const [assetsRes, userAssetsRes] = await Promise.all([
-          fetch("/api/asset"),
-          fetch("/api/userAssets"),
-        ]);
+  const refreshData = useCallback(async () => {
+    try {
+      setIsRefreshing(true);
+      const [assetsRes, userAssetsRes] = await Promise.all([
+        fetch("/api/asset"),
+        fetch("/api/userAssets"),
+      ]);
 
-        // If the session expired or the user was logged out, redirect
-        // to login instead of spewing console errors on every tab-focus.
-        if (assetsRes.status === 401 || userAssetsRes.status === 401) {
-          if (typeof window !== "undefined") {
-            window.location.href = "/login";
-          }
-          return;
+      // If the session expired or the user was logged out, redirect
+      // to login instead of spewing console errors on every tab-focus.
+      if (assetsRes.status === 401 || userAssetsRes.status === 401) {
+        if (typeof window !== "undefined") {
+          window.location.href = "/login";
         }
-
-        if (!assetsRes.ok) {
-          toast.error("Refresh failed", {
-            description: `Assets: ${assetsRes.status}`,
-          });
-          return;
-        }
-        if (!userAssetsRes.ok) {
-          toast.error("Refresh failed", {
-            description: `Assignments: ${userAssetsRes.status}`,
-          });
-          return;
-        }
-
-        const [assetsJson, userAssetsJson] = await Promise.all([
-          assetsRes.json(),
-          userAssetsRes.json(),
-        ]);
-
-        let refreshedAssets = assetsJson || [];
-        const refreshedUserAssets = userAssetsJson || [];
-
-        // Non-admin self-service filter: only show assigned + available assets
-        if (!isAdmin && currentUserId) {
-          const assignedAssetIds = new Set(
-            refreshedUserAssets
-              .filter((ua) => ua.userid === currentUserId)
-              .map((ua) => ua.assetid),
-          );
-          const availableStatusIds = new Set(
-            status
-              .filter((s) =>
-                String(s.statustypename ?? "")
-                  .toLowerCase()
-                  .includes("available"),
-              )
-              .map((s) => s.statustypeid),
-          );
-          refreshedAssets = refreshedAssets.filter(
-            (a) =>
-              assignedAssetIds.has(a.assetid) ||
-              (a.statustypeid && availableStatusIds.has(a.statustypeid)),
-          );
-        }
-
-        setAssetsData(refreshedAssets);
-        setUserAssetsData(refreshedUserAssets);
-        setLastUpdated(new Date());
-      } catch {
-        // Network error or unexpected failure — don't crash the app;
-        // the user can continue using the stale (but still functional)
-        // data already on screen.
-        toast.error("Refresh failed", {
-          description: "Network error — will retry next focus",
-        });
-      } finally {
-        setIsRefreshing(false);
+        return;
       }
-    },
-    [isAdmin, currentUserId, status],
-  );
+
+      if (!assetsRes.ok) {
+        notify.error({
+          title: "Refresh failed",
+          description: `Assets: ${assetsRes.status}`,
+        });
+        return;
+      }
+      if (!userAssetsRes.ok) {
+        notify.error({
+          title: "Refresh failed",
+          description: `Assignments: ${userAssetsRes.status}`,
+        });
+        return;
+      }
+
+      const [assetsJson, userAssetsJson] = await Promise.all([
+        assetsRes.json(),
+        userAssetsRes.json(),
+      ]);
+
+      let refreshedAssets = assetsJson || [];
+      const refreshedUserAssets = userAssetsJson || [];
+
+      // Non-admin self-service filter: only show assigned + available assets
+      if (!isAdmin && currentUserId) {
+        const assignedAssetIds = new Set(
+          refreshedUserAssets
+            .filter((ua) => ua.userid === currentUserId)
+            .map((ua) => ua.assetid),
+        );
+        const availableStatusIds = new Set(
+          status
+            .filter((s) =>
+              String(s.statustypename ?? "")
+                .toLowerCase()
+                .includes("available"),
+            )
+            .map((s) => s.statustypeid),
+        );
+        refreshedAssets = refreshedAssets.filter(
+          (a) =>
+            assignedAssetIds.has(a.assetid) ||
+            (a.statustypeid && availableStatusIds.has(a.statustypeid)),
+        );
+      }
+
+      setAssetsData(refreshedAssets);
+      setUserAssetsData(refreshedUserAssets);
+      setLastUpdated(new Date());
+    } catch {
+      // Network error or unexpected failure — don't crash the app;
+      // the user can continue using the stale (but still functional)
+      // data already on screen.
+      notify.error({
+        title: "Refresh failed",
+        description: "Network error — will retry next focus",
+      });
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, [isAdmin, currentUserId, status]);
 
   // Auto refresh when returning to tab or when page becomes visible.
   // Guarded by a 30s staleness window so re-focusing the tab doesn't
@@ -1523,9 +1540,9 @@ export default function App({
                         a.download = `qr-codes-${Date.now()}.pdf`;
                         a.click();
                         URL.revokeObjectURL(url);
-                        toast.success("QR sheet downloaded");
+                        notify.success("QR sheet downloaded");
                       } catch {
-                        toast.error("Failed to download QR sheet");
+                        notify.error("Failed to download QR sheet");
                       }
                     }}
                   >
@@ -2586,8 +2603,8 @@ export default function App({
             <>
               <DialogDescription>
                 You are about to assign{" "}
-                <span className="font-medium">{selectedKeys.size}</span> selected
-                asset(s) to{" "}
+                <span className="font-medium">{selectedKeys.size}</span>{" "}
+                selected asset(s) to{" "}
                 <span className="font-medium">
                   {(() => {
                     const targetDept = departments.find(
@@ -2661,13 +2678,14 @@ export default function App({
                     }),
                   });
                   if (!res.ok) throw new Error();
-                  toast.success("Return requested", {
+                  notify.success({
+                    title: "Return requested",
                     description:
                       "An admin will collect the item and confirm the return",
                   });
                   setReturnDialogOpen(false);
                 } catch {
-                  toast.error("Failed to request return");
+                  notify.error("Failed to request return");
                 }
               }}
             >

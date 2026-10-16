@@ -1,10 +1,13 @@
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import {
-  ResponsiveTable,
-  type Column,
-} from "@/components/ui/responsive-table";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { ResponsiveTable, type Column } from "@/components/ui/responsive-table";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -18,15 +21,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+
 import {
   CalendarDays,
+  CheckCircle2,
   ClipboardCheck,
   Clock,
   Image as ImageIcon,
@@ -38,13 +36,25 @@ import {
   Camera,
   X,
 } from "lucide-react";
-import { toast } from "sonner";
-import { formatDate, formatDateTime, fullName } from "@/ui/household/house-format";
+import { notify } from "@/lib/feedback/notify";
+import {
+  formatDate,
+  formatDateTime,
+  fullName,
+} from "@/ui/household/house-format";
 import {
   HouseCategoryBadge,
   HouseholdStatusBadge,
 } from "@/ui/household/house-status";
 import type { InspectionWorklistView } from "@/lib/house-queue/views";
+import { DAMAGE_ITEMS, validateDamage } from "@/lib/house-queue/damage";
+import {
+  DamageChecklistEditor,
+  DamageChecklistReadonly,
+  emptyDamageChecklist,
+  type DamageChecklistValues,
+} from "./DamageChecklist";
+import { TerminationReceiptButton } from "./TerminationReceiptButton";
 import type { HouseQueueCapabilities } from "../house-queue/HouseQueueClient";
 
 const TERMINATION_LABELS: Record<string, string> = {
@@ -52,15 +62,6 @@ const TERMINATION_LABELS: Record<string, string> = {
   EMPLOYEE_LEAVE: "Employee leave",
   RETIREMENT: "Retirement",
 };
-
-const CHECKLIST_AREAS = [
-  { key: "checklistWindow", label: "Window" },
-  { key: "checklistDoor", label: "Door" },
-  { key: "checklistWaterPanel", label: "Water panel" },
-  { key: "checklistRoof", label: "Roof" },
-  { key: "checklistWall", label: "Wall" },
-  { key: "checklistElectricity", label: "Electricity" },
-] as const;
 
 // ---------------------------------------------------------------------------
 // Review & complete dialog
@@ -75,20 +76,24 @@ function CompleteInspectionDialog({
   onOpenChange: (open: boolean) => void;
   onCompleted: () => void;
 }) {
-  const [damages, setDamages] = useState<Record<string, boolean>>({});
+  const [damages, setDamages] = useState<DamageChecklistValues>(
+    emptyDamageChecklist(),
+  );
   const [conditionNote, setConditionNote] = useState("");
   const [photos, setPhotos] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
   const [completing, setCompleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [previewUrls, setPreviewUrls] = useState<string[]>([]);
+  /**
+   * The outcome of this completion, held so the dialog can confirm what the
+   * release did. Completing the inspection IS the finalisation: the house
+   * returned to stock and the allocation is on the Terminated Houses page.
+   */
+  const [issued, setIssued] = useState<{
+    resolvedTo: "Active" | "UnderMaintenance";
+  } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const toggle = (key: string) =>
-    setDamages((prev) => ({
-      ...prev,
-      [key]: !prev[key],
-    }));
 
   const uploadFiles = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
@@ -120,19 +125,43 @@ function CompleteInspectionDialog({
   const submit = async () => {
     setCompleting(true);
     setError(null);
+    setIssued(null);
     try {
+      // Validated with the same function the server runs, so the button is
+      // disabled for exactly the reasons the request would be refused.
+      const damage = validateDamage(
+        Object.fromEntries(
+          DAMAGE_ITEMS.map((i) => [i.stateKey, damages.state[i.key]]),
+        ),
+        Object.fromEntries(
+          DAMAGE_ITEMS.map((i) => [i.costKey, damages.costs[i.key]]),
+        ),
+      );
+      if (damage.errors.length > 0) {
+        setError(damage.errors[0]);
+        return;
+      }
+
       const res = await fetch(
         `/api/house-queue/inspections/${inspection.inspectionId}/complete`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            checklistWindow: damages.checklistWindow ?? false,
-            checklistDoor: damages.checklistDoor ?? false,
-            checklistWaterPanel: damages.checklistWaterPanel ?? false,
-            checklistRoof: damages.checklistRoof ?? false,
-            checklistWall: damages.checklistWall ?? false,
-            checklistElectricity: damages.checklistElectricity ?? false,
+            checklistWindow: damages.state.window ?? false,
+            checklistDoor: damages.state.door ?? false,
+            checklistWaterPanel: damages.state.waterPanel ?? false,
+            checklistRoof: damages.state.roof ?? false,
+            checklistWall: damages.state.wall ?? false,
+            checklistElectricity: damages.state.electricity ?? false,
+            // Sent even for OK parts: the server decides, and sending the raw
+            // values keeps the request an honest record of what the form held.
+            costWindow: damages.costs.window,
+            costDoor: damages.costs.door,
+            costWaterPanel: damages.costs.waterPanel,
+            costRoof: damages.costs.roof,
+            costWall: damages.costs.wall,
+            costElectricity: damages.costs.electricity,
             conditionNote: conditionNote.trim() || undefined,
           }),
         },
@@ -142,9 +171,11 @@ function CompleteInspectionDialog({
         setError(body.error ?? "Failed to complete the inspection");
         return;
       }
-      toast.success("Inspection completed and house resolved.");
+      // The dialog stays open on success so the inspector sees the confirmation
+      // that the release was finalised, rather than the form simply vanishing.
+      setIssued({ resolvedTo: body.result.resolvedTo });
+      notify.success("Inspection completed. Release finalised.");
       onCompleted();
-      onOpenChange(false);
     } catch {
       setError("Network error");
     } finally {
@@ -152,63 +183,31 @@ function CompleteInspectionDialog({
     }
   };
 
-  const damageCount = Object.values(damages).filter(Boolean).length;
-
   return (
     <Dialog open onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Review &amp; complete — {inspection.houseNumber}</DialogTitle>
+          <DialogTitle>
+            Review &amp; complete — {inspection.houseNumber}
+          </DialogTitle>
           <DialogDescription>
             {inspection.hid} · {inspection.locationName ?? "Location not set"} —
             record damages and resolve the house.
           </DialogDescription>
         </DialogHeader>
 
-        <div className="max-h-[min(60vh,560px)] overflow-y-auto pr-1 -mr-1 space-y-4">
+        <div className="-mr-1 max-h-[min(60vh,560px)] space-y-4 overflow-y-auto pr-1">
           {/* Check-list */}
-          <div>
-            <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-              Damage checklist — tick any item that is damaged
-            </p>
-            <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
-              {CHECKLIST_AREAS.map((area) => {
-                const on = damages[area.key] ?? false;
-                return (
-                  <button
-                    key={area.key}
-                    type="button"
-                    onClick={() => toggle(area.key)}
-                    className={`flex items-center justify-between gap-2 rounded-lg border px-3 py-2 text-left text-sm transition-colors ${
-                      on
-                        ? "border-rose-300 bg-rose-50 dark:border-rose-800 dark:bg-rose-950/40"
-                        : "border-border bg-card hover:border-primary/50"
-                    }`}
-                  >
-                    <span className="font-medium">{area.label}</span>
-                    <Badge
-                      variant={on ? "destructive" : "outline"}
-                      className="gap-1 px-2 py-0.5"
-                    >
-                      {on && <X className="h-3 w-3" />}
-                      {on ? "Damage" : "OK"}
-                    </Badge>
-                  </button>
-                );
-              })}
-            </div>
-            <p className="mt-1.5 text-xs text-muted-foreground">
-              {damageCount > 0
-                ? `${damageCount} damaged area${damageCount === 1 ? "" : "s"} →
-                the house will be resolved Under Maintenance.`
-                : "No damages marked — the house will resolve back to Active."}
-            </p>
-          </div>
+          <DamageChecklistEditor
+            values={damages}
+            onChange={setDamages}
+            disabled={completing}
+          />
 
           <div className="space-y-1.5">
             <Label
               htmlFor="insp-condition"
-              className="text-xs font-medium text-muted-foreground"
+              className="text-muted-foreground text-xs font-medium"
             >
               Condition note <span className="font-normal">(optional)</span>
             </Label>
@@ -219,7 +218,7 @@ function CompleteInspectionDialog({
               placeholder="Describe any issues found during the handback inspection"
               className="min-h-16 text-sm"
             />
-            <p className="text-[11px] text-muted-foreground">
+            <p className="text-muted-foreground text-[11px]">
               Copied onto the household as damage notes when resolving Under
               Maintenance.
             </p>
@@ -227,7 +226,7 @@ function CompleteInspectionDialog({
 
           {/* Photos */}
           <div className="space-y-1.5">
-            <Label className="text-xs font-medium text-muted-foreground">
+            <Label className="text-muted-foreground text-xs font-medium">
               Photos
             </Label>
             <input
@@ -260,7 +259,7 @@ function CompleteInspectionDialog({
                   href={url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-lg border bg-muted/40"
+                  className="bg-muted/40 flex h-14 w-14 items-center justify-center overflow-hidden rounded-lg border"
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element -- authed proxied photo; next/image loader cannot */}
                   <img
@@ -271,13 +270,30 @@ function CompleteInspectionDialog({
                 </a>
               ))}
               {photos.length === 0 && previewUrls.length === 0 && (
-                <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                <div className="text-muted-foreground flex items-center gap-1 text-xs">
                   <ImageIcon className="h-3.5 w-3.5" />
                   No photos yet
                 </div>
               )}
             </div>
           </div>
+
+          {issued && (
+            <div className="rounded-lg border border-emerald-300 bg-emerald-50 p-4 dark:border-emerald-800 dark:bg-emerald-950/40">
+              <div className="flex items-center gap-2 text-sm font-semibold text-emerald-900 dark:text-emerald-200">
+                <CheckCircle2 className="h-4 w-4" />
+                Release finalised
+              </div>
+              <p className="mt-2 text-xs text-emerald-800 dark:text-emerald-300">
+                House {inspection.houseNumber} has returned to{" "}
+                {issued.resolvedTo === "UnderMaintenance"
+                  ? "maintenance (damage recorded)"
+                  : "the available pool"}
+                , and this allocation is now filed on the Terminated Houses
+                page.
+              </p>
+            </div>
+          )}
 
           {error && (
             <p className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700 dark:border-rose-900 dark:bg-rose-950/40 dark:text-rose-300">
@@ -287,22 +303,28 @@ function CompleteInspectionDialog({
         </div>
 
         <DialogFooter className="flex-wrap gap-2">
-          <Button
-            variant="outline"
-            onClick={() => onOpenChange(false)}
-            disabled={uploading || completing}
-          >
-            Cancel
-          </Button>
-          <Button
-            onClick={submit}
-            disabled={uploading || completing}
-            className="gap-1.5"
-          >
-            {completing && <Loader2 className="h-4 w-4 animate-spin" />}
-            <ClipboardCheck className="h-4 w-4" />
-            Complete inspection
-          </Button>
+          {issued ? (
+            <Button onClick={() => onOpenChange(false)}>Done</Button>
+          ) : (
+            <>
+              <Button
+                variant="outline"
+                onClick={() => onOpenChange(false)}
+                disabled={uploading || completing}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={submit}
+                disabled={uploading || completing}
+                className="gap-1.5"
+              >
+                {completing && <Loader2 className="h-4 w-4 animate-spin" />}
+                <ClipboardCheck className="h-4 w-4" />
+                Complete inspection
+              </Button>
+            </>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -327,6 +349,8 @@ const columns: Column[] = [
   { key: "inspector", label: "Inspector", align: "center" },
   { key: "scheduled", label: "Scheduled", align: "center" },
   { key: "houseStatus", label: "House status", align: "center" },
+  { key: "handback", label: "Handback", align: "center" },
+  { key: "damage", label: "Damage assessment", align: "left" },
   { key: "resolution", label: "Resolution", align: "center" },
   { key: "photos", label: "Photos", align: "center" },
   { key: "actions", label: "", hideable: false },
@@ -337,9 +361,12 @@ export default function InspectionsWorklistClient({
   capabilities,
 }: InspectionsWorklistClientProps) {
   const [rows, setRows] = useState<InspectionWorklistView[]>(initialData);
-  const [statusFilter, setStatusFilter] = useState<"all" | "open" | "resolved">(
-    "open",
-  );
+  /**
+   * Which section is showing. There is no "all" view on purpose: a completed
+   * inspection is a permanent record and lives in its own section, so it is
+   * always reachable rather than hidden behind a filter someone can change.
+   */
+  const [statusFilter, setStatusFilter] = useState<"open" | "resolved">("open");
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(false);
   const [activeRow, setActiveRow] = useState<InspectionWorklistView | null>(
@@ -347,28 +374,32 @@ export default function InspectionsWorklistClient({
   );
   const firstRun = useRef(true);
 
+  // Always fetch the full set and split in the client. Filtering server-side
+  // would mean a section's row count depends on which section is showing, and
+  // a completed record would be absent from the payload entirely — which is
+  // exactly the "inspected house disappeared" failure this page must not have.
   const load = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
-    const params = new URLSearchParams();
-    if (statusFilter !== "all") params.set("status", statusFilter);
-    if (search.trim()) params.set("search", search.trim());
     try {
-      const res = await fetch(`/api/house-queue/inspections?${params.toString()}`);
+      const res = await fetch("/api/house-queue/inspections");
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
-        toast.error(body.error ?? "Failed to load inspections");
+        notify.error(body.error ?? "Failed to load inspections");
         return;
       }
-      const data = (await res.json()) as { inspections: InspectionWorklistView[] };
+      const data = (await res.json()) as {
+        inspections: InspectionWorklistView[];
+      };
       setRows(data.inspections);
     } catch {
-      if (!silent) toast.error("Failed to load inspections");
+      if (!silent) notify.error("Failed to load inspections");
     } finally {
       if (!silent) setLoading(false);
     }
-  }, [statusFilter, search]);
+  }, []);
 
-  // Deferred fetch on filter / search changes (skip the initial render).
+  // Deferred refetch on search change (skip the initial render). Section
+  // switching is pure client-side, so it cannot drop a completed record.
   useEffect(() => {
     if (firstRun.current) {
       firstRun.current = false;
@@ -376,19 +407,50 @@ export default function InspectionsWorklistClient({
     }
     const t = setTimeout(() => void load(), 300);
     return () => clearTimeout(t);
-  }, [statusFilter, search, load]);
+  }, [search, load]);
 
-  const counts = useMemo(() => {
-    const open = rows.filter((r) => !r.resolvedTo).length;
+  const matches = useCallback(
+    (r: InspectionWorklistView, needle: string) =>
+      r.houseNumber.toLowerCase().includes(needle) ||
+      r.hid.toLowerCase().includes(needle) ||
+      r.houseType.toLowerCase().includes(needle) ||
+      (!!r.employee &&
+        `${r.employee.firstname} ${r.employee.lastname}`
+          .toLowerCase()
+          .includes(needle)),
+    [],
+  );
+
+  const searched = useMemo(() => {
+    const needle = search.trim().toLowerCase();
+    return needle ? rows.filter((r) => matches(r, needle)) : rows;
+  }, [rows, search, matches]);
+
+  /**
+   * The two sections. A row belongs to exactly one, and both are derived from
+   * the same in-memory set — so an inspected house cannot be excluded from the
+   * page by any filter combination.
+   */
+  const sections = useMemo(() => {
+    const pending = searched.filter((r) => !r.resolvedTo);
+    const inspected = searched.filter((r) => !!r.resolvedTo);
     return {
-      open,
-      unscheduled: rows.filter((r) => !r.resolvedTo && !r.scheduledDate).length,
-      scheduled: rows.filter((r) => !r.resolvedTo && !!r.scheduledDate).length,
-      resolved: rows.length - open,
-      total: rows.length,
-      damaged: rows.filter((r) => r.houseStatus === "UnderMaintenance").length,
+      pending,
+      inspected,
+      // Newest first within the permanent section: the most recent handback is
+      // the one being asked about.
+      inspectedSorted: [...inspected].sort(
+        (a, b) =>
+          new Date(b.completedAt ?? 0).getTime() -
+          new Date(a.completedAt ?? 0).getTime(),
+      ),
+      unscheduled: pending.filter((r) => !r.scheduledDate).length,
+      scheduled: pending.filter((r) => !!r.scheduledDate).length,
+      damaged: inspected.filter((r) => r.resolvedTo === "UnderMaintenance")
+        .length,
+      photos: rows.reduce((acc, r) => acc + r.photoCount, 0),
     };
-  }, [rows]);
+  }, [searched, rows]);
 
   /** Whole-day offset from today to a YYYY-MM-DD date (negative = overdue). */
   const daysFromToday = (dateStr: string) => {
@@ -403,7 +465,7 @@ export default function InspectionsWorklistClient({
         return (
           <div>
             <div className="font-semibold">{item.houseNumber}</div>
-            <div className="text-xs text-muted-foreground">{item.hid}</div>
+            <div className="text-muted-foreground text-xs">{item.hid}</div>
           </div>
         );
       case "category":
@@ -411,7 +473,7 @@ export default function InspectionsWorklistClient({
       case "location":
         return (
           <div className="flex items-center gap-1 text-sm">
-            <MapPin className="h-3.5 w-3.5 text-muted-foreground" />
+            <MapPin className="text-muted-foreground h-3.5 w-3.5" />
             <span>{item.locationName ?? "—"}</span>
           </div>
         );
@@ -419,9 +481,11 @@ export default function InspectionsWorklistClient({
         return (
           <div className="text-sm">
             <Badge variant="outline" className="font-semibold">
-              {TERMINATION_LABELS[item.terminationReason ?? ""] ?? item.terminationReason ?? "—"}
+              {TERMINATION_LABELS[item.terminationReason ?? ""] ??
+                item.terminationReason ??
+                "—"}
             </Badge>
-            <div className="mt-0.5 whitespace-nowrap text-xs text-muted-foreground">
+            <div className="text-muted-foreground mt-0.5 text-xs whitespace-nowrap">
               {item.vacatedAt ? formatDate(item.vacatedAt) : "—"}
             </div>
           </div>
@@ -430,43 +494,57 @@ export default function InspectionsWorklistClient({
         return item.employee ? (
           <div>
             <div className="font-medium">{fullName(item.employee)}</div>
-            <div className="text-xs text-muted-foreground">
+            <div className="text-muted-foreground text-xs">
               {item.employee.employeeNumber}
             </div>
           </div>
         ) : (
-          <span className="text-sm text-muted-foreground">—</span>
+          <span className="text-muted-foreground text-sm">—</span>
         );
       case "inspector":
-        return (
-          <span className="text-sm">{item.inspectorName ?? "—"}</span>
-        );
+        return <span className="text-sm">{item.inspectorName ?? "—"}</span>;
       case "scheduled": {
         if (item.scheduledDate) {
           const diff = daysFromToday(item.scheduledDate);
           return (
             <div>
               <div className="flex items-center gap-1.5">
-                <span className="whitespace-nowrap text-sm font-medium">
+                <span className="text-sm font-medium whitespace-nowrap">
                   {formatDate(item.scheduledDate)}
                 </span>
                 <Badge
-                  variant={diff < 0 ? "destructive" : diff === 0 ? "warning" : "default"}
-                  className="whitespace-nowrap px-1.5 py-0 text-[10px] font-semibold"
+                  variant={
+                    diff < 0
+                      ? "destructive"
+                      : diff === 0
+                        ? "warning"
+                        : "default"
+                  }
+                  className="px-1.5 py-0 text-[10px] font-semibold whitespace-nowrap"
                 >
-                  {diff < 0 ? `${-diff}d overdue` : diff === 0 ? "today" : `in ${diff}d`}
+                  {diff < 0
+                    ? `${-diff}d overdue`
+                    : diff === 0
+                      ? "today"
+                      : `in ${diff}d`}
                 </Badge>
               </div>
-              <div className="mt-0.5 text-[10px] text-muted-foreground">
-                {item.inspectorName ? `Inspector: ${item.inspectorName}` : "No inspector assigned"}
+              <div className="text-muted-foreground mt-0.5 text-[10px]">
+                {item.inspectorName
+                  ? `Inspector: ${item.inspectorName}`
+                  : "No inspector assigned"}
               </div>
             </div>
           );
         }
         const pendingDays = item.vacatedAt
-          ? Math.max(1, Math.round(
-              (new Date().getTime() - new Date(item.vacatedAt).getTime()) / 86_400_000,
-            ) + 1)
+          ? Math.max(
+              1,
+              Math.round(
+                (new Date().getTime() - new Date(item.vacatedAt).getTime()) /
+                  86_400_000,
+              ) + 1,
+            )
           : 0;
         return (
           <div>
@@ -475,7 +553,7 @@ export default function InspectionsWorklistClient({
                 Unscheduled
               </Badge>
             </div>
-            <div className="mt-0.5 text-center text-[10px] text-muted-foreground">
+            <div className="text-muted-foreground mt-0.5 text-center text-[10px]">
               {pendingDays > 0 ? `${pendingDays}d pending` : "pending"}
             </div>
           </div>
@@ -483,6 +561,29 @@ export default function InspectionsWorklistClient({
       }
       case "houseStatus":
         return <HouseholdStatusBadge status={item.houseStatus} />;
+      case "handback": {
+        const hb = item.handback;
+        if (hb.status === "awaiting_inspection") {
+          return (
+            <span className="text-muted-foreground text-xs">Not inspected</span>
+          );
+        }
+        return (
+          <div className="space-y-0.5">
+            <Badge
+              variant={hb.status === "released" ? "success" : "outline"}
+              className="text-[10px]"
+            >
+              {hb.status === "released" ? "Released" : "Finalising"}
+            </Badge>
+            {hb.terminatedAt && (
+              <div className="text-muted-foreground text-[10px] whitespace-nowrap">
+                {formatDate(hb.terminatedAt)}
+              </div>
+            )}
+          </div>
+        );
+      }
       case "resolution":
         return item.completedAt ? (
           <div>
@@ -490,25 +591,47 @@ export default function InspectionsWorklistClient({
               <Star className="h-3 w-3" />
               {item.resolvedTo ?? "Resolved"}
             </Badge>
-            <div className="mt-0.5 whitespace-nowrap text-[10px] text-muted-foreground">
+            <div className="text-muted-foreground mt-0.5 text-[10px] whitespace-nowrap">
               {formatDateTime(item.completedAt)}
             </div>
           </div>
         ) : (
           <Badge variant="warning">Pending</Badge>
         );
+      case "damage":
+        // Read-only, always: a completed inspection is permanent evidence. The
+        // same component renders the editable form, so the parts shown here are
+        // exactly the parts that could have been set.
+        return item.completedAt ? (
+          <DamageChecklistReadonly
+            state={item.damage.state}
+            costs={item.damage.costs}
+            conditionNote={item.damage.conditionNote}
+            className="text-left"
+          />
+        ) : (
+          <span className="text-muted-foreground text-xs">
+            Recorded on completion
+          </span>
+        );
       case "photos":
         return (
-          <span className="inline-flex items-center gap-1 text-sm text-muted-foreground">
+          <span className="text-muted-foreground inline-flex items-center gap-1 text-sm">
             <ImageIcon className="h-3.5 w-3.5" />
             {item.photoCount}
           </span>
         );
       case "actions":
+        // A completed inspection has nothing left to fill in here. What it does
+        // still owe is the paperwork: the termination receipt, which is printed
+        // from the inspection's own frozen snapshot. Completing the inspection
+        // is also what finalises the release, so there is no second step to
+        // chase and no second place to look when the two disagree.
         return item.resolvedTo ? (
-          <Button variant="ghost" size="sm" className="h-8" disabled>
-            Completed
-          </Button>
+          <TerminationReceiptButton
+            inspection={item}
+            disabled={!capabilities.manage}
+          />
         ) : (
           <Button
             variant="outline"
@@ -531,11 +654,17 @@ export default function InspectionsWorklistClient({
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Inspections</h1>
-          <div className="mt-1 h-0.5 w-16 rounded bg-gradient-to-r from-brass-400 to-transparent" />
-          <p className="mt-2 text-sm text-muted-foreground">
+          <div className="from-brass-400 mt-1 h-0.5 w-16 rounded bg-gradient-to-r to-transparent" />
+          <p className="text-muted-foreground mt-2 text-sm">
             Handback inspections raised by the Release Workflow. Completing an
             inspection resolves the house back to the Active pool or into
             maintenance.
+          </p>
+          <p className="text-muted-foreground mt-1 text-xs">
+            Every completed inspection is kept permanently and listed under
+            <span className="font-medium"> Inspected Houses</span>. Records are
+            never deleted — deleting the house they describe is refused while an
+            inspection exists.
           </p>
         </div>
         <Button variant="outline" size="sm" onClick={() => void load()}>
@@ -545,69 +674,80 @@ export default function InspectionsWorklistClient({
       </div>
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
-        <div className="rounded-xl border bg-card p-4 shadow-sm">
+        <div className="bg-card rounded-xl border p-4 shadow-sm">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-muted-foreground">Pending</span>
+            <span className="text-muted-foreground text-xs font-medium">
+              Pending
+            </span>
             <ClipboardCheck className="h-4 w-4 text-amber-600" />
           </div>
-          <div className="mt-2 text-2xl font-bold">{counts.open}</div>
+          <div className="mt-2 text-2xl font-bold">
+            {sections.pending.length}
+          </div>
         </div>
-        <div className="rounded-xl border bg-card p-4 shadow-sm">
+        <div className="bg-card rounded-xl border p-4 shadow-sm">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-muted-foreground">
+            <span className="text-muted-foreground text-xs font-medium">
               Unscheduled
             </span>
             <Clock className="h-4 w-4 text-orange-500" />
           </div>
-          <div className="mt-2 text-2xl font-bold">{counts.unscheduled}</div>
-          <p className="mt-0.5 text-[10px] text-muted-foreground">
-            {counts.unscheduled === 0
+          <div className="mt-2 text-2xl font-bold">{sections.unscheduled}</div>
+          <p className="text-muted-foreground mt-0.5 text-[10px]">
+            {sections.unscheduled === 0
               ? "All assigned"
               : "Need an inspector + date"}
           </p>
         </div>
-        <div className="rounded-xl border bg-card p-4 shadow-sm">
+        <div className="bg-card rounded-xl border p-4 shadow-sm">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-muted-foreground">
+            <span className="text-muted-foreground text-xs font-medium">
               Scheduled
             </span>
             <CalendarDays className="h-4 w-4 text-sky-600" />
           </div>
-          <div className="mt-2 text-2xl font-bold">{counts.scheduled}</div>
-          <p className="mt-0.5 text-[10px] text-muted-foreground">
-            {counts.scheduled === 0 ? "None booked" : "Awaiting inspection"}
+          <div className="mt-2 text-2xl font-bold">{sections.scheduled}</div>
+          <p className="text-muted-foreground mt-0.5 text-[10px]">
+            {sections.scheduled === 0 ? "None booked" : "Awaiting inspection"}
           </p>
         </div>
-        <div className="rounded-xl border bg-card p-4 shadow-sm">
+        <div className="bg-card rounded-xl border p-4 shadow-sm">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-muted-foreground">Resolved</span>
+            <span className="text-muted-foreground text-xs font-medium">
+              Inspected houses
+            </span>
             <Star className="h-4 w-4 text-emerald-600" />
           </div>
-          <div className="mt-2 text-2xl font-bold">{counts.resolved}</div>
+          <div className="mt-2 text-2xl font-bold">
+            {sections.inspected.length}
+          </div>
+          <p className="text-muted-foreground mt-0.5 text-[10px]">
+            Kept permanently
+          </p>
         </div>
-        <div className="rounded-xl border bg-card p-4 shadow-sm">
+        <div className="bg-card rounded-xl border p-4 shadow-sm">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-muted-foreground">
+            <span className="text-muted-foreground text-xs font-medium">
               Under maintenance
             </span>
             <X className="h-4 w-4 text-violet-500" />
           </div>
-          <div className="mt-2 text-2xl font-bold">{counts.damaged}</div>
+          <div className="mt-2 text-2xl font-bold">{sections.damaged}</div>
         </div>
-        <div className="rounded-xl border bg-card p-4 shadow-sm">
+        <div className="bg-card rounded-xl border p-4 shadow-sm">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-muted-foreground">Photos</span>
-            <ImageIcon className="h-4 w-4 text-muted-foreground" />
+            <span className="text-muted-foreground text-xs font-medium">
+              Photos
+            </span>
+            <ImageIcon className="text-muted-foreground h-4 w-4" />
           </div>
-          <div className="mt-2 text-2xl font-bold">
-            {rows.reduce((acc, r) => acc + r.photoCount, 0)}
-          </div>
+          <div className="mt-2 text-2xl font-bold">{sections.photos}</div>
         </div>
       </div>
 
-      <div className="flex flex-col gap-3 rounded-xl border bg-card p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
-        <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+      <div className="bg-card flex flex-col gap-3 rounded-xl border p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+        <div className="relative max-w-sm flex-1">
+          <Search className="text-muted-foreground absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />
           <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -615,28 +755,73 @@ export default function InspectionsWorklistClient({
             className="pl-9 text-xs"
           />
         </div>
-        <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as "all" | "open" | "resolved")}>
-          <SelectTrigger className="h-8 w-[150px] text-xs">
-            <SelectValue placeholder="Status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="open">Pending only</SelectItem>
-            <SelectItem value="resolved">Resolved only</SelectItem>
-            <SelectItem value="all">All</SelectItem>
-          </SelectContent>
-        </Select>
+        {/* A section switch, not a filter. There is deliberately no "All": an
+            inspected house must always be findable in one of the two. */}
+        <div
+          role="tablist"
+          aria-label="Inspection section"
+          className="bg-muted/40 flex rounded-lg border p-0.5"
+        >
+          <button
+            type="button"
+            role="tab"
+            aria-selected={statusFilter === "open"}
+            onClick={() => setStatusFilter("open")}
+            className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+              statusFilter === "open"
+                ? "bg-background shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <ClipboardCheck className="h-3.5 w-3.5" />
+            Pending inspection
+            <span className="tabular-nums opacity-70">
+              {sections.pending.length}
+            </span>
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={statusFilter === "resolved"}
+            onClick={() => setStatusFilter("resolved")}
+            className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+              statusFilter === "resolved"
+                ? "bg-background shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <Star className="h-3.5 w-3.5" />
+            Inspected houses
+            <span className="tabular-nums opacity-70">
+              {sections.inspected.length}
+            </span>
+          </button>
+        </div>
       </div>
 
-      <ResponsiveTable
-        columns={columns}
-        data={rows}
-        renderCell={renderCell}
-        keyExtractor={(row) => row.inspectionId}
-        mobileCardView
-        minWidth="1150px"
-        emptyMessage="No inspections matching this filter"
-        emptyDescription="Vacate a house through the House Queue release workflow to raise an inspection."
-      />
+      {statusFilter === "open" ? (
+        <ResponsiveTable
+          columns={columns}
+          data={sections.pending}
+          renderCell={renderCell}
+          keyExtractor={(row) => row.inspectionId}
+          mobileCardView
+          minWidth="1150px"
+          emptyMessage="No houses awaiting inspection"
+          emptyDescription="Vacate a house through the House Queue release workflow to raise an inspection."
+        />
+      ) : (
+        <ResponsiveTable
+          columns={columns}
+          data={sections.inspectedSorted}
+          renderCell={renderCell}
+          keyExtractor={(row) => row.inspectionId}
+          mobileCardView
+          minWidth="1150px"
+          emptyMessage="No inspected houses yet"
+          emptyDescription="Every house you complete a handback inspection on is listed here permanently."
+        />
+      )}
 
       {activeRow && (
         <CompleteInspectionDialog

@@ -40,7 +40,6 @@ export const WEBHOOK_EVENTS = {
   "audit.campaign_completed": "Audit campaign completed",
   "audit.asset_scanned": "Asset scanned in audit",
   "asset.bulk_checked_out": "Assets bulk checked out",
-  "eula.accepted": "EULA accepted during checkout",
   "ldap.sync_completed": "LDAP user sync completed",
   "intune.sync_completed": "Intune device sync completed",
   "user.sso_login": "User logged in via SSO",

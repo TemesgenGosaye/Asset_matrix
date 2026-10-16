@@ -26,7 +26,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Check, ChevronsUpDown, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { toast } from "sonner";
+import { notify } from "@/lib/feedback/notify";
 
 export interface QuickCreateOption {
   id: string;
@@ -101,11 +101,15 @@ export default function SelectWithQuickCreate({
       };
       onItemCreated(newItem);
       onValueChange(newItem.id);
-      toast.success(`${entityLabel} created`, { description: newItem.label });
+      notify.success({
+        title: `${entityLabel} created`,
+        description: newItem.label,
+      });
       setDialogOpen(false);
       setNewName("");
     } catch (err) {
-      toast.error(`Failed to create ${entityLabel}`, {
+      notify.error({
+        title: `Failed to create ${entityLabel}`,
         description: (err as Error).message,
       });
     } finally {

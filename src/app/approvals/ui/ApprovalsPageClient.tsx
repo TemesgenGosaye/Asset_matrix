@@ -24,7 +24,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { toast } from "sonner";
+import { notify } from "@/lib/feedback/notify";
 import {
   Loader2,
   CheckCircle,
@@ -210,14 +210,14 @@ export default function ApprovalsPageClient({
       const response = await fetch(`/api/approvals?${params.toString()}`);
       if (!response.ok) {
         const data = await response.json();
-        toast.error(data.error || "Failed to fetch approvals");
+        notify.error(data.error || "Failed to fetch approvals");
         setApprovals([]);
         return;
       }
       const data = await response.json();
       setApprovals(data);
     } catch {
-      toast.error("Failed to connect to the server");
+      notify.error("Failed to connect to the server");
       setApprovals([]);
     } finally {
       setIsLoading(false);
@@ -236,14 +236,14 @@ export default function ApprovalsPageClient({
       );
       if (!response.ok) {
         const data = await response.json();
-        toast.error(data.error || "Failed to fetch reservations");
+        notify.error(data.error || "Failed to fetch reservations");
         setReservations([]);
         return;
       }
       const data = await response.json();
       setReservations(data);
     } catch {
-      toast.error("Failed to connect to the server");
+      notify.error("Failed to connect to the server");
       setReservations([]);
     } finally {
       setIsLoadingReservations(false);
@@ -260,14 +260,14 @@ export default function ApprovalsPageClient({
       const response = await fetch(`/api/requests?${params.toString()}`);
       if (!response.ok) {
         const data = await response.json();
-        toast.error(data.error || "Failed to fetch item requests");
+        notify.error(data.error || "Failed to fetch item requests");
         setItemRequests([]);
         return;
       }
       const data = await response.json();
       setItemRequests(data);
     } catch {
-      toast.error("Failed to connect to the server");
+      notify.error("Failed to connect to the server");
       setItemRequests([]);
     } finally {
       setIsLoadingItemRequests(false);
@@ -313,20 +313,20 @@ export default function ApprovalsPageClient({
 
       if (!response.ok) {
         const data = await response.json();
-        toast.error(data.error || `Failed to ${dialogAction} request`);
+        notify.error(data.error || `Failed to ${dialogAction} request`);
         return;
       }
 
-      toast.success(
+      notify.success(
         dialogAction === "approve"
-          ? "Approval request approved successfully"
-          : "Approval request rejected successfully",
+          ? "Approval request approved"
+          : "Approval request rejected",
       );
 
       setDialogOpen(false);
       fetchApprovals(activeTab);
     } catch {
-      toast.error(`Failed to ${dialogAction} request`);
+      notify.error(`Failed to ${dialogAction} request`);
     } finally {
       setIsSubmitting(false);
     }
@@ -361,13 +361,13 @@ export default function ApprovalsPageClient({
 
       if (!response.ok) {
         const data = await response.json();
-        toast.error(
+        notify.error(
           data.error || `Failed to ${reservationDialogAction} reservation`,
         );
         return;
       }
 
-      toast.success(
+      notify.success(
         reservationDialogAction === "approve"
           ? "Reservation approved and asset assigned"
           : "Reservation rejected",
@@ -376,7 +376,7 @@ export default function ApprovalsPageClient({
       setReservationDialogOpen(false);
       fetchReservations(activeTab);
     } catch {
-      toast.error(`Failed to ${reservationDialogAction} reservation`);
+      notify.error(`Failed to ${reservationDialogAction} reservation`);
     } finally {
       setIsSubmittingReservation(false);
     }
@@ -415,7 +415,7 @@ export default function ApprovalsPageClient({
 
       if (!response.ok) {
         const data = await response.json();
-        toast.error(
+        notify.error(
           data.error || `Failed to ${itemRequestDialogAction} item request`,
         );
         return;
@@ -426,12 +426,12 @@ export default function ApprovalsPageClient({
         reject: "Item request rejected",
         returned: "Return confirmed — item unassigned",
       };
-      toast.success(successMessages[itemRequestDialogAction] || "Done");
+      notify.success(successMessages[itemRequestDialogAction] || "Done");
 
       setItemRequestDialogOpen(false);
       fetchItemRequests(activeTab);
     } catch {
-      toast.error(`Failed to ${itemRequestDialogAction} item request`);
+      notify.error(`Failed to ${itemRequestDialogAction} item request`);
     } finally {
       setIsSubmittingItemRequest(false);
     }

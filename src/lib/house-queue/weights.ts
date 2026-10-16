@@ -50,6 +50,57 @@ export const MCDA_SCORE_EPSILON = 1e-9;
 export const MCDA_SCORE_GRANULARITY = 1e-9;
 
 // ---------------------------------------------------------------------------
+// Criterion metadata (labels for the UI breakdown)
+// ---------------------------------------------------------------------------
+
+/** One criterion's identity, for rendering the score breakdown. */
+export interface McdaCriterionMeta {
+  key: "serviceYears" | "maritalStatus" | "disability" | "gender";
+  /** Full name, used in the detail breakdown. */
+  label: string;
+  /** 1–2 character tag used in the compact table cell. */
+  short: string;
+  /** What the criterion measures, shown as help text. */
+  description: string;
+}
+
+/**
+ * Display metadata for the four criteria, in the same order as `MCDA_WEIGHTS`.
+ *
+ * Lives beside the weights on purpose: a new criterion must be added to the
+ * weight table, the level table and this list together, so the UI can never
+ * show a criterion the engine does not score (or omit one it does).
+ */
+export const MCDA_CRITERIA: readonly McdaCriterionMeta[] = [
+  {
+    key: "serviceYears",
+    label: "Service years",
+    short: "Sv",
+    description: "Length of service in whole years — seniority.",
+  },
+  {
+    key: "maritalStatus",
+    label: "Marital status",
+    short: "Ms",
+    description:
+      "Household need: married 3 · widowed 2 · divorced 1 · single 0.",
+  },
+  {
+    key: "disability",
+    label: "Disability",
+    short: "Ds",
+    description: "Recorded disability on the employee record (1 = yes).",
+  },
+  {
+    key: "gender",
+    label: "Gender",
+    short: "Gn",
+    description:
+      "Equal by default — both levels score 1 unless policy sets otherwise.",
+  },
+] as const;
+
+// ---------------------------------------------------------------------------
 // Attribute level tables (raw value → 0..∞ level used for normalization)
 // ---------------------------------------------------------------------------
 
@@ -61,9 +112,7 @@ export const MARITAL_STATUS_LEVELS: Readonly<Record<string, number>> = {
   single: 0,
 };
 
-export function maritalStatusLevel(
-  value: string | null | undefined,
-): number {
+export function maritalStatusLevel(value: string | null | undefined): number {
   if (!value) return 0;
   return MARITAL_STATUS_LEVELS[value.trim().toLowerCase()] ?? 0;
 }
@@ -83,6 +132,8 @@ export function genderLevel(value: string | null | undefined): number {
 }
 
 /** Level used for the disability criterion (1 = some, 0 = none). */
-export function disabilityLevel(disabilityStatus: boolean | null | undefined): number {
+export function disabilityLevel(
+  disabilityStatus: boolean | null | undefined,
+): number {
   return disabilityStatus ? 1 : 0;
 }

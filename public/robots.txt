@@ -17,7 +17,8 @@ Disallow: /scanner/
 Disallow: /search/
 Disallow: /reservations/
 Disallow: /approvals/
-Disallow: /tickets/
+Disallow: /user/tickets/
+Disallow: /admin/tickets/
 Disallow: /locations/
 Disallow: /manufacturers/
 Disallow: /models/
@@ -35,5 +36,3 @@ Disallow: /monitoring
 
 Allow: /login
 Allow: /register
-Allow: /terms
-Allow: /privacy

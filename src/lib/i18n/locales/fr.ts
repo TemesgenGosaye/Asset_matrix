@@ -23,7 +23,6 @@ const fr: Record<string, string> = {
   "nav.qrScanner": "Scanner QR",
   "nav.reports": "Rapports",
   "nav.workflows": "Workflows",
-  "nav.apiDocs": "Documentation API",
   "nav.auditLogs": "Journaux d\u2019audit",
   "nav.gdpr": "RGPD",
   "nav.compliance": "Conformit\u00e9",
@@ -188,23 +187,12 @@ const fr: Record<string, string> = {
   "checkout.type": "Type d\u2019attribution",
   "checkout.bulk": "Attribution en masse",
 
-  // EULA
-  "eula.title": "Mod\u00e8les de CLUF",
-  "eula.create": "Cr\u00e9er un mod\u00e8le de CLUF",
-  "eula.edit": "Modifier le mod\u00e8le de CLUF",
-  "eula.accept": "Accepter le CLUF",
-  "eula.signature": "Signature num\u00e9rique",
-  "eula.signBelow": "Signez ci-dessous pour accepter",
-  "eula.required": "Acceptation du CLUF requise",
-  "eula.version": "Version",
-  "eula.active": "Actif",
-  "eula.inactive": "Inactif",
-
   // Bulk Checkout
   "checkout.bulkTitle": "Attribution en masse des actifs",
   "checkout.selectedAssets": "{{count}} actifs s\u00e9lectionn\u00e9s",
   "checkout.bulkSuccess": "{{count}} actifs attribu\u00e9s avec succ\u00e8s",
-  "checkout.bulkPartial": "{{success}} r\u00e9ussi(s), {{failed}} \u00e9chou\u00e9(s)",
+  "checkout.bulkPartial":
+    "{{success}} r\u00e9ussi(s), {{failed}} \u00e9chou\u00e9(s)",
 
   // Audit Campaigns (extended)
   "audit.edit": "Modifier la campagne",
@@ -224,8 +212,10 @@ const fr: Record<string, string> = {
   "ldap.title": "LDAP / Active Directory",
   "ldap.testConnection": "Tester la connexion",
   "ldap.syncNow": "Synchroniser maintenant",
-  "ldap.syncComplete": "Synchronisation termin\u00e9e\u00a0: {{created}} cr\u00e9\u00e9(s), {{updated}} mis \u00e0 jour, {{deactivated}} d\u00e9sactiv\u00e9(s)",
-  "ldap.connectionSuccess": "Connexion r\u00e9ussie. {{count}} utilisateurs trouv\u00e9s.",
+  "ldap.syncComplete":
+    "Synchronisation termin\u00e9e\u00a0: {{created}} cr\u00e9\u00e9(s), {{updated}} mis \u00e0 jour, {{deactivated}} d\u00e9sactiv\u00e9(s)",
+  "ldap.connectionSuccess":
+    "Connexion r\u00e9ussie. {{count}} utilisateurs trouv\u00e9s.",
   "ldap.connectionFailed": "\u00c9chec de la connexion\u00a0: {{message}}",
   "sso.title": "Authentification unique (SSO)",
   "sso.signInWith": "Se connecter avec {{provider}}",
@@ -235,10 +225,10 @@ const fr: Record<string, string> = {
   "sso.disabled": "SSO d\u00e9sactiv\u00e9",
 
   // Greeting / interpolation example
-  "greeting": "Bonjour, {{name}}",
-  "welcome": "Bon retour, {{name}}",
-  "itemCount": "{{count}} \u00e9l\u00e9ments trouv\u00e9s",
-  "pageOf": "Page {{current}} sur {{total}}",
+  greeting: "Bonjour, {{name}}",
+  welcome: "Bon retour, {{name}}",
+  itemCount: "{{count}} \u00e9l\u00e9ments trouv\u00e9s",
+  pageOf: "Page {{current}} sur {{total}}",
 };
 
 export default fr;

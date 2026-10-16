@@ -46,7 +46,10 @@ export default async function TerminatedHousesPage() {
           { label: "Terminated Houses", href: "/houses/terminated" },
         ]}
       />
-      <TerminatedHousesClient initialData={initialData} />
+      <TerminatedHousesClient
+        initialData={initialData}
+        canPrint={capabilities.manage}
+      />
     </div>
   );
 }

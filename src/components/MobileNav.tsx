@@ -2,6 +2,7 @@
 
 import React, { useMemo, useState } from "react";
 import Link from "next/link";
+import { BrandLockup } from "@/components/BrandLockup";
 import { usePathname } from "next/navigation";
 import { Menu, Settings, UserPen, LogOut, ScanLine } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
@@ -22,16 +23,29 @@ import {
   filterSectionsForUser,
 } from "@/lib/nav-config";
 
-export default React.memo(function MobileNav() {
+interface MobileNavProps {
+  /** Server-resolved permission strings; see AppShell. */
+  permissions?: string[];
+}
+
+export default React.memo(function MobileNav({ permissions }: MobileNavProps) {
   const pathname = usePathname();
   const [sheetOpen, setSheetOpen] = useState(false);
   const { data: session, isPending } = useSession();
   const user = session?.user as SessionUser | undefined;
   const isAdmin = !!user?.isadmin;
 
+  const permissionSet = useMemo(
+    () => (permissions ? new Set(permissions) : null),
+    [permissions],
+  );
+
   const filteredSections = useMemo(
-    () => (isPending ? [] : filterSectionsForUser(navSections, isAdmin)),
-    [isAdmin, isPending],
+    () =>
+      isPending
+        ? []
+        : filterSectionsForUser(navSections, isAdmin, permissionSet),
+    [isAdmin, isPending, permissionSet],
   );
 
   return (
@@ -95,7 +109,9 @@ export default React.memo(function MobileNav() {
             className="w-[280px] overflow-y-auto p-0 pb-16"
           >
             <SheetHeader className="px-4 pt-4 pb-2">
-              <SheetTitle>Asset Tracker</SheetTitle>
+              <SheetTitle>
+                <BrandLockup size="sm" asLink={false} />
+              </SheetTitle>
             </SheetHeader>
             <div className="px-2 py-2">
               {filteredSections.map((section) => (

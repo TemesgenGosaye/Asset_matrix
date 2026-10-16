@@ -15,6 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import {
+  Calculator,
   History,
   Loader2,
   MapPin,
@@ -23,7 +24,7 @@ import {
   CheckCircle2,
   X,
 } from "lucide-react";
-import { toast } from "sonner";
+import { notify } from "@/lib/feedback/notify";
 import {
   formatDate,
   formatDateTime,
@@ -35,6 +36,8 @@ import {
   QueueStatusBadge,
 } from "@/ui/household/house-status";
 import type { HouseQueueRow } from "@/lib/house-queue/types";
+import type { McdaWeights } from "@/lib/house-queue/config/types";
+import { McdaBreakdownTable } from "./McdaBreakdown";
 
 // ---------------------------------------------------------------------------
 // Shared bits
@@ -49,7 +52,7 @@ function Field({
 }) {
   return (
     <div>
-      <dt className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+      <dt className="text-muted-foreground text-[11px] font-semibold tracking-wide uppercase">
         {label}
       </dt>
       <dd className="mt-0.5 text-sm font-medium">{children}</dd>
@@ -65,10 +68,13 @@ export function QueueDetailsDialog({
   row,
   open,
   onOpenChange,
+  weights,
 }: {
   row: HouseQueueRow | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** The MCDA weights the queue was computed with (active engine config). */
+  weights: McdaWeights;
 }) {
   if (!row) return null;
   return (
@@ -90,14 +96,12 @@ export function QueueDetailsDialog({
           </Field>
           <Field label="Priority Score">
             <span className="font-semibold tabular-nums">
-              {fmtScore(row.mcdScore)}
+              {row.mcdComponents ? fmtScore(row.mcdScore) : "—"}
             </span>
           </Field>
-          <Field label="Priority Rank (in grade)">
+          <Field label="Priority Rank (in band)">
             <span className="font-semibold tabular-nums">
-              {row.priorityRank != null
-                ? `#${row.priorityRank}`
-                : "—"}
+              {row.priorityRank != null ? `#${row.priorityRank}` : "—"}
             </span>
           </Field>
           <Field label="Gender">{row.gender ?? "—"}</Field>
@@ -108,9 +112,7 @@ export function QueueDetailsDialog({
           <Field label="Disability">
             {row.disabilityStatus ? "Yes" : "No"}
           </Field>
-          <Field label="Hired">
-            {formatDate(row.hireDate)}
-          </Field>
+          <Field label="Hired">{formatDate(row.hireDate)}</Field>
           <Field label="Allocation Ledger">
             {row.allocationStatus ? (
               <Badge variant="outline">{row.allocationStatus}</Badge>
@@ -120,8 +122,24 @@ export function QueueDetailsDialog({
           </Field>
         </div>
 
-        <div className="rounded-lg border bg-muted/40 p-3 text-sm">
-          <div className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
+        {/* The full arithmetic behind the score, criterion by criterion. */}
+        {row.mcdComponents && (
+          <div className="rounded-lg border p-3">
+            <div className="text-muted-foreground mb-2 flex items-center gap-1.5 text-xs font-semibold">
+              <Calculator className="h-3.5 w-3.5" />
+              MCDA breakdown — how this score was reached
+            </div>
+            <McdaBreakdownTable
+              components={row.mcdComponents}
+              weights={weights}
+              score={row.mcdScore}
+              cohortSize={row.cohortSize}
+            />
+          </div>
+        )}
+
+        <div className="bg-muted/40 rounded-lg border p-3 text-sm">
+          <div className="text-muted-foreground flex items-center gap-1.5 text-xs font-semibold">
             <MapPin className="h-3.5 w-3.5" />
             Recommended house
           </div>
@@ -133,12 +151,12 @@ export function QueueDetailsDialog({
                   ({row.recommendedHid})
                 </span>
               </div>
-              <div className="text-xs text-muted-foreground">
+              <div className="text-muted-foreground text-xs">
                 {row.recommendedLocation ?? "Location not set"}
               </div>
             </div>
           ) : (
-            <p className="mt-1.5 text-xs text-muted-foreground">
+            <p className="text-muted-foreground mt-1.5 text-xs">
               No available house for this category right now.
             </p>
           )}
@@ -173,16 +191,20 @@ export function ApproveDialog({
   row: HouseQueueRow | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSubmit: (payload: { employeeId: string; householdId: string }) => Promise<{
-    ok: boolean;
-    message?: string;
-  }>;
+  onSubmit: (payload: {
+    employeeId: string;
+    householdId: string;
+    employeeName: string;
+    employeeNumber: string;
+    houseNumber: string | null;
+    rank: number | null;
+    score: number | null;
+  }) => Promise<{ ok: boolean; message?: string }>;
 }) {
   const [submitting, setSubmitting] = useState(false);
 
   if (!row) return null;
-  const canApprove =
-    row.recommendedHouseId != null && !row.isAllocated;
+  const canApprove = row.recommendedHouseId != null && !row.isAllocated;
 
   const confirm = async () => {
     if (!row.recommendedHouseId) return;
@@ -190,6 +212,13 @@ export function ApproveDialog({
     const result = await onSubmit({
       employeeId: row.employeeId,
       householdId: row.recommendedHouseId,
+      // Handed to the parent so the confirmation can name the person rather
+      // than saying "allocation approved" to someone who has just approved six.
+      employeeName: fullName(row),
+      employeeNumber: row.employeeNumber,
+      houseNumber: row.recommendedHouseNumber,
+      rank: row.priorityRank,
+      score: row.mcdScore,
     });
     setSubmitting(false);
     if (result.ok) onOpenChange(false);
@@ -207,7 +236,7 @@ export function ApproveDialog({
 
         {canApprove ? (
           <div className="space-y-3 text-sm">
-            <div className="flex items-center gap-2 rounded-lg border bg-muted/40 p-3">
+            <div className="bg-muted/40 flex items-center gap-2 rounded-lg border p-3">
               <ShieldCheck className="h-5 w-5 shrink-0 text-emerald-600" />
               <div>
                 <div className="font-semibold">
@@ -216,20 +245,20 @@ export function ApproveDialog({
                     ({row.recommendedHid})
                   </span>
                 </div>
-                <div className="text-xs text-muted-foreground">
+                <div className="text-muted-foreground text-xs">
                   {row.recommendedLocation ?? "Location not set"} · Category{" "}
                   {row.houseCategory}
                 </div>
               </div>
             </div>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-muted-foreground text-xs">
               Score {fmtScore(row.mcdScore)} · Rank{" "}
               {row.priorityRank != null ? `#${row.priorityRank}` : "—"} within
               grade {row.jobGrade ?? "—"}.
             </p>
           </div>
         ) : (
-          <p className="text-sm text-muted-foreground">
+          <p className="text-muted-foreground text-sm">
             {row.isAllocated
               ? "This employee already has a live allocation. Use Reassign or Release instead."
               : "No available house was recommended for this category right now."}
@@ -277,7 +306,12 @@ export function ReassignDialog({
   row: HouseQueueRow | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSubmit: (payload: { employeeId: string; householdId: string }) => Promise<{
+  onSubmit: (payload: {
+    employeeId: string;
+    householdId: string;
+    employeeName: string;
+    employeeNumber: string;
+  }) => Promise<{
     ok: boolean;
     message?: string;
   }>;
@@ -288,23 +322,23 @@ export function ReassignDialog({
   const [submitting, setSubmitting] = useState(false);
 
   const load = useCallback(async () => {
-    if (!row?.houseCategory) return;
+    if (!row?.employeeId) return;
     setLoading(true);
     setHouses([]);
     setSelectedId(null);
     try {
       const res = await fetch(
-        `/api/house-queue/available-houses?houseType=${encodeURIComponent(row.houseCategory)}`,
+        `/api/house-queue/transfer/candidates?employeeId=${encodeURIComponent(row.employeeId)}`,
       );
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
-        toast.error(body.error ?? "Failed to load available houses");
+        notify.error(body.error ?? "Failed to load available houses");
         return;
       }
       const data = (await res.json()) as { houses: AvailableHouse[] };
       setHouses(data.houses);
     } catch {
-      toast.error("Failed to load available houses");
+      notify.error("Failed to load available houses");
     } finally {
       setLoading(false);
     }
@@ -321,6 +355,8 @@ export function ReassignDialog({
     const result = await onSubmit({
       employeeId: row.employeeId,
       householdId: selectedId,
+      employeeName: fullName(row),
+      employeeNumber: row.employeeNumber,
     });
     setSubmitting(false);
     if (result.ok) onOpenChange(false);
@@ -340,13 +376,13 @@ export function ReassignDialog({
 
         <div className="max-h-72 space-y-1.5 overflow-y-auto pr-1">
           {loading && (
-            <div className="flex items-center justify-center gap-2 py-6 text-sm text-muted-foreground">
+            <div className="text-muted-foreground flex items-center justify-center gap-2 py-6 text-sm">
               <Loader2 className="h-4 w-4 animate-spin" />
               Loading houses…
             </div>
           )}
           {!loading && houses.length === 0 && (
-            <p className="py-6 text-center text-sm text-muted-foreground">
+            <p className="text-muted-foreground py-6 text-center text-sm">
               No free {row.houseCategory} houses available.
             </p>
           )}
@@ -365,7 +401,7 @@ export function ReassignDialog({
               >
                 <div>
                   <div className="font-semibold">{house.houseNumber}</div>
-                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                  <div className="text-muted-foreground flex items-center gap-1 text-xs">
                     <MapPin className="h-3 w-3" />
                     {house.locationName ?? "Location not set"}
                   </div>
@@ -373,7 +409,7 @@ export function ReassignDialog({
                 <div className="text-right">
                   <Badge variant="outline">{house.rgType}</Badge>
                   {selected && (
-                    <CheckCircle2 className="ml-1 inline h-4 w-4 text-primary" />
+                    <CheckCircle2 className="text-primary ml-1 inline h-4 w-4" />
                   )}
                 </div>
               </button>
@@ -414,6 +450,7 @@ export function SkipDeferDialog({
   onOpenChange: (open: boolean) => void;
   onSubmit: (payload: {
     employeeId: string;
+    employeeName: string;
     mode: "skip" | "defer";
     reason?: string;
   }) => Promise<{ ok: boolean; message?: string }>;
@@ -427,6 +464,7 @@ export function SkipDeferDialog({
     setSubmitting(true);
     const result = await onSubmit({
       employeeId: row.employeeId,
+      employeeName: fullName(row),
       mode,
       reason: reason.trim() || undefined,
     });
@@ -458,7 +496,7 @@ export function SkipDeferDialog({
             <RadioGroupItem value="defer" id="hq-defer" className="mt-0.5" />
             <div>
               <div className="font-semibold">Defer</div>
-              <div className="text-xs text-muted-foreground">
+              <div className="text-muted-foreground text-xs">
                 Temporarily hold the employee&apos;s place (e.g. awaiting
                 paperwork).
               </div>
@@ -471,7 +509,7 @@ export function SkipDeferDialog({
             <RadioGroupItem value="skip" id="hq-skip" className="mt-0.5" />
             <div>
               <div className="font-semibold">Skip</div>
-              <div className="text-xs text-muted-foreground">
+              <div className="text-muted-foreground text-xs">
                 Permanently exclude from housing allocation for now.
               </div>
             </div>
@@ -479,7 +517,10 @@ export function SkipDeferDialog({
         </RadioGroup>
 
         <div className="space-y-1.5">
-          <Label htmlFor="hq-reason" className="text-xs font-medium text-muted-foreground">
+          <Label
+            htmlFor="hq-reason"
+            className="text-muted-foreground text-xs font-medium"
+          >
             Reason
           </Label>
           <Textarea
@@ -526,29 +567,31 @@ interface AuditEntry {
 function AuditRow({ entry }: { entry: AuditEntry }) {
   const parsed = (() => {
     try {
-      return entry.details ? (JSON.parse(entry.details) as Record<string, unknown>) : null;
+      return entry.details
+        ? (JSON.parse(entry.details) as Record<string, unknown>)
+        : null;
     } catch {
       return null;
     }
   })();
 
   return (
-    <div className="space-y-1 rounded-lg border bg-card p-3 text-sm">
+    <div className="bg-card space-y-1 rounded-lg border p-3 text-sm">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <Badge variant="outline" className="font-semibold">
           {entry.action}
         </Badge>
-        <span className="text-xs text-muted-foreground">
+        <span className="text-muted-foreground text-xs">
           {formatDateTime(entry.createdAt)}
         </span>
       </div>
       {entry.user && (
-        <p className="text-xs text-muted-foreground">
+        <p className="text-muted-foreground text-xs">
           By {entry.user.firstname} {entry.user.lastname}
         </p>
       )}
       {parsed && (
-        <p className="text-xs text-muted-foreground">
+        <p className="text-muted-foreground text-xs">
           {Object.entries(parsed)
             .filter(([, v]) => typeof v !== "object" && v !== null)
             .map(([k, v]) => `${k}: ${String(v)}`)
@@ -576,10 +619,14 @@ export function AuditTrailDialog({
     // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: load the audit trail when the dialog opens
     setLoading(true);
     setEntries([]);
-    fetch(`/api/house-queue/audit?employeeId=${encodeURIComponent(row.employeeId)}`)
-      .then((res) => (res.ok ? res.json() : Promise.reject(new Error("failed"))))
+    fetch(
+      `/api/house-queue/audit?employeeId=${encodeURIComponent(row.employeeId)}`,
+    )
+      .then((res) =>
+        res.ok ? res.json() : Promise.reject(new Error("failed")),
+      )
       .then((data: { logs: AuditEntry[] }) => setEntries(data.logs))
-      .catch(() => toast.error("Failed to load the audit trail"))
+      .catch(() => notify.error("Failed to load the audit trail"))
       .finally(() => setLoading(false));
   }, [open, row]);
 
@@ -600,20 +647,20 @@ export function AuditTrailDialog({
 
         <div className="max-h-80 space-y-2 overflow-y-auto pr-1">
           {loading && (
-            <div className="flex items-center justify-center gap-2 py-6 text-sm text-muted-foreground">
+            <div className="text-muted-foreground flex items-center justify-center gap-2 py-6 text-sm">
               <Loader2 className="h-4 w-4 animate-spin" />
               Loading…
             </div>
           )}
           {!loading && entries.length === 0 && (
-            <p className="py-6 text-center text-sm text-muted-foreground">
+            <p className="text-muted-foreground py-6 text-center text-sm">
               No recorded decisions yet.
             </p>
           )}
           {entries.map((entry) => (
             <AuditRow key={entry.id} entry={entry} />
           ))}
-          <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+          <div className="text-muted-foreground flex items-center gap-1.5 text-[11px]">
             <RefreshCw className="h-3 w-3" />
             Auto-refreshing every 30 seconds
           </div>

@@ -12,7 +12,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { toast } from "sonner";
+import { notify } from "@/lib/feedback/notify";
 import { Undo2, Loader2 } from "lucide-react";
 
 interface ReturnItemButtonProps {
@@ -53,14 +53,15 @@ export default function ReturnItemButton({
         const err = await res.json();
         throw new Error(err.error || "Return failed");
       }
-      toast.success("Return requested", {
+      notify.success({
+        title: "Return requested",
         description: "An admin will collect the item and confirm the return",
       });
       setOpen(false);
       // Reload to reflect the change
       window.location.reload();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Return failed");
+      notify.error(err instanceof Error ? err.message : "Return failed");
     } finally {
       setSubmitting(false);
     }

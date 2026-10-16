@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { toast } from "sonner";
+import { notify } from "@/lib/feedback/notify";
 import { Bell } from "lucide-react";
 
 interface NotificationPrefs {
@@ -93,10 +93,10 @@ export default function NotificationPreferences() {
       if (!res.ok) {
         throw new Error("Failed to save");
       }
-      toast.success("Notification preference updated");
+      notify.success("Notification preference updated");
     } catch {
       setPrefs((p) => ({ ...p, [key]: previous }));
-      toast.error("Failed to update notification preference");
+      notify.error("Failed to update notification preference");
     }
   };
 

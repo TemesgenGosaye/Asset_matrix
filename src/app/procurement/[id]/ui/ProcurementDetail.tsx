@@ -30,7 +30,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { toast } from "sonner";
+import { notify } from "@/lib/feedback/notify";
 import {
   Loader2,
   CheckCircle,
@@ -180,18 +180,18 @@ export default function ProcurementDetail() {
       const response = await fetch(`/api/procurement/requests/${requestId}`);
       if (!response.ok) {
         if (response.status === 404) {
-          toast.error("Purchase request not found");
+          notify.error("Purchase request not found");
           router.push("/procurement");
           return;
         }
         const data = await response.json();
-        toast.error(data.error || "Failed to fetch purchase request");
+        notify.error(data.error || "Failed to fetch purchase request");
         return;
       }
       const data = await response.json();
       setRequest(data);
     } catch {
-      toast.error("Failed to connect to the server");
+      notify.error("Failed to connect to the server");
     } finally {
       setIsLoading(false);
     }
@@ -210,13 +210,13 @@ export default function ProcurementDetail() {
       );
       if (!response.ok) {
         const data = await response.json();
-        toast.error(data.error || "Failed to submit for approval");
+        notify.error(data.error || "Failed to submit for approval");
         return;
       }
-      toast.success("Request submitted for approval");
+      notify.success("Request submitted for approval");
       fetchRequest();
     } catch {
-      toast.error("Failed to connect to the server");
+      notify.error("Failed to connect to the server");
     } finally {
       setIsActioning(false);
     }
@@ -231,13 +231,13 @@ export default function ProcurementDetail() {
       );
       if (!response.ok) {
         const data = await response.json();
-        toast.error(data.error || "Failed to approve request");
+        notify.error(data.error || "Failed to approve request");
         return;
       }
-      toast.success("Request approved");
+      notify.success("Request approved");
       fetchRequest();
     } catch {
-      toast.error("Failed to connect to the server");
+      notify.error("Failed to connect to the server");
     } finally {
       setIsActioning(false);
     }
@@ -245,7 +245,7 @@ export default function ProcurementDetail() {
 
   const handleReject = async () => {
     if (!rejectReason.trim()) {
-      toast.error("Please provide a reason for rejection");
+      notify.error("Please provide a reason for rejection");
       return;
     }
     setIsActioning(true);
@@ -260,15 +260,15 @@ export default function ProcurementDetail() {
       );
       if (!response.ok) {
         const data = await response.json();
-        toast.error(data.error || "Failed to reject request");
+        notify.error(data.error || "Failed to reject request");
         return;
       }
-      toast.success("Request rejected");
+      notify.success("Request rejected");
       setRejectDialogOpen(false);
       setRejectReason("");
       fetchRequest();
     } catch {
-      toast.error("Failed to connect to the server");
+      notify.error("Failed to connect to the server");
     } finally {
       setIsActioning(false);
     }
@@ -282,13 +282,13 @@ export default function ProcurementDetail() {
       });
       if (!response.ok) {
         const data = await response.json();
-        toast.error(data.error || "Failed to delete request");
+        notify.error(data.error || "Failed to delete request");
         return;
       }
-      toast.success("Request deleted");
+      notify.success("Request deleted");
       router.push("/procurement");
     } catch {
-      toast.error("Failed to connect to the server");
+      notify.error("Failed to connect to the server");
     } finally {
       setIsActioning(false);
       setDeleteDialogOpen(false);
@@ -304,11 +304,11 @@ export default function ProcurementDetail() {
       );
       if (!response.ok) {
         const data = await response.json();
-        toast.error(data.error || "Failed to generate purchase order");
+        notify.error(data.error || "Failed to generate purchase order");
         return;
       }
       const data = await response.json();
-      toast.success("Purchase order generated");
+      notify.success("Purchase order generated");
       const poId = data.id || data.data?.id;
       if (poId) {
         router.push(`/procurement/orders/${poId}`);
@@ -316,7 +316,7 @@ export default function ProcurementDetail() {
         fetchRequest();
       }
     } catch {
-      toast.error("Failed to connect to the server");
+      notify.error("Failed to connect to the server");
     } finally {
       setIsActioning(false);
     }

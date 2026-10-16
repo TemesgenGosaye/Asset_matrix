@@ -1,7 +1,10 @@
 "use client";
 
 import { Badge, type BadgeProps } from "@/components/ui/badge";
-import { ALLOCATION_STATUSES, type AllocationStatus } from "@/lib/house-queue/state";
+import {
+  ALLOCATION_STATUSES,
+  type AllocationStatus,
+} from "@/lib/house-queue/state";
 
 // ---------------------------------------------------------------------------
 // House category colors (category → pill styling)
@@ -19,7 +22,11 @@ export const CATEGORY_COLORS: Record<string, string> = {
 
 const CATEGORY_ORDER = ["Staff", "A", "B", "C", "D", "E"] as const;
 
-export function HouseCategoryBadge({ category }: { category: string | null | undefined }) {
+export function HouseCategoryBadge({
+  category,
+}: {
+  category: string | null | undefined;
+}) {
   if (!category) return <Badge variant="outline">—</Badge>;
   return (
     <Badge
@@ -31,10 +38,7 @@ export function HouseCategoryBadge({ category }: { category: string | null | und
   );
 }
 
-export function sortCategories(
-  a: string,
-  b: string,
-): number {
+export function sortCategories(a: string, b: string): number {
   const ia = CATEGORY_ORDER.indexOf(a as (typeof CATEGORY_ORDER)[number]);
   const ib = CATEGORY_ORDER.indexOf(b as (typeof CATEGORY_ORDER)[number]);
   return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib);
@@ -65,6 +69,16 @@ export const QUEUE_STATUS_META: Record<
     variant: "default",
     className: "bg-blue-500/10 text-blue-700 dark:text-blue-300",
   },
+  release_pending: {
+    variant: "warning",
+    className:
+      "bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800",
+  },
+  RELEASE_PENDING: {
+    variant: "warning",
+    className:
+      "bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800",
+  },
   skipped: {
     variant: "destructive",
     className: "bg-rose-500/10 text-rose-700 dark:text-rose-300",
@@ -89,6 +103,8 @@ export const QUEUE_STATUS_LABELS: Record<string, string> = {
   no_house_available: "No House Available",
   ready_for_allocation: "Ready for Allocation",
   allocated: "Allocated",
+  release_pending: "Release Pending",
+  RELEASE_PENDING: "Release Pending",
   skipped: "Skipped",
   deferred: "Deferred",
   released: "Released",
@@ -96,9 +112,7 @@ export const QUEUE_STATUS_LABELS: Record<string, string> = {
 };
 
 /** All statuses the queue can display, in display order. */
-export const QUEUE_STATUS_ORDER: AllocationStatus[] = [
-  ...ALLOCATION_STATUSES,
-];
+export const QUEUE_STATUS_ORDER: AllocationStatus[] = [...ALLOCATION_STATUSES];
 
 export function QueueStatusBadge({ status }: { status: string }) {
   const meta = QUEUE_STATUS_META[status] ?? { variant: "outline" as const };

@@ -12,11 +12,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import {
-  Tabs,
-  TabsList,
-  TabsTrigger,
-} from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { EmptyState } from "@/components/EmptyState";
 import {
   Search,
@@ -28,7 +24,7 @@ import {
   BellRing,
   ArrowLeft,
 } from "lucide-react";
-import { toast } from "sonner";
+import { notify } from "@/lib/feedback/notify";
 import { cn } from "@/lib/utils";
 import { CATEGORY_IDS, notificationCategoryStyle } from "./category-styles";
 
@@ -103,35 +99,32 @@ export default function NotificationCenterClient() {
     [status, category, appliedSearch, page],
   );
 
-  const fetchPage = useCallback(
-    async (key: string, seq: number) => {
-      const { status: s, category: c, search: q, page: p } = JSON.parse(key);
-      setLoading(true);
-      try {
-        const url = new URL("/api/notifications", window.location.origin);
-        url.searchParams.set("limit", String(PAGE_SIZE));
-        url.searchParams.set("page", String(p));
-        url.searchParams.set("status", s);
-        url.searchParams.set("category", c);
-        if (q) url.searchParams.set("search", q);
+  const fetchPage = useCallback(async (key: string, seq: number) => {
+    const { status: s, category: c, search: q, page: p } = JSON.parse(key);
+    setLoading(true);
+    try {
+      const url = new URL("/api/notifications", window.location.origin);
+      url.searchParams.set("limit", String(PAGE_SIZE));
+      url.searchParams.set("page", String(p));
+      url.searchParams.set("status", s);
+      url.searchParams.set("category", c);
+      if (q) url.searchParams.set("search", q);
 
-        const res = await fetch(url.toString());
-        if (!res.ok) throw new Error("Request failed");
-        const data: ApiResponse = await res.json();
-        if (seq !== requestSeq.current) return; // stale
-        feedCache.set(key, data);
-        setFeed(data);
-      } catch (error) {
-        console.error("Failed to load notifications:", error);
-        if (seq === requestSeq.current) {
-          toast.error("Failed to load notifications");
-        }
-      } finally {
-        if (seq === requestSeq.current) setLoading(false);
+      const res = await fetch(url.toString());
+      if (!res.ok) throw new Error("Request failed");
+      const data: ApiResponse = await res.json();
+      if (seq !== requestSeq.current) return; // stale
+      feedCache.set(key, data);
+      setFeed(data);
+    } catch (error) {
+      console.error("Failed to load notifications:", error);
+      if (seq === requestSeq.current) {
+        notify.error("Failed to load notifications");
       }
-    },
-    [],
-  );
+    } finally {
+      if (seq === requestSeq.current) setLoading(false);
+    }
+  }, []);
 
   // Load a page whenever the filter set or the page changes.
   useEffect(() => {
@@ -193,7 +186,8 @@ export default function NotificationCenterClient() {
         ),
         unreadCount: Math.max(
           0,
-          prev.unreadCount - (prev.notifications.find((n) => n.id === id)?.readAt ? 0 : 1),
+          prev.unreadCount -
+            (prev.notifications.find((n) => n.id === id)?.readAt ? 0 : 1),
         ),
       };
     });
@@ -240,16 +234,16 @@ export default function NotificationCenterClient() {
         const res = await fetch("/api/notifications/read-all", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ category: category === "all" ? undefined : category }),
+          body: JSON.stringify({
+            category: category === "all" ? undefined : category,
+          }),
         });
         if (!res.ok) throw new Error("Request failed");
-        toast.success("All notifications marked as read");
+        notify.success("All notifications marked as read");
       } catch {
         // Restore from the cached value
-        setFeed((prev) =>
-          prev ? { ...prev, unreadCount: before } : prev,
-        );
-        toast.error("Failed to mark all as read");
+        setFeed((prev) => (prev ? { ...prev, unreadCount: before } : prev));
+        notify.error("Failed to mark all as read");
       }
     });
   };
@@ -269,16 +263,14 @@ export default function NotificationCenterClient() {
       };
     });
     void fetch(`/api/notifications/${id}`, { method: "DELETE" }).then((res) => {
-      if (!res.ok) toast.error("Failed to delete notification");
+      if (!res.ok) notify.error("Failed to delete notification");
     });
   };
 
   const clearAll = () => {
     const before = feed ?? undefined;
     setFeed((prev) =>
-      prev
-        ? { ...prev, notifications: [], total: 0, unreadCount: 0 }
-        : prev,
+      prev ? { ...prev, notifications: [], total: 0, unreadCount: 0 } : prev,
     );
     startTransition(async () => {
       try {
@@ -286,10 +278,10 @@ export default function NotificationCenterClient() {
         if (category !== "all") url.searchParams.set("category", category);
         const res = await fetch(url.toString(), { method: "DELETE" });
         if (!res.ok) throw new Error("Request failed");
-        toast.success("Notifications cleared");
+        notify.success("Notifications cleared");
       } catch {
         setFeed(before ?? null);
-        toast.error("Failed to clear notifications");
+        notify.error("Failed to clear notifications");
       }
     });
   };
@@ -310,7 +302,7 @@ export default function NotificationCenterClient() {
   const tabValue = status;
 
   return (
-    <div className="border-default-200 rounded-xl border bg-background">
+    <div className="border-default-200 bg-background rounded-xl border">
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-4 border-b p-5">
         <div>
@@ -321,7 +313,8 @@ export default function NotificationCenterClient() {
           <p className="text-muted-foreground mt-0.5 text-sm">
             {unread > 0 ? (
               <>
-                You have <span className="text-foreground font-medium">{unread}</span>{" "}
+                You have{" "}
+                <span className="text-foreground font-medium">{unread}</span>{" "}
                 unread notification{unread === 1 ? "" : "s"}
               </>
             ) : (
@@ -331,7 +324,12 @@ export default function NotificationCenterClient() {
         </div>
         <div className="flex items-center gap-2">
           {unread > 0 && (
-            <Button variant="outline" size="sm" onClick={markAllRead} disabled={isPending}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={markAllRead}
+              disabled={isPending}
+            >
               <CheckCheck className="h-4 w-4" />
               Mark all read
             </Button>
@@ -353,15 +351,22 @@ export default function NotificationCenterClient() {
 
       {/* Filters */}
       <div className="space-y-3 border-b p-5">
-        <Tabs value={tabValue} onValueChange={(v) => applyFilters({ status: v as typeof status })}>
+        <Tabs
+          value={tabValue}
+          onValueChange={(v) => applyFilters({ status: v as typeof status })}
+        >
           <TabsList>
             <TabsTrigger value="all">
               All
-              <span className="text-muted-foreground ml-1.5 text-xs">({total})</span>
+              <span className="text-muted-foreground ml-1.5 text-xs">
+                ({total})
+              </span>
             </TabsTrigger>
             <TabsTrigger value="unread">
               Unread
-              <span className="text-muted-foreground ml-1.5 text-xs">({unread})</span>
+              <span className="text-muted-foreground ml-1.5 text-xs">
+                ({unread})
+              </span>
             </TabsTrigger>
             <TabsTrigger value="read">Read</TabsTrigger>
           </TabsList>
@@ -441,7 +446,7 @@ export default function NotificationCenterClient() {
                   <div
                     key={n.id}
                     className={cn(
-                      "group flex cursor-pointer gap-3 p-4 transition-colors hover:bg-accent/40",
+                      "group hover:bg-accent/40 flex cursor-pointer gap-3 p-4 transition-colors",
                       isUnread && "bg-primary/[0.04]",
                     )}
                     onClick={() => go(n.link, n.id)}
@@ -534,7 +539,8 @@ export default function NotificationCenterClient() {
               </Button>
               <div className="text-muted-foreground text-sm">
                 Page {page}
-                {hasMore ? ` of ${Math.ceil(total / PAGE_SIZE)}` : ""} · {total} total
+                {hasMore ? ` of ${Math.ceil(total / PAGE_SIZE)}` : ""} · {total}{" "}
+                total
               </div>
               <Button
                 variant="outline"

@@ -4,7 +4,7 @@ import React, { useCallback, useMemo, useState } from "react";
 import { useUrlState } from "@/hooks/useUrlState";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import { notify } from "@/lib/feedback/notify";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -58,24 +58,25 @@ function DashboardTable({ data, columns: propColumns }) {
   const searchValue = urlState.search;
   const roleFilter = urlState.role;
   const page = Number(urlState.page) || 1;
-  const rowsPerPage = Number(urlState.pageSize) || Number(ROWS_PER_PAGE_OPTIONS[0]);
+  const rowsPerPage =
+    Number(urlState.pageSize) || Number(ROWS_PER_PAGE_OPTIONS[0]);
 
   // Convenience setters that update URL state
   const setSearchValue = useCallback(
     (v: string) => setUrlState({ search: v, page: "1" }),
-    [setUrlState]
+    [setUrlState],
   );
   const setRoleFilter = useCallback(
     (v: string) => setUrlState({ role: v, page: "1" }),
-    [setUrlState]
+    [setUrlState],
   );
   const setRowsPerPage = useCallback(
     (n: number) => setUrlState({ pageSize: String(n), page: "1" }),
-    [setUrlState]
+    [setUrlState],
   );
   const setPage = useCallback(
     (p: number) => setUrlState({ page: String(p) }),
-    [setUrlState]
+    [setUrlState],
   );
 
   const filteredUsers = useMemo(() => {
@@ -114,77 +115,93 @@ function DashboardTable({ data, columns: propColumns }) {
         const err = await res.json().catch(() => ({}));
         throw new Error(err?.error || "Failed to delete user");
       }
-      toast.success("User deleted", {
-        description: `${deleteTarget.firstname ?? ""} ${deleteTarget.lastname ?? ""}`.trim() || deleteTarget.username || deleteTarget.userid,
+      notify.success({
+        title: "User deleted",
+        description:
+          `${deleteTarget.firstname ?? ""} ${deleteTarget.lastname ?? ""}`.trim() ||
+          deleteTarget.username ||
+          deleteTarget.userid,
       });
       setDeleteTarget(null);
       router.refresh();
     } catch (err) {
-      toast.error("Delete failed", { description: err.message });
+      notify.error({ title: "Delete failed", description: err.message });
     } finally {
       setDeleting(false);
     }
   };
 
   // Map columns from props to ResponsiveTable format
-  const columns = useMemo(() =>
-    propColumns.map((col: { uid: string; name: string }) => ({
-      key: col.uid,
-      label: col.name,
-      ...(col.uid === "actions" ? { hideable: false } : {}),
-    })),
-    [propColumns]
+  const columns = useMemo(
+    () =>
+      propColumns.map((col: { uid: string; name: string }) => ({
+        key: col.uid,
+        label: col.name,
+        ...(col.uid === "actions" ? { hideable: false } : {}),
+      })),
+    [propColumns],
   );
 
-  const renderCell = useCallback((user: Record<string, unknown>, columnKey: string) => {
-    const cellValue = user[columnKey];
+  const renderCell = useCallback(
+    (user: Record<string, unknown>, columnKey: string) => {
+      const cellValue = user[columnKey];
 
-    if (columnKey === "creation_date" || columnKey === "change_date") {
-      return cellValue ? formatDateStable(cellValue as string) : "N/A";
-    }
+      if (columnKey === "creation_date" || columnKey === "change_date") {
+        return cellValue ? formatDateStable(cellValue as string) : "N/A";
+      }
 
-    switch (columnKey) {
-      case "firstName":
-        return <span>{String(user.firstname ?? "")}</span>;
-      case "lastName":
-        return <span>{String(user.lastname ?? "")}</span>;
-      case "email":
-        return (
-          <div className="flex flex-col">
-            <span className="text-bold text-sm">{String(user.email ?? "")}</span>
-          </div>
-        );
-      case "userName":
-        return <span>{String(user.username ?? "")}</span>;
-      case "role":
-        return <span className="capitalize">{resolveRole(user)}</span>;
-      case "actions":
-        return (
-          <div className="relative flex items-center gap-2">
-            <Link href={`/user/${user.userid}/`} className="text-default-400 hover:text-default-500">
-              <span className="text-lg cursor-pointer active:opacity-50">
-                <EyeIcon />
+      switch (columnKey) {
+        case "firstName":
+          return <span>{String(user.firstname ?? "")}</span>;
+        case "lastName":
+          return <span>{String(user.lastname ?? "")}</span>;
+        case "email":
+          return (
+            <div className="flex flex-col">
+              <span className="text-bold text-sm">
+                {String(user.email ?? "")}
               </span>
-            </Link>
-            <Link href={`/user/${user.userid}/edit/`} className="text-default-400 hover:text-default-500">
-              <span className="text-lg cursor-pointer active:opacity-50">
-                <EditIcon />
-              </span>
-            </Link>
-            <button
-              type="button"
-              className="text-lg text-danger cursor-pointer active:opacity-50"
-              aria-label="Delete user"
-              onClick={() => setDeleteTarget(user)}
-            >
-              <DeleteIcon />
-            </button>
-          </div>
-        );
-      default:
-        return cellValue != null ? String(cellValue) : "";
-    }
-  }, []);
+            </div>
+          );
+        case "userName":
+          return <span>{String(user.username ?? "")}</span>;
+        case "role":
+          return <span className="capitalize">{resolveRole(user)}</span>;
+        case "actions":
+          return (
+            <div className="relative flex items-center gap-2">
+              <Link
+                href={`/user/${user.userid}/`}
+                className="text-default-400 hover:text-default-500"
+              >
+                <span className="cursor-pointer text-lg active:opacity-50">
+                  <EyeIcon />
+                </span>
+              </Link>
+              <Link
+                href={`/user/${user.userid}/edit/`}
+                className="text-default-400 hover:text-default-500"
+              >
+                <span className="cursor-pointer text-lg active:opacity-50">
+                  <EditIcon />
+                </span>
+              </Link>
+              <button
+                type="button"
+                className="text-danger cursor-pointer text-lg active:opacity-50"
+                aria-label="Delete user"
+                onClick={() => setDeleteTarget(user)}
+              >
+                <DeleteIcon />
+              </button>
+            </div>
+          );
+        default:
+          return cellValue != null ? String(cellValue) : "";
+      }
+    },
+    [],
+  );
 
   return (
     <div className="w-full space-y-4">
@@ -194,7 +211,7 @@ function DashboardTable({ data, columns: propColumns }) {
         </div>
         <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
           <div className="relative w-full lg:max-w-md">
-            <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <SearchIcon className="text-muted-foreground absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />
             <Input
               className="pl-9"
               placeholder="Search by name, username, or email"
@@ -209,7 +226,9 @@ function DashboardTable({ data, columns: propColumns }) {
               </SelectTrigger>
               <SelectContent>
                 {roleOptions.map((option) => (
-                  <SelectItem key={option.key} value={option.key}>{option.label}</SelectItem>
+                  <SelectItem key={option.key} value={option.key}>
+                    {option.label}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -222,16 +241,21 @@ function DashboardTable({ data, columns: propColumns }) {
           </div>
         </div>
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <span className="text-sm text-muted-foreground">
+          <span className="text-muted-foreground text-sm">
             Showing {paginatedUsers.length} of {filteredUsers.length} users
           </span>
-          <Select value={String(rowsPerPage)} onValueChange={(value) => setRowsPerPage(Number(value))}>
+          <Select
+            value={String(rowsPerPage)}
+            onValueChange={(value) => setRowsPerPage(Number(value))}
+          >
             <SelectTrigger className="w-24">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
               {ROWS_PER_PAGE_OPTIONS.map((option) => (
-                <SelectItem key={option} value={option}>{option}</SelectItem>
+                <SelectItem key={option} value={option}>
+                  {option}
+                </SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -241,7 +265,9 @@ function DashboardTable({ data, columns: propColumns }) {
         columns={columns}
         data={paginatedUsers}
         renderCell={renderCell}
-        keyExtractor={(item) => (item as Record<string, unknown>).userid as number}
+        keyExtractor={(item) =>
+          (item as Record<string, unknown>).userid as number
+        }
         emptyMessage="No users found"
         mobileCardView={true}
         storageKey="columns:users"

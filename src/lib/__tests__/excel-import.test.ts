@@ -82,12 +82,61 @@ describe("parseFlexibleDate", () => {
     expect(d!.getDate()).toBe(15);
   });
 
-  it("parses M/D/YYYY", () => {
+  it("parses M/D/YYYY when the first component can only be a month", () => {
+    // 15 cannot be a month, so this is unambiguously 15 March.
     const d = parseFlexibleDate("3/15/2024");
     expect(d).not.toBeNull();
-    expect(d!.getFullYear()).toBe(2024);
-    expect(d!.getMonth()).toBe(2);
-    expect(d!.getDate()).toBe(15);
+    expect(d!.getUTCFullYear()).toBe(2024);
+    expect(d!.getUTCMonth()).toBe(2);
+    expect(d!.getUTCDate()).toBe(15);
+  });
+
+  it("parses D/M/YYYY when the first component can only be a day", () => {
+    const d = parseFlexibleDate("15/3/2024");
+    expect(d).not.toBeNull();
+    expect(d!.getUTCFullYear()).toBe(2024);
+    expect(d!.getUTCMonth()).toBe(2);
+    expect(d!.getUTCDate()).toBe(15);
+  });
+
+  it("reads a genuinely ambiguous numeric date day-first", () => {
+    // Ethiopian and European convention: 03/04 is 3 April, not 4 March.
+    const d = parseFlexibleDate("03/04/2024");
+    expect(d!.getUTCMonth()).toBe(3);
+    expect(d!.getUTCDate()).toBe(3);
+  });
+
+  // The whole point of parsing at UTC: callers persist the result with
+  // `toISOString().slice(0, 10)`, which reads the UTC calendar day. A value
+  // built at local midnight reads back a day early anywhere east of UTC - and
+  // the factory runs on UTC+3.
+  it("survives the toISOString round trip regardless of the host timezone", () => {
+    for (const raw of [
+      "2024-03-15",
+      "2026-01-01",
+      "2026-03-01",
+      "15/03/2024",
+    ]) {
+      const parsed = parseFlexibleDate(raw)!;
+      expect(parsed.toISOString().slice(0, 10)).toBe(
+        raw.length === 10 && raw.includes("-") ? raw : "2024-03-15",
+      );
+    }
+  });
+
+  it("returns a UTC-midnight Date, not a local one", () => {
+    const d = parseFlexibleDate("2024-03-15")!;
+    expect(d.getUTCHours()).toBe(0);
+    expect(d.toISOString()).toBe("2024-03-15T00:00:00.000Z");
+  });
+
+  it("rejects an out-of-range month or day instead of rolling it over", () => {
+    // `new Date(2024, 14, 1)` is a valid Date for 2025-03-01, which is how a
+    // typo would otherwise become a different, plausible date.
+    expect(parseFlexibleDate("2024-15-01")).toBeNull();
+    expect(parseFlexibleDate("2024-01-45")).toBeNull();
+    expect(parseFlexibleDate("31/04/2024")).toBeNull();
+    expect(parseFlexibleDate("02/31/2024")).toBeNull();
   });
 
   it("parses a Date object", () => {
@@ -112,14 +161,18 @@ describe("parseFlexibleDate", () => {
   });
 
   it("parses named month format", () => {
-    const d = parseFlexibleDate("January 15, 2024");
-    expect(d).not.toBeNull();
-    expect(d!.getFullYear()).toBe(2024);
-    expect(d!.getDate()).toBe(15);
+    for (const raw of ["January 15, 2024", "15 Jan 2024"]) {
+      const d = parseFlexibleDate(raw);
+      expect(d, raw).not.toBeNull();
+      expect(d!.getUTCFullYear(), raw).toBe(2024);
+      expect(d!.getUTCMonth(), raw).toBe(0);
+      expect(d!.getUTCDate(), raw).toBe(15);
+    }
   });
 
   it("returns null for invalid string", () => {
     expect(parseFlexibleDate("not-a-date")).toBeNull();
+    expect(parseFlexibleDate("sometime in March")).toBeNull();
   });
 });
 
@@ -315,7 +368,10 @@ describe("autoMapAssetColumns", () => {
 
 describe("cleanColumnMapping", () => {
   it("removes invalid field ids", () => {
-    const cleaned = cleanColumnMapping({ pid: 0, fakeField: 1 } as Record<string, number>, 5);
+    const cleaned = cleanColumnMapping(
+      { pid: 0, fakeField: 1 } as Record<string, number>,
+      5,
+    );
     expect(cleaned.pid).toBe(0);
     expect((cleaned as Record<string, unknown>).fakeField).toBeUndefined();
   });
@@ -363,7 +419,13 @@ const defaultLookups = (() => {
     { id: "dept-2", name: "Finance", code: "FIN" },
   ];
 
-  return buildAssetLookups(categories, statuses, locations, manufacturers, departments);
+  return buildAssetLookups(
+    categories,
+    statuses,
+    locations,
+    manufacturers,
+    departments,
+  );
 })();
 
 function freshSeen() {
@@ -435,18 +497,28 @@ describe("validateAssetImportRow", () => {
     const raw = makeRaw({ pid: "AST-001", assetType: "UnknownType" });
     const result = validateAssetImportRow(raw, defaultLookups, freshSeen(), 2);
     expect(result.status).toBe("error");
-    if (result.status === "error") expect(result.error).toContain("UnknownType");
+    if (result.status === "error")
+      expect(result.error).toContain("UnknownType");
   });
 
   it("rejects unknown condition", () => {
-    const raw = makeRaw({ pid: "AST-001", assetType: "Laptop", condition: "MissingStatus" });
+    const raw = makeRaw({
+      pid: "AST-001",
+      assetType: "Laptop",
+      condition: "MissingStatus",
+    });
     const result = validateAssetImportRow(raw, defaultLookups, freshSeen(), 2);
     expect(result.status).toBe("error");
-    if (result.status === "error") expect(result.error).toContain("MissingStatus");
+    if (result.status === "error")
+      expect(result.error).toContain("MissingStatus");
   });
 
   it("rejects unknown location", () => {
-    const raw = makeRaw({ pid: "AST-001", assetType: "Laptop", location: "Mars" });
+    const raw = makeRaw({
+      pid: "AST-001",
+      assetType: "Laptop",
+      location: "Mars",
+    });
     const result = validateAssetImportRow(raw, defaultLookups, freshSeen(), 2);
     expect(result.status).toBe("error");
     if (result.status === "error") expect(result.error).toContain("Mars");
@@ -465,16 +537,22 @@ describe("validateAssetImportRow", () => {
     const raw = makeRaw({ pid: "AST-001", assetType: "Laptop" });
     const result = validateAssetImportRow(raw, defaultLookups, seen, 3);
     expect(result.status).toBe("error");
-    if (result.status === "error") expect(result.error).toContain("Duplicate PID");
+    if (result.status === "error")
+      expect(result.error).toContain("Duplicate PID");
   });
 
   it("rejects duplicate tag in file", () => {
     const seen = freshSeen();
     seen.tags.set("TAG-001", 2);
-    const raw = makeRaw({ pid: "AST-002", assetType: "Laptop", assettag: "TAG-001" });
+    const raw = makeRaw({
+      pid: "AST-002",
+      assetType: "Laptop",
+      assettag: "TAG-001",
+    });
     const result = validateAssetImportRow(raw, defaultLookups, seen, 3);
     expect(result.status).toBe("error");
-    if (result.status === "error") expect(result.error).toContain("Duplicate Tag");
+    if (result.status === "error")
+      expect(result.error).toContain("Duplicate Tag");
   });
 
   it("defaults PID as assetname and assettag when not provided", () => {
@@ -498,11 +576,16 @@ describe("validateAssetImportRow", () => {
     const raw = makeRaw({ pid: "AST-001", assetType: "LAP" });
     const result = validateAssetImportRow(raw, defaultLookups, freshSeen(), 2);
     expect(result.status).toBe("ok");
-    if (result.status === "ok") expect(result.row.assetcategorytypeid).toBe("cat-1");
+    if (result.status === "ok")
+      expect(result.row.assetcategorytypeid).toBe("cat-1");
   });
 
   it("accepts valid review date in ISO format", () => {
-    const raw = makeRaw({ pid: "AST-001", assetType: "Laptop", reviewDate: "2024-06-15" });
+    const raw = makeRaw({
+      pid: "AST-001",
+      assetType: "Laptop",
+      reviewDate: "2024-06-15",
+    });
     const result = validateAssetImportRow(raw, defaultLookups, freshSeen(), 2);
     expect(result.status).toBe("ok");
     if (result.status === "ok") {
@@ -512,24 +595,38 @@ describe("validateAssetImportRow", () => {
   });
 
   it("rejects invalid review date", () => {
-    const raw = makeRaw({ pid: "AST-001", assetType: "Laptop", reviewDate: "not-a-date" });
+    const raw = makeRaw({
+      pid: "AST-001",
+      assetType: "Laptop",
+      reviewDate: "not-a-date",
+    });
     const result = validateAssetImportRow(raw, defaultLookups, freshSeen(), 2);
     expect(result.status).toBe("error");
-    if (result.status === "error") expect(result.error).toContain("Review Date");
+    if (result.status === "error")
+      expect(result.error).toContain("Review Date");
   });
 
   it("accepts valid purchase price", () => {
-    const raw = makeRaw({ pid: "AST-001", assetType: "Laptop", purchaseprice: "1234.56" });
+    const raw = makeRaw({
+      pid: "AST-001",
+      assetType: "Laptop",
+      purchaseprice: "1234.56",
+    });
     const result = validateAssetImportRow(raw, defaultLookups, freshSeen(), 2);
     expect(result.status).toBe("ok");
     if (result.status === "ok") expect(result.row.purchaseprice).toBe(1234.56);
   });
 
   it("rejects negative purchase price", () => {
-    const raw = makeRaw({ pid: "AST-001", assetType: "Laptop", purchaseprice: "-100" });
+    const raw = makeRaw({
+      pid: "AST-001",
+      assetType: "Laptop",
+      purchaseprice: "-100",
+    });
     const result = validateAssetImportRow(raw, defaultLookups, freshSeen(), 2);
     expect(result.status).toBe("error");
-    if (result.status === "error") expect(result.error).toContain("Purchase Price");
+    if (result.status === "error")
+      expect(result.error).toContain("Purchase Price");
   });
 
   it("parses boolean mobile/requestable", () => {
@@ -548,7 +645,11 @@ describe("validateAssetImportRow", () => {
   });
 
   it("rejects invalid boolean value", () => {
-    const raw = makeRaw({ pid: "AST-001", assetType: "Laptop", mobile: "maybe" });
+    const raw = makeRaw({
+      pid: "AST-001",
+      assetType: "Laptop",
+      mobile: "maybe",
+    });
     const result = validateAssetImportRow(raw, defaultLookups, freshSeen(), 2);
     expect(result.status).toBe("error");
     if (result.status === "error") expect(result.error).toContain("Mobile");
@@ -601,7 +702,12 @@ describe("processAssetImportRows", () => {
       ["", "", "", ""],
       ["2", "Desktop", "AST-002", "In Use"],
     ];
-    const result = processAssetImportRows(rowsWithEmpty, 1, mapping, defaultLookups);
+    const result = processAssetImportRows(
+      rowsWithEmpty,
+      1,
+      mapping,
+      defaultLookups,
+    );
     expect(result.validRows).toHaveLength(2);
   });
 
@@ -611,14 +717,24 @@ describe("processAssetImportRows", () => {
       ["1", "Laptop", "AST-001", "Available"],
       ["2", "Laptop", "AST-001", "In Use"], // duplicate PID
     ];
-    const result = processAssetImportRows(rowsWithDup, 1, mapping, defaultLookups);
+    const result = processAssetImportRows(
+      rowsWithDup,
+      1,
+      mapping,
+      defaultLookups,
+    );
     expect(result.validRows).toHaveLength(1);
     expect(result.errors).toHaveLength(1);
     expect(result.errors[0].error).toContain("Duplicate PID");
   });
 
   it("returns error when no data rows exist", () => {
-    const result = processAssetImportRows([headers], 1, mapping, defaultLookups);
+    const result = processAssetImportRows(
+      [headers],
+      1,
+      mapping,
+      defaultLookups,
+    );
     expect(result.validRows).toHaveLength(0);
     expect(result.errors).toHaveLength(1);
     expect(result.errors[0].error).toContain("No data rows");

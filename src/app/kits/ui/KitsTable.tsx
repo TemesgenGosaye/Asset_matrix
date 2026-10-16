@@ -21,7 +21,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { toast } from "sonner";
+import { notify } from "@/lib/feedback/notify";
 
 interface KitItem {
   id: string;
@@ -55,12 +55,12 @@ export default function KitsTable({ kits }: { kits: Kit[] }) {
         body: JSON.stringify({ id }),
       });
       if (!res.ok) throw new Error("Failed to delete");
-      toast.success("Kit deleted");
+      notify.success("Kit deleted");
       setIsDeleteModalOpen(false);
       setSelectedKit(null);
       router.refresh();
     } catch {
-      toast.error("Failed to delete kit");
+      notify.error("Failed to delete kit");
     } finally {
       setDeleting(null);
     }

@@ -38,7 +38,9 @@ export default async function InspectionsPage() {
     redirect("/");
   }
 
-  const inspections = await listInspections(orgId, { status: "open" });
+  // `all`, not `open`: completed inspections are permanent records and must stay
+  // listed here forever, not vanish the moment a filter happens to exclude them.
+  const inspections = await listInspections(orgId, { status: "all" });
 
   return (
     <div className="space-y-6">

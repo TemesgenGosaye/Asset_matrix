@@ -3,7 +3,7 @@
 import React, { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import { notify } from "@/lib/feedback/notify";
 import { Edit, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -48,10 +48,10 @@ export default function ModelsTable({ items }) {
         body: JSON.stringify({ modelid: id }),
       });
       if (!res.ok) throw new Error("Delete failed");
-      toast.success("Deleted successfully");
+      notify.success("Deleted");
       router.refresh();
     } catch {
-      toast.error("Failed to delete");
+      notify.error("Failed to delete");
     }
   };
 

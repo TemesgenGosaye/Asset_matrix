@@ -1,9 +1,31 @@
 const CACHE_NAME = 'asset-tracker-v2';
 const OFFLINE_URL = '/offline';
 
+const OFFLINE_FALLBACK_HTML = `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Offline</title>
+  </head>
+  <body>
+    <h1>You are offline</h1>
+    <p>This page is not available offline. Reconnect to continue.</p>
+  </body>
+</html>`;
+
+const OFFLINE_FALLBACK_RESPONSE = () =>
+  new Response(OFFLINE_FALLBACK_HTML, {
+    status: 503,
+    headers: { 'Content-Type': 'text/html; charset=utf-8' },
+  });
+
 // Static assets to pre-cache
+// The app root is a redirect to /login (or /dashboard when a session exists),
+// so precaching it would store a redirect response rather than a document.
+// /login is the one page every visitor must reach offline.
 const PRECACHE_URLS = [
-  '/',
+  '/login',
   '/offline',
   '/manifest.json',
   '/icons/icon.svg',
@@ -120,7 +142,14 @@ self.addEventListener('fetch', (event) => {
             if (cached) return cached;
             return caches.match(OFFLINE_URL).then((offlinePage) => {
               if (offlinePage) return offlinePage;
-              return caches.match('/');
+              // `/` is not precached and never will be — it is a redirect to
+              // /login (or /dashboard with a session), so a cached copy would be
+              // a redirect response rather than a document. /login IS precached,
+              // so an offline visitor lands on the real sign-in screen instead of
+              // the generic offline stub.
+              return caches.match(PRECACHE_URLS[0]).then((shell) => {
+                return shell || OFFLINE_FALLBACK_RESPONSE();
+              });
             });
           });
         })
@@ -140,7 +169,7 @@ self.addEventListener('fetch', (event) => {
             }
             return response;
           })
-          .catch(() => cached);
+          .catch(() => cached || OFFLINE_FALLBACK_RESPONSE());
         return cached || fetchPromise;
       })
     );

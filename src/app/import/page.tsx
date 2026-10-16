@@ -5,7 +5,7 @@ import ImportPageClient from "./ui/ImportPageClient";
 export const metadata: Metadata = {
   title: "Asset Tracker - Import",
   description:
-    "Bulk import assets, accessories, consumables, licences, users, and locations via CSV",
+    "Bulk import assets, employees, the house register, accessories, consumables, licences, users, and locations",
 };
 
 export default function ImportPage() {

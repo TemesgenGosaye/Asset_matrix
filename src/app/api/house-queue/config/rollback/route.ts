@@ -15,7 +15,7 @@ import {
   REAUTH_COOKIE,
   verifyReauthProof,
 } from "@/lib/house-queue/config/reauth";
-import { getClientIp, serializeState } from "../_shared";
+import { buildPublishGate, getClientIp, serializeState } from "../_shared";
 
 // POST /api/house-queue/config/rollback
 // Body: { targetVersionId, changeSummary }
@@ -75,8 +75,9 @@ export async function POST(req: NextRequest) {
     });
 
     const fresh = await getConfigState(orgId);
+    const publishGate = await buildPublishGate(fresh, requesterId);
     return NextResponse.json(
-      { success: true, state: serializeState(fresh) },
+      { success: true, state: serializeState(fresh, publishGate) },
       { status: 200 },
     );
   } catch (e) {

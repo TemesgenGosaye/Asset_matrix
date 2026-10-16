@@ -18,7 +18,7 @@ Consolidated reference of architecture decisions, implementation history, and te
 
 ### Data Model
 
-71 Prisma models covering: assets, users, organizations, departments, roles, accessories, licences, consumables, manufacturers, suppliers, locations, models, categories, status types, audit logs, tickets, workflows, custom fields, webhooks, notifications, maintenance, reservations, transfers, approvals, sessions, MFA, components, kits, EULA templates, audit campaigns, LDAP sync, dashboard widgets, item requests, report schedules, Intune sync logs, and more.
+91 Prisma models covering: assets, users, organizations, departments, roles, accessories, licences, consumables, manufacturers, suppliers, locations, models, categories, status types, audit logs, tickets, workflows, custom fields, webhooks, notifications, maintenance, reservations, transfers, approvals, sessions, MFA, components, kits, audit campaigns, LDAP sync, dashboard widgets, item requests, report schedules, Intune sync logs, and more.
 
 ### Multi-tenancy
 
@@ -38,7 +38,7 @@ Shared database with `organizationId` column on all tenant-scoped tables. `scope
 100+ route endpoints spanning:
 
 - Auth (MFA, session management, password reset)
-- Admin (settings for SSO/LDAP/email/Freshdesk/integrations, user/role management, workflows, custom fields, labels, GDPR, compliance, audit logs)
+- Admin (settings for SSO/LDAP/email/integrations, user/role management, workflows, custom fields, labels, GDPR, compliance, audit logs)
 - Asset management (full CRUD with checkout/transfers/reservations/attachments/QR codes)
 - Cron jobs (5 endpoints: sessions, notifications, workflows, GDPR retention)
 - Integrations (Slack/Teams notifications on asset, user, maintenance, stock alert events)
@@ -73,7 +73,7 @@ Service worker (network-first + stale-while-revalidate), offline page, install p
 
 ### Phase 6: SaaS & Business
 
-Marketing landing page, self-service registration.
+Self-service registration.
 
 ### Phase 7: UX Polish (2026-02-20)
 

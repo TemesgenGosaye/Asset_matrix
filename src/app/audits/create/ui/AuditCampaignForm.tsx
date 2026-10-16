@@ -12,7 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { toast } from "sonner";
+import { notify } from "@/lib/feedback/notify";
 
 export default function AuditCampaignForm() {
   const router = useRouter();
@@ -48,11 +48,11 @@ export default function AuditCampaignForm() {
       }
 
       const campaign = await res.json();
-      toast.success("Campaign created");
+      notify.success("Campaign created");
       router.push(`/audits/${campaign.id}`);
       router.refresh();
     } catch (err: any) {
-      toast.error(err.message);
+      notify.error(err.message);
     } finally {
       setLoading(false);
     }

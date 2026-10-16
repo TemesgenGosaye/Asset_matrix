@@ -16,7 +16,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import { notify } from "@/lib/feedback/notify";
 import SelectWithQuickCreate, {
   type QuickCreateOption,
 } from "@/components/SelectWithQuickCreate";
@@ -141,7 +141,7 @@ export default function LicenceCreateForm({
 
       if (res.status === 409) {
         const err = await res.json().catch(() => ({}));
-        toast.error(
+        notify.error(
           err.error ||
             "This item was modified by someone else. Please refresh and try again.",
         );
@@ -166,14 +166,15 @@ export default function LicenceCreateForm({
           }),
         });
       }
-      toast.success(mode === "edit" ? "Licence updated" : "Licence created", {
+      notify.success({
+        title: mode === "edit" ? "Licence updated" : "Licence created",
         description: created.licencekey || created.licenceid,
       });
       router.push("/licences");
       router.refresh();
     } catch (err) {
       setError(err.message);
-      toast.error("Create failed", { description: err.message });
+      notify.error({ title: "Create failed", description: err.message });
     } finally {
       setSubmitting(false);
     }

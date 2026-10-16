@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireApiAuth } from "@/lib/api-auth";
 import prisma from "@/lib/prisma";
+import { ACCEPTED_THEME_IDS, SYSTEM_THEME_ID } from "@/lib/themes";
 
 const DEFAULTS = {
-  theme: "system",
+  theme: SYSTEM_THEME_ID,
   locale: "en",
   timezone: "UTC",
   currency: "USD",
@@ -58,7 +59,25 @@ export async function PUT(request: NextRequest) {
     } = body;
 
     const values: Record<string, unknown> = {};
-    if (theme !== undefined) values.theme = theme;
+
+    // The theme column is free text, so an unvalidated write could store a value
+    // the app has no CSS for (the client would apply a dead class to <html> and
+    // the user would be stuck on an unstyled page). Reject anything the registry
+    // does not know, and tell them which values are valid.
+    if (theme !== undefined) {
+      if (!ACCEPTED_THEME_IDS.includes(String(theme))) {
+        return NextResponse.json(
+          {
+            error: "Unknown theme.",
+            code: "INVALID_THEME",
+            allowed: ACCEPTED_THEME_IDS,
+          },
+          { status: 422 },
+        );
+      }
+      values.theme = theme;
+    }
+
     if (locale !== undefined) values.locale = locale;
     if (timezone !== undefined) values.timezone = timezone;
     if (currency !== undefined) values.currency = currency;

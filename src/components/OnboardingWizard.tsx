@@ -25,39 +25,39 @@ import {
 const STEPS = [
   {
     icon: Sparkles,
-    title: "Welcome to Asset Tracker",
+    title: "Welcome to Metehara Sugar Factory Portal",
     description:
-      "Your all-in-one platform for managing hardware assets, software licences, accessories, and consumables. Let's take a quick tour of the key features to get you started.",
+      "Your comprehensive platform for managing employee housing allocation and organizational assets. This system helps you efficiently allocate houses to employees using a fair MCDA scoring system, while also tracking hardware assets, software licences, and office supplies.",
   },
   {
     icon: LayoutDashboard,
-    title: "Dashboard Overview",
+    title: "House Allocation Queue",
     description:
-      "Your dashboard gives you a snapshot of your entire inventory at a glance. View total asset counts, recent activity, upcoming licence expirations, maintenance schedules, and visual charts to understand your asset distribution.",
+      "The heart of the housing system — view eligible employees ranked by multiple criteria including marital status, family size, distance from factory, and years of service. The queue automatically prioritizes employees based on configurable weights, ensuring fair and transparent house allocation decisions.",
   },
   {
     icon: Package,
-    title: "Asset Management",
+    title: "House Request & Approval Process",
     description:
-      "Create and track assets with detailed information including serial numbers, purchase dates, warranties, and custom fields. You can also manage accessories, software licences, and consumables — all linked to your asset inventory.",
+      "Employees can submit house requests through the portal, providing their justification and eligibility details. Managers review requests, approve allocations, and assign available houses from the inventory. Track the complete lifecycle from request to handover to release.",
   },
   {
     icon: PanelLeft,
-    title: "Navigation & Organization",
+    title: "House Inspection & Handback",
     description:
-      "Use the sidebar to navigate between sections: Inventory for all your items, Categories to organize them, Tools for imports and QR scanning, and Administration for users, departments, and system settings.",
+      "When employees vacate houses, conduct structured inspections with damage checklists (windows, doors, roof, walls, water panel, electricity). Completing the inspection finalises the handback and files the termination. Print termination receipts with complete inspection records for legal documentation.",
   },
   {
     icon: QrCode,
-    title: "QR Codes & Scanning",
+    title: "Asset Management & Tracking",
     description:
-      "Generate QR code labels for any asset and scan them with your mobile device for instant lookup. Use the bulk QR generator to print label sheets, perfect for physical inventory management.",
+      "Manage factory assets including computers, machinery, furniture, and office equipment. Generate QR code labels for quick scanning and tracking. Assign assets to employees, schedule maintenance, track warranties, and manage software licences — all integrated with the housing system.",
   },
   {
     icon: BarChart3,
     title: "Reports & Administration",
     description:
-      "Run detailed reports on asset value, depreciation, warranty status, and more. Export data to Excel, set up maintenance workflows, manage user roles and permissions, and configure system-wide settings from the admin panel.",
+      "Run detailed reports on house occupancy, allocation history, MCDA scores, and asset inventory. Configure queue weights and eligibility criteria through the secure configuration interface. Manage user roles, departments, and system permissions from the admin panel.",
   },
 ];
 

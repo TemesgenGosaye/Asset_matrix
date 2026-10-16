@@ -32,7 +32,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
-import { toast } from "sonner";
+import { notify } from "@/lib/feedback/notify";
 import { Plus, Tag, Printer, Edit, Trash2, QrCode } from "lucide-react";
 import { renderLabelTemplate, LABEL_PLACEHOLDERS } from "@/lib/label-renderer";
 
@@ -146,12 +146,12 @@ export default function LabelSettingsTab({
         setTemplates([...templates, newTemplate]);
         setIsDialogOpen(false);
         resetForm();
-        toast.success("Label template created successfully");
+        notify.success("Label template created");
       } else {
-        toast.error("Failed to create template");
+        notify.error("Failed to create template");
       }
     } catch {
-      toast.error("Failed to create template");
+      notify.error("Failed to create template");
     }
   };
 
@@ -194,12 +194,12 @@ export default function LabelSettingsTab({
         setIsDialogOpen(false);
         setEditingTemplate(null);
         resetForm();
-        toast.success("Label template updated successfully");
+        notify.success("Label template updated");
       } else {
-        toast.error("Failed to update template");
+        notify.error("Failed to update template");
       }
     } catch {
-      toast.error("Failed to update template");
+      notify.error("Failed to update template");
     }
   };
 
@@ -213,12 +213,12 @@ export default function LabelSettingsTab({
 
       if (response.ok) {
         setTemplates(templates.filter((t) => t.id !== id));
-        toast.success("Label template deleted successfully");
+        notify.success("Label template deleted");
       } else {
-        toast.error("Failed to delete template");
+        notify.error("Failed to delete template");
       }
     } catch {
-      toast.error("Failed to delete template");
+      notify.error("Failed to delete template");
     }
   };
 
@@ -230,12 +230,12 @@ export default function LabelSettingsTab({
 
       if (response.ok) {
         setTemplates(templates.map((t) => ({ ...t, isDefault: t.id === id })));
-        toast.success("Default template updated");
+        notify.success("Default template updated");
       } else {
-        toast.error("Failed to update default template");
+        notify.error("Failed to update default template");
       }
     } catch {
-      toast.error("Failed to update default template");
+      notify.error("Failed to update default template");
     }
   };
 
@@ -509,7 +509,7 @@ export default function LabelSettingsTab({
                     <div className="space-y-2">
                       <Label>Live Preview</Label>
                       <div
-                        className="min-h-[60px] rounded-md border bg-background p-3 font-mono text-xs break-words whitespace-pre-wrap"
+                        className="bg-background min-h-[60px] rounded-md border p-3 font-mono text-xs break-words whitespace-pre-wrap"
                         style={{ maxWidth: `${formData.width * 96}px` }}
                       >
                         {previewHtml || (

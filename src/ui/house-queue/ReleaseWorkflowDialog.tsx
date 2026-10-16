@@ -11,27 +11,21 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import {
   ArrowRight,
   ArrowLeft,
   CalendarDays,
   Check,
   CheckCircle2,
+  ClipboardCheck,
   CornerDownRight,
   Loader2,
-  User,
 } from "lucide-react";
 import { houseCategoryForJobGrade } from "@/lib/house-queue/eligibility";
+import { notify } from "@/lib/feedback/notify";
+import { useT } from "@/lib/i18n/react";
 import { HouseCategoryBadge } from "@/ui/household/house-status";
 import EngineHousePicker, {
   type PickerHouse,
@@ -70,7 +64,12 @@ export const RELEASE_BRANCH_LABELS: Record<ReleaseBranch, string> = {
   RETIREMENT: "Retirement",
 };
 
-const STEPS = ["Reason", "Transfer / Release", "Inspection", "Done"] as const;
+const STEPS = [
+  "Reason",
+  "Transfer / Release",
+  "Awaiting Inspection",
+  "Done",
+] as const;
 
 interface InitResult {
   employeeId: string;
@@ -94,6 +93,7 @@ interface ExecuteResult {
   householdId: string | null;
   houseNumber: string | null;
   hid: string | null;
+  scheduledDate?: string;
 }
 
 interface TransferResult {
@@ -104,19 +104,6 @@ interface TransferResult {
   rgType: string;
   locationName: string | null;
   rank: number;
-}
-
-interface Inspector {
-  userid: string;
-  firstname: string | null;
-  lastname: string | null;
-}
-
-function tomorrowDateInput(): string {
-  const d = new Date();
-  d.setDate(d.getDate() + 1);
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
 export interface ReleaseWorkflowEmployee {
@@ -133,15 +120,14 @@ interface ReleaseWorkflowDialogProps {
   employee: ReleaseWorkflowEmployee;
   currentHouseNumber: string | null;
   currentHid: string | null;
+  /**
+   * Where to open. The dialog only offers step 3 after a release has executed,
+   * which cannot have happened before it opened, so this is 1 or 2 in practice.
+   */
+  initialStep?: 1 | 2 | 3;
 }
 
-function Stepper({
-  step,
-  skipped = [],
-}: {
-  step: number;
-  skipped?: number[];
-}) {
+function Stepper({ step, skipped = [] }: { step: number; skipped?: number[] }) {
   return (
     <ol className="flex items-center gap-1.5 pb-1">
       {STEPS.map((label, idx) => {
@@ -154,7 +140,7 @@ function Stepper({
             key={label}
             className={`flex items-center gap-1.5 text-xs ${
               active
-                ? "font-semibold text-foreground"
+                ? "text-foreground font-semibold"
                 : done
                   ? "text-primary"
                   : skip
@@ -169,7 +155,7 @@ function Stepper({
                   : done
                     ? "border-primary bg-primary/10 text-primary"
                     : skip
-                      ? "border-dashed border-border bg-muted text-muted-foreground/50"
+                      ? "border-border bg-muted text-muted-foreground/50 border-dashed"
                       : "border-border bg-muted"
               }`}
             >
@@ -197,8 +183,10 @@ export default function ReleaseWorkflowDialog({
   employee,
   currentHouseNumber,
   currentHid,
+  initialStep = 1,
 }: ReleaseWorkflowDialogProps) {
-  const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
+  const t = useT();
+  const [step, setStep] = useState<1 | 2 | 3 | 4>(initialStep);
   const [branch, setBranch] = useState<ReleaseBranch | null>(null);
   const [note, setNote] = useState("");
 
@@ -207,6 +195,7 @@ export default function ReleaseWorkflowDialog({
   const [initResult, setInitResult] = useState<InitResult | null>(null);
 
   const [houses, setHouses] = useState<PickerHouse[]>([]);
+  const [eligibleCategory, setEligibleCategory] = useState<string | null>(null);
   const [housesLoading, setHousesLoading] = useState(false);
   const [housesError, setHousesError] = useState<string | null>(null);
   const [targetChoice, setTargetChoice] = useState<string>("");
@@ -218,89 +207,57 @@ export default function ReleaseWorkflowDialog({
     null,
   );
 
-  const [inspectors, setInspectors] = useState<Inspector[]>([]);
-  const [inspectorsLoading, setInspectorsLoading] = useState(false);
-  const [inspectorId, setInspectorId] = useState<string>("");
-  const [scheduledDate, setScheduledDate] = useState(tomorrowDateInput());
-  const [scheduling, setScheduling] = useState(false);
-  const [scheduleError, setScheduleError] = useState<string | null>(null);
-
-  // Reset the workflow state every time the dialog (re)opens.
+  // Reset or prime the workflow state every time the dialog (re)opens.
+  /* eslint-disable react-hooks/set-state-in-effect -- intentional: batch-reset all dialog state when `open` flips to true */
   useEffect(() => {
     if (open) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: reset on open
-      setStep(1);
+      setStep(initialStep);
       setBranch(null);
       setNote("");
       setInitResult(null);
       setHouses([]);
+      setEligibleCategory(null);
       setTargetChoice("");
       setTransferResult(null);
       setExecResult(null);
-      setInspectorId("");
-      setScheduledDate(tomorrowDateInput());
       setInitError(null);
       setHousesError(null);
       setExecError(null);
-      setScheduleError(null);
     }
-  }, [open]);
+  }, [open, initialStep]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
-  const category = houseCategoryForJobGrade(employee.jobGrade);
+  const fallbackCategory = houseCategoryForJobGrade(employee.jobGrade);
+  const displayCategory = eligibleCategory ?? fallbackCategory;
 
   const loadHouses = useCallback(async () => {
-    if (!category) {
-      setHousesError("This employee's grade has no house category configured.");
-      return;
-    }
     setHousesLoading(true);
     setHousesError(null);
     try {
+      // Server-side eligibility-enforced candidate lookup
       const res = await fetch(
-        `/api/house-queue/available-houses?houseType=${encodeURIComponent(category)}`,
+        `/api/house-queue/transfer/candidates?employeeId=${encodeURIComponent(employee.id)}`,
       );
+      const body = await res.json().catch(() => ({}));
       if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
         setHousesError(body.error ?? "Failed to load houses for transfer");
         return;
       }
-      const data = (await res.json()) as { houses: PickerHouse[] };
-      setHouses(data.houses);
+      setEligibleCategory(body.eligibleCategory ?? null);
+      setHouses((body.houses as PickerHouse[]) ?? []);
     } catch {
       setHousesError("Network error while loading houses");
     } finally {
       setHousesLoading(false);
     }
-  }, [category]);
+  }, [employee.id]);
 
-  const loadInspectors = useCallback(async () => {
-    setInspectorsLoading(true);
-    try {
-      const res = await fetch("/api/house-queue/inspectors");
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        setScheduleError(body.error ?? "Failed to load inspectors");
-        return;
-      }
-      const data = (await res.json()) as { inspectors: Inspector[] };
-      setInspectors(data.inspectors);
-    } catch {
-      setScheduleError("Network error while loading inspectors");
-    } finally {
-      setInspectorsLoading(false);
-    }
-  }, []);
-
-  // Prime step data when the relevant step is entered.
+  // Prime step data when the transfer step is entered.
+  /* eslint-disable react-hooks/set-state-in-effect -- intentional: reactive data-fetch on step/branch change */
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: prime Engine B list on entry
     if (open && step === 2 && branch === "TRANSFER") void loadHouses();
   }, [open, step, branch, loadHouses]);
-
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: prime inspectors on entry
-    if (open && step === 3) void loadInspectors();
-  }, [open, step, loadInspectors]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   const resetToReason = () => {
     setStep(1);
@@ -316,14 +273,34 @@ export default function ReleaseWorkflowDialog({
   const continueFromReason = () => {
     if (!branch) return;
     if (branch === "TRANSFER") {
-      // A transfer IS the Reassign action — no release is initiated.
-      // Step 2 loads the Engine B ranked list; confirm calls the action route.
       setInitResult(null);
       setExecResult(null);
       setStep(2);
       return;
     }
     void submitInitiate();
+  };
+
+  /**
+   * Report a refusal twice, because the workflow is multi-step.
+   *
+   * The inline banner keeps the operator inside the dialog — it says what to do
+   * about THIS step, which is what they need to make the next decision. The
+   * toast is the same words for someone who has stepped away, or who is working
+   * from the Allocated Houses page where the release was deep-linked and no
+   * banner is waiting for them.
+   */
+  const fail = (step: "initiate" | "execute" | "transfer", message: string) => {
+    if (step === "initiate") setInitError(message);
+    else setExecError(message);
+
+    // A dropped connection is an infrastructure problem, not a decision the
+    // operator got wrong, so it says so rather than blaming their input.
+    notify.error(
+      message === "Network error"
+        ? t("feedback.networkError.description")
+        : message,
+    );
   };
 
   const submitInitiate = async () => {
@@ -343,13 +320,26 @@ export default function ReleaseWorkflowDialog({
       });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setInitError(body.error ?? "Failed to start the release");
+        fail("initiate", body.error ?? "Failed to start the release");
         return;
       }
-      setInitResult(body.result as InitResult);
+      const result = body.result as InitResult;
+      setInitResult(result);
       setStep(2);
+
+      // Step 1 writes no ledger state — it records the reason branch. So this is
+      // info, not a success: nothing has changed about the employee's house yet,
+      // and a green card here would overstate what just happened.
+      notify.operation("releaseInitiated", {
+        values: {
+          name: result.employeeName || employee.name,
+          employeeNumber: result.employeeNumber || employee.employeeNumber,
+          branch: t(`feedback.branch.${branch.toLowerCase()}`),
+        },
+        dedupeKey: `release-initiate-${employee.id}`,
+      });
     } catch {
-      setInitError("Network error");
+      fail("initiate", "Network error");
     } finally {
       setInitiating(false);
     }
@@ -371,7 +361,7 @@ export default function ReleaseWorkflowDialog({
       });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setExecError(body.error ?? "Failed to transfer the employee");
+        fail("transfer", body.error ?? "Failed to transfer the employee");
         return;
       }
       const target = houses.find((h) => h.id === targetChoice);
@@ -389,8 +379,17 @@ export default function ReleaseWorkflowDialog({
           : null,
       );
       setStep(4);
+
+      notify.operation("transferStarted", {
+        values: {
+          name: employee.name,
+          employeeNumber: employee.employeeNumber,
+          houseNumber: target?.houseNumber ?? "—",
+        },
+        dedupeKey: `transfer-${employee.id}-${targetChoice}`,
+      });
     } catch {
-      setExecError("Network error");
+      fail("transfer", "Network error");
     } finally {
       setExecuting(false);
     }
@@ -413,41 +412,46 @@ export default function ReleaseWorkflowDialog({
       });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setExecError(body.error ?? "Failed to execute the release");
+        fail("execute", body.error ?? "Failed to execute the release");
         return;
       }
-      setExecResult(body.result as ExecuteResult);
+      const result = body.result as ExecuteResult;
+      setExecResult(result);
       setStep(3);
+
+      // This one IS a commit: the allocation is terminated and the house has
+      // left the pool. The meta row carries the two facts that make the record
+      // useful three months from now — which house, and when the inspection that
+      // finalises it is due — and the action goes straight to that inspection.
+      notify.operation("releaseExecuted", {
+        values: {
+          name: employee.name,
+          employeeNumber: employee.employeeNumber,
+          houseNumber: result.houseNumber ?? currentHouseNumber ?? "—",
+        },
+        meta: [
+          ...(result.houseNumber
+            ? [
+                t("feedback.releaseExecutedMeta.house", {
+                  houseNumber: result.houseNumber,
+                }),
+              ]
+            : []),
+          t("feedback.releaseExecutedMeta.inspection", {
+            date: result.scheduledDate,
+          }),
+        ],
+        action: {
+          label: t("feedback.releaseExecutedAction"),
+          href: "/houses/inspections",
+          onClick: () => {},
+        },
+        dedupeKey: `release-execute-${result.allocationId ?? employee.id}`,
+      });
     } catch {
-      setExecError("Network error");
+      fail("execute", "Network error");
     } finally {
       setExecuting(false);
-    }
-  };
-
-  const submitSchedule = async () => {
-    if (!execResult || !inspectorId || !scheduledDate) return;
-    setScheduling(true);
-    setScheduleError(null);
-    try {
-      const res = await fetch(
-        `/api/house-queue/inspections/${execResult.inspectionId}/schedule`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ inspectorId, scheduledDate }),
-        },
-      );
-      const body = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        setScheduleError(body.error ?? "Failed to schedule the inspection");
-        return;
-      }
-      setStep(4);
-    } catch {
-      setScheduleError("Network error");
-    } finally {
-      setScheduling(false);
     }
   };
 
@@ -461,7 +465,6 @@ export default function ReleaseWorkflowDialog({
   const canContinueReason = branch != null && !initiating;
   const canContinueTransfer = !!targetChoice && !executing;
   const canContinueRelease = branch !== null && !executing;
-  const canContinueSchedule = !!inspectorId && !!scheduledDate && !scheduling;
 
   const selectedTargetHouse = houses.find((h) => h.id === targetChoice) ?? null;
 
@@ -481,11 +484,11 @@ export default function ReleaseWorkflowDialog({
           <Stepper step={step} skipped={stepInspectionSkipped ? [3] : []} />
         </DialogHeader>
 
-        <div className="max-h-[min(60vh,560px)] overflow-y-auto pr-1 -mr-1">
+        <div className="-mr-1 max-h-[min(60vh,560px)] overflow-y-auto pr-1">
           {/* ─── Step 1: Reason ─── */}
           {step === 1 && (
             <div className="space-y-4">
-              <p className="text-sm text-muted-foreground">
+              <p className="text-muted-foreground text-sm">
                 Choose why this allocation is ending. The house cannot return to
                 the pool without a completed handback inspection.
               </p>
@@ -514,7 +517,7 @@ export default function ReleaseWorkflowDialog({
                       </span>
                       <span>
                         <span className="font-semibold">{opt.label}</span>
-                        <span className="mt-0.5 block text-xs text-muted-foreground">
+                        <span className="text-muted-foreground mt-0.5 block text-xs">
                           {opt.description}
                         </span>
                       </span>
@@ -525,7 +528,7 @@ export default function ReleaseWorkflowDialog({
               <div className="space-y-1.5">
                 <Label
                   htmlFor="rw-note"
-                  className="text-xs font-medium text-muted-foreground"
+                  className="text-muted-foreground text-xs font-medium"
                 >
                   Note <span className="font-normal">(optional)</span>
                 </Label>
@@ -548,15 +551,15 @@ export default function ReleaseWorkflowDialog({
           {/* ─── Step 2: Transfer (Reassign) ─── */}
           {step === 2 && branch === "TRANSFER" && (
             <div className="space-y-4">
-              <div className="flex items-center gap-3 rounded-lg border bg-muted/40 p-3 text-sm">
-                <CornerDownRight className="h-4 w-4 shrink-0 text-primary" />
-                <span className="text-xs text-muted-foreground">
+              <div className="bg-muted/40 flex items-center gap-3 rounded-lg border p-3 text-sm">
+                <CornerDownRight className="text-primary h-4 w-4 shrink-0" />
+                <span className="text-muted-foreground text-xs">
                   Moving{" "}
-                  <span className="font-semibold text-foreground">
+                  <span className="text-foreground font-semibold">
                     {employee.name}
                   </span>{" "}
                   from{" "}
-                  <span className="font-semibold text-foreground">
+                  <span className="text-foreground font-semibold">
                     {currentHouseNumber ?? "current house"}
                   </span>
                   {currentHid ? ` (${currentHid})` : ""} to an open house. This
@@ -565,18 +568,18 @@ export default function ReleaseWorkflowDialog({
                 </span>
               </div>
 
-              {category ? (
+              {displayCategory ? (
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <Label className="text-xs font-medium text-muted-foreground">
+                    <Label className="text-muted-foreground text-xs font-medium">
                       Destination — free{" "}
-                      <HouseCategoryBadge category={category} /> houses, ranked
-                      by Engine B for grade {employee.jobGrade}
+                      <HouseCategoryBadge category={displayCategory} /> houses,
+                      ranked by Engine B for grade {employee.jobGrade}
                     </Label>
                   </div>
                   {housesError ? (
-                    <div className="flex flex-col items-center gap-2 rounded-lg border border-dashed bg-muted/20 px-6 py-8 text-center">
-                      <p className="text-xs text-muted-foreground">
+                    <div className="bg-muted/20 flex flex-col items-center gap-2 rounded-lg border border-dashed px-6 py-8 text-center">
+                      <p className="text-muted-foreground text-xs">
                         {housesError}
                       </p>
                       <Button
@@ -596,7 +599,7 @@ export default function ReleaseWorkflowDialog({
                       onSelect={setTargetChoice}
                       maxHeightClass="max-h-[min(420px,45vh)]"
                       emptyAction={
-                        <p className="text-[11px] text-muted-foreground">
+                        <p className="text-muted-foreground text-[11px]">
                           Check the House Queue configuration to widen the
                           eligible pool, or choose another reason to vacate the
                           house for inspection.
@@ -606,8 +609,8 @@ export default function ReleaseWorkflowDialog({
                   )}
                 </div>
               ) : (
-                <div className="flex flex-col items-center gap-2 rounded-lg border border-dashed bg-muted/20 px-6 py-8 text-center">
-                  <p className="text-xs text-muted-foreground">
+                <div className="bg-muted/20 flex flex-col items-center gap-2 rounded-lg border border-dashed px-6 py-8 text-center">
+                  <p className="text-muted-foreground text-xs">
                     No house category is configured for grade{" "}
                     {employee.jobGrade}, so no transfer target can be
                     recommended. Choose another reason, or configure the grade
@@ -617,13 +620,15 @@ export default function ReleaseWorkflowDialog({
               )}
 
               {selectedTargetHouse && (
-                <div className="rounded-lg border border-primary/30 bg-primary/5 px-3 py-2 text-xs">
-                  <span className="font-semibold text-primary">
+                <div className="border-primary/30 bg-primary/5 rounded-lg border px-3 py-2 text-xs">
+                  <span className="text-primary font-semibold">
                     Selected destination
                   </span>{" "}
-                  — {selectedTargetHouse.houseNumber} (
-                  {selectedTargetHouse.hid}) ·{" "}
-                  <HouseCategoryBadge category={selectedTargetHouse.houseType} />{" "}
+                  — {selectedTargetHouse.houseNumber} ({selectedTargetHouse.hid}
+                  ) ·{" "}
+                  <HouseCategoryBadge
+                    category={selectedTargetHouse.houseType}
+                  />{" "}
                   · {selectedTargetHouse.rgType}
                   {selectedTargetHouse.locationName
                     ? ` · ${selectedTargetHouse.locationName}`
@@ -642,40 +647,39 @@ export default function ReleaseWorkflowDialog({
           {/* ─── Step 2: Release (inspection-gated reasons) ─── */}
           {step === 2 && branch && branch !== "TRANSFER" && initResult && (
             <div className="space-y-4">
-              <div className="rounded-lg border bg-muted/40 p-3 text-sm">
+              <div className="bg-muted/40 rounded-lg border p-3 text-sm">
                 <div className="flex items-center gap-2">
                   <Badge variant="outline" className="font-semibold">
                     {RELEASE_BRANCH_LABELS[branch]}
                   </Badge>
-                  <span className="text-xs text-muted-foreground">
+                  <span className="text-muted-foreground text-xs">
                     Vacating{" "}
-                    <span className="font-semibold text-foreground">
+                    <span className="text-foreground font-semibold">
                       {initResult.houseNumber ?? "current house"}
                     </span>
                     {initResult.hid ? ` (${initResult.hid})` : ""}
                   </span>
                 </div>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  The house is held for a handback inspection before it re-enters
-                  the pool. The allocation is archived with reason{" "}
-                  <span className="font-semibold">
-                    &ldquo;{RELEASE_BRANCH_LABELS[branch]}&rdquo;
-                  </span>
-                  .
+                <p className="text-muted-foreground mt-1 text-xs">
+                  The house will be vacated to Pending Inspection and the
+                  handback inspection is automatically scheduled for the next
+                  working day. The house stays out of the pool until that
+                  inspection is completed — completing it finalises the release
+                  and files the allocation on the Terminated Houses page.
                 </p>
               </div>
 
               <div className="grid grid-cols-2 gap-3 text-sm">
-                <div className="rounded-lg border bg-muted/40 p-3">
-                  <div className="text-xs font-semibold text-muted-foreground">
+                <div className="bg-muted/40 rounded-lg border p-3">
+                  <div className="text-muted-foreground text-xs font-semibold">
                     Allocation
                   </div>
-                  <p className="mt-1 font-semibold">
-                    Terminated under {RELEASE_BRANCH_LABELS[branch]}
+                  <p className="mt-1 font-semibold text-amber-600 dark:text-amber-400">
+                    RELEASE_PENDING
                   </p>
                 </div>
-                <div className="rounded-lg border bg-muted/40 p-3">
-                  <div className="text-xs font-semibold text-muted-foreground">
+                <div className="bg-muted/40 rounded-lg border p-3">
+                  <div className="text-muted-foreground text-xs font-semibold">
                     House state
                   </div>
                   <p className="mt-1 font-semibold">Pending inspection</p>
@@ -690,89 +694,57 @@ export default function ReleaseWorkflowDialog({
             </div>
           )}
 
-          {/* ─── Step 3: Inspection ─── */}
+          {/* ─── Step 3: Awaiting inspection ─── */}
           {step === 3 && execResult && (
             <div className="space-y-4">
-              <div className="rounded-lg border bg-amber-50 p-3 text-xs text-amber-700 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-300">
-                <span className="font-semibold">
-                  House {execResult.houseNumber ?? "vacated"} is pending a
-                  handback inspection.
-                </span>{" "}
-                It stays out of the pool until Facilities inspects it and
-                resolves it (Active → back in pool, Under Maintenance → stays
-                out).
+              <div className="space-y-1 rounded-lg border border-amber-50 p-3.5 text-xs text-amber-800 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-300">
+                <div className="flex items-center gap-2 font-semibold">
+                  <CalendarDays className="h-4 w-4 shrink-0" />
+                  <span>
+                    Handback inspection auto-scheduled
+                    {execResult?.scheduledDate
+                      ? ` for ${execResult.scheduledDate}`
+                      : ""}
+                    .
+                  </span>
+                </div>
+                <p className="text-muted-foreground">
+                  House{" "}
+                  <strong>
+                    {execResult?.houseNumber ?? currentHouseNumber ?? "vacated"}
+                  </strong>{" "}
+                  is parked in{" "}
+                  <span className="font-semibold">Pending Inspection</span> and
+                  its allocation is{" "}
+                  <span className="font-semibold">RELEASE_PENDING</span>.
+                </p>
               </div>
 
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-medium text-muted-foreground">
-                    Inspector <span className="text-destructive">*</span>
-                  </Label>
-                  <Select
-                    value={inspectorId}
-                    onValueChange={setInspectorId}
-                    disabled={inspectorsLoading}
-                  >
-                    <SelectTrigger className="text-sm">
-                      <SelectValue placeholder="Select an inspector" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {inspectors.map((ins) => (
-                        <SelectItem key={ins.userid} value={ins.userid}>
-                          {`${ins.firstname ?? ""} ${ins.lastname ?? ""}`.trim() ||
-                            ins.userid}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {inspectorsLoading && (
-                    <p className="flex items-center gap-1 text-[11px] text-muted-foreground">
-                      <Loader2 className="h-3 w-3 animate-spin" />
-                      Loading inspectors…
-                    </p>
-                  )}
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-medium text-muted-foreground">
-                    Scheduled date <span className="text-destructive">*</span>
-                  </Label>
-                  <Input
-                    type="date"
-                    value={scheduledDate}
-                    onChange={(e) => setScheduledDate(e.target.value)}
-                    className="text-sm"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3 text-sm">
-                <div className="rounded-lg border bg-muted/40 p-3">
-                  <div className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
-                    <User className="h-3.5 w-3.5" />
-                    Assigned inspector
-                  </div>
-                  <p className="mt-1">
-                    {inspectorId
-                      ? inspectors.find((i) => i.userid === inspectorId)
-                          ? `${inspectors.find((i) => i.userid === inspectorId)?.firstname ?? ""} ${inspectors.find((i) => i.userid === inspectorId)?.lastname ?? ""}`.trim()
-                          : "—"
-                      : "—"}
+              <div className="bg-muted/40 flex items-start gap-3 rounded-lg border p-4">
+                <ClipboardCheck className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
+                <div className="space-y-1.5 text-sm">
+                  <p className="font-semibold">
+                    The handback inspection is what completes this release
+                  </p>
+                  <p className="text-muted-foreground text-xs">
+                    The release is parked until a Facility inspector completes
+                    the handback inspection. That single step records the
+                    damage, returns the house to the pool, and files the
+                    allocation on the Terminated Houses page — so there is
+                    nothing further to enter here.
+                  </p>
+                  <p className="text-muted-foreground text-xs">
+                    Close this dialog and continue on the{" "}
+                    <a
+                      href="/houses/inspections"
+                      className="text-primary font-medium underline underline-offset-2"
+                    >
+                      Inspections
+                    </a>{" "}
+                    page.
                   </p>
                 </div>
-                <div className="rounded-lg border bg-muted/40 p-3">
-                  <div className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
-                    <CalendarDays className="h-3.5 w-3.5" />
-                    Scheduled date
-                  </div>
-                  <p className="mt-1">{scheduledDate || "—"}</p>
-                </div>
               </div>
-
-              {scheduleError && (
-                <p className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700 dark:border-rose-900 dark:bg-rose-950/40 dark:text-rose-300">
-                  {scheduleError}
-                </p>
-              )}
             </div>
           )}
 
@@ -786,51 +758,31 @@ export default function ReleaseWorkflowDialog({
                     Employee transferred — allocation reassigned
                   </p>
                   <p className="mt-1 text-xs text-emerald-700 dark:text-emerald-300">
-                    {employee.name} moved from{" "}
-                    {currentHouseNumber ?? "—"} ({currentHid ?? "—"}) to{" "}
+                    {employee.name} moved from {currentHouseNumber ?? "—"} (
+                    {currentHid ?? "—"}) to{" "}
                     <span className="font-semibold">
                       {transferResult.houseNumber} ({transferResult.hid})
                     </span>{" "}
                     · {transferResult.rgType}
                     {transferResult.locationName
                       ? ` · ${transferResult.locationName}`
-                      : ""}.
+                      : ""}
+                    .
                   </p>
                 </div>
               </div>
-              <p className="text-xs text-muted-foreground">
-                This used the standard Reassign path — a single audited action,
-                no handback inspection required for the vacated house. The move
-                shows instantly on the Queue and Allocated Houses pages, and in
-                the employee&apos;s queue audit history.
+              <p className="text-muted-foreground text-xs">
+                This used the standard Reassign path — a single audited action.
+                The move shows instantly on the Queue and Allocated Houses
+                pages.
               </p>
             </div>
           )}
 
-          {/* ─── Step 4: Done (release path) ─── */}
-          {step === 4 && execResult && !transferResult && (
-            <div className="space-y-4">
-              <div className="flex items-start gap-3 rounded-lg border border-emerald-200 bg-emerald-50 p-4 dark:border-emerald-900 dark:bg-emerald-950/40">
-                <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" />
-                <div className="text-sm">
-                  <p className="font-semibold text-emerald-800 dark:text-emerald-200">
-                    Release recorded and inspection scheduled
-                  </p>
-                  <p className="mt-1 text-xs text-emerald-700 dark:text-emerald-300">
-                    {employee.name} last held house{" "}
-                    {execResult.houseNumber ?? "—"} ({execResult.hid ?? "—"}){" "}
-                    {branch ? `under ${RELEASE_BRANCH_LABELS[branch]}` : ""}.
-                  </p>
-                </div>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                The pending inspection appears in the Facilities worklist
-                (Houses → Inspections). Completing it re-enters the house into
-                the Active pool or takes it under maintenance. The full decision
-                trail is in {employee.name}&apos;s queue audit history.
-              </p>
-            </div>
-          )}
+          {/* A release never reaches step 4. Once the release executes, step 3
+              explains that the handback inspection is scheduled and must be
+              completed on the Inspections page. Step 4 is the transfer
+              outcome only, rendered above. */}
         </div>
 
         <DialogFooter className="flex-wrap gap-2">
@@ -844,11 +796,11 @@ export default function ReleaseWorkflowDialog({
               Back
             </Button>
           )}
-          {(step === 1 || (step === 3 && execResult)) && (
+          {step === 1 && (
             <Button
               variant="outline"
               onClick={() => onOpenChange(false)}
-              disabled={initiating || scheduling}
+              disabled={initiating}
             >
               Cancel
             </Button>
@@ -885,18 +837,10 @@ export default function ReleaseWorkflowDialog({
               )}
             </Button>
           )}
-          {step === 3 && (
-            <Button
-              onClick={() => void submitSchedule()}
-              disabled={!canContinueSchedule}
-              className="gap-1.5"
-            >
-              {scheduling ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <ArrowRight className="h-4 w-4" />
-              )}
-              Schedule inspection
+          {step === 3 && execResult && (
+            <Button onClick={closeCompleted} className="gap-1.5">
+              <Check className="h-4 w-4" />
+              Close — finish on the Inspections page
             </Button>
           )}
           {step === 1 && (
@@ -916,7 +860,7 @@ export default function ReleaseWorkflowDialog({
           {step === 4 && (
             <Button onClick={closeCompleted} className="gap-1.5">
               <Check className="h-4 w-4" />
-              Finish — refresh the pages
+              Finish — refresh pages
             </Button>
           )}
         </DialogFooter>

@@ -302,7 +302,7 @@ export async function startDevServer({ port, readyTimeoutMs = 120_000, logFile }
 
   const child = spawn(
     process.execPath,
-    [NEXT_BIN, "dev", "--turbopack", "--port", String(port)],
+    [NEXT_BIN, "dev", "--turbopack", "--port", String(port), "-H", "0.0.0.0"],
     { cwd: ROOT, env: process.env, stdio: ["ignore", "pipe", "pipe"] },
   );
 

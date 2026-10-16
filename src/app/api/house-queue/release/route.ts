@@ -6,10 +6,7 @@ import {
   houseQueueReleaseInitiateSchema,
   validateBody,
 } from "@/lib/validation";
-import {
-  executeRelease,
-  initiateRelease,
-} from "@/lib/house-queue/service";
+import { executeRelease, initiateRelease } from "@/lib/house-queue/service";
 import { notifyOrgAdmins } from "@/lib/notify";
 
 // POST /api/house-queue/release  —  Release Workflow (Steps 1 & 2)
@@ -43,6 +40,7 @@ export async function POST(req: NextRequest) {
       // `step` is unknown to the schema, so it is stripped, not rejected.
       const data = validateBody(houseQueueReleaseInitiateSchema, body);
       if (data instanceof NextResponse) return data;
+      if (data.branch === "TRANSFER") return transferIsNotARelease();
       const result = await initiateRelease({
         organizationId: orgId,
         employeeId: data.employeeId,
@@ -56,6 +54,7 @@ export async function POST(req: NextRequest) {
     if (body?.step === "execute") {
       const data = validateBody(houseQueueReleaseExecuteSchema, body);
       if (data instanceof NextResponse) return data;
+      if (data.branch === "TRANSFER") return transferIsNotARelease();
       const result = await executeRelease({
         organizationId: orgId,
         employeeId: data.employeeId,
@@ -69,10 +68,14 @@ export async function POST(req: NextRequest) {
         title: "House released",
         body: result.houseNumber
           ? `House ${result.houseNumber} was released ${
-              data.branch === "RETIREMENT" ? "for retirement" : "on employee leave"
+              data.branch === "RETIREMENT"
+                ? "for retirement"
+                : "on employee leave"
             }.`
           : `An allocation was released ${
-              data.branch === "RETIREMENT" ? "for retirement" : "on employee leave"
+              data.branch === "RETIREMENT"
+                ? "for retirement"
+                : "on employee leave"
             }.`,
         link: `/houses/inspections`,
         metadata: {
@@ -100,3 +103,22 @@ export async function POST(req: NextRequest) {
 }
 
 export const dynamic = "force-dynamic";
+
+/**
+ * A transfer is a Reassign, not a release.
+ *
+ * Narrowing the branch here rather than casting it through means the type
+ * system proves the service only ever receives a reason it can act on, and the
+ * user gets a message that names the correct surface instead of a generic
+ * validation failure.
+ */
+function transferIsNotARelease() {
+  return NextResponse.json(
+    {
+      error:
+        "A transfer is a house move, not a release. Use the Reassign action on the Allocated Houses page.",
+      code: "TRANSFER_NOT_A_RELEASE",
+    },
+    { status: 400 },
+  );
+}

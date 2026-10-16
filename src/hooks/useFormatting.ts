@@ -5,6 +5,7 @@ import { useUserPreferences } from "@/contexts/UserPreferencesContext";
 
 const LOCALE_MAP: Record<string, string> = {
   en: "en-US",
+  am: "am-ET",
   de: "de-DE",
   fr: "fr-FR",
   es: "es-ES",

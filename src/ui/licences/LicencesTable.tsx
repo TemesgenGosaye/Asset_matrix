@@ -35,7 +35,7 @@ import {
   MoreVertical,
   CalendarPlusIcon,
 } from "../Icons";
-import { toast } from "sonner";
+import { notify } from "@/lib/feedback/notify";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import RequestItemDialog from "@/components/RequestItemDialog";
 
@@ -242,8 +242,9 @@ export default function LicencesTable({
 
       const result = await response.json();
 
-      toast.success(result.message, {
-        description: `${licenceId} deleted successfully`,
+      notify.success({
+        title: result.message,
+        description: `${licenceId} deleted`,
       });
 
       setLicencesData((prevItems) =>
@@ -252,7 +253,8 @@ export default function LicencesTable({
       setIsDeleteModalOpen(false);
     } catch (error) {
       console.error("Error deleting licence:", error);
-      toast.error("Failed to delete licence", {
+      notify.error({
+        title: "Failed to delete licence",
         description: error.message,
       });
     }
@@ -272,11 +274,11 @@ export default function LicencesTable({
       setLicencesData((prev) =>
         prev.filter((item) => !selectedKeys.has(item.licenceid)),
       );
-      toast.success(`Deleted ${ids.length} licence(s)`);
+      notify.success(`Deleted ${ids.length} licence(s)`);
       setSelectedKeys(new Set());
       setShowBulkDelete(false);
     } catch (error) {
-      toast.error("Failed to delete some licences");
+      notify.error("Failed to delete some licences");
     } finally {
       setBulkDeleting(false);
     }

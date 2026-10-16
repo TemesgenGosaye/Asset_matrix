@@ -28,7 +28,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { toast } from "sonner";
+import { notify } from "@/lib/feedback/notify";
 import { Plus, Edit, Trash2, Building2, Settings } from "lucide-react";
 
 interface OrgSettings {
@@ -101,15 +101,15 @@ export default function OrganizationsTab() {
         body: JSON.stringify({ settings: settingsForm }),
       });
       if (response.ok) {
-        toast.success("Organization settings saved");
+        notify.success("Organization settings saved");
         setSettingsDialogOpen(false);
         fetchOrganizations();
       } else {
         const error = await response.json();
-        toast.error(error.error || "Failed to save settings");
+        notify.error(error.error || "Failed to save settings");
       }
     } catch {
-      toast.error("Failed to save settings");
+      notify.error("Failed to save settings");
     }
   };
 
@@ -120,10 +120,10 @@ export default function OrganizationsTab() {
         const data = await response.json();
         setOrganizations(data);
       } else {
-        toast.error("Failed to load organizations");
+        notify.error("Failed to load organizations");
       }
     } catch {
-      toast.error("Failed to load organizations");
+      notify.error("Failed to load organizations");
     } finally {
       setIsLoading(false);
     }
@@ -163,7 +163,7 @@ export default function OrganizationsTab() {
 
   const handleCreate = async () => {
     if (!formData.name.trim()) {
-      toast.error("Organization name is required");
+      notify.error("Organization name is required");
       return;
     }
 
@@ -183,13 +183,13 @@ export default function OrganizationsTab() {
         setOrganizations([...organizations, newOrg]);
         setIsDialogOpen(false);
         resetForm();
-        toast.success("Organization created");
+        notify.success("Organization created");
       } else {
         const error = await response.json();
-        toast.error(error.error || "Failed to create organization");
+        notify.error(error.error || "Failed to create organization");
       }
     } catch {
-      toast.error("Failed to create organization");
+      notify.error("Failed to create organization");
     }
   };
 
@@ -210,23 +210,28 @@ export default function OrganizationsTab() {
       if (response.ok) {
         const updatedOrg = await response.json();
         setOrganizations(
-          organizations.map((o) => (o.id === editingId ? updatedOrg : o))
+          organizations.map((o) => (o.id === editingId ? updatedOrg : o)),
         );
         setIsDialogOpen(false);
         setEditingId(null);
         resetForm();
-        toast.success("Organization updated");
+        notify.success("Organization updated");
       } else {
         const error = await response.json();
-        toast.error(error.error || "Failed to update organization");
+        notify.error(error.error || "Failed to update organization");
       }
     } catch {
-      toast.error("Failed to update organization");
+      notify.error("Failed to update organization");
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this organization? This action cannot be undone.")) return;
+    if (
+      !confirm(
+        "Are you sure you want to delete this organization? This action cannot be undone.",
+      )
+    )
+      return;
 
     try {
       const response = await fetch(`/api/organizations/${id}`, {
@@ -235,13 +240,13 @@ export default function OrganizationsTab() {
 
       if (response.ok) {
         setOrganizations(organizations.filter((o) => o.id !== id));
-        toast.success("Organization deleted");
+        notify.success("Organization deleted");
       } else {
         const error = await response.json();
-        toast.error(error.error || "Failed to delete organization");
+        notify.error(error.error || "Failed to delete organization");
       }
     } catch {
-      toast.error("Failed to delete organization");
+      notify.error("Failed to delete organization");
     }
   };
 
@@ -255,14 +260,16 @@ export default function OrganizationsTab() {
 
       if (response.ok) {
         setOrganizations(
-          organizations.map((o) => (o.id === id ? { ...o, isActive } : o))
+          organizations.map((o) => (o.id === id ? { ...o, isActive } : o)),
         );
-        toast.success(`Organization ${isActive ? "activated" : "deactivated"}`);
+        notify.success(
+          `Organization ${isActive ? "activated" : "deactivated"}`,
+        );
       } else {
-        toast.error("Failed to update organization status");
+        notify.error("Failed to update organization status");
       }
     } catch {
-      toast.error("Failed to update organization status");
+      notify.error("Failed to update organization status");
     }
   };
 
@@ -280,21 +287,21 @@ export default function OrganizationsTab() {
             </CardDescription>
           </div>
           <Button onClick={openCreateDialog}>
-            <Plus className="h-4 w-4 mr-2" />
+            <Plus className="mr-2 h-4 w-4" />
             Create Organization
           </Button>
         </CardHeader>
         <CardContent>
           {isLoading ? (
-            <p className="text-sm text-muted-foreground py-8 text-center">
+            <p className="text-muted-foreground py-8 text-center text-sm">
               Loading organizations...
             </p>
           ) : organizations.length === 0 ? (
-            <p className="text-sm text-muted-foreground py-8 text-center">
+            <p className="text-muted-foreground py-8 text-center text-sm">
               No organizations found. Create one to get started.
             </p>
           ) : (
-            <div className="border rounded-lg">
+            <div className="rounded-lg border">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -393,7 +400,7 @@ export default function OrganizationsTab() {
                 }
                 placeholder="e.g., acme-corporation"
               />
-              <p className="text-sm text-muted-foreground">
+              <p className="text-muted-foreground text-sm">
                 Auto-generated from name. Used as a unique identifier.
               </p>
             </div>
@@ -475,7 +482,10 @@ export default function OrganizationsTab() {
                 id="settings-role"
                 value={settingsForm.defaultRole || ""}
                 onChange={(e) =>
-                  setSettingsForm({ ...settingsForm, defaultRole: e.target.value })
+                  setSettingsForm({
+                    ...settingsForm,
+                    defaultRole: e.target.value,
+                  })
                 }
                 placeholder="e.g., Standard User"
               />

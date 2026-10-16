@@ -1,7 +1,10 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { requireNotDemoMode, requirePermission } from "@/lib/api-auth";
 import { handleRouteError, requireOrgId } from "@/lib/api-route";
-import { houseQueueInspectionCompleteSchema, validateBody } from "@/lib/validation";
+import {
+  houseQueueInspectionCompleteSchema,
+  validateBody,
+} from "@/lib/validation";
 import { completeInspection } from "@/lib/house-queue/service";
 
 interface RouteContext {
@@ -10,9 +13,20 @@ interface RouteContext {
 
 // POST /api/house-queue/inspections/[id]/complete
 // Body: { checklistWindow, checklistDoor, checklistWaterPanel, checklistRoof,
-//         checklistWall, checklistElectricity, conditionNote? }
-// Release Workflow Step 4: resolves the house back into the pool (Active) or
-// into maintenance (UnderMaintenance), mirroring the checklist onto the house.
+//         checklistWall, checklistElectricity,
+//         costWindow?, costDoor?, costWaterPanel?, costRoof?, costWall?, costElectricity?,
+//         conditionNote? }
+//
+// Release Workflow Step 4: records the handback result and FINALISES the
+// release. In one transaction this archives the allocation (status `released`
+// plus a `terminatedAt`, which files it on the Terminated Houses page) and
+// returns the house to the pool.
+//
+// Costs are optional on the wire but not in practice: a part marked Damaged must
+// carry one, and that rule is enforced in the service by `validateDamage` — the
+// same function the form calls, so a submission the UI called valid is exactly a
+// submission the server accepts.
+//
 // Requires house_queue:manage.
 export async function POST(req: NextRequest, context: RouteContext) {
   try {
@@ -43,6 +57,16 @@ export async function POST(req: NextRequest, context: RouteContext) {
         roof: data.checklistRoof,
         wall: data.checklistWall,
         electricity: data.checklistElectricity,
+      },
+      // Passed through unparsed: deciding what a usable amount is belongs to the
+      // one validator shared with the form, not to a second copy here.
+      costs: {
+        window: data.costWindow,
+        door: data.costDoor,
+        waterPanel: data.costWaterPanel,
+        roof: data.costRoof,
+        wall: data.costWall,
+        electricity: data.costElectricity,
       },
       conditionNote: data.conditionNote,
     });

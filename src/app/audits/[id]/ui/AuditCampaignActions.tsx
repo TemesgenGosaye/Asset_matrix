@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Camera } from "lucide-react";
-import { toast } from "sonner";
+import { notify } from "@/lib/feedback/notify";
 
 export default function AuditCampaignActions({
   campaignId,
@@ -28,10 +28,10 @@ export default function AuditCampaignActions({
         throw new Error(data.error || "Failed to activate");
       }
       const data = await res.json();
-      toast.success(`Campaign activated with ${data.assetsCount} assets`);
+      notify.success(`Campaign activated with ${data.assetsCount} assets`);
       router.refresh();
     } catch (err: any) {
-      toast.error(err.message);
+      notify.error(err.message);
     } finally {
       setLoading(false);
     }
@@ -48,10 +48,10 @@ export default function AuditCampaignActions({
         const data = await res.json();
         throw new Error(data.error || "Failed to complete");
       }
-      toast.success("Campaign completed");
+      notify.success("Campaign completed");
       router.refresh();
     } catch (err: any) {
-      toast.error(err.message);
+      notify.error(err.message);
     } finally {
       setLoading(false);
     }

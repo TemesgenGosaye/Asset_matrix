@@ -19,12 +19,14 @@ describe("AI Assistant Suite", () => {
       organizationId: "org-456",
     });
 
-    expect(prompt).toContain("HAMS Copilot");
+    // The assistant is branded "Meri" (see ../brand), not the old
+    // "HAMS Copilot" name this test used to assert.
+    expect(prompt).toContain("Meri");
     expect(prompt).toContain("Admin User");
     expect(prompt).toContain("admin@msf.org");
     expect(prompt).toContain("org-456");
-    expect(prompt).toContain("Housing & Households (HAMS)");
-    expect(prompt).toContain("Asset Management");
+    expect(prompt).toContain("HAMS");
+    expect(prompt).toContain("Housing and Asset Management System");
   });
 
   it("instantiates all required asset, housing, and ticket tools", () => {
@@ -49,7 +51,9 @@ describe("AI Assistant Suite", () => {
 
   it("correctly drafts a maintenance ticket with human confirmation preview", async () => {
     const tools = getScopedAiTools("test-org-id", "test-user-id");
-    const result = await tools.draftMaintenanceTicket.execute(
+    // AI SDK v7: `execute(input, options)` and the options bag now also
+    // carries the tool `context`.
+    const result = await tools.draftMaintenanceTicket.execute!(
       {
         title: "Broken AC in House 102",
         description: "Unit is leaking water onto the floor",
@@ -57,14 +61,20 @@ describe("AI Assistant Suite", () => {
         referenceType: "house",
         referenceId: "H-102",
       },
-      { messages: [], toolCallId: "tc-1" },
+      { toolCallId: "tc-1", messages: [], context: {} },
     );
 
-    expect(result.draftStatus).toBe("ready_for_confirmation");
-    expect(result.action).toBe("create_ticket");
-    expect(result.payload.title).toBe("Broken AC in House 102");
-    expect(result.payload.priority).toBe("high");
-    expect(result.payload.description).toContain("[Ref: HOUSE H-102]");
-    expect(result.confirmationMessage).toContain("Broken AC in House 102");
+    expect(result).toMatchObject({
+      draftStatus: "ready_for_confirmation",
+      action: "create_ticket",
+    });
+    const draft = result as {
+      payload: { title: string; priority: string; description: string };
+      confirmationMessage: string;
+    };
+    expect(draft.payload.title).toBe("Broken AC in House 102");
+    expect(draft.payload.priority).toBe("high");
+    expect(draft.payload.description).toContain("[Ref: HOUSE H-102]");
+    expect(draft.confirmationMessage).toContain("Broken AC in House 102");
   });
 });

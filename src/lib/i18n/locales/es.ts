@@ -24,7 +24,6 @@ const es: Record<string, string> = {
   "nav.qrScanner": "Escaner QR",
   "nav.reports": "Informes",
   "nav.workflows": "Flujos de trabajo",
-  "nav.apiDocs": "Documentacion API",
   "nav.auditLogs": "Registros de auditoria",
   "nav.gdpr": "RGPD",
   "nav.compliance": "Cumplimiento",
@@ -189,18 +188,6 @@ const es: Record<string, string> = {
   "checkout.type": "Tipo de asignacion",
   "checkout.bulk": "Asignacion masiva",
 
-  // EULA
-  "eula.title": "Plantillas EULA",
-  "eula.create": "Crear plantilla EULA",
-  "eula.edit": "Editar plantilla EULA",
-  "eula.accept": "Aceptar EULA",
-  "eula.signature": "Firma digital",
-  "eula.signBelow": "Firme a continuacion para aceptar",
-  "eula.required": "Se requiere aceptacion del EULA",
-  "eula.version": "Version",
-  "eula.active": "Activo",
-  "eula.inactive": "Inactivo",
-
   // Bulk Checkout
   "checkout.bulkTitle": "Asignacion masiva de activos",
   "checkout.selectedAssets": "{{count}} activos seleccionados",
@@ -225,8 +212,10 @@ const es: Record<string, string> = {
   "ldap.title": "LDAP / Active Directory",
   "ldap.testConnection": "Probar conexion",
   "ldap.syncNow": "Sincronizar ahora",
-  "ldap.syncComplete": "Sincronizacion completa: {{created}} creados, {{updated}} actualizados, {{deactivated}} desactivados",
-  "ldap.connectionSuccess": "Conexion exitosa. Se encontraron {{count}} usuarios.",
+  "ldap.syncComplete":
+    "Sincronizacion completa: {{created}} creados, {{updated}} actualizados, {{deactivated}} desactivados",
+  "ldap.connectionSuccess":
+    "Conexion exitosa. Se encontraron {{count}} usuarios.",
   "ldap.connectionFailed": "Error de conexion: {{message}}",
   "sso.title": "Inicio de sesion unico",
   "sso.signInWith": "Iniciar sesion con {{provider}}",
@@ -236,10 +225,10 @@ const es: Record<string, string> = {
   "sso.disabled": "SSO deshabilitado",
 
   // Greeting / interpolation example
-  "greeting": "Hola, {{name}}",
-  "welcome": "Bienvenido de nuevo, {{name}}",
-  "itemCount": "{{count}} elementos encontrados",
-  "pageOf": "Pagina {{current}} de {{total}}",
+  greeting: "Hola, {{name}}",
+  welcome: "Bienvenido de nuevo, {{name}}",
+  itemCount: "{{count}} elementos encontrados",
+  pageOf: "Pagina {{current}} de {{total}}",
 };
 
 export default es;

@@ -31,7 +31,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { toast } from "sonner";
+import { notify } from "@/lib/feedback/notify";
 import { ClipboardCheck, LogOut, LogIn, Loader2 } from "lucide-react";
 
 // ---------------------------------------------------------------------------
@@ -139,13 +139,13 @@ export default function AssetCheckoutHistory({
       const res = await fetch(`/api/asset/checkout?assetId=${assetId}`);
       if (!res.ok) {
         const data = await res.json();
-        toast.error(data.error || "Failed to fetch checkouts");
+        notify.error(data.error || "Failed to fetch checkouts");
         return;
       }
       const data: Checkout[] = await res.json();
       setCheckouts(data);
     } catch {
-      toast.error("Failed to connect to the server");
+      notify.error("Failed to connect to the server");
     } finally {
       setIsLoading(false);
     }
@@ -160,7 +160,7 @@ export default function AssetCheckoutHistory({
         setUsers(data);
       }
     } catch {
-      toast.error("Failed to load users");
+      notify.error("Failed to load users");
     } finally {
       setLoadingUsers(false);
     }
@@ -183,7 +183,7 @@ export default function AssetCheckoutHistory({
 
   const handleCheckout = async () => {
     if (!selectedUserId) {
-      toast.error("Please select a user");
+      notify.error("Please select a user");
       return;
     }
 
@@ -204,18 +204,18 @@ export default function AssetCheckoutHistory({
 
       if (!res.ok) {
         const data = await res.json();
-        toast.error(data.error || "Failed to create checkout");
+        notify.error(data.error || "Failed to create checkout");
         return;
       }
 
-      toast.success("Asset checked out successfully");
+      notify.success("Asset checked out");
       setDialogOpen(false);
       setSelectedUserId("");
       setExpectedReturn("");
       setNotes("");
       fetchCheckouts();
     } catch {
-      toast.error("Failed to connect to the server");
+      notify.error("Failed to connect to the server");
     } finally {
       setSubmitting(false);
     }
@@ -231,14 +231,14 @@ export default function AssetCheckoutHistory({
 
       if (!res.ok) {
         const data = await res.json();
-        toast.error(data.error || "Failed to check in asset");
+        notify.error(data.error || "Failed to check in asset");
         return;
       }
 
-      toast.success("Asset checked in successfully");
+      notify.success("Asset checked in");
       fetchCheckouts();
     } catch {
-      toast.error("Failed to connect to the server");
+      notify.error("Failed to connect to the server");
     } finally {
       setCheckingIn(null);
     }

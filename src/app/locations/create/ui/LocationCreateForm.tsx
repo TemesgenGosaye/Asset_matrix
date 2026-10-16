@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import { notify } from "@/lib/feedback/notify";
 
 export default function LocationCreateForm({
   initialData = null,
@@ -74,14 +74,15 @@ export default function LocationCreateForm({
       }
 
       const created = await res.json();
-      toast.success(mode === "edit" ? "Location updated" : "Location created", {
+      notify.success({
+        title: mode === "edit" ? "Location updated" : "Location created",
         description: created.locationname,
       });
       router.push("/locations");
       router.refresh();
     } catch (err) {
       setError(err.message);
-      toast.error("Create failed", { description: err.message });
+      notify.error({ title: "Create failed", description: err.message });
     } finally {
       setSubmitting(false);
     }

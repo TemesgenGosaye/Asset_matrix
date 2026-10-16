@@ -23,7 +23,6 @@ const nl: Record<string, string> = {
   "nav.qrScanner": "QR Scanner",
   "nav.reports": "Rapporten",
   "nav.workflows": "Workflows",
-  "nav.apiDocs": "API-documentatie",
   "nav.auditLogs": "Auditlogboeken",
   "nav.gdpr": "AVG",
   "nav.compliance": "Compliance",
@@ -188,18 +187,6 @@ const nl: Record<string, string> = {
   "checkout.type": "Type uitgifte",
   "checkout.bulk": "Bulkuitgifte",
 
-  // EULA
-  "eula.title": "EULA-sjablonen",
-  "eula.create": "EULA-sjabloon aanmaken",
-  "eula.edit": "EULA-sjabloon bewerken",
-  "eula.accept": "EULA accepteren",
-  "eula.signature": "Digitale handtekening",
-  "eula.signBelow": "Onderteken hieronder om te accepteren",
-  "eula.required": "Acceptatie van de EULA is vereist",
-  "eula.version": "Versie",
-  "eula.active": "Actief",
-  "eula.inactive": "Inactief",
-
   // Bulk Checkout
   "checkout.bulkTitle": "Bulkuitgifte van assets",
   "checkout.selectedAssets": "{{count}} assets geselecteerd",
@@ -224,8 +211,10 @@ const nl: Record<string, string> = {
   "ldap.title": "LDAP / Active Directory",
   "ldap.testConnection": "Verbinding testen",
   "ldap.syncNow": "Nu synchroniseren",
-  "ldap.syncComplete": "Synchronisatie voltooid: {{created}} aangemaakt, {{updated}} bijgewerkt, {{deactivated}} gedeactiveerd",
-  "ldap.connectionSuccess": "Verbinding geslaagd. {{count}} gebruikers gevonden.",
+  "ldap.syncComplete":
+    "Synchronisatie voltooid: {{created}} aangemaakt, {{updated}} bijgewerkt, {{deactivated}} gedeactiveerd",
+  "ldap.connectionSuccess":
+    "Verbinding geslaagd. {{count}} gebruikers gevonden.",
   "ldap.connectionFailed": "Verbinding mislukt: {{message}}",
   "sso.title": "Single Sign-On",
   "sso.signInWith": "Aanmelden met {{provider}}",
@@ -235,10 +224,10 @@ const nl: Record<string, string> = {
   "sso.disabled": "SSO uitgeschakeld",
 
   // Greeting / interpolation example
-  "greeting": "Goedendag, {{name}}",
-  "welcome": "Welkom terug, {{name}}",
-  "itemCount": "{{count}} items gevonden",
-  "pageOf": "Pagina {{current}} van {{total}}",
+  greeting: "Goedendag, {{name}}",
+  welcome: "Welkom terug, {{name}}",
+  itemCount: "{{count}} items gevonden",
+  pageOf: "Pagina {{current}} van {{total}}",
 };
 
 export default nl;

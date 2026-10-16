@@ -19,7 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { toast } from "sonner";
+import { notify } from "@/lib/feedback/notify";
 import {
   ShoppingCart,
   Rocket,
@@ -148,7 +148,7 @@ export default function AssetLifecycle({
 
   const handleTransition = async () => {
     if (!selectedStatus) {
-      toast.error("Please select a new status");
+      notify.error("Please select a new status");
       return;
     }
 
@@ -165,17 +165,17 @@ export default function AssetLifecycle({
       });
 
       if (response.ok) {
-        toast.success("Asset lifecycle status updated");
+        notify.success("Asset lifecycle status updated");
         setDialogOpen(false);
         setNotes("");
         setSelectedStatus("");
         onStatusChange?.();
       } else {
         const error = await response.json();
-        toast.error(error.error || "Failed to update status");
+        notify.error(error.error || "Failed to update status");
       }
     } catch {
-      toast.error("Failed to update status");
+      notify.error("Failed to update status");
     } finally {
       setIsSaving(false);
     }

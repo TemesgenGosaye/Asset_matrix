@@ -15,7 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { toast } from "sonner";
+import { notify } from "@/lib/feedback/notify";
 
 export default function UserResources({
   user,
@@ -49,9 +49,9 @@ export default function UserResources({
       });
       if (!res.ok) throw new Error("Failed to unassign accessory");
       setAccList((prev) => prev.filter((a) => a.accessorieid !== accessorieId));
-      toast.success("Accessory unassigned");
+      notify.success("Accessory unassigned");
     } catch (e) {
-      toast.error("Unassign failed", { description: e.message });
+      notify.error({ title: "Unassign failed", description: e.message });
     }
   };
 
@@ -73,9 +73,9 @@ export default function UserResources({
       if (added) setAccList((prev) => [...prev, added]);
       setSelectedAcc(null);
       setAssignAccOpen(false);
-      toast.success("Accessory assigned");
+      notify.success("Accessory assigned");
     } catch (e) {
-      toast.error("Assign failed", { description: e.message });
+      notify.error({ title: "Assign failed", description: e.message });
     }
   };
 
@@ -88,9 +88,9 @@ export default function UserResources({
       });
       if (!res.ok) throw new Error("Failed to unassign licence");
       setLicList((prev) => prev.filter((l) => l.licenceid !== licenceId));
-      toast.success("Licence unassigned");
+      notify.success("Licence unassigned");
     } catch (e) {
-      toast.error("Unassign failed", { description: e.message });
+      notify.error({ title: "Unassign failed", description: e.message });
     }
   };
 
@@ -111,9 +111,9 @@ export default function UserResources({
         ]);
       setSelectedLic(null);
       setAssignLicOpen(false);
-      toast.success("Licence assigned");
+      notify.success("Licence assigned");
     } catch (e) {
-      toast.error("Assign failed", { description: e.message });
+      notify.error({ title: "Assign failed", description: e.message });
     }
   };
 
@@ -150,7 +150,7 @@ export default function UserResources({
         );
         setAccList(newAccList);
         setLicList(newLicList);
-        if (auto) toast("User resources refreshed");
+        if (auto) notify.info("User resources refreshed");
       } catch (e) {
         // Silent fail
       } finally {

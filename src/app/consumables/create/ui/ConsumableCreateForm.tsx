@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import { notify } from "@/lib/feedback/notify";
 import SelectWithQuickCreate, {
   type QuickCreateOption,
 } from "@/components/SelectWithQuickCreate";
@@ -117,7 +117,7 @@ export default function ConsumableCreateForm({
 
       if (res.status === 409) {
         const err = await res.json().catch(() => ({}));
-        toast.error(
+        notify.error(
           err.error ||
             "This item was modified by someone else. Please refresh and try again.",
         );
@@ -142,17 +142,15 @@ export default function ConsumableCreateForm({
           }),
         });
       }
-      toast.success(
-        mode === "edit" ? "Consumable updated" : "Consumable created",
-        {
-          description: created.consumablename,
-        },
-      );
+      notify.success({
+        title: mode === "edit" ? "Consumable updated" : "Consumable created",
+        description: created.consumablename,
+      });
       router.push("/consumables");
       router.refresh();
     } catch (err) {
       setError(err.message);
-      toast.error("Create failed", { description: err.message });
+      notify.error({ title: "Create failed", description: err.message });
     } finally {
       setSubmitting(false);
     }

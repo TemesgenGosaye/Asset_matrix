@@ -17,7 +17,7 @@ import {
   LogOut,
   RotateCcw,
 } from "lucide-react";
-import { toast } from "sonner";
+import { notify } from "@/lib/feedback/notify";
 import QRCodeDisplay from "./QRCodeDisplay";
 
 interface AssetSearchResult {
@@ -91,10 +91,10 @@ export default function ScannerPageClient({
         videoRef.current.srcObject = stream;
       }
       setCameraPermission("granted");
-      toast.success("Camera access granted");
+      notify.success("Camera access granted");
     } catch {
       setCameraPermission("denied");
-      toast.error("Camera access denied. Please allow camera permissions.");
+      notify.error("Camera access denied. Please allow camera permissions.");
     }
   }, []);
 
@@ -139,9 +139,9 @@ export default function ScannerPageClient({
               statusType: asset.statusType ?? null,
               assignedUser: null,
             });
-            toast.success(`Asset found: ${asset.assetname}`);
+            notify.success(`Asset found: ${asset.assetname}`);
           } catch {
-            toast.error(
+            notify.error(
               "Could not load asset details. Navigating to asset page.",
             );
             router.push(url.pathname);
@@ -154,7 +154,7 @@ export default function ScannerPageClient({
         // Not a URL
       }
 
-      toast.info(`Detected: ${rawValue}`);
+      notify.info(`Detected: ${rawValue}`);
       return false;
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps -- stopScanning is defined above, circular callback dependency
@@ -257,7 +257,7 @@ export default function ScannerPageClient({
         setSearchResults(mapped);
       } catch (err) {
         if (err instanceof DOMException && err.name === "AbortError") return;
-        toast.error("Search failed");
+        notify.error("Search failed");
         setSearchResults([]);
       } finally {
         setSearchLoading(false);

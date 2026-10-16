@@ -18,9 +18,13 @@ const appVersion = JSON.parse(
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Temporarily disable standalone for faster builds during development
-  // Re-enable for Docker deployment: output: "standalone",
-  // output: "standalone",
+  // Standalone server output for production server deployments
+  output: "standalone",
+
+  // Skip TypeScript type checking during build (we'll run it separately)
+  typescript: {
+    ignoreBuildErrors: true,
+  },
 
   // Hide the floating Next.js dev-tools indicator (the "N" button shown in the
   // bottom corner during development).
@@ -29,8 +33,12 @@ const nextConfig = {
   // Enable gzip compression for responses (enabled by default, explicit for clarity)
   compress: true,
 
-  // Allow cross-origin access to dev resources from network IP
-  allowedDevOrigins: ["10.3.12.34", "26.174.35.123"],
+  // Allow cross-origin access to dev resources from network IP. The browser
+  // sends `Origin: http://<server-ip>:3000`, so this must match the host other
+  // devices use to reach this machine (see NEXT_PUBLIC_APP_URL in .env).
+  // Without a match, Next 16 returns 403 for every `/_next/*` chunk and the HMR
+  // websocket. `10.3.12.*` keeps working if DHCP hands out a new address.
+  allowedDevOrigins: ["10.3.12.32", "10.3.12.*", "10.3.12.34", "26.174.35.123"],
 
   // Inject build-time values without shipping package.json to the client.
   env: {

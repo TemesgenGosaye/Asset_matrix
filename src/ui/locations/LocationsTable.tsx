@@ -41,7 +41,7 @@ import {
   MoreVertical,
 } from "../Icons";
 import { ChevronRight, MapPin } from "lucide-react";
-import { toast } from "sonner";
+import { notify } from "@/lib/feedback/notify";
 
 const ROWS_PER_PAGE_OPTIONS = ["10", "20", "50", "100"];
 
@@ -140,8 +140,9 @@ export default function LocationsTable({ items }) {
 
       const result = await response.json();
 
-      toast.success(result.message, {
-        description: `${locationId} deleted successfully`,
+      notify.success({
+        title: result.message,
+        description: `${locationId} deleted`,
       });
 
       setLocationsData((prevItems) =>
@@ -150,7 +151,8 @@ export default function LocationsTable({ items }) {
       setIsDeleteModalOpen(false);
     } catch (error) {
       console.error("Error deleting location:", error);
-      toast.error("Failed to delete location", {
+      notify.error({
+        title: "Failed to delete location",
         description: error.message,
       });
     }

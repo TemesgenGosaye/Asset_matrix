@@ -24,7 +24,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { toast } from "sonner";
+import { notify } from "@/lib/feedback/notify";
 import { Calendar, Plus, Loader2, Check, X } from "lucide-react";
 
 // ---------------------------------------------------------------------------
@@ -134,7 +134,7 @@ export default function AssetReservations({
       setReservations(data);
     } catch (error) {
       console.error("Error fetching reservations:", error);
-      toast.error("Failed to load reservations");
+      notify.error("Failed to load reservations");
     } finally {
       setLoading(false);
     }
@@ -150,12 +150,12 @@ export default function AssetReservations({
 
   const handleCreateReservation = async () => {
     if (!startDate || !endDate) {
-      toast.error("Please select both start and end dates");
+      notify.error("Please select both start and end dates");
       return;
     }
 
     if (new Date(startDate) >= new Date(endDate)) {
-      toast.error("End date must be after start date");
+      notify.error("End date must be after start date");
       return;
     }
 
@@ -173,7 +173,7 @@ export default function AssetReservations({
       });
 
       if (res.status === 409) {
-        toast.error(
+        notify.error(
           "This asset already has a reservation for the selected dates",
         );
         return;
@@ -184,13 +184,13 @@ export default function AssetReservations({
         throw new Error(data.error || "Failed to create reservation");
       }
 
-      toast.success("Reservation request submitted");
+      notify.success("Reservation request submitted");
       setDialogOpen(false);
       resetForm();
       fetchReservations();
     } catch (error) {
       console.error("Error creating reservation:", error);
-      toast.error(
+      notify.error(
         error instanceof Error ? error.message : "Failed to create reservation",
       );
     } finally {
@@ -223,11 +223,11 @@ export default function AssetReservations({
         rejected: "Reservation rejected",
         cancelled: "Reservation cancelled",
       };
-      toast.success(statusMessages[newStatus] || "Reservation updated");
+      notify.success(statusMessages[newStatus] || "Reservation updated");
       fetchReservations();
     } catch (error) {
       console.error("Error updating reservation:", error);
-      toast.error(
+      notify.error(
         error instanceof Error ? error.message : "Failed to update reservation",
       );
     }

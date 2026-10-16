@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/select";
 import { FileDropZone } from "@/components/FileDropZone";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
-import { toast } from "sonner";
+import { notify } from "@/lib/feedback/notify";
 import {
   AlertTriangle,
   ArrowLeft,
@@ -26,7 +26,10 @@ import {
   ShieldAlert,
   Upload,
 } from "lucide-react";
-import { HOUSEHOLD_IMPORT_MODES, type HouseholdImportMode } from "@/lib/household-constants";
+import {
+  HOUSEHOLD_IMPORT_MODES,
+  type HouseholdImportMode,
+} from "@/lib/household-constants";
 import HelpTooltip from "@/components/HelpTooltip";
 
 // ---------------------------------------------------------------------------
@@ -125,17 +128,45 @@ function formatFileSize(bytes: number): string {
 const ROWS_PER_PAGE = 50;
 const ERRORS_PER_PAGE = 20;
 
-const CLASSIFICATION_BADGE: Record<Classification, { label: string; className: string }> = {
-  new: { label: "New", className: "bg-green-100 text-green-700 hover:bg-green-100" },
-  update: { label: "Will Update", className: "bg-blue-100 text-blue-700 hover:bg-blue-100" },
-  existing: { label: "Already Exists", className: "bg-gray-100 text-gray-600 hover:bg-gray-100" },
-  not_found: { label: "Not in Register", className: "bg-amber-100 text-amber-700 hover:bg-amber-100" },
-  duplicate: { label: "Duplicate", className: "bg-red-100 text-red-700 hover:bg-red-100" },
-  conflict: { label: "Conflict", className: "bg-red-100 text-red-700 hover:bg-red-100" },
-  invalid: { label: "Invalid", className: "bg-red-100 text-red-700 hover:bg-red-100" },
+const CLASSIFICATION_BADGE: Record<
+  Classification,
+  { label: string; className: string }
+> = {
+  new: {
+    label: "New",
+    className: "bg-green-100 text-green-700 hover:bg-green-100",
+  },
+  update: {
+    label: "Will Update",
+    className: "bg-blue-100 text-blue-700 hover:bg-blue-100",
+  },
+  existing: {
+    label: "Already Exists",
+    className: "bg-gray-100 text-gray-600 hover:bg-gray-100",
+  },
+  not_found: {
+    label: "Not in Register",
+    className: "bg-amber-100 text-amber-700 hover:bg-amber-100",
+  },
+  duplicate: {
+    label: "Duplicate",
+    className: "bg-red-100 text-red-700 hover:bg-red-100",
+  },
+  conflict: {
+    label: "Conflict",
+    className: "bg-red-100 text-red-700 hover:bg-red-100",
+  },
+  invalid: {
+    label: "Invalid",
+    className: "bg-red-100 text-red-700 hover:bg-red-100",
+  },
 };
 
-function ClassificationBadge({ classification }: { classification: Classification }) {
+function ClassificationBadge({
+  classification,
+}: {
+  classification: Classification;
+}) {
   const meta = CLASSIFICATION_BADGE[classification];
   return <Badge className={meta.className}>{meta.label}</Badge>;
 }
@@ -153,7 +184,7 @@ function PaginationControls({
 }) {
   if (pageCount <= 1) return null;
   return (
-    <div className="flex items-center justify-between gap-3 pt-3 text-xs text-muted-foreground">
+    <div className="text-muted-foreground flex items-center justify-between gap-3 pt-3 text-xs">
       <span>
         Page {page} of {pageCount}
       </span>
@@ -192,7 +223,9 @@ export default function HouseholdImportWizard({
   const [step, setStep] = useState<Step>("upload");
   const [mode, setMode] = useState<HouseholdImportMode>("add");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [analysis, setAnalysis] = useState<HouseholdPreviewResponse | null>(null);
+  const [analysis, setAnalysis] = useState<HouseholdPreviewResponse | null>(
+    null,
+  );
   const [result, setResult] = useState<HouseholdImportResult | null>(null);
   const [isParsing, setIsParsing] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
@@ -207,7 +240,8 @@ export default function HouseholdImportWizard({
     [analysis],
   );
   const errorPageCount = useMemo(
-    () => Math.max(1, Math.ceil((analysis?.errors.length ?? 0) / ERRORS_PER_PAGE)),
+    () =>
+      Math.max(1, Math.ceil((analysis?.errors.length ?? 0) / ERRORS_PER_PAGE)),
     [analysis],
   );
 
@@ -257,7 +291,8 @@ export default function HouseholdImportWizard({
 
         if (!res.ok) {
           throw new Error(
-            body.error || `Preview failed (${res.status}). Upload a valid House Register file.`,
+            body.error ||
+              `Preview failed (${res.status}). Upload a valid House Register file.`,
           );
         }
 
@@ -303,22 +338,25 @@ export default function HouseholdImportWizard({
 
       const imported = (body.created ?? 0) + (body.updated ?? 0);
       if (body.status === "failed") {
-        toast.error("Import failed — no houses were changed.");
+        notify.error("Import failed — no houses were changed.");
       } else if (body.failedCount > 0) {
-        toast.warning(
+        notify.warning(
           `Imported ${imported} house(s) with ${body.failedCount} row(s) skipped.`,
         );
       } else if (imported > 0) {
-        toast.success(`Imported ${imported} house(s) into the House Register.`);
+        notify.success(
+          `Imported ${imported} house(s) into the House Register.`,
+        );
       } else {
-        toast.info("Nothing to import — no changes were needed.");
+        notify.info("Nothing to import — no changes were needed.");
       }
 
       onComplete?.();
     } catch (err) {
       setParseError(err instanceof Error ? err.message : String(err));
       setStep("preview");
-      toast.error("Import failed", {
+      notify.error({
+        title: "Import failed",
         description: err instanceof Error ? err.message : String(err),
       });
     } finally {
@@ -361,7 +399,8 @@ export default function HouseholdImportWizard({
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
     } catch (err) {
-      toast.error("Could not download error report", {
+      notify.error({
+        title: "Could not download error report",
         description: err instanceof Error ? err.message : String(err),
       });
     }
@@ -408,18 +447,18 @@ export default function HouseholdImportWizard({
               {i < currentIdx ? (
                 <CheckCircle2 className="h-3.5 w-3.5" />
               ) : i === currentIdx ? (
-                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary text-xs font-semibold text-white">
+                <span className="bg-primary flex h-5 w-5 items-center justify-center rounded-full text-xs font-semibold text-white">
                   {i + 1}
                 </span>
               ) : (
-                <span className="flex h-5 w-5 items-center justify-center rounded-full border text-xs text-muted-foreground">
+                <span className="text-muted-foreground flex h-5 w-5 items-center justify-center rounded-full border text-xs">
                   {i + 1}
                 </span>
               )}
               {STEP_LABELS[s]}
             </span>
             {i < visibleSteps.length - 1 && (
-              <div className="mx-1 h-px w-4 bg-border" />
+              <div className="bg-border mx-1 h-px w-4" />
             )}
           </React.Fragment>
         ))}
@@ -440,7 +479,9 @@ export default function HouseholdImportWizard({
           <Button
             variant="outline"
             size="sm"
-            onClick={() => window.open("/api/import/household/template", "_blank")}
+            onClick={() =>
+              window.open("/api/import/household/template", "_blank")
+            }
           >
             <Download className="mr-1.5 h-3.5 w-3.5" />
             Download Template
@@ -489,7 +530,7 @@ export default function HouseholdImportWizard({
         />
 
         {selectedFile && (
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <div className="text-muted-foreground flex items-center gap-2 text-sm">
             <FileSpreadsheet className="h-4 w-4" />
             {selectedFile.name} ({formatFileSize(selectedFile.size)})
           </div>
@@ -499,11 +540,13 @@ export default function HouseholdImportWizard({
           <div className="flex items-start gap-3 rounded-md border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 dark:bg-amber-950/30 dark:text-amber-300">
             <ShieldAlert className="mt-0.5 h-5 w-5 shrink-0" />
             <div>
-              <p className="font-medium">You do not have permission to do this.</p>
+              <p className="font-medium">
+                You do not have permission to do this.
+              </p>
               <p className="mt-1">
                 Importing the House Register requires the Add Houses permission
-                {mode !== "add" ? " and the Edit Houses permission" : ""}. Ask an
-                administrator to grant it if you need to import house data.
+                {mode !== "add" ? " and the Edit Houses permission" : ""}. Ask
+                an administrator to grant it if you need to import house data.
               </p>
             </div>
           </div>
@@ -538,7 +581,11 @@ export default function HouseholdImportWizard({
       { label: "Total Rows", value: s.totalRows },
       { label: "New Houses", value: s.newRows, tone: "text-green-600" },
       { label: "Will Update", value: s.updateRows, tone: "text-blue-600" },
-      { label: "Already Exist", value: s.existingSkipped, tone: "text-gray-500" },
+      {
+        label: "Already Exist",
+        value: s.existingSkipped,
+        tone: "text-gray-500",
+      },
       { label: "Conflicts", value: s.conflictRows, tone: "text-red-600" },
       { label: "Errors", value: s.invalidRows, tone: "text-red-600" },
     ];
@@ -547,7 +594,7 @@ export default function HouseholdImportWizard({
         {cards.map((c) => (
           <div
             key={c.label}
-            className="rounded-md border bg-background p-3 text-center"
+            className="bg-background rounded-md border p-3 text-center"
           >
             <div
               className={`text-2xl font-semibold ${c.tone ?? "text-foreground"}`}
@@ -585,8 +632,8 @@ export default function HouseholdImportWizard({
             Sheet <span className="font-medium">{analysis.sheetName}</span> ·{" "}
             {analysis.dataRowCount.toLocaleString()} data row(s) · mode:{" "}
             <span className="font-medium">
-              {HOUSEHOLD_IMPORT_MODES.find((m) => m.value === analysis.mode)?.label ??
-                analysis.mode}
+              {HOUSEHOLD_IMPORT_MODES.find((m) => m.value === analysis.mode)
+                ?.label ?? analysis.mode}
             </span>
           </p>
         </CardHeader>
@@ -615,12 +662,18 @@ export default function HouseholdImportWizard({
             <div className="overflow-x-auto rounded-md border">
               <table className="w-full text-xs">
                 <thead>
-                  <tr className="border-b bg-muted/50">
-                    <th className="px-2 py-2 text-left font-medium">Excel Row</th>
-                    <th className="px-2 py-2 text-left font-medium">House No.</th>
+                  <tr className="bg-muted/50 border-b">
+                    <th className="px-2 py-2 text-left font-medium">
+                      Excel Row
+                    </th>
+                    <th className="px-2 py-2 text-left font-medium">
+                      House No.
+                    </th>
                     <th className="px-2 py-2 text-left font-medium">HID</th>
                     <th className="px-2 py-2 text-left font-medium">Type</th>
-                    <th className="px-2 py-2 text-left font-medium">Category</th>
+                    <th className="px-2 py-2 text-left font-medium">
+                      Category
+                    </th>
                     <th className="px-2 py-2 text-left font-medium">R/G</th>
                     <th className="px-2 py-2 text-left font-medium">Status</th>
                     <th className="px-2 py-2 text-left font-medium">Result</th>
@@ -633,25 +686,31 @@ export default function HouseholdImportWizard({
                       key={`${row.excelRow}-${row.houseNumber}`}
                       className="border-b last:border-0"
                     >
-                      <td className="px-2 py-1.5 text-muted-foreground">
+                      <td className="text-muted-foreground px-2 py-1.5">
                         {row.excelRow}
                       </td>
-                      <td className="px-2 py-1.5 font-medium">{row.houseNumber}</td>
-                      <td className="px-2 py-1.5 text-muted-foreground">
+                      <td className="px-2 py-1.5 font-medium">
+                        {row.houseNumber}
+                      </td>
+                      <td className="text-muted-foreground px-2 py-1.5">
                         {row.hid || "—"}
                       </td>
                       <td className="px-2 py-1.5">
                         {row.houseType === "Staff" ? "Staff" : row.houseType}
                       </td>
-                      <td className="px-2 py-1.5 text-muted-foreground">
-                        {row.houseType === "Staff" ? (row.staffCategory ?? "—") : "—"}
+                      <td className="text-muted-foreground px-2 py-1.5">
+                        {row.houseType === "Staff"
+                          ? (row.staffCategory ?? "—")
+                          : "—"}
                       </td>
                       <td className="px-2 py-1.5">{row.rgType}</td>
                       <td className="px-2 py-1.5">{row.status}</td>
                       <td className="px-2 py-1.5">
-                        <ClassificationBadge classification={row.classification} />
+                        <ClassificationBadge
+                          classification={row.classification}
+                        />
                       </td>
-                      <td className="px-2 py-1.5 text-muted-foreground">
+                      <td className="text-muted-foreground px-2 py-1.5">
                         {row.message}
                       </td>
                     </tr>
@@ -660,7 +719,7 @@ export default function HouseholdImportWizard({
                     <tr>
                       <td
                         colSpan={9}
-                        className="px-2 py-4 text-center text-muted-foreground"
+                        className="text-muted-foreground px-2 py-4 text-center"
                       >
                         No records parsed from this file.
                       </td>
@@ -681,27 +740,35 @@ export default function HouseholdImportWizard({
           {analysis.errors.length > 0 && (
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <p className="text-sm font-medium text-destructive">
+                <p className="text-destructive text-sm font-medium">
                   {analysis.errors.length.toLocaleString()} row(s) with issues
                 </p>
-                <Button variant="outline" size="sm" onClick={downloadErrorReport}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={downloadErrorReport}
+                >
                   <Download className="mr-1.5 h-3.5 w-3.5" />
                   Download Error Report (.xlsx)
                 </Button>
               </div>
               <div className="max-h-72 overflow-y-auto rounded-md border">
                 <table className="w-full text-xs">
-                  <thead className="sticky top-0 bg-muted/50">
+                  <thead className="bg-muted/50 sticky top-0">
                     <tr className="border-b">
                       <th className="px-2 py-1.5 text-left font-medium">Row</th>
-                      <th className="px-2 py-1.5 text-left font-medium">House No.</th>
-                      <th className="px-2 py-1.5 text-left font-medium">Issue</th>
+                      <th className="px-2 py-1.5 text-left font-medium">
+                        House No.
+                      </th>
+                      <th className="px-2 py-1.5 text-left font-medium">
+                        Issue
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
                     {visibleErrors.map((err, i) => (
                       <tr key={i} className="border-b last:border-0">
-                        <td className="px-2 py-1.5 text-muted-foreground">
+                        <td className="text-muted-foreground px-2 py-1.5">
                           {err.excelRow}
                         </td>
                         <td className="px-2 py-1.5">{err.houseNumber}</td>
@@ -729,7 +796,8 @@ export default function HouseholdImportWizard({
               disabled={!canImport || isImporting}
             >
               <Upload className="mr-1.5 h-4 w-4" />
-              Continue to Import ({summary.actionableRows.toLocaleString()} house(s))
+              Continue to Import ({summary.actionableRows.toLocaleString()}{" "}
+              house(s))
             </Button>
             <Button variant="outline" onClick={goBackToUpload}>
               Cancel
@@ -745,7 +813,7 @@ export default function HouseholdImportWizard({
   const renderImporting = () => (
     <Card>
       <CardContent className="flex flex-col items-center justify-center py-12">
-        <Loader2 className="mb-4 h-8 w-8 animate-spin text-primary" />
+        <Loader2 className="text-primary mb-4 h-8 w-8 animate-spin" />
         <p className="text-lg font-medium">Importing houses...</p>
         <p className="text-muted-foreground text-sm">
           Writing to the House Register. This may take a moment for large files.
@@ -776,25 +844,25 @@ export default function HouseholdImportWizard({
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <div className="rounded-md border bg-background p-3 text-center">
+            <div className="bg-background rounded-md border p-3 text-center">
               <div className="text-2xl font-semibold text-green-600">
                 {result.created}
               </div>
               <div className="text-muted-foreground text-xs">Created</div>
             </div>
-            <div className="rounded-md border bg-background p-3 text-center">
+            <div className="bg-background rounded-md border p-3 text-center">
               <div className="text-2xl font-semibold text-blue-600">
                 {result.updated}
               </div>
               <div className="text-muted-foreground text-xs">Updated</div>
             </div>
-            <div className="rounded-md border bg-background p-3 text-center">
+            <div className="bg-background rounded-md border p-3 text-center">
               <div className="text-2xl font-semibold text-gray-500">
                 {result.unchangedSkipped}
               </div>
               <div className="text-muted-foreground text-xs">Unchanged</div>
             </div>
-            <div className="rounded-md border bg-background p-3 text-center">
+            <div className="bg-background rounded-md border p-3 text-center">
               <div className="text-2xl font-semibold text-red-600">
                 {result.failedCount}
               </div>
@@ -811,27 +879,35 @@ export default function HouseholdImportWizard({
           {result.errors.length > 0 && (
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <p className="text-sm font-medium text-destructive">
+                <p className="text-destructive text-sm font-medium">
                   {result.errors.length.toLocaleString()} row(s) with issues
                 </p>
-                <Button variant="outline" size="sm" onClick={downloadErrorReport}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={downloadErrorReport}
+                >
                   <Download className="mr-1.5 h-3.5 w-3.5" />
                   Download Error Report (.xlsx)
                 </Button>
               </div>
               <div className="max-h-64 overflow-y-auto rounded-md border">
                 <table className="w-full text-xs">
-                  <thead className="sticky top-0 bg-muted/50">
+                  <thead className="bg-muted/50 sticky top-0">
                     <tr className="border-b">
                       <th className="px-2 py-1.5 text-left font-medium">Row</th>
-                      <th className="px-2 py-1.5 text-left font-medium">House No.</th>
-                      <th className="px-2 py-1.5 text-left font-medium">Issue</th>
+                      <th className="px-2 py-1.5 text-left font-medium">
+                        House No.
+                      </th>
+                      <th className="px-2 py-1.5 text-left font-medium">
+                        Issue
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
                     {result.errors.slice(0, 200).map((err, i) => (
                       <tr key={i} className="border-b last:border-0">
-                        <td className="px-2 py-1.5 text-muted-foreground">
+                        <td className="text-muted-foreground px-2 py-1.5">
                           {err.excelRow}
                         </td>
                         <td className="px-2 py-1.5">{err.houseNumber}</td>

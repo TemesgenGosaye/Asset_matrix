@@ -13,7 +13,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { toast } from "sonner";
+import { notify } from "@/lib/feedback/notify";
 
 interface Campaign {
   id: string;
@@ -54,10 +54,10 @@ export default function AuditCampaignsTable({
         body: JSON.stringify({ id }),
       });
       if (!res.ok) throw new Error("Failed to delete");
-      toast.success("Campaign deleted");
+      notify.success("Campaign deleted");
       router.refresh();
     } catch {
-      toast.error("Failed to delete campaign");
+      notify.error("Failed to delete campaign");
     } finally {
       setDeleting(null);
     }

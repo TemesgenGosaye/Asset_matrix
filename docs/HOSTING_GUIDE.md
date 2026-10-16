@@ -51,11 +51,11 @@ Complete guide for deploying Asset Tracker to production. Covers VPS (Docker), V
 
 ### Recommended
 
-| Variable      | Description                                               | Example      |
-| ------------- | --------------------------------------------------------- | ------------ |
-| `CRON_SECRET` | Protects cron endpoints. Generate: `openssl rand -hex 16` | `b4e2...`    |
-| `SELF_HOSTED` | Skip SaaS landing page, go straight to login              | `true`       |
-| `NODE_ENV`    | Runtime environment                                       | `production` |
+| Variable      | Description                                                      | Example      |
+| ------------- | ---------------------------------------------------------------- | ------------ |
+| `CRON_SECRET` | Protects cron endpoints. Generate: `openssl rand -hex 16`        | `b4e2...`    |
+| `SELF_HOSTED` | Disable self-service registration; `/` always redirects to login | `true`       |
+| `NODE_ENV`    | Runtime environment                                              | `production` |
 
 ### Database (Docker Compose only)
 
@@ -91,12 +91,10 @@ Complete guide for deploying Asset Tracker to production. Covers VPS (Docker), V
 
 ### Optional — Integrations
 
-| Variable                                                   | Description                                   |
-| ---------------------------------------------------------- | --------------------------------------------- |
-| `FRESHDESK_DOMAIN`                                         | Freshdesk subdomain                           |
-| `FRESHDESK_API_KEY`                                        | Freshdesk API key                             |
-| `STORAGE_PROVIDER`                                         | `local` or `s3`                               |
-| `S3_BUCKET`, `S3_REGION`, `S3_ACCESS_KEY`, `S3_SECRET_KEY` | S3-compatible storage                         |
+| Variable                                                   | Description           |
+| ---------------------------------------------------------- | --------------------- |
+| `STORAGE_PROVIDER`                                         | `local` or `s3`       |
+| `S3_BUCKET`, `S3_REGION`, `S3_ACCESS_KEY`, `S3_SECRET_KEY` | S3-compatible storage |
 
 ### Optional — Monitoring
 
@@ -285,14 +283,15 @@ In Vercel Project Settings > Domains:
 The `vercel.json` already includes cron jobs. They run automatically once deployed. Vercel sends `CRON_SECRET` as the Bearer token.
 
 Current schedule:
-| Job | Schedule | Purpose |
-|-----|----------|---------|
-| `/api/cron/demo-reset` | Daily 00:00 UTC | Demo data reset (only if `DEMO_MODE=true`) |
-| `/api/cron/sessions` | Daily 01:00 UTC | Expired session cleanup |
-| `/api/cron/notifications` | Daily 02:00 UTC | Email notifications (license expiry, low stock) |
-| `/api/cron/workflows` | Daily 03:00 UTC | Automation rule execution |
-| `/api/cron/gdpr-retention` | Daily 04:00 UTC | GDPR data retention enforcement |
-| `/api/cron/ldap-sync` | Daily 05:00 UTC | LDAP user synchronization |
+
+| Job                        | Schedule        | Purpose                                         |
+| -------------------------- | --------------- | ----------------------------------------------- |
+| `/api/cron/demo-reset`     | Daily 00:00 UTC | Demo data reset (only if `DEMO_MODE=true`)      |
+| `/api/cron/sessions`       | Daily 01:00 UTC | Expired session cleanup                         |
+| `/api/cron/notifications`  | Daily 02:00 UTC | Email notifications (license expiry, low stock) |
+| `/api/cron/workflows`      | Daily 03:00 UTC | Automation rule execution                       |
+| `/api/cron/gdpr-retention` | Daily 04:00 UTC | GDPR data retention enforcement                 |
+| `/api/cron/ldap-sync`      | Daily 05:00 UTC | LDAP user synchronization                       |
 
 ---
 
@@ -611,7 +610,7 @@ pm2 restart assettracker
 
 - [ ] `NODE_ENV=production` is set
 - [ ] All secrets are unique, generated with `openssl rand`
-- [ ] `SELF_HOSTED=true` (skips public landing page)
+- [ ] `SELF_HOSTED=true` (disables self-service registration)
 - [ ] HTTPS is enforced via reverse proxy
 - [ ] Database is not exposed publicly (port 5432 bound to localhost or Docker internal network)
 - [ ] Firewall allows only ports 80, 443, and SSH (22)

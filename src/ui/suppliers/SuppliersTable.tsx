@@ -33,7 +33,7 @@ import {
   DeleteIcon,
   MoreVertical,
 } from "../Icons";
-import { toast } from "sonner";
+import { notify } from "@/lib/feedback/notify";
 
 const ROWS_PER_PAGE_OPTIONS = ["10", "20", "50", "100"];
 const contactOptions = [
@@ -133,8 +133,9 @@ export default function SuppliersTable({ items }) {
 
       const result = await response.json();
 
-      toast.success(result.message, {
-        description: `${supplierId} deleted successfully`,
+      notify.success({
+        title: result.message,
+        description: `${supplierId} deleted`,
       });
 
       setSuppliersData((prevItems) =>
@@ -143,7 +144,8 @@ export default function SuppliersTable({ items }) {
       setIsDeleteModalOpen(false);
     } catch (error) {
       console.error("Error deleting supplier:", error);
-      toast.error("Failed to delete supplier", {
+      notify.error({
+        title: "Failed to delete supplier",
         description: error.message,
       });
     }

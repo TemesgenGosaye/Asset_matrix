@@ -8,7 +8,7 @@ import { Separator } from "@/components/ui/separator";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Copy, Check, RefreshCw, Mail, KeyRound, Send } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import { notify } from "@/lib/feedback/notify";
 import Breadcrumb from "@/components/Breadcrumb";
 import { PASSWORD_MIN } from "@/lib/validation";
 
@@ -124,22 +124,25 @@ export default function Page() {
       const created = await res.json();
       if (created.magicLinkSent) {
         setMagicLinkSent(true);
-        toast.success("User created", {
-          description: `Magic link sent to ${form.email}`,
-        });
+        notify.success({
+      title: "User created",
+      description: `Magic link sent to ${form.email}`,
+    });
       } else if (passwordMode === "invite") {
-        toast.success("User created", {
-          description: `Invitation sent to ${form.email}`,
-        });
+        notify.success({
+      title: "User created",
+      description: `Invitation sent to ${form.email}`,
+    });
       } else {
-        toast.success("User created", {
-          description: created.username ?? created.userid,
-        });
+        notify.success({
+      title: "User created",
+      description: created.username ?? created.userid,
+    });
       }
       router.push(`/user`);
     } catch (err) {
       setError(err.message);
-      toast.error("Create failed", { description: err.message });
+      notify.error({ title: "Create failed", description: err.message });
     } finally {
       setSubmitting(false);
     }

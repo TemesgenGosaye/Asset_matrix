@@ -16,7 +16,7 @@ import {
   REAUTH_COOKIE,
   verifyReauthProof,
 } from "@/lib/house-queue/config/reauth";
-import { getClientIp, serializeState } from "../_shared";
+import { buildPublishGate, getClientIp, serializeState } from "../_shared";
 
 // POST /api/house-queue/config/publish
 // Body: { changeSummary? }
@@ -65,11 +65,16 @@ export async function POST(req: NextRequest) {
         claims.userId !== requesterId ||
         claims.organizationId !== orgId
       ) {
+        // The gate travels with the error so a client that reached this without
+        // prompting can render the password field it was missing, rather than
+        // repeating the request and failing identically.
+        const publishGate = await buildPublishGate(state, requesterId);
         return NextResponse.json(
           {
             error:
               "Re-authentication is required before publishing changes to weights or eligibility bands",
             code: "REAUTH_REQUIRED",
+            publishGate,
           },
           { status: 403 },
         );
@@ -84,8 +89,9 @@ export async function POST(req: NextRequest) {
     });
 
     const fresh = await getConfigState(orgId);
+    const publishGate = await buildPublishGate(fresh, requesterId);
     return NextResponse.json(
-      { success: true, state: serializeState(fresh) },
+      { success: true, state: serializeState(fresh, publishGate) },
       { status: 200 },
     );
   } catch (e) {

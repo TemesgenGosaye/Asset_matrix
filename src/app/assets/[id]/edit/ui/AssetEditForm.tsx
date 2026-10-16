@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { Label } from "@/components/ui/label";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import { notify } from "@/lib/feedback/notify";
 import CustomFieldsSection from "@/components/CustomFieldsSection";
 import SelectWithQuickCreate, {
   type QuickCreateOption,
@@ -211,7 +211,7 @@ export default function AssetEditForm({
       });
       if (res.status === 409) {
         const err = await res.json().catch(() => ({}));
-        toast.error(
+        notify.error(
           err.error ||
             "This item was modified by someone else. Please refresh and try again.",
         );
@@ -234,11 +234,11 @@ export default function AssetEditForm({
           }),
         });
       }
-      toast.success("Asset updated", { description: updated.assettag });
+      notify.success({ title: "Asset updated", description: updated.assettag });
       router.push(`/assets/${updated.assetid}`);
     } catch (e) {
       setError(e.message);
-      toast.error("Update failed", { description: e.message });
+      notify.error({ title: "Update failed", description: e.message });
     } finally {
       setSaving(false);
     }
@@ -349,7 +349,7 @@ export default function AssetEditForm({
                   </SelectTrigger>
                   <SelectContent>
                     {departmentOptions.length === 0 && (
-                      <p className="px-3 py-2 text-sm text-muted-foreground">
+                      <p className="text-muted-foreground px-3 py-2 text-sm">
                         No departments loaded yet
                       </p>
                     )}
@@ -599,9 +599,9 @@ export default function AssetEditForm({
                 )}
               </div>
               <div>
-                <div className="flex items-center justify-between mb-1">
+                <div className="mb-1 flex items-center justify-between">
                   <Label htmlFor="serialnumber">PID (Property ID) *</Label>
-                  <span className="inline-flex items-center gap-1 rounded bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground border">
+                  <span className="bg-muted text-muted-foreground inline-flex items-center gap-1 rounded border px-2 py-0.5 text-[11px] font-medium">
                     🔒 System Generated
                   </span>
                 </div>
@@ -610,7 +610,7 @@ export default function AssetEditForm({
                   name="serialnumber"
                   value={form.serialnumber}
                   readOnly
-                  className="font-mono bg-muted/40 cursor-not-allowed"
+                  className="bg-muted/40 cursor-not-allowed font-mono"
                   required
                 />
                 <p className="text-muted-foreground mt-1 text-xs">

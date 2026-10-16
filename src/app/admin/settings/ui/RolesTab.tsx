@@ -15,7 +15,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { toast } from "sonner";
+import { notify } from "@/lib/feedback/notify";
 import {
   Table,
   TableBody,
@@ -125,7 +125,7 @@ export default function RolesTab() {
       const data: Role[] = await res.json();
       setRoles(data);
     } catch {
-      toast.error("Failed to load roles");
+      notify.error("Failed to load roles");
     }
   }, []);
 
@@ -139,7 +139,7 @@ export default function RolesTab() {
       );
       setAllPermissions(perms);
     } catch {
-      toast.error("Failed to load permissions");
+      notify.error("Failed to load permissions");
     }
   }, []);
 
@@ -200,7 +200,7 @@ export default function RolesTab() {
 
   async function handleSave() {
     if (!formName.trim()) {
-      toast.error("Role name is required");
+      notify.error("Role name is required");
       return;
     }
 
@@ -224,17 +224,15 @@ export default function RolesTab() {
         const err = await res.json();
         const message =
           typeof err.error === "string" ? err.error : "Failed to save role";
-        toast.error(message);
+        notify.error(message);
         return;
       }
 
-      toast.success(
-        isEditing ? "Role updated successfully" : "Role created successfully",
-      );
+      notify.success(isEditing ? "Role updated" : "Role created");
       setDialogOpen(false);
       await fetchRoles();
     } catch {
-      toast.error("Failed to save role");
+      notify.error("Failed to save role");
     } finally {
       setIsSaving(false);
     }
@@ -255,16 +253,16 @@ export default function RolesTab() {
         const err = await res.json();
         const message =
           typeof err.error === "string" ? err.error : "Failed to delete role";
-        toast.error(message);
+        notify.error(message);
         return;
       }
 
-      toast.success("Role deleted successfully");
+      notify.success("Role deleted");
       setDeleteDialogOpen(false);
       setDeletingRole(null);
       await fetchRoles();
     } catch {
-      toast.error("Failed to delete role");
+      notify.error("Failed to delete role");
     } finally {
       setIsDeleting(false);
     }

@@ -9,7 +9,6 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
   Home,
-  KeyRound,
   Users,
   ArrowRight,
   Search,
@@ -59,10 +58,10 @@ export default function AllocatedHousesClient({
         row.house?.houseNumber,
         row.house?.hid,
         row.house?.locationName,
-        row.employee.firstname,
-        row.employee.lastname,
-        row.employee.employeeNumber,
-        row.employee.department?.name,
+        row.employee?.firstname,
+        row.employee?.lastname,
+        row.employee?.employeeNumber,
+        row.employee?.department?.name,
       ]
         .filter(Boolean)
         .join(" ")
@@ -81,15 +80,17 @@ export default function AllocatedHousesClient({
     switch (key) {
       case "srNo":
         return (
-          <span className="tabular-nums text-muted-foreground">
+          <span className="text-muted-foreground tabular-nums">
             {filtered.indexOf(item) + 1}
           </span>
         );
       case "house":
         return (
           <div>
-            <div className="font-semibold">{item.house?.houseNumber ?? "—"}</div>
-            <div className="text-xs text-muted-foreground">
+            <div className="font-semibold">
+              {item.house?.houseNumber ?? "—"}
+            </div>
+            <div className="text-muted-foreground text-xs">
               {item.house?.hid ?? "—"}
             </div>
           </div>
@@ -99,26 +100,33 @@ export default function AllocatedHousesClient({
       case "location":
         return (
           <div className="flex items-center gap-1 text-sm">
-            <MapPin className="h-3.5 w-3.5 text-muted-foreground" />
+            <MapPin className="text-muted-foreground h-3.5 w-3.5" />
             <span>{item.house?.locationName ?? "—"}</span>
           </div>
         );
       case "occupant":
+        if (!item.employee) {
+          return (
+            <div className="text-muted-foreground text-sm italic">
+              No employee data
+            </div>
+          );
+        }
         return (
           <div className="flex items-center gap-2.5">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-bold text-primary">
-              {item.employee.firstname.charAt(0).toUpperCase()}
+            <div className="bg-primary/10 text-primary flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-bold">
+              {item.employee.firstname?.charAt(0)?.toUpperCase() ?? "?"}
             </div>
             <div>
               <div className="font-semibold">{fullName(item.employee)}</div>
-              <div className="text-xs text-muted-foreground">
+              <div className="text-muted-foreground text-xs">
                 {item.employee.employeeNumber}
               </div>
             </div>
           </div>
         );
       case "grade":
-        return item.employee.jobGrade != null ? (
+        return item.employee?.jobGrade != null ? (
           <span className="font-semibold tabular-nums">
             {item.employee.jobGrade}
           </span>
@@ -128,12 +136,12 @@ export default function AllocatedHousesClient({
       case "department":
         return (
           <span className="text-sm">
-            {item.employee.department?.name ?? "—"}
+            {item.employee?.department?.name ?? "—"}
           </span>
         );
       case "priority":
         return (
-          <span className="tabular-nums text-sm">
+          <span className="text-sm tabular-nums">
             {item.priorityRank != null ? (
               <Badge variant="secondary" className="tabular-nums">
                 #{item.priorityRank}
@@ -145,27 +153,36 @@ export default function AllocatedHousesClient({
         );
       case "allocatedOn":
         return (
-          <span className="text-sm text-muted-foreground whitespace-nowrap">
+          <span className="text-muted-foreground text-sm whitespace-nowrap">
             {formatDate(item.decidedAt)}
           </span>
         );
       case "status":
         return (
           <div className="flex flex-col items-center gap-1">
-            <QueueStatusBadge status="allocated" />
-            <span className="text-[10px] text-muted-foreground">
+            <QueueStatusBadge
+              status={item.awaitingHandback ? "RELEASE_PENDING" : "allocated"}
+            />
+            <span className="text-muted-foreground text-[10px]">
               Occupancy: {item.house?.occupancyStatus ?? "—"}
             </span>
+            {item.awaitingHandback && (
+              <span className="text-[10px] font-medium text-amber-700 dark:text-amber-300">
+                Awaiting handback inspection
+              </span>
+            )}
           </div>
         );
       case "actions":
         return (
-          <Button asChild variant="ghost" size="sm" className="h-8 gap-1">
-            <Link href={`/houses/allocated/${item.allocationId}`}>
-              <ArrowRight className="h-3.5 w-3.5" />
-              Open
-            </Link>
-          </Button>
+          <div className="flex items-center justify-end gap-1">
+            <Button asChild variant="ghost" size="sm" className="h-8 gap-1">
+              <Link href={`/houses/allocated/${item.allocationId}`}>
+                <ArrowRight className="h-3.5 w-3.5" />
+                Open
+              </Link>
+            </Button>
+          </div>
         );
       default:
         return null;
@@ -176,57 +193,72 @@ export default function AllocatedHousesClient({
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Allocated Houses</h1>
-          <div className="mt-1 h-0.5 w-16 rounded bg-gradient-to-r from-brass-400 to-transparent" />
-          <p className="mt-2 text-sm text-muted-foreground">
+          <h1 className="text-2xl font-bold tracking-tight">
+            Allocated Houses
+          </h1>
+          <div className="from-brass-400 mt-1 h-0.5 w-16 rounded bg-gradient-to-r to-transparent" />
+          <p className="text-muted-foreground mt-2 text-sm">
             Live allocation records — every row is a decision made once by the
             House Queue and instantly visible here.
           </p>
         </div>
         <Button variant="outline" size="sm" onClick={() => void refresh()}>
-          <RefreshCw className={refreshing ? "h-4 w-4 animate-spin" : "h-4 w-4"} />
+          <RefreshCw
+            className={refreshing ? "h-4 w-4 animate-spin" : "h-4 w-4"}
+          />
           Refresh
         </Button>
       </div>
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-3">
-        <div className="rounded-xl border bg-card p-4 shadow-sm">
+        <div className="bg-card rounded-xl border p-4 shadow-sm">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-muted-foreground">
+            <span className="text-muted-foreground text-xs font-medium">
               Live allocations
             </span>
-            <KeyRound className="h-4 w-4 text-blue-600" />
+            <Home className="h-4 w-4 text-blue-600" />
           </div>
-          <div className="mt-2 text-2xl font-bold">{initialData.length}</div>
+          <div className="mt-2 text-2xl font-bold">
+            {(initialData ?? []).length}
+          </div>
         </div>
-        <div className="rounded-xl border bg-card p-4 shadow-sm">
+        <div className="bg-card rounded-xl border p-4 shadow-sm">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-muted-foreground">
+            <span className="text-muted-foreground text-xs font-medium">
               Houses occupied
             </span>
             <Home className="h-4 w-4 text-emerald-600" />
           </div>
           <div className="mt-2 text-2xl font-bold">
-            {initialData.filter((r) => r.house?.occupancyStatus === "Occupied")
-              .length}
+            {
+              (initialData ?? []).filter(
+                (r) => r?.house?.occupancyStatus === "Occupied",
+              ).length
+            }
           </div>
         </div>
-        <div className="rounded-xl border bg-card p-4 shadow-sm">
+        <div className="bg-card rounded-xl border p-4 shadow-sm">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-muted-foreground">
+            <span className="text-muted-foreground text-xs font-medium">
               Occupants
             </span>
             <Users className="h-4 w-4 text-purple-500" />
           </div>
           <div className="mt-2 text-2xl font-bold">
-            {new Set(initialData.map((r) => r.employee.id)).size}
+            {
+              new Set(
+                (initialData ?? [])
+                  .map((r) => r?.employee?.id)
+                  .filter((id): id is string => Boolean(id)),
+              ).size
+            }
           </div>
         </div>
       </div>
 
-      <div className="flex flex-col gap-3 rounded-xl border bg-card p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
-        <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+      <div className="bg-card flex flex-col gap-3 rounded-xl border p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+        <div className="relative max-w-sm flex-1">
+          <Search className="text-muted-foreground absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />
           <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}

@@ -12,7 +12,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { toast } from "sonner";
+import { notify } from "@/lib/feedback/notify";
 import { Loader2, FileText, Eye, Download, ArrowLeft } from "lucide-react";
 
 interface PurchaseOrder {
@@ -83,14 +83,14 @@ export default function PurchaseOrderList() {
       const response = await fetch("/api/procurement/orders");
       if (!response.ok) {
         const data = await response.json();
-        toast.error(data.error || "Failed to fetch purchase orders");
+        notify.error(data.error || "Failed to fetch purchase orders");
         setOrders([]);
         return;
       }
       const data = await response.json();
       setOrders(Array.isArray(data) ? data : data.data || []);
     } catch {
-      toast.error("Failed to connect to the server");
+      notify.error("Failed to connect to the server");
       setOrders([]);
     } finally {
       setIsLoading(false);

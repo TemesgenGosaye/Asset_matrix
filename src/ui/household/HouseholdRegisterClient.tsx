@@ -43,7 +43,7 @@ import {
   Package,
   User,
 } from "lucide-react";
-import { toast } from "sonner";
+import { notify } from "@/lib/feedback/notify";
 import HouseholdFormModal from "./HouseholdFormModal";
 import HouseholdStatusModal from "./HouseholdStatusModal";
 import { HouseholdStatusBadge } from "./house-status";
@@ -103,7 +103,8 @@ export default function HouseholdRegisterClient({
   initialSummary,
   initiallyAssignedHouseIds,
 }: HouseholdRegisterClientProps) {
-  const [households, setHouseholds] = useState<HouseholdItem[]>(initialHouseholds);
+  const [households, setHouseholds] =
+    useState<HouseholdItem[]>(initialHouseholds);
   const [summary, setSummary] = useState<SummaryStats>(initialSummary);
   const [loading, setLoading] = useState(false);
   const [assignedHouseIds, setAssignedHouseIds] = useState<string[]>(
@@ -126,14 +127,19 @@ export default function HouseholdRegisterClient({
 
   // Modal States
   const [formModalOpen, setFormModalOpen] = useState(false);
-  const [editingHousehold, setEditingHousehold] = useState<HouseholdItem | null>(null);
+  const [editingHousehold, setEditingHousehold] =
+    useState<HouseholdItem | null>(null);
 
   const [statusModalOpen, setStatusModalOpen] = useState(false);
-  const [statusTargetHousehold, setStatusTargetHousehold] = useState<HouseholdItem | null>(null);
-  const [targetStatus, setTargetStatus] = useState<"Active" | "Inactive">("Active");
+  const [statusTargetHousehold, setStatusTargetHousehold] =
+    useState<HouseholdItem | null>(null);
+  const [targetStatus, setTargetStatus] = useState<"Active" | "Inactive">(
+    "Active",
+  );
 
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
-  const [deletingHousehold, setDeletingHousehold] = useState<HouseholdItem | null>(null);
+  const [deletingHousehold, setDeletingHousehold] =
+    useState<HouseholdItem | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
 
   // Refresh data from server
@@ -147,13 +153,19 @@ export default function HouseholdRegisterClient({
 
         // recalculate summary
         const total = data.length;
-        const active = data.filter((h: HouseholdItem) => h.status === "Active").length;
-        const inactive = data.filter((h: HouseholdItem) => h.status === "Inactive").length;
-        const staff = data.filter((h: HouseholdItem) => h.houseType === "Staff").length;
+        const active = data.filter(
+          (h: HouseholdItem) => h.status === "Active",
+        ).length;
+        const inactive = data.filter(
+          (h: HouseholdItem) => h.status === "Inactive",
+        ).length;
+        const staff = data.filter(
+          (h: HouseholdItem) => h.houseType === "Staff",
+        ).length;
         setSummary({ total, active, inactive, staff });
       }
     } catch {
-      toast.error("Failed to reload households");
+      notify.error("Failed to reload households");
     } finally {
       setLoading(false);
     }
@@ -174,7 +186,8 @@ export default function HouseholdRegisterClient({
         h.hid.toLowerCase().includes(q) ||
         h.houseNumber.toLowerCase().includes(q) ||
         (h.locationName && h.locationName.toLowerCase().includes(q)) ||
-        (h.location?.locationname && h.location.locationname.toLowerCase().includes(q)) ||
+        (h.location?.locationname &&
+          h.location.locationname.toLowerCase().includes(q)) ||
         (h.damageNotes && h.damageNotes.toLowerCase().includes(q));
 
       const matchesType = typeFilter === "all" || h.houseType === typeFilter;
@@ -199,7 +212,16 @@ export default function HouseholdRegisterClient({
         matchesLocation
       );
     });
-  }, [households, search, typeFilter, statusFilter, assignmentFilter, rgFilter, locationFilter, assignedSet]);
+  }, [
+    households,
+    search,
+    typeFilter,
+    statusFilter,
+    assignmentFilter,
+    rgFilter,
+    locationFilter,
+    assignedSet,
+  ]);
 
   const sortedItems = useMemo(() => {
     return [...filteredItems].sort((a, b) => {
@@ -278,13 +300,16 @@ export default function HouseholdRegisterClient({
         throw new Error(data.error || "Failed to delete household");
       }
 
-      toast.success(`Household ${deletingHousehold.houseNumber} deleted successfully.`);
-      setHouseholds((prev) => prev.filter((h) => h.id !== deletingHousehold.id));
+      notify.success(`Household ${deletingHousehold.houseNumber} deleted`);
+      setHouseholds((prev) =>
+        prev.filter((h) => h.id !== deletingHousehold.id),
+      );
       setDeleteModalOpen(false);
       refreshData();
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Failed to delete household";
-      toast.error(msg);
+      const msg =
+        err instanceof Error ? err.message : "Failed to delete household";
+      notify.error(msg);
     } finally {
       setDeleteLoading(false);
     }
@@ -314,14 +339,17 @@ export default function HouseholdRegisterClient({
       switch (columnKey) {
         case "srNo":
           return (
-            <span className="font-mono text-xs font-semibold text-muted-foreground">
+            <span className="text-muted-foreground font-mono text-xs font-semibold">
               #{item.srNo}
             </span>
           );
 
         case "hid":
           return (
-            <Badge variant="outline" className="font-mono text-xs font-medium whitespace-nowrap">
+            <Badge
+              variant="outline"
+              className="font-mono text-xs font-medium whitespace-nowrap"
+            >
               {item.hid}
             </Badge>
           );
@@ -329,7 +357,7 @@ export default function HouseholdRegisterClient({
         case "houseNumber":
           return (
             <div className="flex items-center gap-1.5 whitespace-nowrap">
-              <span className="font-mono text-sm font-bold text-primary">
+              <span className="text-primary font-mono text-sm font-bold">
                 {item.houseNumber}
               </span>
             </div>
@@ -340,7 +368,7 @@ export default function HouseholdRegisterClient({
             <div className="text-xs whitespace-nowrap">
               <span className="font-semibold">{item.houseType}</span>
               {item.houseType === "Staff" && item.staffCategory && (
-                <span className="ml-1 text-muted-foreground">
+                <span className="text-muted-foreground ml-1">
                   (Cat. {item.staffCategory})
                 </span>
               )}
@@ -361,7 +389,10 @@ export default function HouseholdRegisterClient({
           const locName =
             item.location?.locationname || item.locationName || "—";
           return (
-            <span className="text-xs text-muted-foreground truncate max-w-[130px] block whitespace-nowrap" title={locName}>
+            <span
+              className="text-muted-foreground block max-w-[130px] truncate text-xs whitespace-nowrap"
+              title={locName}
+            >
               {locName}
             </span>
           );
@@ -372,16 +403,17 @@ export default function HouseholdRegisterClient({
         }
 
         case "assignmentStatus": {
-          const categoryDisplay = item.houseType === "Staff" && item.staffCategory
-            ? `Staff (${item.staffCategory})`
-            : item.houseType;
+          const categoryDisplay =
+            item.houseType === "Staff" && item.staffCategory
+              ? `Staff (${item.staffCategory})`
+              : item.houseType;
           const isAssigned = assignedSet.has(item.id);
           return (
             <div className="flex flex-col gap-1 whitespace-nowrap">
               {isAssigned ? (
                 <Badge
                   variant="default"
-                  className="text-[11px] font-semibold gap-1 w-fit bg-blue-600 text-white hover:bg-blue-700"
+                  className="w-fit gap-1 bg-blue-600 text-[11px] font-semibold text-white hover:bg-blue-700"
                 >
                   <User className="h-3 w-3" />
                   Occupied
@@ -389,7 +421,7 @@ export default function HouseholdRegisterClient({
               ) : (
                 <Badge
                   variant="outline"
-                  className="text-[11px] font-semibold gap-1 w-fit border-emerald-500 text-emerald-700 dark:text-emerald-400 bg-emerald-50/80 dark:bg-emerald-950/40"
+                  className="w-fit gap-1 border-emerald-500 bg-emerald-50/80 text-[11px] font-semibold text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400"
                 >
                   <User className="h-3 w-3" />
                   Unassigned
@@ -397,7 +429,7 @@ export default function HouseholdRegisterClient({
               )}
               <Badge
                 variant="secondary"
-                className="text-[10px] font-medium border border-border/60 bg-muted/60 text-muted-foreground px-1.5 py-0"
+                className="border-border/60 bg-muted/60 text-muted-foreground border px-1.5 py-0 text-[10px] font-medium"
               >
                 {categoryDisplay}
               </Badge>
@@ -409,25 +441,25 @@ export default function HouseholdRegisterClient({
           return (
             <div className="flex items-center gap-1 text-[11px] whitespace-nowrap">
               <span
-                className="inline-flex items-center gap-0.5 rounded bg-muted/70 px-1.5 py-0.5"
+                className="bg-muted/70 inline-flex items-center gap-0.5 rounded px-1.5 py-0.5"
                 title="Beds"
               >
                 🛏️{item.bedCount}
               </span>
               <span
-                className="inline-flex items-center gap-0.5 rounded bg-muted/70 px-1.5 py-0.5"
+                className="bg-muted/70 inline-flex items-center gap-0.5 rounded px-1.5 py-0.5"
                 title="Chairs"
               >
                 🪑{item.chairsCount}
               </span>
               <span
-                className="inline-flex items-center gap-0.5 rounded bg-muted/70 px-1.5 py-0.5"
+                className="bg-muted/70 inline-flex items-center gap-0.5 rounded px-1.5 py-0.5"
                 title="Lockers"
               >
                 🗄️{item.lockerCount}
               </span>
               <span
-                className="inline-flex items-center gap-0.5 rounded bg-muted/70 px-1.5 py-0.5"
+                className="bg-muted/70 inline-flex items-center gap-0.5 rounded px-1.5 py-0.5"
                 title="Tables"
               >
                 🪵{item.tablesCount}
@@ -438,7 +470,7 @@ export default function HouseholdRegisterClient({
 
         case "damage": {
           if (item.status === "Active") {
-            return <span className="text-xs text-muted-foreground">—</span>;
+            return <span className="text-muted-foreground text-xs">—</span>;
           }
 
           const damaged: string[] = [];
@@ -457,15 +489,20 @@ export default function HouseholdRegisterClient({
           if (item.damageWall) fullDamageList.push("Wall");
           if (item.damageElectricity) fullDamageList.push("Electricity");
 
-          const damageTitle = fullDamageList.join(", ") + (item.damageNotes ? ` | Note: ${item.damageNotes}` : "");
+          const damageTitle =
+            fullDamageList.join(", ") +
+            (item.damageNotes ? ` | Note: ${item.damageNotes}` : "");
 
           return (
-            <div className="flex items-center gap-1 whitespace-nowrap" title={damageTitle}>
+            <div
+              className="flex items-center gap-1 whitespace-nowrap"
+              title={damageTitle}
+            >
               {damaged.map((d) => (
                 <Badge
                   key={d}
                   variant="outline"
-                  className="border-destructive/40 bg-destructive/10 text-[10px] text-destructive font-normal px-1 py-0"
+                  className="border-destructive/40 bg-destructive/10 text-destructive px-1 py-0 text-[10px] font-normal"
                 >
                   {d}
                 </Badge>
@@ -491,7 +528,7 @@ export default function HouseholdRegisterClient({
                 <DropdownMenuItem onClick={() => handleToggleStatus(item)}>
                   {item.status === "Active" ? (
                     <>
-                      <XCircle className="mr-2 h-4 w-4 text-destructive" />
+                      <XCircle className="text-destructive mr-2 h-4 w-4" />
                       Deactivate...
                     </>
                   ) : (
@@ -527,12 +564,13 @@ export default function HouseholdRegisterClient({
       {/* ─── Header & Primary CTA ─── */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight text-foreground">
-            <Home className="h-7 w-7 text-primary" />
+          <h1 className="text-foreground flex items-center gap-2 text-2xl font-bold tracking-tight">
+            <Home className="text-primary h-7 w-7" />
             Household Management
           </h1>
-          <p className="text-sm text-muted-foreground">
-            Register, inspect, and maintain organization houses, staff quarters, and facilities.
+          <p className="text-muted-foreground text-sm">
+            Register, inspect, and maintain organization houses, staff quarters,
+            and facilities.
           </p>
         </div>
 
@@ -543,7 +581,9 @@ export default function HouseholdRegisterClient({
             onClick={refreshData}
             disabled={loading}
           >
-            <RefreshCw className={`h-4 w-4 mr-1.5 ${loading ? "animate-spin" : ""}`} />
+            <RefreshCw
+              className={`mr-1.5 h-4 w-4 ${loading ? "animate-spin" : ""}`}
+            />
             Refresh
           </Button>
           <Button onClick={handleOpenCreate} size="sm">
@@ -555,62 +595,84 @@ export default function HouseholdRegisterClient({
 
       {/* ─── Metric Stat Cards ─── */}
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
-        <div className="rounded-xl border bg-card p-4 shadow-sm">
+        <div className="bg-card rounded-xl border p-4 shadow-sm">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-muted-foreground">Total Houses</span>
-            <Building2 className="h-4 w-4 text-primary" />
+            <span className="text-muted-foreground text-xs font-medium">
+              Total Houses
+            </span>
+            <Building2 className="text-primary h-4 w-4" />
           </div>
           <div className="mt-2 text-2xl font-bold">{summary.total}</div>
-          <p className="mt-1 text-[11px] text-muted-foreground">All registered units</p>
+          <p className="text-muted-foreground mt-1 text-[11px]">
+            All registered units
+          </p>
         </div>
 
-        <div className="rounded-xl border bg-card p-4 shadow-sm">
+        <div className="bg-card rounded-xl border p-4 shadow-sm">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-muted-foreground">Active Units</span>
+            <span className="text-muted-foreground text-xs font-medium">
+              Active Units
+            </span>
             <CheckCircle2 className="h-4 w-4 text-emerald-600" />
           </div>
           <div className="mt-2 text-2xl font-bold text-emerald-600 dark:text-emerald-400">
             {summary.active}
           </div>
-          <p className="mt-1 text-[11px] text-muted-foreground">Ready for occupancy</p>
+          <p className="text-muted-foreground mt-1 text-[11px]">
+            Ready for occupancy
+          </p>
         </div>
 
-        <div className="rounded-xl border bg-card p-4 shadow-sm">
+        <div className="bg-card rounded-xl border p-4 shadow-sm">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-muted-foreground">Inactive / Damaged</span>
-            <AlertTriangle className="h-4 w-4 text-destructive" />
+            <span className="text-muted-foreground text-xs font-medium">
+              Inactive / Damaged
+            </span>
+            <AlertTriangle className="text-destructive h-4 w-4" />
           </div>
-          <div className="mt-2 text-2xl font-bold text-destructive">
+          <div className="text-destructive mt-2 text-2xl font-bold">
             {summary.inactive}
           </div>
-          <p className="mt-1 text-[11px] text-muted-foreground">Under maintenance/repairs</p>
+          <p className="text-muted-foreground mt-1 text-[11px]">
+            Under maintenance/repairs
+          </p>
         </div>
 
-        <div className="rounded-xl border bg-card p-4 shadow-sm">
+        <div className="bg-card rounded-xl border p-4 shadow-sm">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-muted-foreground">Staff Quarters</span>
+            <span className="text-muted-foreground text-xs font-medium">
+              Staff Quarters
+            </span>
             <Package className="h-4 w-4 text-blue-500" />
           </div>
           <div className="mt-2 text-2xl font-bold text-blue-600 dark:text-blue-400">
             {summary.staff}
           </div>
-          <p className="mt-1 text-[11px] text-muted-foreground">Staff categories A–E</p>
+          <p className="text-muted-foreground mt-1 text-[11px]">
+            Staff categories A–E
+          </p>
         </div>
 
-        <div className="rounded-xl border bg-card p-4 shadow-sm">
+        <div className="bg-card rounded-xl border p-4 shadow-sm">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-muted-foreground">Assigned</span>
+            <span className="text-muted-foreground text-xs font-medium">
+              Assigned
+            </span>
             <User className="h-4 w-4 text-blue-600" />
           </div>
           <div className="mt-2 text-2xl font-bold text-blue-600 dark:text-blue-400">
             {assignedSet.size}
           </div>
-          <p className="mt-1 text-[11px] text-muted-foreground">Currently occupied</p>
+          <p className="text-muted-foreground mt-1 text-[11px]">
+            Currently occupied
+          </p>
         </div>
 
-        <div className="rounded-xl border bg-card p-4 shadow-sm">
+        <div className="bg-card rounded-xl border p-4 shadow-sm">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-muted-foreground">Unassigned</span>
+            <span className="text-muted-foreground text-xs font-medium">
+              Unassigned
+            </span>
             <CheckCircle2 className="h-4 w-4 text-emerald-500" />
           </div>
           <div className="mt-2 text-2xl font-bold text-emerald-600 dark:text-emerald-400">
@@ -620,14 +682,16 @@ export default function HouseholdRegisterClient({
                 assignedSet.size,
             )}
           </div>
-          <p className="mt-1 text-[11px] text-muted-foreground">Available for allocation</p>
+          <p className="text-muted-foreground mt-1 text-[11px]">
+            Available for allocation
+          </p>
         </div>
       </div>
 
       {/* ─── Search & Filters Bar ─── */}
-      <div className="flex flex-col gap-3 rounded-xl border bg-card p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
-        <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+      <div className="bg-card flex flex-col gap-3 rounded-xl border p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+        <div className="relative max-w-sm flex-1">
+          <Search className="text-muted-foreground absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />
           <Input
             value={search}
             onChange={(e) => {
@@ -676,8 +740,12 @@ export default function HouseholdRegisterClient({
             <SelectContent>
               <SelectItem value="all">All Status</SelectItem>
               <SelectItem value="Active">Active</SelectItem>
-              <SelectItem value="PendingInspection">Pending Inspection</SelectItem>
-              <SelectItem value="UnderMaintenance">Under Maintenance</SelectItem>
+              <SelectItem value="PendingInspection">
+                Pending Inspection
+              </SelectItem>
+              <SelectItem value="UnderMaintenance">
+                Under Maintenance
+              </SelectItem>
               <SelectItem value="Inactive">Inactive</SelectItem>
             </SelectContent>
           </Select>
@@ -760,7 +828,7 @@ export default function HouseholdRegisterClient({
                 setLocationFilter("all");
                 setPage(1);
               }}
-              className="h-8 text-xs text-muted-foreground hover:text-foreground"
+              className="text-muted-foreground hover:text-foreground h-8 text-xs"
             >
               Clear
             </Button>
@@ -769,7 +837,7 @@ export default function HouseholdRegisterClient({
       </div>
 
       {/* ─── Responsive Data Table ─── */}
-      <div className="rounded-xl border bg-card shadow-sm">
+      <div className="bg-card rounded-xl border shadow-sm">
         <ResponsiveTable<HouseholdItem>
           columns={columns}
           data={paginatedItems}
@@ -792,7 +860,7 @@ export default function HouseholdRegisterClient({
         />
 
         {/* ─── Table Pagination Bar ─── */}
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 border-t p-3 text-xs text-muted-foreground">
+        <div className="text-muted-foreground flex flex-col items-center justify-between gap-3 border-t p-3 text-xs sm:flex-row">
           <div className="flex items-center gap-2">
             <span>Rows per page:</span>
             <Select
@@ -814,8 +882,10 @@ export default function HouseholdRegisterClient({
               </SelectContent>
             </Select>
             <span>
-              Showing {paginatedItems.length > 0 ? (page - 1) * rowsPerPage + 1 : 0}–
-              {Math.min(page * rowsPerPage, sortedItems.length)} of {sortedItems.length}
+              Showing{" "}
+              {paginatedItems.length > 0 ? (page - 1) * rowsPerPage + 1 : 0}–
+              {Math.min(page * rowsPerPage, sortedItems.length)} of{" "}
+              {sortedItems.length}
             </span>
           </div>
 
@@ -871,14 +941,16 @@ export default function HouseholdRegisterClient({
       <Dialog open={deleteModalOpen} onOpenChange={setDeleteModalOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-destructive">
+            <DialogTitle className="text-destructive flex items-center gap-2">
               <AlertTriangle className="h-5 w-5" />
               Confirm House Deletion
             </DialogTitle>
             <DialogDescription>
               Are you sure you want to permanently delete house{" "}
-              <strong className="text-foreground">{deletingHousehold?.houseNumber}</strong> (
-              {deletingHousehold?.hid})? This action cannot be undone.
+              <strong className="text-foreground">
+                {deletingHousehold?.houseNumber}
+              </strong>{" "}
+              ({deletingHousehold?.hid})? This action cannot be undone.
             </DialogDescription>
           </DialogHeader>
 

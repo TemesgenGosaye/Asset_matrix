@@ -24,7 +24,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { toast } from "sonner";
+import { notify } from "@/lib/feedback/notify";
 import { Plus, Edit, Trash2, Loader2, LayoutTemplate } from "lucide-react";
 
 // ---------------------------------------------------------------------------
@@ -93,7 +93,7 @@ export default function AssetTemplatesTab() {
       const data: AssetTemplateItem[] = await res.json();
       setTemplates(data);
     } catch {
-      toast.error("Failed to load asset templates");
+      notify.error("Failed to load asset templates");
     }
   }, []);
 
@@ -153,7 +153,7 @@ export default function AssetTemplatesTab() {
 
   async function handleSave() {
     if (!formName.trim()) {
-      toast.error("Template name is required");
+      notify.error("Template name is required");
       return;
     }
 
@@ -191,19 +191,17 @@ export default function AssetTemplatesTab() {
           typeof err.error === "string"
             ? err.error
             : "Failed to save asset template";
-        toast.error(message);
+        notify.error(message);
         return;
       }
 
-      toast.success(
-        isEditing
-          ? "Asset template updated successfully"
-          : "Asset template created successfully",
+      notify.success(
+        isEditing ? "Asset template updated" : "Asset template created",
       );
       setDialogOpen(false);
       await fetchTemplates();
     } catch {
-      toast.error("Failed to save asset template");
+      notify.error("Failed to save asset template");
     } finally {
       setIsSaving(false);
     }
@@ -228,16 +226,16 @@ export default function AssetTemplatesTab() {
           typeof err.error === "string"
             ? err.error
             : "Failed to delete asset template";
-        toast.error(message);
+        notify.error(message);
         return;
       }
 
-      toast.success("Asset template deleted successfully");
+      notify.success("Asset template deleted");
       setDeleteDialogOpen(false);
       setDeletingTemplate(null);
       await fetchTemplates();
     } catch {
-      toast.error("Failed to delete asset template");
+      notify.error("Failed to delete asset template");
     } finally {
       setIsDeleting(false);
     }

@@ -1,11 +1,13 @@
 {
   "name": "msf-asset-house-portal",
   "version": "0.7.0",
+  "description": "MSF Asset House Portal",
+  "author": "Metahara Sugar Factory (Powered by TemesgenG)",
   "private": true,
   "license": "MIT",
   "scripts": {
     "dev": "node scripts/dev.mjs",
-    "build:electron": "next build && electron-builder --config electron-builder.json",
+    "generate:icons": "node scripts/generate-icons.mjs",
     "dev:clean": "node scripts/dev.mjs --clean",
     "dev:warm": "node scripts/dev-warm.mjs",
     "dev:prod": "next build && next start",
@@ -36,6 +38,7 @@
   },
   "dependencies": {
     "@ai-sdk/google": "^4.0.80",
+    "@ai-sdk/openai-compatible": "^3.0.57",
     "@ai-sdk/react": "^4.0.117",
     "@better-auth/prisma-adapter": "^1.6.9",
     "@capacitor/android": "^8.5.2",
@@ -98,7 +101,6 @@
     "recharts": "^3.8.1",
     "remark-gfm": "^4.0.1",
     "sharp": "^0.34.5",
-    "sonner": "^2.0.7",
     "tailwind-merge": "^3.5.0",
     "tailwindcss-animate": "^1.0.7",
     "zod": "^4.3.6"
@@ -123,8 +125,6 @@
     "autoprefixer": "^10.5.0",
     "cross-env": "^10.1.0",
     "dotenv": "^16.6.1",
-    "electron": "^44.4.3",
-    "electron-builder": "^26.15.3",
     "eslint": "^9.39.4",
     "eslint-config-next": "^16.2.4",
     "eslint-plugin-react": "^7.37.5",

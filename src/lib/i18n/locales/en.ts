@@ -23,7 +23,6 @@ const en: Record<string, string> = {
   "nav.qrScanner": "QR Scanner",
   "nav.reports": "Reports",
   "nav.workflows": "Workflows",
-  "nav.apiDocs": "API Docs",
   "nav.auditLogs": "Audit Logs",
   "nav.gdpr": "GDPR",
   "nav.compliance": "Compliance",
@@ -188,18 +187,6 @@ const en: Record<string, string> = {
   "checkout.type": "Checkout Type",
   "checkout.bulk": "Bulk Checkout",
 
-  // EULA
-  "eula.title": "EULA Templates",
-  "eula.create": "Create EULA Template",
-  "eula.edit": "Edit EULA Template",
-  "eula.accept": "Accept EULA",
-  "eula.signature": "Digital Signature",
-  "eula.signBelow": "Sign below to accept",
-  "eula.required": "EULA acceptance required",
-  "eula.version": "Version",
-  "eula.active": "Active",
-  "eula.inactive": "Inactive",
-
   // Bulk Checkout
   "checkout.bulkTitle": "Bulk Asset Checkout",
   "checkout.selectedAssets": "{{count}} assets selected",
@@ -224,7 +211,8 @@ const en: Record<string, string> = {
   "ldap.title": "LDAP / Active Directory",
   "ldap.testConnection": "Test Connection",
   "ldap.syncNow": "Sync Now",
-  "ldap.syncComplete": "Sync complete: {{created}} created, {{updated}} updated, {{deactivated}} deactivated",
+  "ldap.syncComplete":
+    "Sync complete: {{created}} created, {{updated}} updated, {{deactivated}} deactivated",
   "ldap.connectionSuccess": "Connection successful. Found {{count}} users.",
   "ldap.connectionFailed": "Connection failed: {{message}}",
   "sso.title": "Single Sign-On",
@@ -234,11 +222,110 @@ const en: Record<string, string> = {
   "sso.enabled": "SSO Enabled",
   "sso.disabled": "SSO Disabled",
 
+  // Feedback — shared operation feedback
+  // ---------------------------------------------------------------------
+  // Every toast title and description in the app resolves through this
+  // namespace (see lib/feedback/messages.ts), so the wording for an operation
+  // is decided once and exists in every shipped language.
+  "feedback.created.title": "Created",
+  "feedback.created.description": "{{entity}} was created.",
+  "feedback.updated.title": "Updated",
+  "feedback.updated.description": "{{entity}} was updated.",
+  "feedback.deleted.title": "Deleted",
+  "feedback.deleted.description": "{{entity}} was deleted.",
+  "feedback.saved.title": "Saved",
+  "feedback.saved.description": "{{entity}} were saved.",
+
+  "feedback.approved.title": "Approved",
+  "feedback.approved.description": "{{entity}} was approved.",
+  "feedback.released.title": "Released",
+  "feedback.released.description": "{{entity}} was released.",
+  "feedback.skipped.title": "Skipped",
+  "feedback.skipped.description": "{{entity}} was skipped from the queue.",
+  "feedback.deferred.title": "Deferred",
+  "feedback.deferred.description": "{{entity}} was deferred to a later date.",
+
+  "feedback.imported.title": "Imported",
+  "feedback.imported.description": "{{count}} records were imported.",
+  "feedback.exported.title": "Exported",
+  "feedback.exported.description": "{{entity}} was exported.",
+  "feedback.uploaded.title": "Uploaded",
+  "feedback.uploaded.description": "{{file}} was uploaded.",
+  "feedback.sent.title": "Sent",
+  "feedback.sent.description": "{{entity}} was sent.",
+
+  "feedback.assigned.title": "Assigned",
+  "feedback.assigned.description": "{{entity}} was assigned to {{assignee}}.",
+  "feedback.returned.title": "Returned",
+  "feedback.returned.description": "{{entity}} was returned.",
+
+  "feedback.passwordChanged.title": "Password changed",
+  "feedback.passwordChanged.description":
+    "Your password was changed successfully.",
+  "feedback.settingsSaved.title": "Settings saved",
+  "feedback.settingsSaved.description": "Your {{section}} settings were saved.",
+  "feedback.loginSuccess.title": "Signed in",
+  "feedback.loginSuccess.description": "Welcome back, {{name}}.",
+
+  // Feedback — House Queue
+  "feedback.allocationApproved.title": "House allocation approved",
+  "feedback.allocationApproved.description":
+    "{{name}} ({{employeeNumber}}) was allocated house {{houseNumber}}.",
+  "feedback.allocationReassigned.title": "House allocation moved",
+  "feedback.allocationReassigned.description":
+    "{{name}} ({{employeeNumber}}) was moved to house {{houseNumber}}.",
+  "feedback.allocationApprovedMeta.rank": "Rank #{{rank}}",
+  "feedback.allocationApprovedMeta.score": "Score {{score}}",
+  "feedback.allocationApprovedAction": "View allocation",
+
+  "feedback.releaseInitiated.title": "Release workflow started",
+  "feedback.releaseInitiated.description":
+    "{{name}} ({{employeeNumber}}) was marked for {{branch}}.",
+  "feedback.releaseExecuted.title": "House released",
+  "feedback.releaseExecuted.description":
+    "{{name}} ({{employeeNumber}}) was removed from house {{houseNumber}}. A handback inspection has been raised.",
+  "feedback.releaseExecutedMeta.inspection": "Inspection {{date}}",
+  "feedback.releaseExecutedMeta.house": "House {{houseNumber}}",
+  "feedback.releaseExecutedAction": "Open inspection",
+  "feedback.transferStarted.title": "House move started",
+  "feedback.transferStarted.description":
+    "{{name}} ({{employeeNumber}}) is being moved to house {{houseNumber}}.",
+
+  "feedback.inspectionCompleted.title": "Inspection completed",
+  "feedback.inspectionCompleted.description":
+    "The inspection is complete and the release is finalised.",
+  "feedback.branch.transfer": "transfer",
+  "feedback.branch.leave": "leaving the factory",
+  "feedback.branch.retirement": "retirement",
+
+  // Feedback — failures
+  "feedback.error.title": "Action failed",
+  "feedback.error.description": "{{message}}",
+  "feedback.warning.title": "Check this",
+  "feedback.warning.description": "{{message}}",
+  "feedback.info.title": "For your information",
+  "feedback.info.description": "{{message}}",
+  "feedback.networkError.title": "Could not reach the server",
+  "feedback.networkError.description":
+    "The request never left this device, so nothing was submitted.",
+  "feedback.dismiss": "Dismiss",
+  "feedback.dismissLabel": "Dismiss notification",
+  "feedback.regionLabel": "Action notifications",
+
+  // The WEIGHT of a message, spoken to a screen reader before its title. Kept
+  // apart from the titles because the icon that carries the weight visually is
+  // aria-hidden, and hue is unavailable to a non-visual reader entirely.
+  "feedback.weight.success": "Success",
+  "feedback.weight.error": "Error",
+  "feedback.weight.warning": "Warning",
+  "feedback.weight.info": "Information",
+  "feedback.weight.loading": "In progress",
+
   // Greeting / interpolation example
-  "greeting": "Hello, {{name}}",
-  "welcome": "Welcome back, {{name}}",
-  "itemCount": "{{count}} items found",
-  "pageOf": "Page {{current}} of {{total}}",
+  greeting: "Hello, {{name}}",
+  welcome: "Welcome back, {{name}}",
+  itemCount: "{{count}} items found",
+  pageOf: "Page {{current}} of {{total}}",
 };
 
 export default en;

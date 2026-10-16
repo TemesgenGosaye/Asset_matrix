@@ -40,7 +40,10 @@ export async function POST(req: NextRequest) {
 
     if (!password) {
       return NextResponse.json(
-        { error: "Password is required to confirm your identity" },
+        {
+          error: "Password is required to confirm your identity",
+          field: "password",
+        },
         { status: 400 },
       );
     }
@@ -48,7 +51,10 @@ export async function POST(req: NextRequest) {
     const passwordValid = await verifyUserPassword(requesterId, password);
     if (!passwordValid) {
       return NextResponse.json(
-        { error: "Incorrect password" },
+        {
+          error: "Incorrect password",
+          field: "password",
+        },
         { status: 403 },
       );
     }
@@ -62,7 +68,11 @@ export async function POST(req: NextRequest) {
     if (user?.mfaEnabled && user.mfaSecret) {
       if (!totpCode) {
         return NextResponse.json(
-          { error: "Two-factor code required" },
+          {
+            error:
+              "Two-factor code required — your account has a second factor enabled",
+            field: "totpCode",
+          },
           { status: 400 },
         );
       }
@@ -77,7 +87,12 @@ export async function POST(req: NextRequest) {
       }
       if (!codeValid) {
         return NextResponse.json(
-          { error: "Invalid verification code" },
+          {
+            error: isBackupCode
+              ? "That backup code is not valid"
+              : "That verification code is not valid",
+            field: "totpCode",
+          },
           { status: 400 },
         );
       }

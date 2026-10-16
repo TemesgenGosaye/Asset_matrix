@@ -16,7 +16,7 @@ import type { CapacitorConfig } from "@capacitor/cli";
  *       $env:CAPACITOR_SERVER_URL="http://10.0.2.2:3000"; npx cap sync android
  *     (10.0.2.2 is the host loopback as seen from the Android emulator.)
  */
-const serverUrl = process.env.CAPACITOR_SERVER_URL ?? "https://assets.example.com";
+const serverUrl = process.env.CAPACITOR_SERVER_URL ?? "http://10.3.12.29:3000";
 
 const config: CapacitorConfig = {
   appId: "com.company.assettracker",
@@ -27,8 +27,8 @@ const config: CapacitorConfig = {
   webDir: "android-shell",
   server: {
     url: serverUrl,
-    androidScheme: "https",
-    cleartext: process.env.CAPACITOR_ALLOW_CLEARTEXT === "true",
+    androidScheme: "http",
+    cleartext: true,
   },
   android: {
     allowMixedContent: false,

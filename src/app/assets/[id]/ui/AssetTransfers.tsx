@@ -29,7 +29,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { toast } from "sonner";
+import { notify } from "@/lib/feedback/notify";
 import { ArrowRight, Repeat } from "lucide-react";
 
 interface AssetTransfersProps {
@@ -120,13 +120,13 @@ export default function AssetTransfers({
       const res = await fetch(`/api/asset/transfers?assetId=${assetId}`);
       if (!res.ok) {
         const data = await res.json();
-        toast.error(data.error || "Failed to fetch transfers");
+        notify.error(data.error || "Failed to fetch transfers");
         return;
       }
       const data: Transfer[] = await res.json();
       setTransfers(data);
     } catch {
-      toast.error("Failed to connect to the server");
+      notify.error("Failed to connect to the server");
     } finally {
       setIsLoading(false);
     }
@@ -194,7 +194,7 @@ export default function AssetTransfers({
         if (res.ok) setOrgs(await res.json());
       }
     } catch {
-      toast.error("Failed to load options");
+      notify.error("Failed to load options");
     } finally {
       setLoadingOptions(false);
     }
@@ -208,7 +208,7 @@ export default function AssetTransfers({
 
   const handleSubmit = async () => {
     if (!transferType || !targetId) {
-      toast.error("Please select a transfer type and target");
+      notify.error("Please select a transfer type and target");
       return;
     }
 
@@ -232,18 +232,18 @@ export default function AssetTransfers({
 
       if (!res.ok) {
         const data = await res.json();
-        toast.error(data.error || "Failed to create transfer");
+        notify.error(data.error || "Failed to create transfer");
         return;
       }
 
-      toast.success("Asset transferred successfully");
+      notify.success("Asset transferred");
       setDialogOpen(false);
       setTransferType("");
       setTargetId("");
       setReason("");
       fetchTransfers();
     } catch {
-      toast.error("Failed to connect to the server");
+      notify.error("Failed to connect to the server");
     } finally {
       setSubmitting(false);
     }

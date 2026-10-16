@@ -163,6 +163,7 @@ export const AUDIT_ACTIONS = {
   ASSIGN: "ASSIGN",
   UNASSIGN: "UNASSIGN",
   REQUEST: "REQUEST",
+  CANCEL: "CANCEL",
   APPROVE: "APPROVE",
   REJECT: "REJECT",
   SECURITY_ALERT: "SECURITY_ALERT",
@@ -179,6 +180,12 @@ export const AUDIT_ACTIONS = {
   NOTE: "NOTE",
   NOTIFY: "NOTIFY",
   IMPORT: "IMPORT",
+  /** Record a rent payment and issue a receipt. */
+  PAY: "PAY",
+  /** Reverse a previously recorded payment; the month reverts to UNPAID. */
+  VOID: "VOID",
+  /** End a lease early, voiding its remaining unpaid months. */
+  TERMINATE: "TERMINATE",
 } as const;
 
 /**
@@ -202,7 +209,6 @@ export const AUDIT_ENTITIES = {
   MODEL: "model",
   STATUS_TYPE: "status_type",
   LICENCE_SEAT: "licence_seat",
-  EULA_TEMPLATE: "eula_template",
   KIT: "kit",
   AUDIT_CAMPAIGN: "audit_campaign",
   REPORT_SCHEDULE: "report_schedule",
@@ -211,4 +217,8 @@ export const AUDIT_ENTITIES = {
   HOUSEHOLD: "household",
   GENERAL_ASSET: "general_asset",
   HOUSE_QUEUE: "house_queue",
+  HOUSE_REQUEST: "house_request",
+  HOUSE_INSPECTION: "house_inspection",
+  RENT_RENTER: "rent_renter",
+  RENT_PAYMENT: "rent_payment",
 } as const;

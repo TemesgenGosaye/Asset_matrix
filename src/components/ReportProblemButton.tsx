@@ -20,7 +20,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { toast } from "sonner";
+import { notify } from "@/lib/feedback/notify";
 import { AlertTriangle, Loader2 } from "lucide-react";
 
 interface ReportProblemButtonProps {
@@ -42,7 +42,7 @@ export default function ReportProblemButton({
 
   const handleSubmit = async () => {
     if (!title.trim()) {
-      toast.error("Title is required");
+      notify.error("Title is required");
       return;
     }
     setSubmitting(true);
@@ -58,7 +58,8 @@ export default function ReportProblemButton({
         }),
       });
       if (!res.ok) throw new Error("Failed to create ticket");
-      toast.success("Problem reported", {
+      notify.success({
+        title: "Problem reported",
         description: "A support ticket has been created",
       });
       setOpen(false);
@@ -66,7 +67,7 @@ export default function ReportProblemButton({
       setDescription("");
       setPriority("medium");
     } catch {
-      toast.error("Failed to report problem");
+      notify.error("Failed to report problem");
     } finally {
       setSubmitting(false);
     }

@@ -12,7 +12,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import { toast } from "sonner";
+import { notify } from "@/lib/feedback/notify";
 import { useRouter } from "next/navigation";
 
 interface UserSettingsClientProps {
@@ -41,6 +41,7 @@ const THEMES = [
 
 const LOCALES = [
   { value: "en", label: "English" },
+  { value: "am", label: "Amharic" },
   { value: "de", label: "German" },
   { value: "fr", label: "French" },
   { value: "es", label: "Spanish" },
@@ -100,9 +101,9 @@ export default function UserSettingsClient({
         const err = await res.json().catch(() => ({}));
         throw new Error(err?.error || "Failed to save settings");
       }
-      toast.success("Settings saved");
+      notify.success("Settings saved");
     } catch (err) {
-      toast.error("Failed to save", { description: (err as Error).message });
+      notify.error({ title: "Failed to save", description: (err as Error).message });
     } finally {
       setSaving(false);
     }
@@ -283,7 +284,7 @@ export default function UserSettingsClient({
               });
               router.push("?onboarding=1");
             } catch {
-              toast.error("Failed to restart onboarding");
+              notify.error("Failed to restart onboarding");
             }
           }}
         >

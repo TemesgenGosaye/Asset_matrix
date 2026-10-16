@@ -57,4 +57,6 @@ export interface AssistantMeta {
   ms: number;
   /** Whether a cached aggregate served the request. */
   cached: boolean;
+  /** True when a previous identical answer was replayed instead of recomputed. */
+  replayed?: boolean;
 }

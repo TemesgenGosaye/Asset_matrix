@@ -18,7 +18,7 @@ import {
   Check,
   ChevronDown,
 } from "lucide-react";
-import { toast } from "sonner";
+import { notify } from "@/lib/feedback/notify";
 
 const MIN_PASSWORD_LENGTH = 12;
 
@@ -188,7 +188,8 @@ export default function ChangePasswordSection() {
     setConfirmPassword(generated);
     setShowNew(true);
     setShowConfirm(true);
-    toast.success("Generated a strong random password", {
+    notify.success({
+      title: "Generated a strong random password",
       description: "Make sure to save it in your password manager.",
     });
   };
@@ -212,17 +213,19 @@ export default function ChangePasswordSection() {
       if (!res.ok) {
         throw new Error(data?.error || "Failed to change password");
       }
-      toast.success("Password changed", {
-        description: revokeOtherSessions
+      notify.success({
+      title: "Password changed",
+      description: revokeOtherSessions
           ? "Other devices have been signed out."
           : "Your new password is now active.",
-      });
+    });
       reset();
       setOpen(false);
     } catch (err) {
-      toast.error("Could not change password", {
-        description: (err as Error).message,
-      });
+      notify.error({
+      title: "Could not change password",
+      description: (err as Error).message,
+    });
     } finally {
       setSubmitting(false);
     }

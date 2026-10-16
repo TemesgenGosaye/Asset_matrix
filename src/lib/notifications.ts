@@ -496,7 +496,7 @@ export async function notifyTicketAssigned(
     category: "ticket",
     title: "Ticket assigned to you",
     body: `You have been assigned ticket "${ticketTitle}".`,
-    link: `/tickets`,
+    link: `/user/tickets`,
     metadata: { ticketId },
   });
 
@@ -536,7 +536,7 @@ export async function notifyTicketComment(
     category: "ticket",
     title: "New comment on your ticket",
     body: `${commenterName} commented on "${ticketTitle}".`,
-    link: `/tickets`,
+    link: `/user/tickets`,
     metadata: { ticketId },
   });
 
@@ -576,7 +576,7 @@ export async function notifyTicketStatusChanged(
     category: "ticket",
     title: "Ticket status changed",
     body: `Ticket "${ticketTitle}" moved from ${oldStatus} to ${newStatus}.`,
-    link: `/tickets`,
+    link: `/user/tickets`,
     metadata: { ticketId, oldStatus, newStatus },
   });
 

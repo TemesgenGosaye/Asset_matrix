@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import { notify } from "@/lib/feedback/notify";
 
 const SALUTATION_OPTIONS = ["Mr", "Ms", "Mx", "Dr", "Prof"];
 
@@ -73,14 +73,15 @@ export default function SupplierCreateForm({
       }
 
       const created = await res.json();
-      toast.success(mode === "edit" ? "Supplier updated" : "Supplier created", {
+      notify.success({
+        title: mode === "edit" ? "Supplier updated" : "Supplier created",
         description: created.suppliername,
       });
       router.push("/suppliers");
       router.refresh();
     } catch (err) {
       setError(err.message);
-      toast.error("Create failed", { description: err.message });
+      notify.error({ title: "Create failed", description: err.message });
     } finally {
       setSubmitting(false);
     }

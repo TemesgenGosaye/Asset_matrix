@@ -781,7 +781,7 @@ pm2 startup   # follow printed command to enable on boot</code></pre>
       <table>
         <thead><tr><th>Variable</th><th>Description</th><th>Default</th></tr></thead>
         <tbody>
-          <tr><td><code>SELF_HOSTED</code></td><td>Disables landing page and registration</td><td><code>false</code></td></tr>
+          <tr><td><code>SELF_HOSTED</code></td><td>Disables self-service registration</td><td><code>false</code></td></tr>
           <tr><td><code>CRON_SECRET</code></td><td><strong>Required in production.</strong> Protects all 6 cron endpoints. Min 16 chars.</td><td>&mdash;</td></tr>
           <tr><td><code>NODE_ENV</code></td><td>Runtime environment</td><td><code>production</code></td></tr>
         </tbody>
@@ -1034,7 +1034,7 @@ pm2 logs assettracker</code></pre>
       <ul class="checklist">
         <li><code>NODE_ENV=production</code> is set</li>
         <li>All secrets are unique, generated with <code>openssl rand</code></li>
-        <li><code>SELF_HOSTED=true</code> (disables public landing page and registration)</li>
+        <li><code>SELF_HOSTED=true</code> (disables self-service registration)</li>
         <li>HTTPS is enforced via reverse proxy</li>
         <li>Database is not exposed publicly (Docker internal network or localhost only)</li>
         <li>Firewall allows only ports 80, 443, and 22 (SSH)</li>

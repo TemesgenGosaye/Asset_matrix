@@ -13,7 +13,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { toast } from "sonner";
+import { notify } from "@/lib/feedback/notify";
 import { Loader2, ShoppingCart, Plus, Eye, FileText } from "lucide-react";
 
 interface PurchaseRequestUser {
@@ -169,14 +169,14 @@ export default function ProcurementList() {
       );
       if (!response.ok) {
         const data = await response.json();
-        toast.error(data.error || "Failed to fetch purchase requests");
+        notify.error(data.error || "Failed to fetch purchase requests");
         setRequests([]);
         return;
       }
       const data = await response.json();
       setRequests(Array.isArray(data) ? data : data.data || []);
     } catch {
-      toast.error("Failed to connect to the server");
+      notify.error("Failed to connect to the server");
       setRequests([]);
     } finally {
       setIsLoading(false);

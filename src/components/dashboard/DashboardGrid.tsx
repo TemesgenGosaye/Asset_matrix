@@ -26,8 +26,19 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { GripVertical, X, Plus } from "lucide-react";
-import { WIDGET_DEFINITIONS } from "./WidgetRegistry";
+import { EmptyState } from "@/components/EmptyState";
+import {
+  AlertTriangle,
+  ArrowUpRight,
+  Building2,
+  ClipboardCheck,
+  GripVertical,
+  House,
+  Users,
+  X,
+  Plus,
+} from "lucide-react";
+import { WIDGET_DEFINITIONS, type WidgetDefinition } from "./WidgetRegistry";
 
 const AssetMap = lazy(() => import("@/components/maps/AssetMap"));
 
@@ -966,6 +977,447 @@ function DuplicateDetectionWidget() {
   );
 }
 
+// ---------------------------------------------------------------------------
+// House Admin widgets
+// ---------------------------------------------------------------------------
+
+/**
+ * The shape `/api/dashboard/housing` returns.
+ *
+ * Declared here rather than imported so a client component does not pull the
+ * server-only HAMS query layer (which imports Prisma and the house-queue engine)
+ * into the browser bundle. It is a projection of the server's `HamsKpiData` /
+ * `HamsCohortAlert` / `HamsActivityItem`, narrowed to the fields these cards read.
+ */
+interface HousingOverview {
+  kpis: {
+    totalHouses: number;
+    occupiedCount: number;
+    vacantCount: number;
+    maintenanceCount: number;
+    occupancyRate: number;
+    activeQueueSize: number;
+    pendingInspectionCount: number;
+    thisMonthAllocations: number;
+    allocationDelta: number;
+  };
+  alerts: Array<{
+    grade: number | null;
+    category: string | null;
+    waitingCount: number;
+    availableHouses: number;
+  }>;
+  activity: Array<{
+    id: string;
+    action: string;
+    timestamp: string;
+    actorName: string;
+    employeeName: string;
+    employeeNumber: string;
+    houseNumber: string;
+    hid: string;
+    targetHref: string;
+  }>;
+}
+
+/**
+ * One in-flight request, shared by all three cards.
+ *
+ * The cards mount in the same commit, so without this the dashboard would issue
+ * three identical calls for what is one aggregate query on the server — and
+ * `GET /api/dashboard/housing` runs seven `groupBy`s plus the whole house-queue
+ * engine. The handle is released on settle rather than cached, so a card mounted
+ * later (a user re-adds the widget) asks for current numbers instead of serving a
+ * snapshot from when the page first loaded.
+ */
+let housingInflight: Promise<HousingOverview | null> | null = null;
+
+function fetchHousingOverview(): Promise<HousingOverview | null> {
+  if (housingInflight) return housingInflight;
+
+  housingInflight = fetch("/api/dashboard/housing")
+    .then((res) => (res.ok ? res.json() : null))
+    .then((data) => (data ? (data as HousingOverview) : null))
+    .catch(() => null)
+    .finally(() => {
+      housingInflight = null;
+    });
+
+  return housingInflight;
+}
+
+/** Shared loader. Returns `null` for "not loaded yet" and "could not load". */
+function useHousingOverview() {
+  const [data, setData] = useState<HousingOverview | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let active = true;
+    void fetchHousingOverview().then((result) => {
+      if (!active) return;
+      setData(result);
+      setLoading(false);
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  return { data, loading };
+}
+
+/**
+ * One figure in the summary grid.
+ *
+ * A tile rather than a table row: these are read by glancing down a 2×2, not by
+ * comparing across a column, and the card is a third of the dashboard's width at
+ * `lg`. `tone` only ever selects a THEME token — `success` / `warning` / `muted` —
+ * never a hard-coded ramp, so the card reads correctly in all seven themes rather
+ * than washing out on Paper or vanishing on OLED.
+ */
+function HousingFigure({
+  label,
+  value,
+  caption,
+  tone = "muted",
+}: {
+  label: string;
+  value: React.ReactNode;
+  caption?: string;
+  tone?: "default" | "muted" | "success" | "warning";
+}) {
+  return (
+    <div className="border-border/60 bg-secondary/60 rounded-lg border px-3 py-2.5">
+      <p className="text-muted-foreground text-[10px] font-semibold tracking-[0.1em] uppercase">
+        {label}
+      </p>
+      <p
+        className={
+          "mt-1 text-2xl leading-none font-bold tracking-tight tabular-nums " +
+          (tone === "success"
+            ? "text-success-foreground"
+            : tone === "warning"
+              ? "text-warning-foreground"
+              : tone === "muted"
+                ? "text-muted-foreground"
+                : "text-foreground")
+        }
+      >
+        {value}
+      </p>
+      {caption ? (
+        <p className="text-muted-foreground mt-1 text-[11px] leading-tight">
+          {caption}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * Housing estate at a glance.
+ *
+ * The four numbers an officer is asked for at a counter — how many houses, how full,
+ * how many free, how many people waiting — plus the two that drift silently and
+ * need watching: handbacks not yet inspected, and whether allocation pace is
+ * rising or falling month on month.
+ */
+function HousingSummaryWidget() {
+  const { data, loading } = useHousingOverview();
+
+  if (loading) {
+    return (
+      <div className="grid grid-cols-2 gap-2">
+        {[0, 1, 2, 3].map((i) => (
+          <div key={i} className="bg-muted h-[86px] animate-pulse rounded-lg" />
+        ))}
+      </div>
+    );
+  }
+
+  if (!data) {
+    return (
+      <EmptyState
+        icon={<Building2 className="h-8 w-8" />}
+        title="Housing data unavailable"
+        description="You need the household or house-queue permission to see this, or the housing service did not respond."
+      />
+    );
+  }
+
+  const { kpis } = data;
+
+  if (kpis.totalHouses === 0) {
+    return (
+      <EmptyState
+        icon={<House className="h-8 w-8" />}
+        title="No houses registered"
+        description="Add house units in the Household Register to see occupancy and vacancy here."
+      />
+    );
+  }
+
+  return (
+    <div className="space-y-2.5">
+      <div className="grid grid-cols-2 gap-2">
+        <HousingFigure
+          label="Total houses"
+          value={kpis.totalHouses}
+          caption="Staff and tiers A–E"
+        />
+        <HousingFigure
+          label="Occupancy"
+          value={`${kpis.occupancyRate}%`}
+          caption={`${kpis.occupiedCount} occupied`}
+          tone={kpis.occupancyRate >= 90 ? "warning" : "default"}
+        />
+        <HousingFigure
+          label="Vacant"
+          value={kpis.vacantCount}
+          caption={
+            kpis.maintenanceCount > 0
+              ? `${kpis.maintenanceCount} under maintenance`
+              : "ready to allocate"
+          }
+          tone={kpis.vacantCount > 0 ? "success" : "muted"}
+        />
+        <HousingFigure
+          label="Queue"
+          value={kpis.activeQueueSize}
+          caption="waiting on a house"
+          tone={kpis.activeQueueSize > 0 ? "warning" : "muted"}
+        />
+      </div>
+
+      {/* Allocation pace, and nothing else.
+          Outstanding inspections used to sit here as well, which meant the same
+          number appeared twice on one screen — once as a statistic here and once
+          as an actionable row in the alerts card. It belongs in exactly one place
+          and that place is the card that can do something about it, so it is gone
+          from here and the summary keeps the one figure that has no home of its
+          own. */}
+      <div className="text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px]">
+        <span className="inline-flex items-center gap-1">
+          Allocations this month {kpis.thisMonthAllocations}
+          {kpis.allocationDelta !== 0 ? (
+            <span
+              className={
+                kpis.allocationDelta > 0
+                  ? "text-success-foreground font-semibold"
+                  : "text-warning-foreground font-semibold"
+              }
+            >
+              {kpis.allocationDelta > 0 ? "↑" : "↓"}
+              {Math.abs(kpis.allocationDelta)} vs last month
+            </span>
+          ) : null}
+        </span>
+      </div>
+
+      <a
+        href="/dashboard/house-allocation"
+        className="text-primary focus-visible:ring-ring inline-flex items-center gap-1 text-xs font-semibold underline-offset-2 hover:underline focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
+      >
+        Open House Ledger
+        <ArrowUpRight className="h-3 w-3" aria-hidden />
+      </a>
+    </div>
+  );
+}
+
+/**
+ * What is stuck, and what it is costing.
+ *
+ * A shortage alert is a COHORT, not a person: "four Grade-15 applicants are
+ * eligible for a Type A house and there are none free" is the actionable fact,
+ * and naming an individual would be both wrong and unkind. So each row reports the
+ * band, how many are waiting and how many are free — and says nothing when
+ * nothing is short, rather than rendering an empty panel that invites the reader
+ * to wonder whether the check ran.
+ */
+function HousingAlertsWidget() {
+  const { data, loading } = useHousingOverview();
+
+  if (loading) {
+    return (
+      <div className="space-y-2">
+        {[0, 1].map((i) => (
+          <div key={i} className="bg-muted h-12 animate-pulse rounded-lg" />
+        ))}
+      </div>
+    );
+  }
+
+  if (!data) {
+    return (
+      <EmptyState
+        icon={<AlertTriangle className="h-8 w-8" />}
+        title="Alerts unavailable"
+        description="The house-queue service did not respond."
+      />
+    );
+  }
+
+  const { alerts, kpis } = data;
+
+  if (alerts.length === 0 && kpis.pendingInspectionCount === 0) {
+    return (
+      <EmptyState
+        icon={<ClipboardCheck className="h-8 w-8" />}
+        title="Nothing needs attention"
+        description="Every eligible cohort has a house free in its band, and no handback is waiting on an inspection."
+      />
+    );
+  }
+
+  return (
+    <div className="space-y-2.5">
+      {alerts.length > 0 ? (
+        <ul className="space-y-1.5">
+          {alerts.map((alert) => (
+            <li
+              key={`${alert.grade}-${alert.category}`}
+              className="border-warning-foreground/30 bg-warning-bg flex items-start gap-2.5 rounded-lg border px-3 py-2"
+            >
+              <AlertTriangle
+                className="text-warning-foreground mt-0.5 h-3.5 w-3.5 shrink-0"
+                aria-hidden
+              />
+              <div className="min-w-0 flex-1 text-xs leading-tight">
+                <p className="text-foreground font-semibold">
+                  Grade {alert.grade ?? "—"}
+                  {alert.category ? ` · Type ${alert.category}` : ""} short of
+                  houses
+                </p>
+                <p className="text-muted-foreground mt-0.5">
+                  <span className="text-warning-foreground font-semibold tabular-nums">
+                    {alert.waitingCount}
+                  </span>{" "}
+                  waiting
+                  <span aria-hidden> · </span>
+                  <span className="tabular-nums">
+                    {alert.availableHouses}
+                  </span>{" "}
+                  free in band
+                </p>
+              </div>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+
+      {kpis.pendingInspectionCount > 0 ? (
+        <a
+          href="/houses/inspections"
+          className="border-border/60 bg-secondary/60 hover:border-primary/40 flex items-center gap-2.5 rounded-lg border px-3 py-2 transition-colors"
+        >
+          <ClipboardCheck
+            className="text-muted-foreground h-3.5 w-3.5 shrink-0"
+            aria-hidden
+          />
+          <p className="min-w-0 flex-1 text-xs leading-tight">
+            <span className="text-foreground font-semibold tabular-nums">
+              {kpis.pendingInspectionCount}
+            </span>{" "}
+            <span className="text-muted-foreground">
+              handback{kpis.pendingInspectionCount === 1 ? "" : "s"} awaiting
+              inspection
+            </span>
+          </p>
+          <ArrowUpRight
+            className="text-muted-foreground h-3 w-3 shrink-0"
+            aria-hidden
+          />
+        </a>
+      ) : null}
+
+      {alerts.length > 0 ? (
+        <a
+          href="/house-queue"
+          className="text-primary focus-visible:ring-ring inline-flex items-center gap-1 text-xs font-semibold underline-offset-2 hover:underline focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
+        >
+          Open the House Queue
+          <ArrowUpRight className="h-3 w-3" aria-hidden />
+        </a>
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * Recent housing decisions, newest first.
+ *
+ * Every row carries its subject: the employee, and the house if one is attached.
+ * A housing audit line without a subject is a mystery, and this feed exists
+ * precisely so an officer can answer "who moved into B-202 last month?" without
+ * opening the ledger.
+ */
+function HousingActivityWidget() {
+  const { data, loading } = useHousingOverview();
+
+  if (loading) {
+    return (
+      <ul className="space-y-2">
+        {[0, 1, 2].map((i) => (
+          <li key={i} className="bg-muted h-10 animate-pulse rounded-lg" />
+        ))}
+      </ul>
+    );
+  }
+
+  if (!data) {
+    return (
+      <EmptyState
+        icon={<House className="h-8 w-8" />}
+        title="Activity unavailable"
+        description="The housing service did not respond."
+      />
+    );
+  }
+
+  if (data.activity.length === 0) {
+    return (
+      <EmptyState
+        icon={<House className="h-8 w-8" />}
+        title="No housing activity yet"
+        description="Allocations, releases, inspections and queue decisions appear here as they happen."
+      />
+    );
+  }
+
+  return (
+    <ul className="space-y-1">
+      {data.activity.map((item) => {
+        const subject = item.employeeName || item.employeeNumber || "—";
+        const place = item.houseNumber || item.hid;
+
+        return (
+          <li key={item.id}>
+            <a
+              href={item.targetHref}
+              className="hover:bg-muted/60 focus-visible:ring-ring -mx-1.5 flex items-start gap-2.5 rounded-md px-1.5 py-1.5 transition-colors focus-visible:ring-2 focus-visible:outline-none"
+            >
+              <span className="bg-muted text-muted-foreground mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-md">
+                <House className="h-3 w-3" aria-hidden />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-xs font-medium">
+                  {item.action}
+                </span>
+                <span className="text-muted-foreground block truncate text-[11px]">
+                  {subject}
+                  {place ? ` · ${place}` : ""} · {item.actorName} ·{" "}
+                  {formatRelativeTime(item.timestamp)}
+                </span>
+              </span>
+            </a>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
 const WidgetContent = memo(function WidgetContent({
   widgetType,
   serverStats,
@@ -1004,6 +1456,12 @@ const WidgetContent = memo(function WidgetContent({
       return <TCOWidget />;
     case "duplicateDetection":
       return <DuplicateDetectionWidget />;
+    case "housingSummary":
+      return <HousingSummaryWidget />;
+    case "housingAlerts":
+      return <HousingAlertsWidget />;
+    case "housingActivity":
+      return <HousingActivityWidget />;
     default:
       return (
         <p className="text-muted-foreground text-sm">Unknown widget type</p>
@@ -1087,9 +1545,21 @@ const SortableWidget = memo(function SortableWidget({
 export default function DashboardGrid({
   serverStats,
   isAdmin = true,
+  permissions,
 }: {
   serverStats?: { assets: number; accessories: number; users: number };
   isAdmin?: boolean;
+  /**
+   * The caller's RBAC permission keys, passed down from the server page.
+   *
+   * This is a UX filter, not the security boundary — `POST /api/dashboard/widgets`
+   * and `GET /api/dashboard/housing` both enforce the same permissions
+   * server-side, and the read path drops rows the caller is no longer entitled
+   * to. Its job is to stop the Add Widget dialog from offering a card that would
+   * come back 403, which is the difference between "you cannot see housing data"
+   * and a broken-looking dashboard.
+   */
+  permissions?: string[];
 } = {}) {
   const [widgets, setWidgets] = useState<DashboardWidgetData[]>([]);
   const [loading, setLoading] = useState(true);
@@ -1204,10 +1674,19 @@ export default function DashboardGrid({
     );
   }
 
-  // Determine which widget types are already active so we can filter the add dialog
+  // Determine which widget types are already active so we can filter the add
+  // dialog, and drop anything the caller is not entitled to.
   const activeTypes = new Set(widgets.map((w) => w.widgetType));
+
+  const isWidgetAvailable = (definition: WidgetDefinition): boolean => {
+    if (definition.adminOnly && !isAdmin) return false;
+    if (!definition.permission) return true;
+    // Admins hold every permission by construction, so they always pass.
+    return isAdmin || (permissions ?? []).includes(definition.permission);
+  };
+
   const availableWidgets = WIDGET_DEFINITIONS.filter(
-    (d) => !activeTypes.has(d.type) && (isAdmin || !d.adminOnly),
+    (d) => !activeTypes.has(d.type) && isWidgetAvailable(d),
   );
 
   return (

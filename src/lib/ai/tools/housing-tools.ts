@@ -5,7 +5,10 @@ import { getHamsKpis } from "@/lib/hams/queries";
 import { computeHouseQueueWithActiveConfig } from "@/lib/house-queue/engine";
 import { CACHE_TTL, cached, orgScope } from "../cache";
 import { getActiveConfig } from "@/lib/house-queue/config/service";
-import { eligibilityBandsToJobGradeRules, houseCategoryForJobGrade } from "@/lib/house-queue/eligibility";
+import {
+  eligibilityBandsToJobGradeRules,
+  houseCategoryForJobGrade,
+} from "@/lib/house-queue/eligibility";
 
 /**
  * The full queue engine recomputes MCDA across every active employee. Caching
@@ -13,10 +16,8 @@ import { eligibilityBandsToJobGradeRules, houseCategoryForJobGrade } from "@/lib
  * at once — costs one computation instead of one per question.
  */
 function getCachedQueue(organizationId: string) {
-  return cached(
-    `${orgScope(organizationId)}:queue:full`,
-    CACHE_TTL.queue,
-    () => computeHouseQueueWithActiveConfig(organizationId),
+  return cached(`${orgScope(organizationId)}:queue:full`, CACHE_TTL.queue, () =>
+    computeHouseQueueWithActiveConfig(organizationId),
   );
 }
 
@@ -25,7 +26,7 @@ export function createHousingTools(organizationId: string) {
     getHousingKpis: tool({
       description:
         "Get high-level housing statistics: total houses, occupancy rate, breakdown by house type, count of vacant/occupied/maintenance houses, and active queue size. Prefer this for any 'how many / what is the breakdown' housing question. It is more expensive than getHouseCounts — use that one when only counts are needed.",
-      parameters: z.object({}),
+      inputSchema: z.object({}),
       execute: async () => {
         try {
           const kpis = await getHamsKpis(organizationId);
@@ -51,7 +52,7 @@ export function createHousingTools(organizationId: string) {
     getHouseCounts: tool({
       description:
         "Cheapest housing tool. Returns register totals (Active / Inactive) and occupancy totals (Vacant / Occupied / Maintenance) plus a per-house-type matrix. Use for any 'how many houses' question. Note: 'active' means register status Active; 'vacant' means occupancyStatus Vacant among register-active houses.",
-      parameters: z.object({}),
+      inputSchema: z.object({}),
       execute: async () => {
         try {
           return await cached(
@@ -105,7 +106,8 @@ export function createHousingTools(organizationId: string) {
                   vacant: 0,
                   maintenance: 0,
                 };
-                if (row.occupancyStatus === "Occupied") bucket.occupied += row._count.id;
+                if (row.occupancyStatus === "Occupied")
+                  bucket.occupied += row._count.id;
                 else if (row.occupancyStatus === "Maintenance")
                   bucket.maintenance += row._count.id;
                 else bucket.vacant += row._count.id;
@@ -121,8 +123,7 @@ export function createHousingTools(organizationId: string) {
                 activeHousesByType: [...matrix.entries()].map(
                   ([type, counts]) => ({
                     houseType: type,
-                    total:
-                      counts.occupied + counts.vacant + counts.maintenance,
+                    total: counts.occupied + counts.vacant + counts.maintenance,
                     occupied: counts.occupied,
                     vacant: counts.vacant,
                     maintenance: counts.maintenance,
@@ -141,7 +142,7 @@ export function createHousingTools(organizationId: string) {
     queryHouseQueue: tool({
       description:
         "Query the authoritative live House Queue engine to view top waiting candidates, MCDA priority scores, service years, and recommended houses. Use for anything about who is waiting, who ranks where, or which house a candidate would get.",
-      parameters: z.object({
+      inputSchema: z.object({
         grade: z
           .number()
           .optional()
@@ -193,8 +194,7 @@ export function createHousingTools(organizationId: string) {
               employeeNumber: r.employeeNumber,
               jobGrade: r.jobGrade,
               serviceYears: r.serviceYears,
-              priorityScore:
-                r.mcdScore !== null ? r.mcdScore.toFixed(2) : null,
+              priorityScore: r.mcdScore !== null ? r.mcdScore.toFixed(2) : null,
               familySize: r.familySize,
               recommendedHouse: r.recommendedHouseNumber
                 ? `${r.recommendedHouseNumber} (${r.houseCategory ?? "untyped"})`
@@ -212,10 +212,8 @@ export function createHousingTools(organizationId: string) {
     explainEligibility: tool({
       description:
         "Explain the house eligibility rule for a given job grade: which house category the grade maps to, whether the grade is eligible at all, and how many houses of that category are free right now. Use for 'why is X not eligible' and 'what grade gets which house' questions.",
-      parameters: z.object({
-        grade: z
-          .number()
-          .describe("The job grade to explain (e.g. 7, 8, 9)"),
+      inputSchema: z.object({
+        grade: z.number().describe("The job grade to explain (e.g. 7, 8, 9)"),
       }),
       execute: async ({ grade }) => {
         try {
@@ -276,7 +274,7 @@ export function createHousingTools(organizationId: string) {
     searchHouseholds: tool({
       description:
         "Search houses in the House Hold Register by house number, HID, house type, or occupancy status (Vacant, Occupied, Maintenance).",
-      parameters: z.object({
+      inputSchema: z.object({
         query: z
           .string()
           .optional()
@@ -375,7 +373,7 @@ export function createHousingTools(organizationId: string) {
     getInspectionSummary: tool({
       description:
         "Check recent handback inspection reports, damage checklists, and repair hold statuses for vacated houses.",
-      parameters: z.object({
+      inputSchema: z.object({
         houseNumber: z
           .string()
           .optional()
@@ -427,7 +425,9 @@ export function createHousingTools(organizationId: string) {
         if (houseNumber) {
           const cleanNum = houseNumber.toLowerCase();
           filtered = inspections.filter((i) =>
-            i.allocation.household?.houseNumber.toLowerCase().includes(cleanNum),
+            i.allocation.household?.houseNumber
+              .toLowerCase()
+              .includes(cleanNum),
           );
         }
 
@@ -453,8 +453,13 @@ export function createHousingTools(organizationId: string) {
               scheduledDate: i.scheduledDate
                 ? i.scheduledDate.toISOString().split("T")[0]
                 : "Pending schedule",
-              status: i.resolvedTo ? `Resolved (${i.resolvedTo})` : "Pending Hold",
-              damagesFound: damageItems.length > 0 ? damageItems : ["None (Good condition)"],
+              status: i.resolvedTo
+                ? `Resolved (${i.resolvedTo})`
+                : "Pending Hold",
+              damagesFound:
+                damageItems.length > 0
+                  ? damageItems
+                  : ["None (Good condition)"],
               conditionNotes: i.conditionNote || "No notes",
               photoCount: i.photoCount || i.photoUrls.length,
             };

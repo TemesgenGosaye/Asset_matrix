@@ -13,7 +13,7 @@ import {
 import { TicketColumn } from "./TicketColumn";
 import { TicketCard } from "./TicketCard";
 import { TicketModal } from "./TicketModal";
-import { toast } from "sonner";
+import { notify } from "@/lib/feedback/notify";
 import { Ticket, TicketUser } from "@/types/ticket";
 
 interface AdminUser {
@@ -34,7 +34,10 @@ const STATUSES = [
   { id: "completed", label: "Completed", color: "bg-green-500" },
 ];
 
-export default function KanbanBoard({ tickets: initialTickets, adminUsers }: KanbanBoardProps) {
+export default function KanbanBoard({
+  tickets: initialTickets,
+  adminUsers,
+}: KanbanBoardProps) {
   const [tickets, setTickets] = useState<Ticket[]>(initialTickets);
   const [activeTicket, setActiveTicket] = useState<Ticket | null>(null);
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
@@ -44,7 +47,7 @@ export default function KanbanBoard({ tickets: initialTickets, adminUsers }: Kan
       activationConstraint: {
         distance: 8,
       },
-    })
+    }),
   );
 
   const handleDragStart = (event: DragStartEvent) => {
@@ -64,8 +67,8 @@ export default function KanbanBoard({ tickets: initialTickets, adminUsers }: Kan
     // Optimistic update
     setTickets((prevTickets) =>
       prevTickets.map((ticket) =>
-        ticket.id === ticketId ? { ...ticket, status: newStatus } : ticket
-      )
+        ticket.id === ticketId ? { ...ticket, status: newStatus } : ticket,
+      ),
     );
 
     // API call
@@ -83,24 +86,27 @@ export default function KanbanBoard({ tickets: initialTickets, adminUsers }: Kan
       }
 
       const updatedTicket = await response.json();
-      
+
       // Update with server response
       setTickets((prevTickets) =>
         prevTickets.map((ticket) =>
-          ticket.id === ticketId ? updatedTicket : ticket
-        )
+          ticket.id === ticketId ? updatedTicket : ticket,
+        ),
       );
 
-      toast.success("Ticket status updated");
+      notify.success("Ticket status updated");
     } catch (error) {
       console.error("Error updating ticket:", error);
       // Revert on error
       setTickets(initialTickets);
-      toast.error("Failed to update ticket status");
+      notify.error("Failed to update ticket status");
     }
   };
 
-  const handleUpdateTicket = async (ticketId: string, updates: Partial<Ticket>) => {
+  const handleUpdateTicket = async (
+    ticketId: string,
+    updates: Partial<Ticket>,
+  ) => {
     try {
       const response = await fetch(`/api/tickets/${ticketId}`, {
         method: "PATCH",
@@ -115,18 +121,18 @@ export default function KanbanBoard({ tickets: initialTickets, adminUsers }: Kan
       }
 
       const updatedTicket = await response.json();
-      
+
       setTickets((prevTickets) =>
         prevTickets.map((ticket) =>
-          ticket.id === ticketId ? updatedTicket : ticket
-        )
+          ticket.id === ticketId ? updatedTicket : ticket,
+        ),
       );
 
-      toast.success("Ticket updated");
+      notify.success("Ticket updated");
       return updatedTicket;
     } catch (error) {
       console.error("Error updating ticket:", error);
-      toast.error("Failed to update ticket");
+      notify.error("Failed to update ticket");
       throw error;
     }
   };
@@ -146,21 +152,21 @@ export default function KanbanBoard({ tickets: initialTickets, adminUsers }: Kan
       }
 
       const newComment = await response.json();
-      
+
       // Update tickets with new comment
       setTickets((prevTickets) =>
         prevTickets.map((ticket) =>
           ticket.id === ticketId
             ? { ...ticket, comments: [...ticket.comments, newComment] }
-            : ticket
-        )
+            : ticket,
+        ),
       );
 
-      toast.success("Comment added");
+      notify.success("Comment added");
       return newComment;
     } catch (error) {
       console.error("Error adding comment:", error);
-      toast.error("Failed to add comment");
+      notify.error("Failed to add comment");
       throw error;
     }
   };
@@ -176,7 +182,7 @@ export default function KanbanBoard({ tickets: initialTickets, adminUsers }: Kan
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
       >
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
           {STATUSES.map((status) => (
             <TicketColumn
               key={status.id}

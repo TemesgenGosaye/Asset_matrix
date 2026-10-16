@@ -68,3 +68,6 @@ mobile/*.orig.*
 *.log
 $log
 vitest-failures.txt
+
+# generated one-off backfill report (scripts/backfill-employee-departments.mjs)
+employee-department-backfill-report.csv

@@ -1,12 +1,8 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
-import { headers } from "next/headers";
 import prisma from "@/lib/prisma";
 import { requireApiAdmin, requireNotDemoMode } from "@/lib/api-auth";
-import { createFreshdeskClient } from "@/lib/freshdesk";
 import { logger } from "@/lib/logger";
 import { getOrganizationContext } from "@/lib/organization-context";
-import { decrypt } from "@/lib/encryption";
 import {
   notifyTicketAssigned,
   notifyTicketStatusChanged,
@@ -14,68 +10,6 @@ import {
 
 interface RouteParams {
   params: Promise<{ id: string }>;
-}
-
-/**
- * GET /api/tickets/[id]
- * Fetch a single ticket from Freshdesk
- */
-export async function GET(req: Request, { params }: RouteParams) {
-  try {
-    const session = await auth.api.getSession({ headers: await headers() });
-    if (!session?.user?.isadmin) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
-
-    const { id } = await params;
-    const ticketId = parseInt(id, 10);
-
-    if (isNaN(ticketId)) {
-      return NextResponse.json({ error: "Invalid ticket ID" }, { status: 400 });
-    }
-
-    // Get Freshdesk configuration from database
-    const [domainSetting, apiKeySetting] = await Promise.all([
-      prisma.system_settings.findUnique({
-        where: { settingKey: "freshdesk_domain" },
-      }),
-      prisma.system_settings.findUnique({
-        where: { settingKey: "freshdesk_api_key" },
-      }),
-    ]);
-
-    if (!domainSetting?.settingValue || !apiKeySetting?.settingValue) {
-      return NextResponse.json(
-        {
-          error:
-            "Freshdesk is not configured. Please configure it in Admin Settings.",
-        },
-        { status: 400 },
-      );
-    }
-
-    const client = createFreshdeskClient({
-      domain: domainSetting.settingValue,
-      apiKey: decrypt(apiKeySetting.settingValue),
-    });
-
-    const result = await client.getTicket(ticketId);
-
-    if (!result.success) {
-      return NextResponse.json(
-        { error: result.error || "Failed to fetch ticket" },
-        { status: 500 },
-      );
-    }
-
-    return NextResponse.json({ ticket: result.data });
-  } catch (error) {
-    logger.error("GET /api/tickets/[id] error", { error });
-    return NextResponse.json(
-      { error: "Failed to fetch ticket" },
-      { status: 500 },
-    );
-  }
 }
 
 // PATCH /api/tickets/[id]

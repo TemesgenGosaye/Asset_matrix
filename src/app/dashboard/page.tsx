@@ -11,13 +11,12 @@ import Breadcrumb from "@/components/Breadcrumb";
 import dynamic from "next/dynamic";
 import DismissibleHelpTip from "@/components/DismissibleHelpTip";
 import DashboardGrid from "@/components/dashboard/DashboardGrid";
+import QuickActions from "@/components/dashboard/QuickActions";
 
 import { getOrganizationContext } from "@/lib/organization-context";
 import { Suspense } from "react";
 import AssetMapClient from "@/components/maps/AssetMapClient";
 import { redirect } from "next/navigation";
-import Link from "next/link";
-import { LayoutDashboard, ArrowRight } from "lucide-react";
 
 export const metadata = {
   title: "Asset Tracker - Dashboard",
@@ -29,34 +28,21 @@ const AssetStatusChart = dynamic(
   {
     ssr: true,
     loading: () => (
-      <div className="bg-muted/50 flex aspect-square max-h-[250px] items-center justify-center rounded-lg text-sm text-muted-foreground">
+      <div className="bg-muted/50 text-muted-foreground flex aspect-square max-h-[250px] items-center justify-center rounded-lg text-sm">
         Loading chart...
       </div>
     ),
   },
 );
 
-function HamsRedirectBanner({ className }: { className?: string }) {
+function canAccessHouseLedger(
+  ctx: NonNullable<Awaited<ReturnType<typeof getOrganizationContext>>>,
+) {
   return (
-    <Link
-      href="/dashboard/house-allocation"
-      className={`group flex items-center justify-between rounded-xl border border-border bg-card px-5 py-4 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md ${className ?? ""}`}
-    >
-      <div className="flex items-center gap-3">
-        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brass-500/10 text-brass-500">
-          <LayoutDashboard className="h-5 w-5" />
-        </span>
-        <div>
-          <p className="text-sm font-semibold text-foreground">
-            House Allocation Dashboard
-          </p>
-          <p className="text-xs text-muted-foreground">
-            Queue rankings, occupancy, cohort alerts &amp; recent activity
-          </p>
-        </div>
-      </div>
-      <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-1" />
-    </Link>
+    (ctx.isAdmin ?? false) ||
+    ctx.permissions.has("house_queue:view") ||
+    ctx.permissions.has("household:view") ||
+    ctx.permissions.has("employee:view")
   );
 }
 
@@ -71,6 +57,13 @@ export default async function DashboardPage() {
     redirect("/login");
   }
   const isAdmin = ctx.isAdmin ?? false;
+  const canRequestHouse = ctx.permissions.has("house_request:create");
+  const canViewHouseLedger = canAccessHouseLedger(ctx);
+
+  // The full permission set, flattened for the client widget grid. The grid uses
+  // it to hide cards the caller could not add (the API enforces the same rules),
+  // so a Standard User is not offered a Housing Summary that would 403.
+  const permissionKeys = Array.from(ctx.permissions);
 
   if (!isAdmin && ctx?.userId) {
     return (
@@ -78,15 +71,22 @@ export default async function DashboardPage() {
         <Breadcrumb
           options={[{ label: "Dashboard", href: "/dashboard", current: true }]}
         />
-        <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
-          My Dashboard
-        </h1>
-        <p className="text-muted-foreground mt-1 text-sm">
-          Your assets, requests, and tickets at a glance
-        </p>
-        <HamsRedirectBanner className="mt-4" />
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
+              My Dashboard
+            </h1>
+            <p className="text-muted-foreground mt-1 text-sm">
+              Your assets, requests, and tickets at a glance
+            </p>
+          </div>
+          <QuickActions
+            canRequestHouse={canRequestHouse}
+            canViewHouseLedger={canViewHouseLedger}
+          />
+        </div>
         <div className="mt-6">
-          <DashboardGrid isAdmin={false} />
+          <DashboardGrid isAdmin={false} permissions={permissionKeys} />
         </div>
       </main>
     );
@@ -161,14 +161,21 @@ export default async function DashboardPage() {
           { label: "Dashboard", href: "/dashboard" },
         ]}
       />
-      <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
-        {greeting}
-        {firstName ? `, ${firstName}` : ""}
-      </h1>
-      <p className="text-muted-foreground mt-1 text-sm">
-        Overview of your asset management system
-      </p>
-      <HamsRedirectBanner className="mt-4" />
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
+            {greeting}
+            {firstName ? `, ${firstName}` : ""}
+          </h1>
+          <p className="text-muted-foreground mt-1 text-sm">
+            Your house and assets at a glance
+          </p>
+        </div>
+        <QuickActions
+          canRequestHouse={canRequestHouse}
+          canViewHouseLedger={canViewHouseLedger}
+        />
+      </div>
       <DismissibleHelpTip id="dashboard-welcome">
         Welcome to your dashboard! Here you can see a quick overview of your
         assets, accessories, and users. Use the sidebar to navigate to specific
@@ -178,7 +185,35 @@ export default async function DashboardPage() {
         <AssetStatusChart data={chartData} title="Asset Status" />
         <AssetStatusChart data={accChartData} title="Vehicle Status" />
       </div>
-      <div className="mt-4 sm:mt-6">
+
+      <div className="mt-6 sm:mt-8 md:mt-10">
+        <DashboardGrid
+          isAdmin={isAdmin}
+          permissions={permissionKeys}
+          serverStats={{
+            assets: assetCount,
+            accessories: accessoryCount,
+            users: userCount,
+          }}
+        />
+      </div>
+
+      {/*
+        The map is LAST, after the widgets rather than between the charts and the
+        widgets.
+
+        It was sitting in the middle, where a 420px panel of empty state pushed
+        every widget below the fold — so on a deployment whose locations have no
+        geocoded coordinates, the dashboard opened on a large "No locations with
+        coordinates" box and the configurable content the officer had actually
+        arranged sat underneath it. The map is contextual and geographic; it is
+        the thing you scroll to when you want it, not the thing that greets you.
+
+        It also now sits after the widgets it partly duplicates: the "Asset Map"
+        widget in the grid below renders the same component, so keeping both
+        adjacent would have meant the same map twice within one scroll.
+      */}
+      <div className="mt-6 sm:mt-8 md:mt-10">
         <Suspense
           fallback={
             <div className="text-muted-foreground flex h-[420px] items-center justify-center rounded-lg border text-sm">
@@ -192,15 +227,6 @@ export default async function DashboardPage() {
             totalLocations={mapLocations.length}
           />
         </Suspense>
-      </div>
-      <div className="mt-6 sm:mt-8 md:mt-10">
-        <DashboardGrid
-          serverStats={{
-            assets: assetCount,
-            accessories: accessoryCount,
-            users: userCount,
-          }}
-        />
       </div>
     </main>
   );

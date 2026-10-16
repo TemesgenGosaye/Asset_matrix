@@ -36,7 +36,7 @@ import {
   DeleteIcon,
   MoreVertical,
 } from "../Icons";
-import { toast } from "sonner";
+import { notify } from "@/lib/feedback/notify";
 
 const ROWS_PER_PAGE_OPTIONS = ["10", "20", "50", "100"];
 
@@ -225,8 +225,9 @@ export default function ConsumablesTable({
 
       const result = await response.json();
 
-      toast.success(result.message, {
-        description: `${consumableId} deleted successfully`,
+      notify.success({
+        title: result.message,
+        description: `${consumableId} deleted`,
       });
 
       setConsumablesData((prevItems) =>
@@ -235,7 +236,8 @@ export default function ConsumablesTable({
       setIsDeleteModalOpen(false);
     } catch (error) {
       console.error("Error deleting consumable:", error);
-      toast.error("Failed to delete consumable", {
+      notify.error({
+        title: "Failed to delete consumable",
         description: error.message,
       });
     }
@@ -255,11 +257,11 @@ export default function ConsumablesTable({
       setConsumablesData((prev) =>
         prev.filter((item) => !selectedKeys.has(item.consumableid)),
       );
-      toast.success(`Deleted ${ids.length} consumable(s)`);
+      notify.success(`Deleted ${ids.length} consumable(s)`);
       setSelectedKeys(new Set());
       setShowBulkDelete(false);
     } catch (error) {
-      toast.error("Failed to delete some consumables");
+      notify.error("Failed to delete some consumables");
     } finally {
       setBulkDeleting(false);
     }

@@ -13,7 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { toast } from "sonner";
+import { notify } from "@/lib/feedback/notify";
 
 interface KitItemInput {
   entityType: string;
@@ -89,11 +89,11 @@ export default function KitCreateForm({
         throw new Error(data.error || "Failed to save kit");
       }
 
-      toast.success(mode === "edit" ? "Kit updated" : "Kit created");
+      notify.success(mode === "edit" ? "Kit updated" : "Kit created");
       router.push("/kits");
       router.refresh();
     } catch (err: any) {
-      toast.error(err.message);
+      notify.error(err.message);
     } finally {
       setLoading(false);
     }

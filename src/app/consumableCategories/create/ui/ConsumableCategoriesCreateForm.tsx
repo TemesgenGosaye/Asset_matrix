@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import { notify } from "@/lib/feedback/notify";
 
 export default function ConsumableCategoriesCreateForm({
   initialData = null,
@@ -47,18 +47,17 @@ export default function ConsumableCategoriesCreateForm({
       }
 
       const created = await res.json();
-      toast.success(
-        mode === "edit"
-          ? "Consumable category updated"
-          : "Consumable category created",
-        {
-          description: created.consumablecategorytypename,
-        },
-      );
+      notify.success({
+        title:
+          mode === "edit"
+            ? "Consumable category updated"
+            : "Consumable category created",
+        description: created.consumablecategorytypename,
+      });
       router.push("/consumableCategories");
     } catch (err) {
       setError(err.message);
-      toast.error("Save failed", { description: err.message });
+      notify.error({ title: "Save failed", description: err.message });
     } finally {
       setSubmitting(false);
     }

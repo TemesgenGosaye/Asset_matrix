@@ -12,7 +12,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { FileDropZone } from "@/components/FileDropZone";
-import { toast } from "sonner";
+import { notify } from "@/lib/feedback/notify";
 import {
   ArrowLeft,
   ArrowRight,
@@ -67,7 +67,13 @@ interface ImportResult {
 // Constants
 // ---------------------------------------------------------------------------
 
-const STEP_ORDER: Step[] = ["upload", "sheet", "mapping", "importing", "results"];
+const STEP_ORDER: Step[] = [
+  "upload",
+  "sheet",
+  "mapping",
+  "importing",
+  "results",
+];
 
 const STEP_LABELS: Record<Step, string> = {
   upload: "Upload",
@@ -186,52 +192,49 @@ export default function AssetImportWizard({
 
   // ---- Handlers ----
 
-  const handleFileSelected = useCallback(
-    async (files: File[]) => {
-      const file = files[0];
-      if (!file) return;
-      setSelectedFile(file);
-      setResult(null);
-      setParseError(null);
-      setUploading(true);
+  const handleFileSelected = useCallback(async (files: File[]) => {
+    const file = files[0];
+    if (!file) return;
+    setSelectedFile(file);
+    setResult(null);
+    setParseError(null);
+    setUploading(true);
 
-      try {
-        const formData = new FormData();
-        formData.append("file", file);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
 
-        const res = await fetch("/api/import/preview", {
-          method: "POST",
-          body: formData,
-        });
+      const res = await fetch("/api/import/preview", {
+        method: "POST",
+        body: formData,
+      });
 
-        if (!res.ok) {
-          const body = await res.json().catch(() => ({}));
-          throw new Error(body.error || `Preview failed (${res.status})`);
-        }
-
-        const data: PreviewResponse = await res.json();
-        setPreviewData(data);
-
-        // Auto-select if single sheet
-        if (data.sheets.length === 1) {
-          setSelectedSheet(data.sheets[0].name);
-          setMapping(data.sheets[0].mergedMapping as Record<string, number>);
-          setStep("mapping");
-        } else if (data.sheets.length > 1) {
-          setSelectedSheet(data.sheets[0].name);
-          setMapping(data.sheets[0].mergedMapping as Record<string, number>);
-          setStep("sheet");
-        } else {
-          setParseError("File contains no readable sheets.");
-        }
-      } catch (err) {
-        setParseError(err instanceof Error ? err.message : String(err));
-      } finally {
-        setUploading(false);
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || `Preview failed (${res.status})`);
       }
-    },
-    [],
-  );
+
+      const data: PreviewResponse = await res.json();
+      setPreviewData(data);
+
+      // Auto-select if single sheet
+      if (data.sheets.length === 1) {
+        setSelectedSheet(data.sheets[0].name);
+        setMapping(data.sheets[0].mergedMapping as Record<string, number>);
+        setStep("mapping");
+      } else if (data.sheets.length > 1) {
+        setSelectedSheet(data.sheets[0].name);
+        setMapping(data.sheets[0].mergedMapping as Record<string, number>);
+        setStep("sheet");
+      } else {
+        setParseError("File contains no readable sheets.");
+      }
+    } catch (err) {
+      setParseError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setUploading(false);
+    }
+  }, []);
 
   const handleSelectSheet = useCallback(
     (sheetName: string) => {
@@ -247,7 +250,7 @@ export default function AssetImportWizard({
 
   const handleProceedFromSheet = useCallback(() => {
     if (!selectedSheet) {
-      toast.error("Please select a sheet first.");
+      notify.error("Please select a sheet first.");
       return;
     }
     setStep("mapping");
@@ -271,7 +274,8 @@ export default function AssetImportWizard({
   const handleImport = useCallback(async () => {
     if (!selectedFile || !selectedSheet) return;
     if (!requiredMapped) {
-      toast.error("All required fields must be mapped before importing.", {
+      notify.error({
+        title: "All required fields must be mapped before importing.",
         description:
           missingRequiredLabels.length > 0
             ? `Missing: ${missingRequiredLabels.join(", ")}`
@@ -305,20 +309,21 @@ export default function AssetImportWizard({
       setStep("results");
 
       if (data.errorCount === 0 && data.successCount > 0) {
-        toast.success(`Imported ${data.successCount} asset(s) successfully.`);
+        notify.success(`Imported ${data.successCount} asset(s) successfully.`);
       } else if (data.successCount > 0) {
-        toast.warning(
+        notify.warning(
           `Imported ${data.successCount} asset(s) with ${data.errorCount} error(s).`,
         );
       } else {
-        toast.error("Import failed — no assets were created.");
+        notify.error("Import failed — no assets were created.");
       }
 
       onComplete?.();
     } catch (err) {
       setParseError(err instanceof Error ? err.message : String(err));
       setStep("mapping");
-      toast.error("Import failed", {
+      notify.error({
+        title: "Import failed",
         description: err instanceof Error ? err.message : String(err),
       });
     } finally {
@@ -355,18 +360,18 @@ export default function AssetImportWizard({
               {i < currentIdx ? (
                 <CheckCircle2 className="h-3.5 w-3.5" />
               ) : i === currentIdx ? (
-                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary text-xs font-semibold text-white">
+                <span className="bg-primary flex h-5 w-5 items-center justify-center rounded-full text-xs font-semibold text-white">
                   {i + 1}
                 </span>
               ) : (
-                <span className="flex h-5 w-5 items-center justify-center rounded-full border text-xs text-muted-foreground">
+                <span className="text-muted-foreground flex h-5 w-5 items-center justify-center rounded-full border text-xs">
                   {i + 1}
                 </span>
               )}
               {STEP_LABELS[s]}
             </span>
             {i < visibleSteps.length - 1 && (
-              <div className="mx-1 h-px w-4 bg-border" />
+              <div className="bg-border mx-1 h-px w-4" />
             )}
           </React.Fragment>
         ))}
@@ -417,7 +422,7 @@ export default function AssetImportWizard({
         )}
 
         {selectedFile && (
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <div className="text-muted-foreground flex items-center gap-2 text-sm">
             <FileSpreadsheet className="h-4 w-4" />
             {selectedFile.name} ({formatFileSize(selectedFile.size)})
           </div>
@@ -448,7 +453,7 @@ export default function AssetImportWizard({
       </CardHeader>
       <CardContent className="space-y-4">
         {selectedFile && (
-          <div className="flex items-center gap-2 rounded-md bg-muted px-3 py-2 text-sm">
+          <div className="bg-muted flex items-center gap-2 rounded-md px-3 py-2 text-sm">
             <FileSpreadsheet className="h-4 w-4" />
             <span className="font-medium">{selectedFile.name}</span>
             <span className="text-muted-foreground">
@@ -476,17 +481,14 @@ export default function AssetImportWizard({
                 </div>
               </div>
               {selectedSheet === sheet.name && (
-                <CheckCircle2 className="h-4 w-4 text-primary" />
+                <CheckCircle2 className="text-primary h-4 w-4" />
               )}
             </button>
           ))}
         </div>
 
         <div className="flex items-center gap-3 pt-2">
-          <Button
-            onClick={handleProceedFromSheet}
-            disabled={!selectedSheet}
-          >
+          <Button onClick={handleProceedFromSheet} disabled={!selectedSheet}>
             Continue
             <ArrowRight className="ml-1.5 h-4 w-4" />
           </Button>
@@ -568,7 +570,7 @@ export default function AssetImportWizard({
 
         {/* Optional fields */}
         <div className="space-y-2">
-          <p className="text-sm font-medium text-muted-foreground">
+          <p className="text-muted-foreground text-sm font-medium">
             Optional Fields
           </p>
           {optionalFieldDefs.map((field) => (
@@ -611,16 +613,14 @@ export default function AssetImportWizard({
         {/* Data preview */}
         {previewRows.length > 0 && (
           <div className="space-y-2 pt-2">
-            <p className="text-sm font-medium text-muted-foreground">
+            <p className="text-muted-foreground text-sm font-medium">
               Data Preview (first {previewRows.length} rows)
             </p>
             <div className="overflow-x-auto rounded-md border">
               <table className="w-full text-xs">
                 <thead>
-                  <tr className="border-b bg-muted/50">
-                    <th className="px-2 py-1.5 text-left font-medium">
-                      Row
-                    </th>
+                  <tr className="bg-muted/50 border-b">
+                    <th className="px-2 py-1.5 text-left font-medium">Row</th>
                     {Object.entries(mapping)
                       .filter(([, idx]) => idx >= 0)
                       .map(([fieldId, colIdx]) => {
@@ -639,7 +639,7 @@ export default function AssetImportWizard({
                 <tbody>
                   {previewRows.map((row) => (
                     <tr key={row.rowNumber} className="border-b last:border-0">
-                      <td className="px-2 py-1.5 text-muted-foreground">
+                      <td className="text-muted-foreground px-2 py-1.5">
                         {row.rowNumber}
                       </td>
                       {Object.entries(mapping)
@@ -667,7 +667,7 @@ export default function AssetImportWizard({
   const renderImporting = () => (
     <Card>
       <CardContent className="flex flex-col items-center justify-center py-12">
-        <Loader2 className="mb-4 h-8 w-8 animate-spin text-primary" />
+        <Loader2 className="text-primary mb-4 h-8 w-8 animate-spin" />
         <p className="text-lg font-medium">Importing assets...</p>
         <p className="text-muted-foreground text-sm">
           This may take a moment for large files.
@@ -707,13 +707,9 @@ export default function AssetImportWizard({
               </Badge>
             )}
             {hasErrors && (
-              <Badge variant="destructive">
-                {result.errorCount} error(s)
-              </Badge>
+              <Badge variant="destructive">{result.errorCount} error(s)</Badge>
             )}
-            <Badge variant="secondary">
-              {result.totalRows} total rows
-            </Badge>
+            <Badge variant="secondary">{result.totalRows} total rows</Badge>
           </div>
 
           {/* Errors list */}
@@ -776,9 +772,7 @@ function MappingRow({
 }) {
   const mappedIdx = mapping[field.id] ?? -1;
   const firstPreview =
-    mappedIdx >= 0 && previewRows[0]
-      ? previewRows[0].values[mappedIdx]
-      : null;
+    mappedIdx >= 0 && previewRows[0] ? previewRows[0].values[mappedIdx] : null;
 
   return (
     <div className="grid grid-cols-[1fr_1fr_1fr] items-center gap-3 sm:grid-cols-[180px_1fr_1fr]">
@@ -786,7 +780,7 @@ function MappingRow({
         {field.label}
         {required && <span className="ml-0.5 text-red-500">*</span>}
         {!required && (
-          <span className="ml-1 text-xs text-muted-foreground">(opt)</span>
+          <span className="text-muted-foreground ml-1 text-xs">(opt)</span>
         )}
       </span>
       <Select

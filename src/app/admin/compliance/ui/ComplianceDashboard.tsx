@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { toast } from "sonner";
+import { notify } from "@/lib/feedback/notify";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -39,10 +39,7 @@ interface ComplianceData {
 }
 
 type ComplianceStatus =
-  | "Compliant"
-  | "Needs Review"
-  | "Not Configured"
-  | "Not Yet Available";
+  "Compliant" | "Needs Review" | "Not Configured" | "Not Yet Available";
 
 interface ComplianceCheckItem {
   id: string;
@@ -198,7 +195,7 @@ export default function ComplianceDashboard() {
         const json = await res.json();
         setData(json);
       } catch {
-        toast.error("Failed to load compliance data");
+        notify.error("Failed to load compliance data");
       } finally {
         setLoading(false);
       }
@@ -227,9 +224,9 @@ export default function ComplianceDashboard() {
       window.URL.revokeObjectURL(url);
       a.remove();
 
-      toast.success("Compliance report downloaded successfully");
+      notify.success("Compliance report downloaded");
     } catch (error) {
-      toast.error(
+      notify.error(
         error instanceof Error ? error.message : "Failed to generate report",
       );
     } finally {

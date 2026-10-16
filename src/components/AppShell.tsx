@@ -19,6 +19,10 @@ const AiCopilotDrawer = dynamic(() => import("./ai/AiCopilotDrawer"), {
   ssr: false,
 });
 
+const AssistantLauncher = dynamic(() => import("./ai/AssistantLauncher"), {
+  ssr: false,
+});
+
 const PUBLIC_ROUTES = [
   "/login",
   "/register",
@@ -27,8 +31,6 @@ const PUBLIC_ROUTES = [
   "/reset-password",
   "/mfa-verify",
   "/offline",
-  "/terms",
-  "/privacy",
 ];
 
 interface AppShellProps {
@@ -36,6 +38,14 @@ interface AppShellProps {
   initialSidebarCollapsed: boolean;
   isDemo: boolean;
   initialPathname?: string;
+  /**
+   * The signed-in user's permission strings, resolved once on the server.
+   *
+   * Used only to decide which nav links to render. Every route re-checks its own
+   * permission via `requirePermission`, so a permission-gated link is a courtesy,
+   * never the enforcement.
+   */
+  permissions?: string[];
 }
 
 export default function AppShell({
@@ -43,6 +53,7 @@ export default function AppShell({
   initialSidebarCollapsed,
   isDemo,
   initialPathname,
+  permissions,
 }: AppShellProps) {
   const clientPathname = usePathname();
   const pathname = clientPathname || initialPathname || "/";
@@ -65,7 +76,10 @@ export default function AppShell({
         <div aria-hidden className="pointer-events-none absolute inset-0">
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-blue-100/20 via-transparent to-transparent dark:from-blue-900/5" />
         </div>
-        <Sidebar initialCollapsed={initialSidebarCollapsed} />
+        <Sidebar
+          initialCollapsed={initialSidebarCollapsed}
+          permissions={permissions}
+        />
         <div className="relative flex min-w-0 flex-1 flex-col overflow-hidden">
           <Navigation />
           <OfflineSyncIndicator />
@@ -75,11 +89,12 @@ export default function AppShell({
           >
             <PageTransition>{children}</PageTransition>
           </main>
-          <MobileNav />
+          <MobileNav permissions={permissions} />
         </div>
       </div>
       <OnboardingWizard />
       <AiCopilotDrawer />
+      <AssistantLauncher />
     </>
   );
 }

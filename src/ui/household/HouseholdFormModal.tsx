@@ -23,7 +23,11 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { HOUSE_NUMBER_FAMILY_REGEX, HOUSEHOLD_HID_REGEX, getExpectedHouseNumberPrefix } from "@/lib/household-constants";
+import {
+  HOUSE_NUMBER_FAMILY_REGEX,
+  HOUSEHOLD_HID_REGEX,
+  getExpectedHouseNumberPrefix,
+} from "@/lib/household-constants";
 import {
   Home,
   Package,
@@ -37,7 +41,7 @@ import {
   Info,
   RefreshCw,
 } from "lucide-react";
-import { toast } from "sonner";
+import { notify } from "@/lib/feedback/notify";
 
 interface LocationItem {
   locationid: string;
@@ -96,7 +100,7 @@ export default function HouseholdFormModal({
       <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-3xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-xl font-semibold">
-            <Home className="h-5 w-5 text-primary" />
+            <Home className="text-primary h-5 w-5" />
             {initialData?.id
               ? `Edit Household: ${initialData.houseNumber}`
               : "Register New Household"}
@@ -104,7 +108,7 @@ export default function HouseholdFormModal({
           <DialogDescription>
             {initialData?.id
               ? "Update household records, inside items, and condition status."
-              : "HID and House Number are generated automatically for the selected category."}
+              : "HID is generated automatically. House Number is entered manually and must match the selected family."}
           </DialogDescription>
         </DialogHeader>
 
@@ -143,13 +147,16 @@ function HouseholdFormFields({
   const [identifiersLoading, setIdentifiersLoading] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
-  // Identification & Types — HID and House Number are auto-generated
+  // Identification & Types — HID is auto-generated, House Number is typed
+  // by the user
   const [hid, setHid] = useState(initialData?.hid ?? "");
   const [houseType, setHouseType] = useState(initialData?.houseType || "Staff");
   const [staffCategory, setStaffCategory] = useState(
     initialData?.staffCategory || "A",
   );
-  const [houseNumber, setHouseNumber] = useState(initialData?.houseNumber ?? "");
+  const [houseNumber, setHouseNumber] = useState(
+    initialData?.houseNumber ?? "",
+  );
   const [rgType, setRgType] = useState(initialData?.rgType || "Regular");
   const [locationId, setLocationId] = useState<string>(
     initialData?.locationId ?? "",
@@ -173,11 +180,17 @@ function HouseholdFormFields({
   const [damageElectricity, setDamageElectricity] = useState(
     !!initialData?.damageElectricity,
   );
-  const [damageNotes, setDamageNotes] = useState(initialData?.damageNotes ?? "");
+  const [damageNotes, setDamageNotes] = useState(
+    initialData?.damageNotes ?? "",
+  );
 
   // Expected house number prefix for the current selection (e.g. SA, A)
   const expectedPrefix = useMemo(
-    () => getExpectedHouseNumberPrefix(houseType, houseType === "Staff" ? staffCategory : null) || "",
+    () =>
+      getExpectedHouseNumberPrefix(
+        houseType,
+        houseType === "Staff" ? staffCategory : null,
+      ) || "",
     [houseType, staffCategory],
   );
 
@@ -186,102 +199,58 @@ function HouseholdFormFields({
     [expectedPrefix],
   );
 
-  // Auto-generate HID + House Number when creating. When the category changes
-  // the house number is re-generated for the newly selected family so a wrong
-  // prefix can never be suggested.
+  // Auto-generate the HID when creating. The house number is never generated
+  // for the user — it is typed in by hand and validated against the family
+  // prefix of the selected house type / staff category.
   const generationRan = useRef(false);
   useEffect(() => {
     if (isEditing || generationRan.current) return;
     generationRan.current = true;
 
     let cancelled = false;
-    const refreshAll = async () => {
+    const loadHid = async () => {
       setIdentifiersLoading(true);
       try {
-        const params = new URLSearchParams({ houseType });
-        if (houseType === "Staff") params.set("staffCategory", staffCategory);
-
-        const [hidRes, numRes] = await Promise.all([
-          fetch("/api/household/next-hid"),
-          fetch(`/api/household/next-number?${params.toString()}`),
-        ]);
-        if (cancelled) return;
-        if (hidRes.ok) {
-          const hidData = await hidRes.json();
-          if (typeof hidData?.nextHid === "string") setHid(hidData.nextHid);
-        }
-        if (numRes.ok) {
-          const numData = await numRes.json();
-          if (typeof numData?.nextNumber === "string") {
-            setHouseNumber(numData.nextNumber);
-          }
-        }
+        const res = await fetch("/api/household/next-hid");
+        if (!res.ok || cancelled) return;
+        const data = await res.json();
+        if (typeof data?.nextHid === "string") setHid(data.nextHid);
       } catch {
         // Identifier fetch is best-effort; the server re-generates on POST.
       } finally {
         if (!cancelled) setIdentifiersLoading(false);
       }
     };
-    refreshAll();
+    loadHid();
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [isEditing]);
 
   const handleHouseTypeChange = (type: string) => {
     setHouseType(type);
-    if (isEditing) return;
-    // Re-generate the house number for the new family immediately.
-    const params = new URLSearchParams({ houseType: type });
-    if (type === "Staff") params.set("staffCategory", staffCategory);
-    fetch(`/api/household/next-number?${params.toString()}`)
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => {
-        if (typeof d?.nextNumber === "string") setHouseNumber(d.nextNumber);
-      })
-      .catch(() => {});
   };
 
   const handleStaffCategoryChange = (cat: string) => {
     setStaffCategory(cat);
-    if (isEditing || houseType !== "Staff") return;
-    const params = new URLSearchParams({ houseType: "Staff", staffCategory: cat });
-    fetch(`/api/household/next-number?${params.toString()}`)
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => {
-        if (typeof d?.nextNumber === "string") setHouseNumber(d.nextNumber);
-      })
-      .catch(() => {});
   };
 
-  const refreshIdentifiers = async () => {
+  const refreshHid = async () => {
     setIdentifiersLoading(true);
     try {
-      const params = new URLSearchParams({ houseType });
-      if (houseType === "Staff") params.set("staffCategory", staffCategory);
-
-      const [hidRes, numRes] = await Promise.all([
-        fetch("/api/household/next-hid"),
-        fetch(`/api/household/next-number?${params.toString()}`),
-      ]);
-      if (hidRes.ok) {
-        const d = await hidRes.json();
-        if (typeof d?.nextHid === "string") setHid(d.nextHid);
-      }
-      if (numRes.ok) {
-        const d = await numRes.json();
-        if (typeof d?.nextNumber === "string") setHouseNumber(d.nextNumber);
-      }
+      const res = await fetch("/api/household/next-hid");
+      if (!res.ok) throw new Error("Failed to refresh the generated HID.");
+      const d = await res.json();
+      if (typeof d?.nextHid === "string") setHid(d.nextHid);
     } catch {
-      toast.error("Failed to refresh generated identifiers.");
+      notify.error("Failed to refresh generated identifier.");
     } finally {
       setIdentifiersLoading(false);
     }
   };
 
-  // Live field validation — the auto-generated values always pass, but any
-  // manually typed override is checked against the strict family rules.
+  // Live field validation — the auto-generated HID always passes, while the
+  // hand-typed house number is checked against the strict family rules.
   const hidTouched = hid.trim().length > 0;
   const hidHint = !hidTouched
     ? "HID is generated automatically (canonical 106-90-000 format)."
@@ -291,7 +260,7 @@ function HouseholdFormFields({
 
   const houseNumberTouched = houseNumber.trim().length > 0;
   const houseNumberHint = !houseNumberTouched
-    ? `House Number is generated for the selected family (prefix "${expectedPrefix}").`
+    ? `Enter the house number manually — it must start with "${expectedPrefix}" followed by digits (e.g. ${expectedPrefix}1).`
     : !HOUSE_NUMBER_FAMILY_REGEX.test(houseNumber.trim())
       ? "Invalid family — only Staff SA-SE and categories A-E are allowed (e.g. SA1, E5)."
       : !houseNumberPattern.test(houseNumber.trim())
@@ -306,8 +275,7 @@ function HouseholdFormFields({
     damageWall ||
     damageElectricity;
 
-  const totalInsideItems =
-    bedCount + chairsCount + lockerCount + tablesCount;
+  const totalInsideItems = bedCount + chairsCount + lockerCount + tablesCount;
 
   const damagedCount = [
     damageWindow,
@@ -414,18 +382,19 @@ function HouseholdFormFields({
         );
       }
 
-      toast.success(
+      notify.success(
         isEditing
-          ? `House ${responseData.houseNumber} updated successfully.`
-          : `House ${responseData.houseNumber} registered successfully.`,
+          ? `House ${responseData.houseNumber} updated`
+          : `House ${responseData.houseNumber} registered`,
       );
 
       onSuccess(responseData);
       onClose();
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "An unexpected error occurred.";
+      const msg =
+        err instanceof Error ? err.message : "An unexpected error occurred.";
       setFormError(msg);
-      toast.error(msg);
+      notify.error(msg);
     } finally {
       setLoading(false);
     }
@@ -438,7 +407,11 @@ function HouseholdFormFields({
 
   const summaryEntries = [
     { label: "HID", value: hid.trim() || "—", mono: true },
-    { label: "House No.", value: houseNumber.trim().toUpperCase() || "—", mono: true },
+    {
+      label: "House No.",
+      value: houseNumber.trim().toUpperCase() || "—",
+      mono: true,
+    },
     {
       label: "Type",
       value: houseType === "Staff" ? `Staff (${staffCategory})` : houseType,
@@ -458,7 +431,7 @@ function HouseholdFormFields({
       {formError && (
         <div
           role="alert"
-          className="flex items-start gap-2 rounded-md bg-destructive/15 p-3 text-sm text-destructive"
+          className="bg-destructive/15 text-destructive flex items-start gap-2 rounded-md p-3 text-sm"
         >
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
           <span>{formError}</span>
@@ -469,14 +442,14 @@ function HouseholdFormFields({
         {/* ─── Section 1: Identification & Types ─── */}
         <section className="space-y-4">
           <div className="flex items-center justify-between">
-            <h4 className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">
+            <h4 className="text-muted-foreground flex items-center gap-2 text-xs font-semibold tracking-wider uppercase">
+              <span className="bg-primary text-primary-foreground flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-bold">
                 1
               </span>
               Basic Identification
             </h4>
             <Badge variant="outline" className="text-[10px] font-normal">
-              {isEditing ? "Identifiers locked" : "Auto-generated identifiers"}
+              {isEditing ? "Identifiers locked" : "HID auto-generated"}
             </Badge>
           </div>
 
@@ -493,7 +466,7 @@ function HouseholdFormFields({
                   onChange={(e) => setHid(e.target.value)}
                   readOnly
                   placeholder="e.g. 106-90-001"
-                  className={`font-mono text-sm text-muted-foreground ${
+                  className={`text-muted-foreground font-mono text-sm ${
                     hidHint && hidTouched
                       ? "border-destructive focus-visible:ring-destructive/40"
                       : ""
@@ -505,10 +478,10 @@ function HouseholdFormFields({
                     variant="outline"
                     size="icon"
                     className="h-9 w-9 shrink-0"
-                    onClick={refreshIdentifiers}
+                    onClick={refreshHid}
                     disabled={identifiersLoading}
-                    aria-label="Refresh auto-generated identifiers"
-                    title="Refresh auto-generated HID and house number"
+                    aria-label="Refresh auto-generated HID"
+                    title="Refresh auto-generated HID"
                   >
                     {identifiersLoading ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
@@ -520,7 +493,9 @@ function HouseholdFormFields({
               </div>
               <p
                 className={`flex items-start gap-1 text-[11px] ${
-                  hidHint && hidTouched ? "text-destructive" : "text-muted-foreground"
+                  hidHint && hidTouched
+                    ? "text-destructive"
+                    : "text-muted-foreground"
                 }`}
               >
                 {hidHint && hidTouched ? (
@@ -531,65 +506,6 @@ function HouseholdFormFields({
                   <Info className="mt-0.5 h-3 w-3 shrink-0" />
                 )}
                 {hidHint}
-              </p>
-            </div>
-
-            {/* House Number - Auto-generated for the selected family */}
-            <div className="space-y-1.5">
-              <Label htmlFor="houseNumber" className="text-xs font-medium">
-                House Number <span className="text-destructive">*</span>
-              </Label>
-              <div className="flex items-center gap-2">
-                <Input
-                  id="houseNumber"
-                  value={houseNumber}
-                  onChange={(e) => setHouseNumber(e.target.value.toUpperCase())}
-                  readOnly={!isEditing}
-                  placeholder={`e.g. ${expectedPrefix}1`}
-                  className={`font-mono font-semibold text-primary ${
-                    !isEditing ? "text-muted-foreground" : ""
-                  } ${
-                    houseNumberHint && houseNumberTouched
-                      ? "border-destructive focus-visible:ring-destructive/40"
-                      : houseNumberHint === null && houseNumberTouched
-                        ? "border-emerald-600/60 focus-visible:ring-emerald-500/30"
-                        : ""
-                  }`}
-                />
-                {!isEditing && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="icon"
-                    className="h-9 w-9 shrink-0"
-                    onClick={refreshIdentifiers}
-                    disabled={identifiersLoading}
-                    aria-label="Refresh auto-generated house number"
-                    title="Refresh auto-generated HID and house number"
-                  >
-                    {identifiersLoading ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <RefreshCw className="h-4 w-4" />
-                    )}
-                  </Button>
-                )}
-              </div>
-              <p
-                className={`flex items-start gap-1 text-[11px] ${
-                  houseNumberHint && houseNumberTouched
-                    ? "text-destructive"
-                    : "text-muted-foreground"
-                }`}
-              >
-                {houseNumberHint && houseNumberTouched ? (
-                  <XCircle className="mt-0.5 h-3 w-3 shrink-0" />
-                ) : houseNumberHint === null && houseNumberTouched ? (
-                  <CheckCircle2 className="mt-0.5 h-3 w-3 shrink-0 text-emerald-600" />
-                ) : (
-                  <Info className="mt-0.5 h-3 w-3 shrink-0" />
-                )}
-                {houseNumberHint}
               </p>
             </div>
 
@@ -619,7 +535,10 @@ function HouseholdFormFields({
                 <Label htmlFor="staffCategory" className="text-xs font-medium">
                   Staff Category <span className="text-destructive">*</span>
                 </Label>
-                <Select value={staffCategory} onValueChange={handleStaffCategoryChange}>
+                <Select
+                  value={staffCategory}
+                  onValueChange={handleStaffCategoryChange}
+                >
                   <SelectTrigger id="staffCategory">
                     <SelectValue placeholder="Select Staff Category" />
                   </SelectTrigger>
@@ -633,6 +552,42 @@ function HouseholdFormFields({
                 </Select>
               </div>
             )}
+
+            {/* House Number - typed manually, validated against the family prefix */}
+            <div className="space-y-1.5">
+              <Label htmlFor="houseNumber" className="text-xs font-medium">
+                House Number <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                id="houseNumber"
+                value={houseNumber}
+                onChange={(e) => setHouseNumber(e.target.value.toUpperCase())}
+                placeholder={`e.g. ${expectedPrefix}1`}
+                className={`text-primary font-mono font-semibold ${
+                  houseNumberHint && houseNumberTouched
+                    ? "border-destructive focus-visible:ring-destructive/40"
+                    : houseNumberHint === null && houseNumberTouched
+                      ? "border-emerald-600/60 focus-visible:ring-emerald-500/30"
+                      : ""
+                }`}
+              />
+              <p
+                className={`flex items-start gap-1 text-[11px] ${
+                  houseNumberHint && houseNumberTouched
+                    ? "text-destructive"
+                    : "text-muted-foreground"
+                }`}
+              >
+                {houseNumberHint && houseNumberTouched ? (
+                  <XCircle className="mt-0.5 h-3 w-3 shrink-0" />
+                ) : houseNumberHint === null && houseNumberTouched ? (
+                  <CheckCircle2 className="mt-0.5 h-3 w-3 shrink-0 text-emerald-600" />
+                ) : (
+                  <Info className="mt-0.5 h-3 w-3 shrink-0" />
+                )}
+                {houseNumberHint}
+              </p>
+            </div>
 
             {/* R/G Selection */}
             <div className="space-y-1.5">
@@ -657,7 +612,9 @@ function HouseholdFormFields({
               </Label>
               <Select
                 value={locationId}
-                onValueChange={(val) => setLocationId(val === "none" ? "" : val)}
+                onValueChange={(val) =>
+                  setLocationId(val === "none" ? "" : val)
+                }
               >
                 <SelectTrigger id="locationId">
                   <SelectValue placeholder="Select Location" />
@@ -683,8 +640,12 @@ function HouseholdFormFields({
                   <SelectValue placeholder="Select Status" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Active">Active (Ready for occupancy)</SelectItem>
-                  <SelectItem value="Inactive">Inactive (Under maintenance)</SelectItem>
+                  <SelectItem value="Active">
+                    Active (Ready for occupancy)
+                  </SelectItem>
+                  <SelectItem value="Inactive">
+                    Inactive (Under maintenance)
+                  </SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -696,8 +657,8 @@ function HouseholdFormFields({
         {/* ─── Section 2: Inside Items ─── */}
         <section className="space-y-3">
           <div className="flex items-center justify-between">
-            <h4 className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">
+            <h4 className="text-muted-foreground flex items-center gap-2 text-xs font-semibold tracking-wider uppercase">
+              <span className="bg-primary text-primary-foreground flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-bold">
                 2
               </span>
               <Package className="h-4 w-4" />
@@ -712,11 +673,11 @@ function HouseholdFormFields({
             {COUNT_FIELDS.map((field) => (
               <div
                 key={field.key}
-                className="rounded-lg border bg-card p-3 space-y-1.5"
+                className="bg-card space-y-1.5 rounded-lg border p-3"
               >
                 <Label
                   htmlFor={field.key}
-                  className="text-xs font-medium flex items-center gap-1.5"
+                  className="flex items-center gap-1.5 text-xs font-medium"
                 >
                   <span className="text-sm">{field.icon}</span> {field.label}
                 </Label>
@@ -737,15 +698,20 @@ function HouseholdFormFields({
                     type="number"
                     min="0"
                     value={
-                      ({
-                        bedCount,
-                        chairsCount,
-                        lockerCount,
-                        tablesCount,
-                      } as Record<string, number>)[field.key]
+                      (
+                        {
+                          bedCount,
+                          chairsCount,
+                          lockerCount,
+                          tablesCount,
+                        } as Record<string, number>
+                      )[field.key]
                     }
                     onChange={(e) => {
-                      const value = Math.max(0, parseInt(e.target.value, 10) || 0);
+                      const value = Math.max(
+                        0,
+                        parseInt(e.target.value, 10) || 0,
+                      );
                       const setter = {
                         bedCount: setBedCount,
                         chairsCount: setChairsCount,
@@ -776,8 +742,8 @@ function HouseholdFormFields({
         {/* ─── Section 3: Condition & Damage ─── */}
         <section className="space-y-3">
           <div className="flex items-center justify-between">
-            <h4 className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">
+            <h4 className="text-muted-foreground flex items-center gap-2 text-xs font-semibold tracking-wider uppercase">
+              <span className="bg-primary text-primary-foreground flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-bold">
                 3
               </span>
               <Wrench className="h-4 w-4" />
@@ -795,19 +761,19 @@ function HouseholdFormFields({
           </div>
 
           {status === "Active" ? (
-            <p className="text-xs text-muted-foreground">
+            <p className="text-muted-foreground text-xs">
               The house is marked <strong>Active</strong>, so no damage
-              inspection is recorded. Switch status to{" "}
-              <strong>Inactive</strong> to log damage for maintenance.
+              inspection is recorded. Switch status to <strong>Inactive</strong>{" "}
+              to log damage for maintenance.
             </p>
           ) : (
             <>
-              <p className="text-xs text-muted-foreground">
-                Since this house is marked <strong>Inactive</strong>, identify at
-                least one damaged component:
+              <p className="text-muted-foreground text-xs">
+                Since this house is marked <strong>Inactive</strong>, identify
+                at least one damaged component:
               </p>
 
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 pt-1">
+              <div className="grid grid-cols-2 gap-3 pt-1 sm:grid-cols-3">
                 {(
                   [
                     [damageWindow, setDamageWindow],
@@ -829,7 +795,7 @@ function HouseholdFormFields({
                   return (
                     <label
                       key={label}
-                      className="flex items-center gap-2 rounded-md border bg-card p-2 text-xs cursor-pointer hover:bg-accent/50 transition-colors"
+                      className="bg-card hover:bg-accent/50 flex cursor-pointer items-center gap-2 rounded-md border p-2 text-xs transition-colors"
                     >
                       <Checkbox
                         checked={checked}
@@ -859,19 +825,19 @@ function HouseholdFormFields({
         </section>
 
         {/* ─── Summary Preview ─── */}
-        <div className="rounded-lg border bg-muted/40 p-3">
-          <div className="mb-2 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+        <div className="bg-muted/40 rounded-lg border p-3">
+          <div className="text-muted-foreground mb-2 flex items-center gap-2 text-[11px] font-semibold tracking-wider uppercase">
             <Info className="h-3.5 w-3.5" />
             Registration Summary
           </div>
           <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 sm:grid-cols-4">
             {summaryEntries.map((entry) => (
               <div key={entry.label} className="flex flex-col">
-                <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                <span className="text-muted-foreground text-[10px] tracking-wide uppercase">
                   {entry.label}
                 </span>
                 <span
-                  className={`truncate text-xs font-semibold text-foreground ${
+                  className={`text-foreground truncate text-xs font-semibold ${
                     entry.mono ? "font-mono" : ""
                   }`}
                 >
@@ -882,7 +848,7 @@ function HouseholdFormFields({
           </div>
         </div>
 
-        <DialogFooter className="pt-3 gap-2">
+        <DialogFooter className="gap-2 pt-3">
           <Button
             type="button"
             variant="outline"

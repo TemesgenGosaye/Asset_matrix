@@ -10,7 +10,7 @@ import { createPortal } from "react-dom";
 import html2canvas from "html2canvas";
 import { jsPDF } from "jspdf";
 import { Download, Loader2, Printer } from "lucide-react";
-import { toast } from "sonner";
+import { notify } from "@/lib/feedback/notify";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -22,6 +22,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { fullName, formatDate } from "@/ui/household/house-format";
+import { RECEIPT_COPY, wrapNoteForPrint } from "@/lib/house-queue/damage";
 
 /**
  * Structural subset of the allocation views (AllocationDetailView and
@@ -44,6 +45,29 @@ export interface ReceiptDetail {
     employeeNumber: string;
     department?: { name: string } | null;
   };
+  /**
+   * The frozen termination-receipt snapshot, for the handback variant only.
+   *
+   * Supplied by the caller from `HouseTerminationReceipt`, never rebuilt here:
+   * this component formats a document, it does not decide what the document says.
+   * A reprint therefore renders exactly the bytes the first print captured, which
+   * is the whole point of snapshotting at print time.
+   */
+  terminationReceipt?: ReceiptPrintDetail | null;
+}
+
+/** The receipt snapshot, as the print component needs it. */
+export interface ReceiptPrintDetail {
+  receiptNo: string;
+  damageLines: { key: string; label: string; labelAm: string; cost: string }[];
+  /** Fixed-2 string, e.g. `"1,250.00"`. */
+  totalDamageCost: string;
+  conditionNote: string | null;
+  completedAt: string;
+  printedAt: string;
+  printCount: number;
+  /** False on a reprint — printed as such so a copy is never passed off as the original. */
+  isOriginal: boolean;
 }
 
 interface Props {
@@ -172,6 +196,113 @@ const NESTED_TABLE_STYLE: React.CSSProperties = {
   tableLayout: "auto",
 };
 
+/**
+ * Damaged-items schedule — the section that lists what the handback inspection
+ * found and what it costs.
+ *
+ * Built as one ruled table (titled band → column heads → rows → total band)
+ * rather than a heading over a loose grid, because it is the part of the form a
+ * reader checks against the signature block: it needs a stable column order, an
+ * addressable row number, hairline rules that survive a mono printer, and one
+ * figure they can add the rows up to.
+ *
+ * Deliberately tighter than `FORM_BODY_CELL` (3px/6px vs 5px/8px): this is the
+ * one part of the form whose length varies with the data, so every row it does
+ * not spend is a row the signature block keeps.
+ */
+const DAMAGE_BAND_CELL: React.CSSProperties = {
+  padding: "4px 6px",
+  background: PALE_NAVY,
+  color: NAVY,
+  borderBottom: `1px solid ${BRASS}`,
+  fontWeight: 700,
+  fontSize: "9pt",
+  letterSpacing: "0.25px",
+  verticalAlign: "middle",
+};
+
+/** Right-hand count in the section band, quiet enough not to read as a heading. */
+const DAMAGE_BAND_META: React.CSSProperties = {
+  marginLeft: "10px",
+  fontWeight: 400,
+  fontSize: "7.5pt",
+  color: GUNMETAL,
+  letterSpacing: "0.2px",
+};
+
+const DAMAGE_COLUMN_HEAD: React.CSSProperties = {
+  padding: "3px 6px",
+  background: PALE_BRASS,
+  color: NAVY,
+  borderBottom: `1px solid ${RULE}`,
+  fontSize: "8pt",
+  fontWeight: 700,
+  verticalAlign: "bottom",
+};
+
+const DAMAGE_ROW_CELL: React.CSSProperties = {
+  padding: "3px 6px",
+  borderBottom: `1px solid #e3e7eb`,
+  fontSize: "8.6pt",
+  lineHeight: "1.2",
+  verticalAlign: "top",
+};
+
+/** Row number: quoted so a reader can cite "item 2" while arguing about it. */
+const DAMAGE_ROW_INDEX: React.CSSProperties = {
+  ...DAMAGE_ROW_CELL,
+  width: "9%",
+  textAlign: "center",
+  color: GUNMETAL,
+  fontSize: "8pt",
+  fontVariantNumeric: "tabular-nums",
+};
+
+const DAMAGE_ROW_LABEL: React.CSSProperties = {
+  ...DAMAGE_ROW_CELL,
+  width: "61%",
+};
+
+/** The Amharic half of a bilingual label, set smaller and quieter. */
+const DAMAGE_ROW_LABEL_AM: React.CSSProperties = {
+  marginLeft: "5px",
+  fontSize: "8pt",
+  color: GUNMETAL,
+};
+
+/** Money column: right-aligned, monospaced digits, never wrapped. */
+const DAMAGE_ROW_COST: React.CSSProperties = {
+  ...DAMAGE_ROW_CELL,
+  width: "30%",
+  textAlign: "right",
+  fontVariantNumeric: "tabular-nums",
+  whiteSpace: "nowrap",
+};
+
+/** Hairline rule between the schedule and the single total band under it. */
+const DAMAGE_TOTAL_CELL: React.CSSProperties = {
+  padding: "4px 6px",
+  background: PALE_NAVY,
+  color: NAVY,
+  borderTop: `1px solid ${NAVY}`,
+  fontWeight: 700,
+  fontSize: "9pt",
+  verticalAlign: "middle",
+};
+
+const DAMAGE_TOTAL_VALUE: React.CSSProperties = {
+  ...DAMAGE_TOTAL_CELL,
+  textAlign: "right",
+  fontVariantNumeric: "tabular-nums",
+  whiteSpace: "nowrap",
+  fontSize: "9.4pt",
+};
+
+/** Vertical rule between schedule columns. */
+const DAMAGE_COLUMN_RULE: React.CSSProperties = {
+  borderRight: `1px solid ${RULE}`,
+};
+
 const SIGNATURE_LABEL_STYLE: React.CSSProperties = {
   color: NAVY,
   fontWeight: 700,
@@ -240,7 +371,7 @@ function Dots({ value, minWidth = 90 }: { value?: string; minWidth?: number }) {
 // Verdebt "Metahara Sugar Factory - ፋሲሊቲ እና ቤት አስተዳደር" round stamp.
 // ---------------------------------------------------------------------------
 
-const STAMP_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000"><defs><path id="topArc" d="M 170 470 A 330 330 0 0 1 830 470" fill="none"/><path id="bottomArc" d="M 170 590 A 330 330 0 0 0 830 590" fill="none"/></defs><circle cx="500" cy="500" r="455" fill="none" stroke="#174ea6" stroke-width="13"/><circle cx="500" cy="500" r="435" fill="none" stroke="#174ea6" stroke-width="4"/><circle cx="500" cy="500" r="340" fill="none" stroke="#174ea6" stroke-width="5"/><text fill="#174ea6" font-size="67" font-weight="800" letter-spacing="2" text-anchor="middle" font-family="Noto Sans Ethiopic, Nyala, Abyssinica SIL, sans-serif"><textPath href="#topArc" startOffset="50%">መታሐራ ስኳር ፋብሪካ</textPath></text><g fill="#174ea6" stroke="#174ea6" stroke-width="2"><path d="M 160 490 L 170 515 L 197 515 L 175 531 L 183 558 L 160 542 L 137 558 L 145 531 L 123 515 L 150 515 Z"/><path d="M 840 490 L 850 515 L 877 515 L 855 531 L 863 558 L 840 542 L 817 558 L 825 531 L 803 515 L 830 515 Z"/></g><text fill="#174ea6" font-size="48" font-weight="800" letter-spacing="1" text-anchor="middle" font-family="Noto Sans Ethiopic, Nyala, Abyssinica SIL, sans-serif"><textPath href="#bottomArc" startOffset="50%">- ፋሲሊቲ እና ቤት አስተዳደር -</textPath></text><g stroke="#174ea6" stroke-width="5" stroke-linecap="round"><line x1="340" y1="690" x2="455" y2="690"/><line x1="545" y1="690" x2="660" y2="690"/></g></svg>`;
+const STAMP_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000"><defs><path id="topArc" d="M 170 470 A 330 330 0 0 1 830 470" fill="none"/><path id="bottomArc" d="M 170 590 A 330 330 0 0 0 830 590" fill="none"/></defs><circle cx="500" cy="500" r="455" fill="none" stroke="#174ea6" stroke-width="13"/><circle cx="500" cy="500" r="435" fill="none" stroke="#174ea6" stroke-width="4"/><circle cx="500" cy="500" r="340" fill="none" stroke="#174ea6" stroke-width="5"/><text fill="#174ea6" font-size="67" font-weight="800" letter-spacing="2" text-anchor="middle" font-family="Noto Sans Ethiopic, Nyala, Abyssinica SIL, sans-serif"><textPath href="#topArc" startOffset="50%">መተሐራ ስኳር ፋብሪካ</textPath></text><g fill="#174ea6" stroke="#174ea6" stroke-width="2"><path d="M 160 490 L 170 515 L 197 515 L 175 531 L 183 558 L 160 542 L 137 558 L 145 531 L 123 515 L 150 515 Z"/><path d="M 840 490 L 850 515 L 877 515 L 855 531 L 863 558 L 840 542 L 817 558 L 825 531 L 803 515 L 830 515 Z"/></g><text fill="#174ea6" font-size="48" font-weight="800" letter-spacing="1" text-anchor="middle" font-family="Noto Sans Ethiopic, Nyala, Abyssinica SIL, sans-serif"><textPath href="#bottomArc" startOffset="50%">- ፋሲሊቲ እና ቤት አስተዳደር -</textPath></text><g stroke="#174ea6" stroke-width="5" stroke-linecap="round"><line x1="340" y1="690" x2="455" y2="690"/><line x1="545" y1="690" x2="660" y2="690"/></g></svg>`;
 
 const STAMP_DATA_URI = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(
   STAMP_SVG,
@@ -272,11 +403,11 @@ function StampOverlay() {
 }
 
 // ---------------------------------------------------------------------------
-// Official name seal — ሰቦታ ጀርቤ, የፋ.ሲ.ቲ ማኔጅመንት ቡድን መሪ. Hovered over the
+// Official name seal — ለበታ ጃርሴ, የፋ.ሲ.ቲ ማኔጅመንት ቡድን መሪ. Hovered over the
 // issuer's signature on both receipts.
 // ---------------------------------------------------------------------------
 
-const NAME_STAMP_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 700 240"><rect x="12" y="12" width="676" height="216" rx="26" fill="none" stroke="#174ea6" stroke-width="9"/><rect x="30" y="30" width="640" height="180" rx="14" fill="none" stroke="#174ea6" stroke-width="2.5"/><text x="350" y="82" text-anchor="middle" fill="#174ea6" font-size="33" font-weight="700" font-family="Noto Sans Ethiopic, Nyala, Abyssinica SIL, sans-serif" letter-spacing="1">የፋ.ሲ.ቲ ማኔጅመንት ቡድን መሪ</text><line x1="130" y1="104" x2="570" y2="104" stroke="#174ea6" stroke-width="3"/><text x="350" y="182" text-anchor="middle" fill="#174ea6" font-size="74" font-weight="800" font-family="Noto Sans Ethiopic, Nyala, Abyssinica SIL, sans-serif" letter-spacing="2">ሰቦታ ጀርቤ</text></svg>`;
+const NAME_STAMP_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 700 240"><rect x="12" y="12" width="676" height="216" rx="26" fill="none" stroke="#174ea6" stroke-width="9"/><rect x="30" y="30" width="640" height="180" rx="14" fill="none" stroke="#174ea6" stroke-width="2.5"/><text x="350" y="82" text-anchor="middle" fill="#174ea6" font-size="33" font-weight="700" font-family="Noto Sans Ethiopic, Nyala, Abyssinica SIL, sans-serif" letter-spacing="1">የፋ.ሲ.ቲ ማኔጅመንት ቡድን መሪ</text><line x1="130" y1="104" x2="570" y2="104" stroke="#174ea6" stroke-width="3"/><text x="350" y="182" text-anchor="middle" fill="#174ea6" font-size="74" font-weight="800" font-family="Noto Sans Ethiopic, Nyala, Abyssinica SIL, sans-serif" letter-spacing="2">ለበታ ጃርሴ</text></svg>`;
 
 const NAME_STAMP_DATA_URI = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(
   NAME_STAMP_SVG,
@@ -506,7 +637,7 @@ function ReceiptCopy({
                   <div
                     style={{ fontWeight: 700, fontSize: "11pt", color: NAVY }}
                   >
-                    መታሐራ ስኳር ፋብሪካ
+                    መተሐራ ስኳር ፋብሪካ
                   </div>
                   <div style={{ ...META_CAPTION_STYLE, marginTop: "2px" }}>
                     METAHARA SUGAR FACTORY
@@ -666,8 +797,12 @@ function ReceiptCopy({
  * House handback confirmation letter (የቤት ርክክብ ማረጋገጫ ቅጽ) — printed when an
  * allocation ends by retirement / resignation / leave (terminated allocations).
  * Verbatim reproduction of factory form OF/MSF/HRSM/293.
+ *
+ * Exported so the printed document can be asserted on directly (see
+ * `__tests__/AllocationReceiptPrint.termination.test.tsx`): what matters on a
+ * legal form is the markup that comes out, not the dialog that wraps it.
  */
-function TerminationCopy({
+export function TerminationCopy({
   detail,
   formNo,
   date,
@@ -678,6 +813,12 @@ function TerminationCopy({
 }) {
   const employeeName = fullName(detail.employee);
   const houseNumber = detail.house?.houseNumber ?? "________";
+  const receipt = detail.terminationReceipt ?? null;
+  // The intro paragraph promises a list of damaged / undamaged items. When no
+  // snapshot has been supplied there is nothing truthful to print there, so the
+  // section is omitted rather than filled with a guess.
+  const damageLines = receipt?.damageLines ?? [];
+  const note = wrapNoteForPrint(receipt?.conditionNote);
 
   return (
     <ReceiptFrame>
@@ -702,7 +843,7 @@ function TerminationCopy({
                   <div
                     style={{ fontWeight: 700, fontSize: "11pt", color: NAVY }}
                   >
-                    መታሐራ ስኳር ፋብሪካ
+                    መተሐራ ስኳር ፋብሪካ
                   </div>
                   <div style={{ ...META_CAPTION_STYLE, marginTop: "2px" }}>
                     METAHARA SUGAR FACTORY
@@ -814,6 +955,165 @@ function TerminationCopy({
         </tbody>
       </table>
 
+      {/*
+        Damage + note. Sits between the recital and the signatures because that is
+        what the recital promises, and because a reader checks the assessment
+        before signing it.
+
+        Both blocks are sized against the single-page budget: the note is wrapped
+        to a fixed line width and clipped to a fixed number of lines, so this
+        section grows to a known maximum rather than pushing the signature block
+        onto page two of a form that says "Page 1 of 1".
+      */}
+      {receipt && (
+        <table
+          style={{
+            ...DOCUMENT_TABLE_STYLE,
+            marginTop: "5px",
+            border: `1px solid ${RULE}`,
+          }}
+        >
+          <colgroup>
+            <col style={{ width: "9%" }} />
+            <col style={{ width: "61%" }} />
+            <col style={{ width: "30%" }} />
+          </colgroup>
+
+          {/* Section band. The count sits opposite the title because the first
+              question a reader asks of a damage list is how big it is. */}
+          <thead>
+            <tr>
+              <th colSpan={3} scope="colgroup" style={DAMAGE_BAND_CELL}>
+                {RECEIPT_COPY.damageChecklistTitle}
+                <span style={DAMAGE_BAND_META}>
+                  {RECEIPT_COPY.partsCountLabel} {damageLines.length}
+                </span>
+              </th>
+            </tr>
+            <tr>
+              <th scope="col" style={DAMAGE_COLUMN_HEAD}>
+                №
+              </th>
+              <th
+                scope="col"
+                style={{ ...DAMAGE_COLUMN_HEAD, ...DAMAGE_COLUMN_RULE }}
+              >
+                የተጎዳው ክፍል · Damaged part
+              </th>
+              <th
+                scope="col"
+                style={{ ...DAMAGE_COLUMN_HEAD, textAlign: "right" }}
+              >
+                ወጪ · Cost (ETB)
+              </th>
+            </tr>
+          </thead>
+
+          <tbody>
+            {damageLines.length === 0 ? (
+              // Explicit rather than an empty table: "nothing here" and "nothing
+              // was recorded" are different statements, and only the second one
+              // is evidence. The total still prints below — a nil assessment is
+              // stated as 0.00, not left blank.
+              <tr>
+                <td
+                  colSpan={3}
+                  style={{ ...DAMAGE_ROW_CELL, textAlign: "center" }}
+                >
+                  {RECEIPT_COPY.noDamage}
+                </td>
+              </tr>
+            ) : (
+              damageLines.map((line, index) => (
+                <tr key={line.key}>
+                  <td style={{ ...DAMAGE_ROW_INDEX, ...DAMAGE_COLUMN_RULE }}>
+                    {index + 1}
+                  </td>
+                  <td style={{ ...DAMAGE_ROW_LABEL, ...DAMAGE_COLUMN_RULE }}>
+                    {line.label}
+                    <span style={DAMAGE_ROW_LABEL_AM}>{line.labelAm}</span>
+                  </td>
+                  <td style={DAMAGE_ROW_COST}>{line.cost}</td>
+                </tr>
+              ))
+            )}
+          </tbody>
+
+          {/* The total is outside the branch above: a nil assessment still has to
+              be totalled, and the reader needs one figure they can check the rows
+              against. */}
+          <tfoot>
+            <tr>
+              <td
+                colSpan={2}
+                style={{ ...DAMAGE_TOTAL_CELL, ...DAMAGE_COLUMN_RULE }}
+              >
+                {RECEIPT_COPY.totalDamage}
+              </td>
+              <td style={DAMAGE_TOTAL_VALUE}>{receipt.totalDamageCost}</td>
+            </tr>
+          </tfoot>
+        </table>
+      )}
+
+      {receipt && (
+        <table
+          style={{
+            ...DOCUMENT_TABLE_STYLE,
+            marginTop: "5px",
+            border: `1px solid ${RULE}`,
+          }}
+        >
+          <tbody>
+            <tr>
+              <td style={{ ...FORM_BODY_CELL, border: "none" }}>
+                <div style={{ fontWeight: 700, color: NAVY, fontSize: "9pt" }}>
+                  {RECEIPT_COPY.conditionNoteTitle}
+                </div>
+                {note.lines.length === 0 ? (
+                  <p style={{ margin: "3px 0 0" }}>{RECEIPT_COPY.noNote}</p>
+                ) : (
+                  <>
+                    {note.lines.map((line, i) => (
+                      <p key={i} style={{ margin: "3px 0 0" }}>
+                        {line}
+                      </p>
+                    ))}
+                    {note.truncated && (
+                      <p
+                        style={{
+                          margin: "3px 0 0",
+                          fontStyle: "italic",
+                          color: GUNMETAL,
+                        }}
+                      >
+                        {RECEIPT_COPY.continued}
+                      </p>
+                    )}
+                  </>
+                )}
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      )}
+
+      {/* Reprint marker. A copy filed at a counter must be identifiable as one,
+          otherwise two documents with the same receipt number exist and only one
+          of them is the original. */}
+      {receipt && !receipt.isOriginal && (
+        <table style={{ ...DOCUMENT_TABLE_STYLE, marginTop: "5px" }}>
+          <tbody>
+            <tr>
+              <td style={{ ...FORM_FOOTER_CELL, textAlign: "right" }}>
+                REPRINT · print #{receipt.printCount} ·{" "}
+                {receipt.printedAt.slice(0, 10)}
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      )}
+
       <table
         style={{
           ...DOCUMENT_TABLE_STYLE,
@@ -849,7 +1149,7 @@ function TerminationCopy({
                   margin: "9px 0 3px auto",
                 }}
               />
-              <div style={{ fontWeight: 700 }}>ሰቦታ ጀርቤ</div>
+              <div style={{ fontWeight: 700 }}>ለበታ ጃርሴ</div>
               <div>የፋ.ሲ.ቲ ማኔጅመንት</div>
               <div>ቡድኑ መሪ</div>
               <div
@@ -933,7 +1233,7 @@ function TransferMoveCopy({
                     Company Name: METAHARA SUGAR FACTORY
                   </div>
                   <div style={{ ...META_CAPTION_STYLE, marginTop: "2px" }}>
-                    መታሐራ ስኳር ፋብሪካ
+                    መተሐራ ስኳር ፋብሪካ
                   </div>
                 </div>
               </div>
@@ -1162,8 +1462,8 @@ function TransferMoveCopy({
  *    through jsPDF.
  *
  * Every printed copy carries the Facility & House Administration stamp
- * (መታሐራ ስኳር ፋብሪካ - ፋሲሊቲ እና ቤት አስተዳደር) hovered diagonally across
- * its center, plus the official name seal of the issuer (ሰቦታ ጀርቤ,
+ * (መተሐራ ስኳር ፋብሪካ - ፋሲሊቲ እና ቤት አስተዳደር) hovered diagonally across
+ * its center, plus the official name seal of the issuer (ለበታ ጃርሴ,
  * የፋ.ሲ.ቲ ማኔጅመንት ቡድን መሪ) hovered over the signature line.
  */
 export default function AllocationReceiptPrint({
@@ -1263,7 +1563,7 @@ export default function AllocationReceiptPrint({
             ? `house-handback-${houseNumber}.pdf`
             : `allocation-receipt-${houseNumber}.pdf`,
       );
-      toast.success(
+      notify.success(
         isMove
           ? "Move request saved as PDF"
           : isTerminated
@@ -1271,7 +1571,7 @@ export default function AllocationReceiptPrint({
             : "Receipt saved as PDF",
       );
     } catch {
-      toast.error("Failed to generate the PDF");
+      notify.error("Failed to generate the PDF");
     } finally {
       setDownloading(false);
     }

@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { toast } from "sonner";
+import { notify } from "@/lib/feedback/notify";
 import { Ticket } from "@/types/ticket";
 
 interface TicketDetailsModalProps {
@@ -48,9 +48,9 @@ export function TicketDetailsModal({
     try {
       await onAddComment(ticket.id, newComment);
       setNewComment("");
-      toast.success("Comment added");
+      notify.success("Comment added");
     } catch (error) {
-      toast.error("Failed to add comment");
+      notify.error("Failed to add comment");
     } finally {
       setIsSubmitting(false);
     }

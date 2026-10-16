@@ -40,6 +40,75 @@ enum HouseTerminationReason {
   @@schema("public")
 }
 
+/**
+ * Gender enum for employees. Member names are lowercase to match the House
+ * Queue MCDA scoring engine lookup tables.
+ */
+enum Gender {
+  male
+  female
+
+  @@schema("public")
+}
+
+/**
+ * Marital status enum for employees. Member names are lowercase to match the
+ * House Queue MCDA scoring engine lookup tables.
+ */
+enum MaritalStatus {
+  single
+  married
+
+  @@schema("public")
+}
+
+/**
+ * Kind of premises rented out by the factory (Pay Rent module). `Other` is only
+ * valid when `rentTypeDetail` explains what is being rented.
+ */
+enum RentType {
+  Shop
+  Grocery
+  Other
+
+  @@schema("public")
+}
+
+/**
+ * Persisted month state for one lease installment. OVERDUE is deliberately
+ * absent: it is derived from `dueDate` + today on read and never stored, so it
+ * cannot drift away from the schedule.
+ */
+enum RentInstallmentStatus {
+  UNPAID
+  PAID
+  VOIDED
+
+  @@schema("public")
+}
+
+/**
+ * How a rent receipt was settled.
+ */
+enum RentPaymentMethod {
+  Cash
+  BankTransfer
+  Other
+
+  @@schema("public")
+}
+
+/**
+ * Persisted lease state. Overdue is a display state derived from installments.
+ */
+enum RentLeaseStatus {
+  Active
+  Completed
+  Terminated
+
+  @@schema("public")
+}
+
 // Multi-tenancy: Organization model
 model Organization {
   id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
@@ -62,7 +131,6 @@ model Organization {
   roles           Role[]
   webhooks        Webhook[]
   teamInvitations TeamInvitation[]
-  eulaTemplates   EulaTemplate[]
   kits            Kit[]
   auditCampaigns  AuditCampaign[]
 
@@ -88,6 +156,13 @@ model Organization {
   houseInspectionArchives  HouseInspectionArchive[]
   engineConfigVersions     EngineConfigVersion[]
   engineConfigAuditEntries ConfigAuditEntry[]
+  houseRequests            HouseRequest[]
+  houseTerminationReceipts HouseTerminationReceipt[]
+  rentRenters              RentRenter[]
+  rentRenterPhones         RentRenterPhone[]
+  rentInstallments         RentInstallment[]
+  rentPayments             RentPayment[]
+  rentReceiptSequences     RentReceiptSequence[]
 
   @@map("organizations")
   @@schema("public")
@@ -527,8 +602,6 @@ model assetCategoryType {
   organization          Organization?          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   asset                 asset[]
   depreciation_settings depreciation_settings?
-  eulaTemplateId        String?                @db.Uuid
-  eulaTemplate          EulaTemplate?          @relation("category_eula", fields: [eulaTemplateId], references: [id])
 
   @@index([organizationId])
   @@index([assetTypeCode])
@@ -848,18 +921,18 @@ model model {
 }
 
 model app_notification {
-  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  userId    String   @db.Uuid
-  type      String   @db.VarChar(50)
-  category  String   @default("system") @db.VarChar(30)
-  title     String   @db.VarChar(255)
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String    @db.Uuid
+  type      String    @db.VarChar(50)
+  category  String    @default("system") @db.VarChar(30)
+  title     String    @db.VarChar(255)
   body      String
   icon      String?
   link      String?
   metadata  String?
   readAt    DateTime? @db.Timestamp(6)
-  createdAt DateTime @default(now()) @db.Timestamp(6)
-  user      user     @relation(fields: [userId], references: [userid], onDelete: Cascade)
+  createdAt DateTime  @default(now()) @db.Timestamp(6)
+  user      user      @relation(fields: [userId], references: [userid], onDelete: Cascade)
 
   @@index([userId, readAt])
   @@index([userId, createdAt])
@@ -1111,9 +1184,8 @@ model user {
   licenceSeatAssignments           LicenceSeatAssignment[]   @relation("licence_seat_user")
   licenceSeatAssignmentsGranted    LicenceSeatAssignment[]   @relation("licence_seat_assigner")
   teamInvitations                  TeamInvitation[]          @relation("invitation_inviter")
-  dashboardWidgets                 DashboardWidget[]
-  eulaAcceptances                  EulaAcceptance[]
-  auditCampaignsCreated            AuditCampaign[]           @relation("audit_campaign_creator")
+dashboardWidgets                 DashboardWidget[]
+  auditCampaignsCreated            AuditCampaign[]      @relation("audit_campaign_creator")
   auditCampaignAuditorRoles        AuditCampaignAuditor[]
   auditEntriesAudited              AuditEntry[]              @relation("audit_entry_auditor")
   twoFactorEntries                 twoFactor[]
@@ -1303,7 +1375,6 @@ model AssetCheckout {
   status                 String          @default("checked_out") @db.VarChar(20) // checked_out, returned, overdue
   createdAt              DateTime        @default(now()) @db.Timestamp(6)
   updatedAt              DateTime        @updatedAt @db.Timestamp(6)
-  eulaAcceptance         EulaAcceptance?
 
   @@index([assetId])
   @@index([checkedOutTo])
@@ -1431,48 +1502,6 @@ model LicenceSeatAssignment {
   @@index([licenceId])
   @@index([userId])
   @@map("licence_seat_assignments")
-  @@schema("public")
-}
-
-// Phase 2A: EULA Templates
-model EulaTemplate {
-  id             String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  name           String        @db.VarChar(200)
-  content        String // full EULA text (HTML/Markdown)
-  version        Int           @default(1)
-  isActive       Boolean       @default(true)
-  organizationId String?       @db.Uuid
-  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  createdAt      DateTime      @default(now()) @db.Timestamp(6)
-  updatedAt      DateTime      @updatedAt @db.Timestamp(6)
-
-  acceptances EulaAcceptance[]
-  categories  assetCategoryType[] @relation("category_eula")
-
-  @@index([organizationId])
-  @@index([isActive])
-  @@map("eula_templates")
-  @@schema("public")
-}
-
-// Phase 2A: EULA Acceptances (digital signatures)
-model EulaAcceptance {
-  id             String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  eulaTemplateId String        @db.Uuid
-  eulaTemplate   EulaTemplate  @relation(fields: [eulaTemplateId], references: [id], onDelete: Cascade)
-  userId         String        @db.Uuid
-  user           user          @relation(fields: [userId], references: [userid], onDelete: Cascade)
-  checkoutId     String        @unique @db.Uuid
-  checkout       AssetCheckout @relation(fields: [checkoutId], references: [id], onDelete: Cascade)
-  signatureData  String? // base64 PNG from canvas signature
-  ipAddress      String?       @db.VarChar(45)
-  userAgent      String?       @db.VarChar(500)
-  acceptedAt     DateTime      @default(now()) @db.Timestamp(6)
-
-  @@index([eulaTemplateId])
-  @@index([userId])
-  @@index([checkoutId])
-  @@map("eula_acceptances")
   @@schema("public")
 }
 
@@ -1753,14 +1782,25 @@ model Employee {
   // House Queue decision ledger (one current allocation thread per employee)
   allocations HouseAllocation[]
 
+  // House Request: the employee's own application for a house. This ticket is
+  // what gates entry to the House Queue.
+  requests HouseRequest[]
+
   // Personal information
   employeeNumber String    @unique @db.VarChar(50)
   firstname      String    @db.VarChar(100)
   lastname       String    @db.VarChar(100)
-  email          String    @unique @db.VarChar(254)
+  // No `email` column. It was NOT NULL + unique but the service could not meet
+  // the constraint when HR left the address out, so it synthesised
+  // `<empid-slug>@placeholder.invalid` and reported it for later correction.
+  // Nobody ever corrected it, and those addresses cannot receive mail. Nothing
+  // authenticates against this column: BetterAuth signs users in on
+  // `user.email`, and an Employee is tied to a login account by `Employee.userid`.
+  // See migration 20261004000000_drop_employee_email.
   phone          String?   @db.VarChar(25)
   dateOfBirth    DateTime? @db.Date
-  gender         String?   @db.VarChar(20)
+  gender         Gender?
+  nationalId     String?   @db.VarChar(64)
   address        String?   @db.VarChar(255)
   city           String?   @db.VarChar(100)
   state          String?   @db.VarChar(100)
@@ -1777,19 +1817,115 @@ model Employee {
   notes            String?   @db.VarChar(1000)
 
   // Housing indicators (used by the House Queue eligibility engine)
-  maritalStatus    String?  @db.VarChar(20)
-  familySize       Int?     @db.SmallInt
-  disabilityStatus Boolean? @default(false)
+  maritalStatus    MaritalStatus?
+  familySize       Int?           @db.SmallInt
+  disabilityStatus Boolean        @default(false)
+
+  // Soft delete
+  deletedAt DateTime? @db.Timestamp(6)
 
   createdAt DateTime @default(now()) @db.Timestamp(6)
   updatedAt DateTime @updatedAt @db.Timestamp(6)
 
+  @@unique([organizationId, employeeNumber])
+  @@unique([organizationId, nationalId])
   @@index([organizationId])
+  @@index([organizationId, deletedAt])
   @@index([departmentId])
+  @@index([organizationId, departmentId])
   @@index([managerId])
   @@index([employmentStatus])
   @@index([organizationId, jobGrade])
   @@index([organizationId, lastname, firstname])
+  @@schema("public")
+}
+
+/**
+ * House Request — the employee's own application for a house.
+ * WHY: the House Queue must only ever score, rank and list employees who have
+ * actually submitted a request. Previously the engine loaded every active
+ * employee, so the queue was a staff directory wearing a ranking table. This
+ * table is the ticket that gates queue entry.
+ * Only `submitted` rows are active and place an employee in the queue; a
+ * `cancelled` request releases the employee to file again. The one-active
+ * guarantee is enforced by the partial unique index on
+ * `(organizationId, employeeId) WHERE status = 'submitted'`, which Prisma
+ * cannot express — the service layer turns a violation into a 409.
+ */
+model HouseRequest {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String    @db.Uuid
+  employeeId     String    @db.Uuid
+  // Justification for the request. Length is bounded by a CHECK constraint as
+  // well as by Zod, so a blank application is rejected at the storage layer.
+  remarks        String    @db.VarChar(1000)
+  status         String    @default("submitted") @db.VarChar(20)
+  submittedBy    String?   @db.Uuid
+  decidedAt      DateTime? @db.Timestamp(6)
+  decidedBy      String?   @db.Uuid
+  createdAt      DateTime  @default(now()) @db.Timestamp(6)
+  updatedAt      DateTime  @updatedAt @db.Timestamp(6)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  employee     Employee     @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, status, employeeId])
+  @@index([employeeId])
+  @@index([organizationId, createdAt])
+  @@map("house_requests")
+  @@schema("public")
+}
+
+/**
+ * Termination receipt — the snapshot a house handback receipt prints from.
+ * A receipt is a signed document, so "print it again" must reproduce the
+ * original, not re-derive today's truth. Nothing here is editable and nothing is
+ * recomputed: the damage lines, their costs, the total and the note are copied
+ * verbatim from the completed inspection at the moment of first print and then
+ * frozen. A later correction is a new inspection, not an edit to this row.
+ * `inspectionId` is unique, so the snapshot is taken exactly once. Reprints
+ * read the existing row; they never overwrite it, which is what makes a reprint
+ * match the original even after the underlying inspection has been archived.
+ */
+model HouseTerminationReceipt {
+  id             String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String @db.Uuid
+
+  // The completed inspection this receipt was printed from.
+  inspectionId String @unique @db.Uuid
+  allocationId String @db.Uuid
+  householdId  String @db.Uuid
+
+  /// Form/serial number printed in the receipt header. Also the external reference.
+  receiptNo String @db.VarChar(40)
+
+  /// Frozen damage lines: [{ key, label, labelAm, cost }] — damaged parts only.
+  damageSnapshot  Json
+  /// Frozen sum of the lines above. Stored so the printed total is a read.
+  totalDamageCost Decimal @db.Decimal(12, 2)
+  /// Frozen condition note; null when the inspector left it blank.
+  conditionNote   String? @db.VarChar(1000)
+
+  // When the evidence existed, versus when it was first put on paper. These are
+  // separate facts: a receipt can be filed months after the handback.
+  completedAt DateTime @db.Timestamp(6)
+  printedAt   DateTime @default(now()) @db.Timestamp(6)
+  printedBy   String?  @db.Uuid
+  /// Incremented on every reprint, so the copy in the file can be told apart.
+  printCount  Int      @default(1) @db.Integer
+
+  createdAt DateTime @default(now()) @db.Timestamp(6)
+
+  organization Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  inspection   HouseInspection @relation(fields: [inspectionId], references: [id], onDelete: Restrict)
+  household    Household       @relation(fields: [householdId], references: [id], onDelete: Restrict)
+  allocation   HouseAllocation @relation(fields: [allocationId], references: [id], onDelete: Restrict)
+
+  @@index([organizationId])
+  @@index([allocationId])
+  @@index([householdId])
+  @@index([printedAt])
+  @@map("house_termination_receipts")
   @@schema("public")
 }
 
@@ -1832,9 +1968,10 @@ model Household {
   createdAt      DateTime     @default(now()) @db.Timestamp(6)
   updatedAt      DateTime     @updatedAt @db.Timestamp(6)
 
-  allocations         HouseAllocation[]
-  previousAllocations HouseAllocation[] @relation("AllocationPreviousHousehold")
-  inspections         HouseInspection[]
+  allocations              HouseAllocation[]
+  previousAllocations      HouseAllocation[]         @relation("AllocationPreviousHousehold")
+  inspections              HouseInspection[]
+  houseTerminationReceipts HouseTerminationReceipt[]
 
   @@unique([organizationId, hid])
   @@unique([organizationId, houseNumber])
@@ -1890,11 +2027,12 @@ model HouseAllocation {
   createdAt DateTime @default(now()) @db.Timestamp(6)
   updatedAt DateTime @updatedAt @db.Timestamp(6)
 
-  organization Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  employee     Employee         @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-  household    Household?       @relation(fields: [householdId], references: [id], onDelete: SetNull)
-  householdPrev Household?      @relation("AllocationPreviousHousehold", fields: [previousHouseholdId], references: [id], onDelete: SetNull)
-  inspection   HouseInspection?
+  organization        Organization              @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  employee            Employee                  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  household           Household?                @relation(fields: [householdId], references: [id], onDelete: SetNull)
+  householdPrev       Household?                @relation("AllocationPreviousHousehold", fields: [previousHouseholdId], references: [id], onDelete: SetNull)
+  inspection          HouseInspection?
+  terminationReceipts HouseTerminationReceipt[]
 
   @@index([organizationId, employeeId])
   @@index([organizationId])
@@ -1924,17 +2062,53 @@ model HouseInspection {
   inspectorId   String?   @db.Uuid
   scheduledDate DateTime? @db.Date
 
+  // Lifecycle of the inspection itself. The row is raised already SCHEDULED by
+  // the release that produced it and only ever moves on to COMPLETED, so this is
+  // a read-optimised duplicate of `resolvedTo`: a manager filtering the
+  // worklist by lifecycle should not have to reason about two nullable columns.
+  status String                  @default("SCHEDULED") @db.VarChar(20)
+  // The exit branch that raised this inspection, copied from the release row so
+  // a handback can be read without joining back to the allocation.
+  reason HouseTerminationReason?
+
   // Handback checklist - mirrors the household damage taxonomy
-  checklistWindow      Boolean  @default(false)
-  checklistDoor        Boolean  @default(false)
-  checklistWaterPanel  Boolean  @default(false)
-  checklistRoof        Boolean  @default(false)
-  checklistWall        Boolean  @default(false)
-  checklistElectricity Boolean  @default(false)
-  conditionNote        String?  @db.VarChar(1000)
-  photoUrls            String[]
+  checklistWindow        Boolean @default(false)
+  checklistDoor          Boolean @default(false)
+  checklistWaterPanel    Boolean @default(false)
+  checklistRoof          Boolean @default(false)
+  checklistWall          Boolean @default(false)
+  checklistElectricity   Boolean @default(false)
+  // Inside-items checklist: the movable furniture that leaves with the tenant,
+  // counted rather than flagged because "3 chairs" is the actual handback note.
+  checklistBedCount      Int     @default(0) @db.Integer
+  checklistChairsCount   Int     @default(0) @db.Integer
+  checklistLockerCount   Int     @default(0) @db.Integer
+  checklistTablesCount   Int     @default(0) @db.Integer
+  checklistInsideItemsOk Boolean @default(true)
+
+  // Repair cost per damaged part, in ETB. One column per part rather than a
+  // free-text figure or a JSON blob, because these are money, they are queried
+  // ("what did last year's handbacks cost"), and they are quoted line-by-line on
+  // a signed receipt. Decimal(12,2) like every other money column — a float
+  // would not survive being printed and re-read as a total.
+  //
+  // Zero means "not priced", which is only ever legal for an OK part: the
+  // completion gate refuses a damaged part with no cost.
+  costWindow      Decimal @default(0) @db.Decimal(12, 2)
+  costDoor        Decimal @default(0) @db.Decimal(12, 2)
+  costWaterPanel  Decimal @default(0) @db.Decimal(12, 2)
+  costRoof        Decimal @default(0) @db.Decimal(12, 2)
+  costWall        Decimal @default(0) @db.Decimal(12, 2)
+  costElectricity Decimal @default(0) @db.Decimal(12, 2)
+  // Denormalised sum of the per-part costs above, written in the same
+  // transaction as them. Stored rather than derived so a receipt reprint is a
+  // read, and so the printed total cannot disagree with the rows above it.
+  totalDamageCost Decimal @default(0) @db.Decimal(12, 2)
+
+  conditionNote String?  @db.VarChar(1000)
+  photoUrls     String[]
   // Count of photos attached before retention rollup purged the URLs.
-  photoCount           Int      @default(0) @db.Integer
+  photoCount    Int      @default(0) @db.Integer
 
   // Resolution (null = open / pending inspection)
   resolvedTo  String?   @db.VarChar(20)
@@ -1945,14 +2119,19 @@ model HouseInspection {
   createdAt DateTime @default(now()) @db.Timestamp(6)
   updatedAt DateTime @updatedAt @db.Timestamp(6)
 
-  organization Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  allocation   HouseAllocation @relation(fields: [allocationId], references: [id], onDelete: Cascade)
-  household    Household       @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  organization       Organization             @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  // Restrict, not Cascade: a completed inspection is permanent evidence that a
+  // named house was inspected by a named inspector on a named date. Cascading
+  // would let an ordinary DELETE /api/household destroy that record silently.
+  allocation         HouseAllocation          @relation(fields: [allocationId], references: [id], onDelete: Restrict)
+  household          Household                @relation(fields: [householdId], references: [id], onDelete: Restrict)
+  terminationReceipt HouseTerminationReceipt?
 
   @@index([organizationId])
   @@index([householdId])
   @@index([inspectorId])
   @@index([resolvedTo])
+  @@index([status])
   @@map("house_inspections")
   @@schema("public")
 }
@@ -2093,6 +2272,16 @@ model HouseInspectionArchive {
   checklistRoof        Boolean  @default(false)
   checklistWall        Boolean  @default(false)
   checklistElectricity Boolean  @default(false)
+  // Repair costs travel with the checklist into the archive: an archived
+  // handback that kept the damage but dropped the money would be evidence for a
+  // dispute it can no longer answer.
+  costWindow           Decimal  @default(0) @db.Decimal(12, 2)
+  costDoor             Decimal  @default(0) @db.Decimal(12, 2)
+  costWaterPanel       Decimal  @default(0) @db.Decimal(12, 2)
+  costRoof             Decimal  @default(0) @db.Decimal(12, 2)
+  costWall             Decimal  @default(0) @db.Decimal(12, 2)
+  costElectricity      Decimal  @default(0) @db.Decimal(12, 2)
+  totalDamageCost      Decimal  @default(0) @db.Decimal(12, 2)
   conditionNote        String?  @db.VarChar(1000)
   photoUrls            String[]
   photoCount           Int      @default(0) @db.Integer
@@ -2113,5 +2302,206 @@ model HouseInspectionArchive {
   @@index([householdId])
   @@index([archivedAt])
   @@map("house_inspection_archives")
+  @@schema("public")
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Pay Rent — leases on shops, groceries and other premises rented to external
+// parties. The House Queue allocates staff houses and models OCCUPANCY; these
+// leases carry a recurring monthly price and therefore need a real payment
+// ledger (schedule + receipts) rather than an allocation state machine.
+//
+// Money is Decimal(12,2) everywhere — no float column exists. Financial rows
+// are never hard-deleted: renters archive via `deletedAt`, installments are
+// VOIDED, payments keep their receipt number forever. Every FK inside the
+// ledger is RESTRICT so a careless DELETE loses on the constraint instead of
+// silently orphaning an amount already reported to the treasury.
+// ────────────────────────────────────────────────────────────────────────────
+
+/**
+ * A person renting premises from the factory, with their lease terms.
+ * The one-live-renter-per-National-ID guarantee is a partial unique index
+ * (`WHERE deletedAt IS NULL`), which Prisma cannot express. Archiving a renter
+ * therefore frees the National ID for a new registration while the archived
+ * record keeps its history.
+ */
+model RentRenter {
+  id             String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String @db.Uuid
+
+  firstName      String          @db.VarChar(50)
+  lastName       String          @db.VarChar(50)
+  gender         Gender
+  // Digits only — a CHECK constraint, not just Zod, so personal-data hygiene is
+  // a storage guarantee rather than an application convention.
+  nationalId     String          @db.VarChar(64)
+  rentType       RentType
+  // Required whenever rentType is `Other`; a leftover description on a Shop is
+  // allowed so adding a helpful note is not rejected.
+  rentTypeDetail String?         @db.VarChar(200)
+  monthlyPrice   Decimal         @db.Decimal(12, 2)
+  startDate      DateTime        @db.Date
+  termMonths     Int             @db.SmallInt
+  endDate        DateTime        @db.Date
+  status         RentLeaseStatus @default(Active)
+
+  terminatedAt      DateTime? @db.Timestamp(6)
+  terminatedById    String?   @db.Uuid
+  terminationReason String?   @db.VarChar(500)
+  archivedReason    String?   @db.VarChar(500)
+  createdById       String?   @db.Uuid
+  updatedById       String?   @db.Uuid
+  deletedAt         DateTime? @db.Timestamp(6)
+  createdAt         DateTime  @default(now()) @db.Timestamp(6)
+  updatedAt         DateTime  @updatedAt @db.Timestamp(6)
+
+  organization Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  phones       RentRenterPhone[]
+  installments RentInstallment[]
+  payments     RentPayment[]
+
+  @@index([organizationId, deletedAt])
+  @@index([organizationId, lastName, firstName])
+  @@index([organizationId, status])
+  @@index([organizationId, rentType])
+  @@index([organizationId, gender])
+  @@index([organizationId, startDate])
+  @@index([organizationId, nationalId])
+  @@map("rent_renters")
+  @@schema("public")
+}
+
+/**
+ * Renter contact numbers in E.164 form. Personal data: never written to the
+ * application log. The "at most three phones" and "exactly one primary" rules
+ * are enforced by a partial unique index and by the service layer, because a
+ * CHECK cannot contain a subquery and this codebase avoids triggers.
+ */
+model RentRenterPhone {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String   @db.Uuid
+  renterId       String   @db.Uuid
+  phone          String   @db.VarChar(20)
+  isPrimary      Boolean  @default(false)
+  createdAt      DateTime @default(now()) @db.Timestamp(6)
+  updatedAt      DateTime @updatedAt @db.Timestamp(6)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  renter       RentRenter   @relation(fields: [renterId], references: [id], onDelete: Restrict)
+
+  @@unique([renterId, phone])
+  @@index([organizationId, phone])
+  @@map("rent_renter_phones")
+  @@schema("public")
+}
+
+/**
+ * One month of rent for one renter.
+ * The schedule is materialised eagerly: creating a renter writes one row per
+ * month of the term in the same transaction, so there is never a lease without
+ * a schedule. `amountDue` is a snapshot of the price at generation time.
+ * Overdue is derived from `dueDate` + today on read and is never stored.
+ */
+model RentInstallment {
+  id             String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String                @db.Uuid
+  renterId       String                @db.Uuid
+  monthNumber    Int                   @db.SmallInt
+  dueDate        DateTime              @db.Date
+  amountDue      Decimal               @db.Decimal(12, 2)
+  status         RentInstallmentStatus @default(UNPAID)
+
+  // A PAID month must be fully stamped (CHECK-enforced): that is what makes
+  // "total paid" trustworthy without joining the receipt table.
+  paidAt          DateTime?          @db.Date
+  paidById        String?            @db.Uuid
+  receiptNumber   String?            @db.VarChar(40)
+  paymentMethod   RentPaymentMethod?
+  referenceNumber String?            @db.VarChar(100)
+  note            String?            @db.VarChar(500)
+
+  // VOIDED is a deliberate, reason-bearing act — same policy as terminate.
+  voidedAt   DateTime? @db.Timestamp(6)
+  voidedById String?   @db.Uuid
+  voidReason String?   @db.VarChar(500)
+
+  createdById String?  @db.Uuid
+  updatedById String?  @db.Uuid
+  createdAt   DateTime @default(now()) @db.Timestamp(6)
+  updatedAt   DateTime @updatedAt @db.Timestamp(6)
+
+  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  renter       RentRenter    @relation(fields: [renterId], references: [id], onDelete: Restrict)
+  payments     RentPayment[]
+
+  // The double-pay guard: a month can exist only once per renter.
+  @@unique([renterId, monthNumber])
+  @@index([organizationId, status, dueDate])
+  @@index([renterId, status, monthNumber])
+  @@index([renterId, dueDate])
+  @@map("rent_installments")
+  @@schema("public")
+}
+
+/**
+ * Append-only rent receipt. A void sets `voidedAt`/`voidedById`/`voidReason`
+ * and reverts the installment to UNPAID; the row is never deleted, so a receipt
+ * number is never re-issued and the treasury's record stays complete.
+ * At most one LIVE payment may settle a month — a partial unique index on
+ * `installmentId WHERE voidedAt IS NULL`. Voided payments are excluded so a
+ * month can legitimately be re-paid after a void.
+ */
+model RentPayment {
+  id              String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId  String            @db.Uuid
+  renterId        String            @db.Uuid
+  installmentId   String            @db.Uuid
+  // Shape RENT-2026-000123, CHECK-enforced so a malformed receipt can never
+  // reach the treasury even via a direct write.
+  receiptNumber   String            @db.VarChar(40)
+  amount          Decimal           @db.Decimal(12, 2)
+  paidOn          DateTime          @db.Date
+  method          RentPaymentMethod
+  referenceNumber String?           @db.VarChar(100)
+  note            String?           @db.VarChar(500)
+
+  voidedAt   DateTime? @db.Timestamp(6)
+  voidedById String?   @db.Uuid
+  voidReason String?   @db.VarChar(500)
+
+  createdById String?  @db.Uuid
+  updatedById String?  @db.Uuid
+  createdAt   DateTime @default(now()) @db.Timestamp(6)
+  updatedAt   DateTime @updatedAt @db.Timestamp(6)
+
+  organization Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  renter       RentRenter      @relation(fields: [renterId], references: [id], onDelete: Restrict)
+  installment  RentInstallment @relation(fields: [installmentId], references: [id], onDelete: Restrict)
+
+  @@unique([organizationId, receiptNumber])
+  @@index([renterId, paidOn])
+  @@index([installmentId])
+  @@index([organizationId, voidedAt, paidOn])
+  @@map("rent_payments")
+  @@schema("public")
+}
+
+/**
+ * Per-organization, per-year receipt counter. Allocated with
+ * `INSERT .. ON CONFLICT DO UPDATE`, which is concurrency-safe without locking
+ * the counter table for the duration of a transaction.
+ */
+model RentReceiptSequence {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String   @db.Uuid
+  year           Int      @db.SmallInt
+  lastValue      Int      @default(0)
+  createdAt      DateTime @default(now()) @db.Timestamp(6)
+  updatedAt      DateTime @updatedAt @db.Timestamp(6)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, year])
+  @@map("rent_receipt_sequences")
   @@schema("public")
 }

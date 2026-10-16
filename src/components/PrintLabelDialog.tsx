@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/select";
 import { QRCodeSVG } from "qrcode.react";
 import { Download, Loader2, Printer } from "lucide-react";
-import { toast } from "sonner";
+import { notify } from "@/lib/feedback/notify";
 import { useDymo } from "@/hooks/useDymo";
 import {
   buildDymoLabelXml,
@@ -320,9 +320,9 @@ export default function PrintLabelDialog({
       a.download = `labels-${Date.now()}.pdf`;
       a.click();
       URL.revokeObjectURL(url);
-      toast.success("PDF downloaded");
+      notify.success("PDF downloaded");
     } catch {
-      toast.error("Failed to download PDF");
+      notify.error("Failed to download PDF");
     } finally {
       setIsDownloadingPdf(false);
     }
