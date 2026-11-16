@@ -39,7 +39,7 @@ if (!process.env.DB_SCHEMA) {
   }
 }
 
-const TARGET = process.env.DB_SCHEMA || "public";
+const TARGET = (process.env.DB_SCHEMA || "public").trim() || "public";
 
 // --- Detect current schema from prisma/schema.prisma ---
 const schemaPath = join(__dirname, "schema.prisma");

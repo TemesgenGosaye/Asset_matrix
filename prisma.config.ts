@@ -4,7 +4,6 @@ import { defineConfig } from "prisma/config";
 
 // Load .env manually since Prisma CLI doesn't auto-load it
 function loadEnv() {
-  if (process.env.DATABASE_URL) return;
   const envPath = path.resolve(process.cwd(), ".env");
   if (!fs.existsSync(envPath)) return;
   const content = fs.readFileSync(envPath, "utf-8");
@@ -15,7 +14,6 @@ function loadEnv() {
     if (eqIdx === -1) continue;
     const key = trimmed.slice(0, eqIdx).trim();
     let val = trimmed.slice(eqIdx + 1).trim();
-    // Strip surrounding quotes
     if (
       (val.startsWith('"') && val.endsWith('"')) ||
       (val.startsWith("'") && val.endsWith("'"))
@@ -29,6 +27,17 @@ function loadEnv() {
 }
 
 loadEnv();
+
+function resolveDatabaseUrl() {
+  return (
+    process.env.DATABASE_URL ||
+    process.env.POSTGRES_URL_NON_POOLING ||
+    process.env.DIRECT_URL ||
+    process.env.POSTGRES_PRISMA_URL ||
+    process.env.POSTGRES_URL ||
+    ""
+  );
+}
 
 export default defineConfig({
   schema: "prisma/schema.prisma",
@@ -47,6 +56,6 @@ export default defineConfig({
     //     a `pg.Pool` driver adapter capped at max=3 per serverless instance.
     //   - The SSL handshake is handled in src/lib/prisma.ts, which enables
     //     `ssl` for any `*.neon.tech` host.
-    url: process.env.DATABASE_URL ?? "",
+    url: resolveDatabaseUrl(),
   },
 });
