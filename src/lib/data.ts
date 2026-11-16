@@ -740,6 +740,24 @@ export async function getEntityHistory(entity: string, entityId: string) {
 // Employee data functions
 // ---------------------------------------------------------------------------
 
+const employeeProfileSelect = {
+  phone: true,
+  dateOfBirth: true,
+  address: true,
+  city: true,
+  state: true,
+  country: true,
+  postalCode: true,
+  jobTitle: true,
+  employmentType: true,
+  employmentStatus: true,
+  nationalId: true,
+  familySize: true,
+  hireDate: true,
+  terminationDate: true,
+  notes: true,
+} as const;
+
 const employeeBaseSelect = {
   id: true,
   organizationId: true,
@@ -749,28 +767,58 @@ const employeeBaseSelect = {
   employeeNumber: true,
   firstname: true,
   lastname: true,
-  phone: true,
-  dateOfBirth: true,
   gender: true,
-  address: true,
-  city: true,
-  state: true,
-  country: true,
-  postalCode: true,
-  jobTitle: true,
-  employmentType: true,
-  employmentStatus: true,
   jobGrade: true,
+  serviceYears: true,
   maritalStatus: true,
-  nationalId: true,
-  familySize: true,
   disabilityStatus: true,
-  hireDate: true,
-  terminationDate: true,
-  notes: true,
   createdAt: true,
   updatedAt: true,
+  profile: { select: employeeProfileSelect },
 } as const;
+
+type EmployeeProfileFields = {
+  phone: string | null;
+  dateOfBirth: Date | null;
+  address: string | null;
+  city: string | null;
+  state: string | null;
+  country: string | null;
+  postalCode: string | null;
+  jobTitle: string | null;
+  employmentType: string;
+  employmentStatus: string;
+  nationalId: string | null;
+  familySize: number | null;
+  hireDate: Date | null;
+  terminationDate: Date | null;
+  notes: string | null;
+};
+
+/** Flatten the canonical Employee row + profile for existing callers. */
+function flattenEmployee<T extends { profile: EmployeeProfileFields | null }>(
+  row: T,
+): Omit<T, "profile"> & EmployeeProfileFields {
+  const { profile, ...canonical } = row;
+  return {
+    ...canonical,
+    phone: profile?.phone ?? null,
+    dateOfBirth: profile?.dateOfBirth ?? null,
+    address: profile?.address ?? null,
+    city: profile?.city ?? null,
+    state: profile?.state ?? null,
+    country: profile?.country ?? null,
+    postalCode: profile?.postalCode ?? null,
+    jobTitle: profile?.jobTitle ?? null,
+    employmentType: profile?.employmentType ?? "full_time",
+    employmentStatus: profile?.employmentStatus ?? "active",
+    nationalId: profile?.nationalId ?? null,
+    familySize: profile?.familySize ?? null,
+    hireDate: profile?.hireDate ?? null,
+    terminationDate: profile?.terminationDate ?? null,
+    notes: profile?.notes ?? null,
+  };
+}
 
 /**
  * Live employees for the current organization.
@@ -784,8 +832,8 @@ export async function getEmployees() {
   const key = `employees_all:${JSON.stringify(where)}`;
   return cached(
     key,
-    () =>
-      prisma.employee.findMany({
+    async () => {
+      const rows = await prisma.employee.findMany({
         where: { ...where, deletedAt: null },
         select: {
           ...employeeBaseSelect,
@@ -797,7 +845,9 @@ export async function getEmployees() {
           },
         },
         orderBy: [{ lastname: "asc" }, { firstname: "asc" }],
-      }),
+      });
+      return rows.map(flattenEmployee);
+    },
     2 * 60 * 1000,
   );
 }
@@ -827,7 +877,7 @@ export async function getEmployeeById(id: string) {
   if (!employee) {
     throw new Error(`Employee with ID ${id} not found`);
   }
-  return employee;
+  return flattenEmployee(employee);
 }
 
 export async function getDepartments() {
@@ -901,6 +951,102 @@ export async function getHouseholdSummary() {
   return { total, active, inactive, staff };
 }
 
+export interface HouseRegisterCategoryStat {
+  /** Stored house type. "Staff" renders as the "S" category on the dashboard. */
+  category: string;
+  total: number;
+  occupied: number;
+  vacant: number;
+  maintenance: number;
+}
+
+export interface HouseRegisterStat {
+  categories: HouseRegisterCategoryStat[];
+  totalHouses: number;
+  occupiedCount: number;
+  vacantCount: number;
+  maintenanceCount: number;
+}
+
+/**
+ * House register totals grouped by category (S/A–E) with an occupancy split.
+ *
+ * WHY a single grouped query: the dashboard wants each category's total AND its
+ * occupied/vacant/maintenance split. One `groupBy` on (houseType, occupancyStatus)
+ * answers both, instead of six counts plus six more for the split.
+ *
+ * S is the "Staff" type — the register stores the literal string "Staff", and
+ * the dashboard labels it "S" to match the A–E tier naming used on site.
+ * Categories outside the known set are folded into `totalHouses` only, so an
+ * unclassified legacy row still shows up in the headline number rather than
+ * silently vanishing.
+ */
+export async function getHouseRegisterStat(): Promise<HouseRegisterStat> {
+  const where = await strictOrgWhere();
+  const key = `house_register_stat:${JSON.stringify(where)}`;
+  return cached(
+    key,
+    async () => {
+      const rows = await prisma.household.groupBy({
+        by: ["houseType", "occupancyStatus"],
+        where,
+        _count: { id: true },
+      });
+
+      const known = ["Staff", "A", "B", "C", "D", "E"];
+      const buckets = new Map<
+        string,
+        { occupied: number; vacant: number; maintenance: number }
+      >();
+      for (const category of known) {
+        buckets.set(category, { occupied: 0, vacant: 0, maintenance: 0 });
+      }
+
+      let totalHouses = 0;
+      let occupiedCount = 0;
+      let vacantCount = 0;
+      let maintenanceCount = 0;
+
+      for (const row of rows) {
+        const count = row._count.id;
+        totalHouses += count;
+
+        if (row.occupancyStatus === "Occupied") occupiedCount += count;
+        else if (row.occupancyStatus === "Vacant") vacantCount += count;
+        else if (row.occupancyStatus === "Maintenance")
+          maintenanceCount += count;
+
+        const bucket = buckets.get(row.houseType);
+        if (!bucket) continue;
+        if (row.occupancyStatus === "Occupied") bucket.occupied += count;
+        else if (row.occupancyStatus === "Vacant") bucket.vacant += count;
+        else if (row.occupancyStatus === "Maintenance")
+          bucket.maintenance += count;
+      }
+
+      const categories = known.map((category) => {
+        const bucket = buckets.get(category)!;
+        return {
+          category,
+          occupied: bucket.occupied,
+          vacant: bucket.vacant,
+          maintenance: bucket.maintenance,
+          total: bucket.occupied + bucket.vacant + bucket.maintenance,
+        };
+      });
+
+      return {
+        categories,
+        totalHouses,
+        occupiedCount,
+        vacantCount,
+        maintenanceCount,
+      };
+    },
+    2 * 60 * 1000,
+  );
+}
+
 /**
  * House ids that are currently allocated through the House Queue decision
  * ledger. Companion to the Assigned / Unassigned stats on the register view so
@@ -909,7 +1055,19 @@ export async function getHouseholdSummary() {
 export async function getAssignedHouseIds(): Promise<string[]> {
   const where = await strictOrgWhere();
   const allocations = await prisma.houseAllocation.findMany({
-    where: { ...where, status: "allocated" },
+    where: {
+      ...where,
+      status: {
+        in: [
+          "allocated",
+          "RELEASE_PENDING_INSPECTION",
+          "RELEASE_PENDING",
+          "release_pending",
+          "pending_inspection",
+          "PENDING_INSPECTION",
+        ],
+      },
+    },
     select: { householdId: true },
   });
   return allocations

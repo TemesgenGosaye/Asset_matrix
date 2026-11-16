@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
 import Breadcrumb from "@/components/Breadcrumb";
 import prisma from "@/lib/prisma";
+import { SYSTEM_THEME_ID, normalizeThemeId } from "@/lib/themes";
 import UserSettingsClient from "./ui/UserSettingsClient";
 import MfaSettings from "./ui/MfaSettings";
 import NotificationPreferences from "./ui/NotificationPreferences";
@@ -45,7 +46,10 @@ export default async function Page(props: { params: Promise<{ id: string }> }) {
 
   const preferences = prefs
     ? {
-        theme: prefs.theme,
+        // Normalised because the column is free text and may still hold a theme
+        // that no longer exists ("oled", "paper", …). Those are mapped onto the
+        // palette with the same lightness instead of reaching the picker.
+        theme: normalizeThemeId(prefs.theme, SYSTEM_THEME_ID),
         locale: prefs.locale,
         timezone: prefs.timezone,
         currency: prefs.currency,
@@ -54,7 +58,7 @@ export default async function Page(props: { params: Promise<{ id: string }> }) {
         pageSize: prefs.pageSize,
       }
     : {
-        theme: "system",
+        theme: SYSTEM_THEME_ID,
         locale: "en",
         timezone: "UTC",
         currency: "USD",

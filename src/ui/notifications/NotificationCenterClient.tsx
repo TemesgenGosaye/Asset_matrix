@@ -308,7 +308,7 @@ export default function NotificationCenterClient() {
         <div>
           <h1 className="text-foreground flex items-center gap-2 text-xl font-bold">
             <BellRing className="h-5 w-5" />
-            Notifications
+            Notifications: ማሳወቂያዎች
           </h1>
           <p className="text-muted-foreground mt-0.5 text-sm">
             {unread > 0 ? (
@@ -410,6 +410,7 @@ export default function NotificationCenterClient() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search notifications..."
+            autoFocus
             className="h-9"
           />
           <Button type="submit" size="sm" variant="secondary">

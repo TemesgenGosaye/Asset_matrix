@@ -18,6 +18,7 @@ import {
   GitBranch,
   FileKey,
   LayoutTemplate,
+  SlidersHorizontal,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -44,6 +45,7 @@ import LocationTrackingTab from "./LocationTrackingTab";
 import StatusWorkflowTab from "./StatusWorkflowTab";
 import ApiKeysTab from "./ApiKeysTab";
 import AssetTemplatesTab from "./AssetTemplatesTab";
+import NavigationTab from "./NavigationTab";
 
 interface NavItem {
   value: string;
@@ -61,6 +63,7 @@ const settingsNav: NavGroup[] = [
     title: "General",
     items: [
       { value: "general", label: "General", icon: Settings },
+      { value: "navigation", label: "Navigation", icon: SlidersHorizontal },
       { value: "users", label: "Users", icon: Users },
     ],
   },
@@ -175,6 +178,7 @@ interface AdminSettingsPageProps {
     statustypename: string;
   }>;
   isSuperAdmin?: boolean;
+  permissions?: string[];
 }
 
 export default function AdminSettingsPage({
@@ -187,6 +191,7 @@ export default function AdminSettingsPage({
   envEmailConfig,
   statuses = [],
   isSuperAdmin = false,
+  permissions = [],
 }: AdminSettingsPageProps) {
   const searchParams = useSearchParams();
   const [activeTab, setActiveTab] = useState(
@@ -212,7 +217,9 @@ export default function AdminSettingsPage({
     <div className="flex h-[calc(100vh-6rem)] flex-col">
       {/* Header — fixed, never scrolls */}
       <div className="shrink-0 pb-4">
-        <h1 className="text-2xl font-semibold">Admin Settings</h1>
+        <h1 className="text-2xl font-bold tracking-tight">
+          Admin Settings: የአስተዳዳሪ ቅንብሮች
+        </h1>
         <p className="text-muted-foreground mt-1 text-sm">
           Configure system settings, manage users, and customize the application
         </p>
@@ -279,6 +286,9 @@ export default function AdminSettingsPage({
         <div className="min-w-0 flex-1 overflow-y-auto">
           {activeTab === "general" && (
             <GeneralSettingsTab settings={settings.general || []} />
+          )}
+          {activeTab === "navigation" && (
+            <NavigationTab isAdmin={true} permissions={permissions} />
           )}
           {activeTab === "email" && (
             <EmailSettingsTab

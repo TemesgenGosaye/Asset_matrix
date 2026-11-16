@@ -182,6 +182,11 @@ interface AllocationThread {
   status: string;
   householdId: string | null;
   recommendedHouseId: string | null;
+  employeeId: string;
+  terminationReason: string | null;
+  transferHouseholdId: string | null;
+  moveCount: number;
+  terminatedAt: Date | null;
 }
 
 /**
@@ -212,6 +217,11 @@ async function findLatestThread(
       status: true,
       householdId: true,
       recommendedHouseId: true,
+      employeeId: true,
+      terminationReason: true,
+      transferHouseholdId: true,
+      moveCount: true,
+      terminatedAt: true,
     },
   });
 }
@@ -666,7 +676,7 @@ export async function setSkipOrDefer(
  */
 
 /** Exit reasons that require the handback-inspection gate. */
-export type ReleaseReason = "EMPLOYEE_LEAVE" | "RETIREMENT";
+export type ReleaseReason = "EMPLOYEE_LEAVE" | "RETIREMENT" | "TRANSFER";
 
 export interface ReleaseInitiateParams {
   organizationId: string;
@@ -702,7 +712,7 @@ export async function initiateRelease(
 ): Promise<ReleaseInitiateResult> {
   const { organizationId, employeeId, decidedBy, branch, reason } = params;
 
-  if (branch === ("TRANSFER" as ReleaseReason)) {
+  if (branch === "TRANSFER") {
     throw new BadRequestError(
       "A TRANSFER is a Reassign, not a release. Use the transfer surface for house moves.",
     );
@@ -791,11 +801,14 @@ export interface ExecuteReleaseParams {
   organizationId: string;
   employeeId: string;
   decidedBy: string;
-  /** Only inspection-gated reasons can execute a release. A TRANSFER is the
-   *  Reassign action and never reaches this function. */
   branch: ReleaseReason;
-  /** Free-text note carried from Step 1, persisted on the terminated row. */
+  /** Free-text note persisted on the allocation row. */
   reason?: string | null;
+  /** Optional effective date for the release. */
+  effectiveDate?: string | null;
+  /** Chosen replacement house for TRANSFER. */
+  transferHouseholdId?: string | null;
+  targetHouseholdId?: string | null;
 }
 
 export interface ExecuteReleaseResult {
@@ -804,22 +817,34 @@ export interface ExecuteReleaseResult {
   householdId: string | null;
   houseNumber: string | null;
   hid: string | null;
+  branch: ReleaseReason;
   /** When the raised inspection is due (working-day rule, never a weekend). */
   scheduledDate: string;
 }
 
 /**
- * Release Workflow â€” Step 2 (execute). Atomically:
- *  - compare-and-set the live allocation â†’ terminated (reason-coded),
- *  - the vacated house leaves the Active pool (`PendingInspection`/`Vacant`)
- *    with a 1:1 handback inspection raised against the terminated row.
+ * Release Workflow — Step 1 (Request Release). Atomically:
+ *  - compare-and-set the live allocation → RELEASE_PENDING_INSPECTION,
+ *  - the house status moves to UNDER_INSPECTION (never available during this state),
+ *  - raises a 1:1 handback inspection with status PENDING,
+ *  - blocks duplicate requests.
  */
 export async function executeRelease(
   params: ExecuteReleaseParams,
 ): Promise<ExecuteReleaseResult> {
-  const { organizationId, employeeId, decidedBy, branch, reason } = params;
+  const {
+    organizationId,
+    employeeId,
+    decidedBy,
+    branch,
+    reason,
+    effectiveDate,
+    transferHouseholdId,
+    targetHouseholdId,
+  } = params;
 
-  if (branch === ("TRANSFER" as ReleaseReason)) {
+  const chosenTransferHouseId = transferHouseholdId ?? targetHouseholdId ?? null;
+  if (branch === "TRANSFER" && !chosenTransferHouseId) {
     throw new BadRequestError(
       "A TRANSFER is a Reassign, not a release. Use the transfer surface for house moves.",
     );
@@ -841,10 +866,48 @@ export async function executeRelease(
   const existing = await findLatestThread(organizationId, employeeId);
   if (!existing)
     throw new NotFoundError("No allocation record exists for this employee.");
+  if (isReleasePending(existing.status)) {
+    throw new ConflictError(
+      "A release request is already open for this allocation. Awaiting inspection.",
+    );
+  }
   if (existing.status !== "allocated") {
     throw new ConflictError(
       `Employee is not allocated (status "${existing.status}"). Nothing to release.`,
     );
+  }
+
+  if (branch === "TRANSFER") {
+    if (chosenTransferHouseId === existing.householdId) {
+      throw new BadRequestError(
+        "Replacement house must be different from the currently allocated house.",
+      );
+    }
+    const transferHouse = await prisma.household.findFirst({
+      where: { id: chosenTransferHouseId, organizationId },
+      select: { id: true, status: true, houseNumber: true },
+    });
+    if (!transferHouse) {
+      throw new NotFoundError("Replacement house not found in this organization.");
+    }
+    if (transferHouse.status !== "Active") {
+      throw new ConflictError(
+        `House ${transferHouse.houseNumber} is not active (status "${transferHouse.status}").`,
+      );
+    }
+    const activeBooking = await prisma.houseAllocation.findFirst({
+      where: {
+        organizationId,
+        householdId: chosenTransferHouseId,
+        status: { in: [...LIVE_ALLOCATION_STATUSES] },
+      },
+      select: { id: true },
+    });
+    if (activeBooking) {
+      throw new ConflictError(
+        `House ${transferHouse.houseNumber} is already allocated to another employee.`,
+      );
+    }
   }
 
   const vacatedHouse = existing.householdId
@@ -873,7 +936,7 @@ export async function executeRelease(
 
   const inspectionId = await prisma.$transaction(async (tx) => {
     // Compare-and-set: only a currently-allocated ledger row can be moved to
-    // RELEASE_PENDING. A competing release wins the race; the loser gets a 409.
+    // RELEASE_PENDING_INSPECTION. A competing release wins the race; the loser gets a 409.
     const updated = await tx.houseAllocation.updateMany({
       where: { id: existing.id, status: "allocated" },
       data: {
@@ -882,34 +945,27 @@ export async function executeRelease(
         decidedBy,
         decidedAt: initiatedAt,
         terminationReason: branch,
+        effectiveDate: effectiveDate ? new Date(effectiveDate) : null,
+        transferHouseholdId: branch === "TRANSFER" ? chosenTransferHouseId : null,
       },
     });
     if (updated.count === 0) {
       throw new ConflictError(
-        "This allocation is no longer live. It may have just been released elsewhere; refresh and retry.",
+        "This allocation is no longer live or another release request was submitted. Refresh and retry.",
       );
     }
 
-    // The vacated house leaves the Active pool until its handback inspection
-    // resolves it (Active â†’ back in pool, UnderMaintenance â†’ stays out).
+    // The house status moves to PendingInspection (never available during this state)
+    // while awaiting inspection.
     await tx.household.update({
       where: { id: vacatedHouse.id },
       data: {
         status: "PendingInspection",
         occupancyStatus: "Vacant",
-        damageWindow: false,
-        damageDoor: false,
-        damageWaterPanel: false,
-        damageRoof: false,
-        damageWall: false,
-        damageElectricity: false,
-        damageNotes: null,
       },
     });
 
-    // Raise the 1:1 handback inspection against the release row, already
-    // SCHEDULED with the auto-computed working-day date. The user never picks
-    // this date; only an inspector can move it.
+    // Raise the 1:1 handback inspection with status PENDING.
     const inspection = await tx.houseInspection.create({
       data: {
         organizationId,
@@ -930,8 +986,11 @@ export async function executeRelease(
       entityId: employeeId,
       details: {
         step: "release_executed",
+        awaitingHandbackInspection: true,
         branch,
         reason: reason ?? null,
+        effectiveDate: effectiveDate ?? null,
+        transferHouseholdId: branch === "TRANSFER" ? chosenTransferHouseId : null,
         employeeNumber: employee.employeeNumber,
         employeeName: `${employee.firstname} ${employee.lastname}`.trim(),
         jobGrade: employee.jobGrade,
@@ -940,9 +999,7 @@ export async function executeRelease(
         houseNumber: vacatedHouse.houseNumber,
         inspectionId: inspection.id,
         scheduledDate: formatInspectionDate(scheduledDate),
-        // Stated explicitly so the audit trail records that this house is
-        // deliberately NOT back in the pool yet.
-        awaitingHandbackInspection: true,
+        status: "RELEASE_PENDING_INSPECTION",
       },
       tx,
     });
@@ -958,6 +1015,7 @@ export async function executeRelease(
     householdId: vacatedHouse.id,
     houseNumber: vacatedHouse.houseNumber,
     hid: vacatedHouse.hid,
+    branch,
     scheduledDate: formatInspectionDate(scheduledDate),
   };
 }
@@ -1046,21 +1104,18 @@ export interface CompleteInspectionParams {
     roof: boolean;
     wall: boolean;
     electricity: boolean;
+    bedCount?: number;
+    chairsCount?: number;
+    lockerCount?: number;
+    tablesCount?: number;
   };
-  /**
-   * Raw repair costs, keyed by the damaged-part name (`window`, `door`, ...).
-   *
-   * Widened to `unknown` on purpose: this is whatever came off the wire, and the
-   * decision about whether a given value is a usable amount belongs to
-   * `validateDamage`, which runs below before anything is written. An OK part's
-   * cost, if one is present, is discarded rather than persisted.
-   */
   costs?: Record<string, unknown>;
   conditionNote?: string | null;
 }
 
 export interface CompleteInspectionResult {
   inspectionId: string;
+  allocationId?: string;
   /** What the inspection found, and where the house ended up. */
   resolvedTo: "Active" | "UnderMaintenance";
   householdId: string;
@@ -1070,28 +1125,18 @@ export interface CompleteInspectionResult {
   damageLines: DamageLine[];
   /** Sum of `damageLines`. 0 when nothing was damaged. */
   totalDamageCost: number;
-  /** When the release was finalised and the house returned to stock. */
+  completedAt: string;
   terminatedAt: string;
+  transferredAllocationId?: string | null;
+  transferHouseholdId?: string | null;
+  status?: string;
 }
 
 /**
- * Release Workflow — Step 4 (complete): record the handback result and FINALISE
- * the release.
- *
- * Completing the inspection is the single gate. In one transaction this:
- *
- *  - claims the inspection (guarded on `resolvedTo IS NULL`, so a completed
- *    inspection can never be rewritten),
- *  - writes the damage assessment,
- *  - moves the allocation `RELEASE_PENDING` → `released` and stamps
- *    `terminatedAt` / `terminatedBy`, which is what puts the house on the
- *    Terminated Houses page,
- *  - returns the house to stock (`Active`/`Vacant`), or parks it in
- *    `UnderMaintenance` with the damage mirrored onto the record.
- *
- * Either all of that lands or none of it does. There is deliberately no
- * intermediate state in which a house is archived as terminated but still out of
- * the pool, or out of the pool but never archived.
+ * Release Workflow — Complete inspection & atomically finalise release:
+ * Records handback findings, marks inspection as COMPLETED, archives
+ * the allocation as released with terminatedAt, returns house to stock
+ * (or handles transfer assignment), and writes both audit entries.
  */
 export async function completeInspection(
   params: CompleteInspectionParams,
@@ -1118,23 +1163,7 @@ export async function completeInspection(
     throw new ConflictError("This inspection is already completed.");
   }
 
-  /**
-   * The damage gate.
-   *
-   * Deliberately AFTER the "already completed" guard, not before it. A second
-   * submission against a finished inspection is a conflict about the record
-   * itself, and that is the fact the caller needs; telling them instead that a
-   * cost field was blank would point them at the form instead of at the record
-   * that can no longer be edited. Both refusals still happen before any write.
-   *
-   * A damaged part with no usable cost is refused here; an OK part's cost is
-   * dropped. Both decisions come from the one helper the client form uses, so
-   * "the form said this was valid" and "the server accepted it" cannot diverge.
-   */
   const damageState: DamageState = {};
-  // `params.costs` is keyed by part name (as the route sends it); `validateDamage`
-  // speaks in `cost*` column names. Translating here is what keeps the wire shape
-  // independent of the storage shape, so renaming a column never reaches the API.
   const costMap: DamageCosts = {};
   for (const item of DAMAGE_ITEMS) {
     damageState[item.stateKey] = Boolean(checklist[item.key]);
@@ -1145,7 +1174,6 @@ export async function completeInspection(
     throw new BadRequestError(damage.errors.join(" "));
   }
   const { lines: damageLines, totalCost: totalDamageCost } = damage;
-  /** One `cost*` column per part, zeroed for OK parts. */
   const costColumns: Record<string, number> = {};
   for (const item of DAMAGE_ITEMS) {
     costColumns[item.costKey] =
@@ -1159,24 +1187,18 @@ export async function completeInspection(
   if (!household)
     throw new NotFoundError("Household not found for this inspection.");
 
-  // Derived from the validated lines rather than from the raw booleans, so the
-  // resolution can never claim damage that was not priced (or price damage that
-  // was not marked).
   const damaged = damageLines.length > 0;
-  const damagedParts = damageLines.map((l) => l.key);
   const resolvedTo: "Active" | "UnderMaintenance" = damaged
     ? "UnderMaintenance"
     : "Active";
   const completedAt = new Date();
+  let transferredAllocationId: string | null = null;
+  let transferHouseholdId: string | null = null;
 
   await prisma.$transaction(async (tx) => {
-    // Claim the inspection first, so two inspectors completing at once cannot
-    // both finalise. The checklist, its costs and the note are written in the
-    // same guarded update, which is what makes a completed inspection
-    // permanent: once `resolvedTo` is set this statement matches no rows again,
-    // so there is no second chance to rewrite the evidence.
+    // 1. Mark inspection completed
     const cas = await tx.houseInspection.updateMany({
-      where: { id: inspectionId, resolvedTo: null },
+      where: { id: inspectionId, resolvedTo: null, status: { not: "COMPLETED" } },
       data: {
         checklistWindow: checklist.window,
         checklistDoor: checklist.door,
@@ -1184,6 +1206,15 @@ export async function completeInspection(
         checklistRoof: checklist.roof,
         checklistWall: checklist.wall,
         checklistElectricity: checklist.electricity,
+        checklistBedCount: checklist.bedCount ?? 0,
+        checklistChairsCount: checklist.chairsCount ?? 0,
+        checklistLockerCount: checklist.lockerCount ?? 0,
+        checklistTablesCount: checklist.tablesCount ?? 0,
+        checklistInsideItemsOk:
+          (checklist.bedCount ?? 0) >= 0 &&
+          (checklist.chairsCount ?? 0) >= 0 &&
+          (checklist.lockerCount ?? 0) >= 0 &&
+          (checklist.tablesCount ?? 0) >= 0,
         ...costColumns,
         totalDamageCost,
         conditionNote: conditionNote ?? null,
@@ -1200,21 +1231,8 @@ export async function completeInspection(
       );
     }
 
-    /**
-     * Archive the allocation.
-     *
-     * `terminatedAt` is what makes this row a Terminated Houses record, so it is
-     * written in the SAME transaction as the inspection claim and the household
-     * update below. A release therefore cannot be half-recorded: either the
-     * house returns to stock and the termination is on the page, or neither
-     * happened.
-     *
-     * Guarded on the current status so the state machine is enforced in the
-     * write, not only in the UI. `terminatedAt IS NULL` additionally makes this
-     * idempotent-safe: a row already archived by an earlier run is never
-     * rewritten.
-     */
-    const archived = await tx.houseAllocation.updateMany({
+    // 2. Archive outgoing allocation with CAS
+    let casAlloc = await tx.houseAllocation.updateMany({
       where: {
         id: inspection.allocationId,
         status: "RELEASE_PENDING",
@@ -1222,23 +1240,38 @@ export async function completeInspection(
       },
       data: {
         status: "released",
-        decidedBy,
-        decidedAt: completedAt,
         terminatedAt: completedAt,
         terminatedBy: decidedBy,
+        decidedAt: completedAt,
+        decidedBy,
       },
     });
-    if (archived.count === 0) {
+    if (casAlloc.count === 0) {
+      casAlloc = await tx.houseAllocation.updateMany({
+        where: {
+          id: inspection.allocationId,
+          status: "RELEASE_PENDING_INSPECTION",
+          terminatedAt: null,
+        },
+        data: {
+          status: "released",
+          terminatedAt: completedAt,
+          terminatedBy: decidedBy,
+          decidedAt: completedAt,
+          decidedBy,
+        },
+      });
+    }
+    if (casAlloc.count === 0) {
       throw new ConflictError(
-        "This release is no longer pending. It may have been finalised already; refresh and retry.",
+        "This release is no longer pending or has already been finalized.",
       );
     }
 
-    // The house returns to stock now — or, if damage was found, moves to
-    // maintenance and stays out with the damaged parts recorded.
+    // 3. Return house to stock / maintenance
     if (resolvedTo === "Active") {
       await tx.household.update({
-        where: { id: household.id },
+        where: { id: inspection.householdId },
         data: {
           status: "Active",
           occupancyStatus: "Vacant",
@@ -1253,7 +1286,7 @@ export async function completeInspection(
       });
     } else {
       await tx.household.update({
-        where: { id: household.id },
+        where: { id: inspection.householdId },
         data: {
           status: "UnderMaintenance",
           occupancyStatus: "Maintenance",
@@ -1263,16 +1296,107 @@ export async function completeInspection(
           damageRoof: checklist.roof,
           damageWall: checklist.wall,
           damageElectricity: checklist.electricity,
-          // Human labels, not raw keys: this note is read by whoever inspects
-          // the house next, and "window, wall" reads like a database dump.
-          damageNotes: `Found at handback: ${
-            damagedParts.map((p) => DAMAGE_LABELS[p] ?? p).join(", ") ||
-            "no damage"
-          }.`,
+          damageNotes:
+            damageLines.length > 0
+              ? `${damageLines.map((l) => l.label).join(", ")}${conditionNote?.trim() ? ` — ${conditionNote.trim()}` : ""}`
+              : (conditionNote ?? null),
         },
       });
     }
 
+    const allocRow = await tx.houseAllocation.findFirst({
+      where: { id: inspection.allocationId },
+      select: {
+        id: true,
+        employeeId: true,
+        terminationReason: true,
+        transferHouseholdId: true,
+        moveCount: true,
+      },
+    });
+    if (allocRow?.transferHouseholdId) {
+      transferHouseholdId = allocRow.transferHouseholdId;
+    }
+
+    // 4. For TRANSFER: atomically allocate replacement house
+    if (allocRow?.terminationReason === "TRANSFER") {
+      const destId = allocRow.transferHouseholdId;
+      if (!destId) {
+        throw new BadRequestError(
+          "Transfer allocation is missing the replacement house choice.",
+        );
+      }
+      const destHouse = await tx.household.findFirst({
+        where: { id: destId, organizationId },
+      });
+      if (!destHouse) {
+        throw new NotFoundError(
+          "The replacement house chosen for transfer could not be found.",
+        );
+      }
+      if (destHouse.status !== "Active") {
+        throw new ConflictError(
+          `Replacement house ${destHouse.houseNumber} is not active (status "${destHouse.status}").`,
+        );
+      }
+
+      // Double-booking check
+      const conflictingBooking = await tx.houseAllocation.findFirst({
+        where: {
+          organizationId,
+          householdId: destId,
+          status: { in: [...LIVE_ALLOCATION_STATUSES] },
+        },
+      });
+      if (conflictingBooking) {
+        throw new ConflictError(
+          `Replacement house ${destHouse.houseNumber} was allocated to another occupant.`,
+        );
+      }
+
+      // Create new allocation for employee
+      const newAllocation = await tx.houseAllocation.create({
+        data: {
+          organizationId,
+          employeeId: allocRow.employeeId,
+          householdId: destId,
+          status: "allocated",
+          decidedBy,
+          decidedAt: completedAt,
+          previousHouseholdId: inspection.householdId,
+          movedAt: completedAt,
+          moveCount: (allocRow.moveCount || 0) + 1,
+        },
+      });
+      transferredAllocationId = newAllocation.id;
+
+      // Update destination house to Occupied
+      await tx.household.update({
+        where: { id: destId },
+        data: {
+          status: "Active",
+          occupancyStatus: "Occupied",
+        },
+      });
+
+      await createAuditLog({
+        userId: decidedBy,
+        action: AUDIT_ACTIONS.RELEASE,
+        entity: AUDIT_ENTITIES.HOUSE_QUEUE,
+        entityId: allocRow.employeeId,
+        details: {
+          step: "transfer_completed",
+          outgoingAllocationId: allocRow.id,
+          incomingAllocationId: newAllocation.id,
+          vacatedHouseNumber: household.houseNumber,
+          newHouseNumber: destHouse.houseNumber,
+          movedAt: completedAt.toISOString(),
+        },
+        tx,
+      });
+    }
+
+    // 5. Audit logs for both steps
     await createAuditLog({
       userId: decidedBy,
       action: AUDIT_ACTIONS.RELEASE,
@@ -1281,13 +1405,12 @@ export async function completeInspection(
       details: {
         step: "inspection_completed",
         inspectionId,
+        allocationId: inspection.allocationId,
         householdId: inspection.householdId,
         hid: household.hid,
         houseNumber: household.houseNumber,
         resolvedTo,
         damaged,
-        // The damage assessment itself, so a disputed bill can be traced to what
-        // was recorded on the day rather than to the receipt alone.
         damageLines: damageLines.map((l) => ({ part: l.label, cost: l.cost })),
         totalDamageCost,
         hasConditionNote: Boolean(conditionNote?.trim()),
@@ -1307,8 +1430,8 @@ export async function completeInspection(
         householdId: inspection.householdId,
         hid: household.hid,
         houseNumber: household.houseNumber,
+        branch: allocRow?.terminationReason,
         resolvedTo,
-        damagedParts,
         terminatedAt: completedAt.toISOString(),
       },
       tx,
@@ -1319,13 +1442,402 @@ export async function completeInspection(
 
   return {
     inspectionId,
+    allocationId: inspection.allocationId,
     resolvedTo,
     householdId: inspection.householdId,
     houseNumber: household.houseNumber,
     hid: household.hid,
     damageLines,
     totalDamageCost,
+    completedAt: completedAt.toISOString(),
     terminatedAt: completedAt.toISOString(),
+    transferredAllocationId,
+    transferHouseholdId,
+    status: "released",
+  };
+}
+
+export interface CancelReleaseRequestParams {
+  organizationId: string;
+  allocationId?: string | null;
+  employeeId?: string | null;
+  cancelledBy: string;
+}
+
+export interface CancelReleaseRequestResult {
+  allocationId: string;
+  householdId: string | null;
+  houseNumber: string | null;
+  status: string;
+}
+
+/**
+ * Cancel release request (allowed ONLY before inspection is completed).
+ * Restores allocation to `allocated`, house to `Active`/`Occupied`,
+ * removes the open inspection, and writes an audit log.
+ */
+export async function cancelReleaseRequest(
+  params: CancelReleaseRequestParams,
+): Promise<CancelReleaseRequestResult> {
+  const { organizationId, allocationId, employeeId, cancelledBy } = params;
+
+  const allocation = allocationId
+    ? await prisma.houseAllocation.findFirst({
+        where: { id: allocationId, organizationId },
+      })
+    : employeeId
+      ? await findLatestThread(organizationId, employeeId)
+      : null;
+
+  if (!allocation) {
+    throw new NotFoundError("Allocation record not found in this organization.");
+  }
+
+  if (!isReleasePending(allocation.status)) {
+    throw new ConflictError(
+      `Allocation is not in a release pending state (status: "${allocation.status}").`,
+    );
+  }
+
+  const inspection = await prisma.houseInspection.findFirst({
+    where: { allocationId: allocation.id, organizationId },
+  });
+
+  if (inspection && (inspection.status === "COMPLETED" || inspection.resolvedTo)) {
+    throw new ConflictError(
+      "Cannot cancel release request: the inspection has already been completed.",
+    );
+  }
+
+  const householdId = allocation.householdId;
+  const household = householdId
+    ? await prisma.household.findFirst({
+        where: { id: householdId, organizationId },
+        select: { id: true, houseNumber: true, hid: true },
+      })
+    : null;
+
+  await prisma.$transaction(async (tx) => {
+    const updated = await tx.houseAllocation.updateMany({
+      where: {
+        id: allocation.id,
+        status: {
+          in: [
+            "RELEASE_PENDING_INSPECTION",
+            "RELEASE_PENDING",
+            "release_pending",
+          ],
+        },
+      },
+      data: {
+        status: "allocated",
+        terminationReason: null,
+        reason: null,
+        effectiveDate: null,
+        transferHouseholdId: null,
+      },
+    });
+    if (updated.count === 0) {
+      throw new ConflictError(
+        "Could not cancel release request: allocation status has changed.",
+      );
+    }
+
+    if (householdId) {
+      await tx.household.update({
+        where: { id: householdId },
+        data: {
+          status: "Active",
+          occupancyStatus: "Occupied",
+        },
+      });
+    }
+
+    if (inspection) {
+      await tx.houseInspection.delete({
+        where: { id: inspection.id },
+      });
+    }
+
+    await createAuditLog({
+      userId: cancelledBy,
+      action: AUDIT_ACTIONS.RELEASE,
+      entity: AUDIT_ENTITIES.HOUSE_QUEUE,
+      entityId: allocation.employeeId,
+      details: {
+        step: "release_request_cancelled",
+        allocationId: allocation.id,
+        householdId,
+        houseNumber: household?.houseNumber ?? null,
+      },
+      tx,
+    });
+  });
+
+  invalidateQueueAggregates(organizationId);
+
+  return {
+    allocationId: allocation.id,
+    householdId,
+    houseNumber: household?.houseNumber ?? null,
+    status: "allocated",
+  };
+}
+
+export interface FinalizeReleaseParams {
+  organizationId: string;
+  allocationId?: string | null;
+  employeeId?: string | null;
+  decidedBy: string;
+}
+
+export interface FinalizeReleaseResult {
+  allocationId: string;
+  householdId: string | null;
+  houseNumber: string | null;
+  hid: string | null;
+  status: string;
+  resolvedTo: string;
+  terminatedAt: string;
+  transferredAllocationId?: string | null;
+  transferHouseholdId?: string | null;
+}
+
+/**
+ * Release Workflow — Step 5 (Final Release). Atomically:
+ *  - validates inspection is COMPLETED (rejects otherwise),
+ *  - moves allocation.status -> released with terminatedAt,
+ *  - returns house to House Register as UNASSIGNED / available (status Active/Vacant or UnderMaintenance),
+ *  - for TRANSFER: creates/approves new allocation for replacement house with double-booking check,
+ *  - writes audit logs.
+ */
+export async function finalizeRelease(
+  params: FinalizeReleaseParams,
+): Promise<FinalizeReleaseResult> {
+  const { organizationId, allocationId, employeeId, decidedBy } = params;
+
+  const allocation = allocationId
+    ? await prisma.houseAllocation.findFirst({
+        where: { id: allocationId, organizationId },
+      })
+    : employeeId
+      ? await findLatestThread(organizationId, employeeId)
+      : null;
+
+  if (!allocation) {
+    throw new NotFoundError("Allocation record not found in this organization.");
+  }
+
+  if (
+    !isReleasePending(allocation.status) &&
+    allocation.status !== "RELEASE_PENDING_INSPECTION" &&
+    allocation.status !== "RELEASE_PENDING"
+  ) {
+    if (allocation.status === "released" || allocation.terminatedAt) {
+      throw new ConflictError("This allocation has already been released.");
+    }
+    throw new ConflictError(
+      `Allocation cannot be released from status "${allocation.status}".`,
+    );
+  }
+
+  const inspection = await prisma.houseInspection.findFirst({
+    where: { allocationId: allocation.id, organizationId },
+  });
+
+  if (!inspection || inspection.status !== "COMPLETED" || !inspection.resolvedTo) {
+    throw new BadRequestError(
+      "Cannot release house: inspection has not been completed yet.",
+    );
+  }
+
+  const vacatedHouse = allocation.householdId
+    ? await prisma.household.findFirst({
+        where: { id: allocation.householdId, organizationId },
+      })
+    : null;
+
+  if (!vacatedHouse) {
+    throw new ConflictError("The allocated house could not be resolved.");
+  }
+
+  const resolvedTo = inspection.resolvedTo;
+  const completedAt = new Date();
+  let transferredAllocationId: string | null = null;
+
+  await prisma.$transaction(async (tx) => {
+    // 1. Archive outgoing allocation
+    const archived = await tx.houseAllocation.updateMany({
+      where: {
+        id: allocation.id,
+        status: {
+          in: [
+            "RELEASE_PENDING_INSPECTION",
+            "RELEASE_PENDING",
+            "release_pending",
+          ],
+        },
+        terminatedAt: null,
+      },
+      data: {
+        status: "released",
+        terminatedAt: completedAt,
+        terminatedBy: decidedBy,
+        decidedAt: completedAt,
+        decidedBy,
+      },
+    });
+    if (archived.count === 0) {
+      throw new ConflictError(
+        "This release is no longer pending or has already been finalized.",
+      );
+    }
+
+    // 2. Return vacated house to House Register as UNASSIGNED
+    if (resolvedTo === "Active") {
+      await tx.household.update({
+        where: { id: vacatedHouse.id },
+        data: {
+          status: "Active",
+          occupancyStatus: "Vacant",
+          damageWindow: false,
+          damageDoor: false,
+          damageWaterPanel: false,
+          damageRoof: false,
+          damageWall: false,
+          damageElectricity: false,
+          damageNotes: null,
+        },
+      });
+    } else {
+      await tx.household.update({
+        where: { id: vacatedHouse.id },
+        data: {
+          status: "UnderMaintenance",
+          occupancyStatus: "Maintenance",
+          damageWindow: inspection.checklistWindow,
+          damageDoor: inspection.checklistDoor,
+          damageWaterPanel: inspection.checklistWaterPanel,
+          damageRoof: inspection.checklistRoof,
+          damageWall: inspection.checklistWall,
+          damageElectricity: inspection.checklistElectricity,
+          damageNotes:
+            inspection.conditionNote ?? "Damage recorded during handback inspection",
+        },
+      });
+    }
+
+    // 3. For TRANSFER: atomically allocate replacement house
+    if (allocation.terminationReason === "TRANSFER") {
+      const destId = allocation.transferHouseholdId;
+      if (!destId) {
+        throw new BadRequestError(
+          "Transfer allocation is missing the replacement house choice.",
+        );
+      }
+      const destHouse = await tx.household.findFirst({
+        where: { id: destId, organizationId },
+      });
+      if (!destHouse) {
+        throw new NotFoundError(
+          "The replacement house chosen for transfer could not be found.",
+        );
+      }
+      if (destHouse.status !== "Active") {
+        throw new ConflictError(
+          `Replacement house ${destHouse.houseNumber} is not active (status "${destHouse.status}").`,
+        );
+      }
+
+      // Double-booking check
+      const conflictingBooking = await tx.houseAllocation.findFirst({
+        where: {
+          organizationId,
+          householdId: destId,
+          status: { in: [...LIVE_ALLOCATION_STATUSES] },
+        },
+      });
+      if (conflictingBooking) {
+        throw new ConflictError(
+          `Replacement house ${destHouse.houseNumber} was allocated to another occupant.`,
+        );
+      }
+
+      // Create new allocation for employee
+      const newAllocation = await tx.houseAllocation.create({
+        data: {
+          organizationId,
+          employeeId: allocation.employeeId,
+          householdId: destId,
+          status: "allocated",
+          decidedBy,
+          decidedAt: completedAt,
+          previousHouseholdId: vacatedHouse.id,
+          movedAt: completedAt,
+          moveCount: (allocation.moveCount || 0) + 1,
+        },
+      });
+      transferredAllocationId = newAllocation.id;
+
+      // Update destination house to Occupied
+      await tx.household.update({
+        where: { id: destId },
+        data: {
+          status: "Active",
+          occupancyStatus: "Occupied",
+        },
+      });
+
+      await createAuditLog({
+        userId: decidedBy,
+        action: AUDIT_ACTIONS.RELEASE,
+        entity: AUDIT_ENTITIES.HOUSE_QUEUE,
+        entityId: allocation.employeeId,
+        details: {
+          step: "transfer_completed",
+          outgoingAllocationId: allocation.id,
+          incomingAllocationId: newAllocation.id,
+          vacatedHouseNumber: vacatedHouse.houseNumber,
+          newHouseNumber: destHouse.houseNumber,
+          movedAt: completedAt.toISOString(),
+        },
+        tx,
+      });
+    }
+
+    // 4. Release finalization audit log
+    await createAuditLog({
+      userId: decidedBy,
+      action: AUDIT_ACTIONS.RELEASE,
+      entity: AUDIT_ENTITIES.HOUSE_QUEUE,
+      entityId: allocation.id,
+      details: {
+        step: "release_finalized",
+        allocationId: allocation.id,
+        inspectionId: inspection.id,
+        householdId: vacatedHouse.id,
+        hid: vacatedHouse.hid,
+        houseNumber: vacatedHouse.houseNumber,
+        branch: allocation.terminationReason,
+        resolvedTo,
+        terminatedAt: completedAt.toISOString(),
+      },
+      tx,
+    });
+  });
+
+  invalidateQueueAggregates(organizationId);
+
+  return {
+    allocationId: allocation.id,
+    householdId: vacatedHouse.id,
+    houseNumber: vacatedHouse.houseNumber,
+    hid: vacatedHouse.hid,
+    status: "released",
+    resolvedTo,
+    terminatedAt: completedAt.toISOString(),
+    transferredAllocationId,
+    transferHouseholdId: allocation.transferHouseholdId,
   };
 }
 

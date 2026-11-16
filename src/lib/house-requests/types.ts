@@ -71,7 +71,13 @@ export interface EmployeeSnapshot {
   hireDate: string | null;
   maritalStatus: string | null;
   familySize: number | null;
-  disabilityStatus: boolean;
+  /**
+   * Free-text disability as recorded on the employee record.
+   *
+   * `null` means "not recorded". Use `hasDisabilityRecord()` to decide whether
+   * a disability is on record; the value itself is the source's own wording.
+   */
+  disabilityStatus: string | null;
   employmentType: string;
   employmentStatus: string;
   phone: string | null;
@@ -137,6 +143,27 @@ export interface HouseRequestLookupResult {
 // ---------------------------------------------------------------------------
 
 /**
+ * Where the employee stands in the live House Queue.
+ *
+ * Present ONLY when the employee holds an open request — a person who has not
+ * asked for a house is not in the queue, so there is no position to report.
+ *
+ * `rank` is a position inside the employee's HOUSE BAND cohort, not a position
+ * in the whole queue: bands compete separately (Staff, then A, then B …), so
+ * "#2 of 7 in Type B" is the true statement and "#2 of 40" would be a lie.
+ */
+export interface QueueStandingSummary {
+  /** 1-based position inside the band cohort. Null when the employee is unranked. */
+  rank: number | null;
+  /** How many requesters compete in the same band. */
+  cohortSize: number | null;
+  /** The MCDA composite score behind the rank (0 – 1). */
+  score: number | null;
+  /** The band the employee competes in. */
+  category: HouseCategory | null;
+}
+
+/**
  * The Employee-ID verification response.
  *
  * A SUPERSET of {@link HouseRequestLookupResult}, not a second shape. The
@@ -169,7 +196,11 @@ export interface HouseRequestVerifyResult extends HouseRequestLookupResult {
   hireDate: string | null;
   serviceYears: number;
   maritalStatus: string | null;
-  disabilityStatus: boolean;
+  /**
+   * Free-text disability as recorded on the employee record. `null` means "not
+   * recorded"; `hasDisabilityRecord()` decides what counts as a recorded need.
+   */
+  disabilityStatus: string | null;
   /**
    * Employee photograph, when the deployment stores one.
    *
@@ -190,6 +221,14 @@ export interface HouseRequestVerifyResult extends HouseRequestLookupResult {
   alreadyHasActiveAllocation: boolean;
   /** The employee already holds a request that is still open. */
   hasOpenRequest: boolean;
+
+  /**
+   * The employee's live position in the House Queue.
+   *
+   * Null unless `hasOpenRequest` is true — a person who has not filed a request
+   * is not in the queue and therefore has no rank to show.
+   */
+  queue: QueueStandingSummary | null;
 }
 
 // ---------------------------------------------------------------------------

@@ -77,9 +77,7 @@ export default async function Page({
     employmentType: employee.employmentType as EmployeeDto["employmentType"],
     employmentStatus:
       employee.employmentStatus as EmployeeDto["employmentStatus"],
-    dateOfBirth: serializeDate(employee.dateOfBirth),
     hireDate: serializeDate(employee.hireDate),
-    terminationDate: serializeDate(employee.terminationDate),
     deletedAt: serializeDate(employee.deletedAt),
     createdAt: serializeDate(employee.createdAt) ?? "",
     updatedAt: serializeDate(employee.updatedAt) ?? "",
@@ -102,7 +100,6 @@ export default async function Page({
         ]}
       />
       <EmployeesTable
-        departments={departments}
         counts={counts}
         canCreate={permission(ctx!, "employee:create")}
         canExport={permission(ctx!, "employee:export")}

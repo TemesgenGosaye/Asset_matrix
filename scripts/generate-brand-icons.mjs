@@ -41,6 +41,17 @@ const PNG = {
 };
 
 /**
+ * Truecolour+alpha PNG. ICO entries must be RGBA — Next.js's image processor
+ * rejects the palette PNGs above ("The PNG is not in RGBA format!"), so the
+ * favicon sizes are encoded separately.
+ */
+const PNG_RGBA = {
+  compressionLevel: 9,
+  effort: 10,
+  palette: false,
+};
+
+/**
  * Trim the white padding off the source capture, then square it up.
  *
  * `trim` gives the badge's true bounds; the caller resizes from there, so the
@@ -57,8 +68,8 @@ async function trimmedBadge() {
  * keeps the yellow ring legible in dark mode, where the navbar background is
  * near-black.
  */
-function square(badge, size, { background = "#ffffff" } = {}) {
-  return sharp(badge)
+function square(badge, size, { background = "#ffffff", png = PNG, alpha = false } = {}) {
+  const img = sharp(badge)
     .resize(size, size, { fit: "contain", background })
     .extend({
       top: 0,
@@ -66,9 +77,8 @@ function square(badge, size, { background = "#ffffff" } = {}) {
       left: 0,
       right: 0,
       background,
-    })
-    .png(PNG)
-    .toBuffer();
+    });
+  return (alpha ? img.ensureAlpha() : img).png(png).toBuffer();
 }
 
 /**
@@ -148,7 +158,10 @@ async function main() {
     join(appDir, "favicon.ico"),
     buildIco(
       await Promise.all(
-        [16, 32, 48].map(async (size) => ({ size, png: await square(badge, size) })),
+        [16, 32, 48].map(async (size) => ({
+          size,
+          png: await square(badge, size, { png: PNG_RGBA, alpha: true }),
+        })),
       ),
     ),
   );

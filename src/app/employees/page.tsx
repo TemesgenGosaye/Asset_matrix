@@ -56,7 +56,6 @@ export default async function Page() {
         ]}
       />
       <EmployeesTable
-        departments={departments}
         counts={counts}
         canCreate={permission(ctx!, "employee:create")}
         canExport={permission(ctx!, "employee:export")}

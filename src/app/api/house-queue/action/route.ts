@@ -21,10 +21,9 @@ import { notifyOrgAdmins } from "@/lib/notify";
 //   skip / defer → house_queue:manage
 export async function POST(req: NextRequest) {
   try {
-    const requester = await requirePermission("house_queue:allocate");
-    requireNotDemoMode();
+    const demoBlock = requireNotDemoMode();
+    if (demoBlock) return demoBlock;
 
-    const orgId = await requireOrgId();
     const body = await req.json();
 
     if (!body || typeof body.action !== "string") {
@@ -34,14 +33,15 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const isSkipDefer = body.action === "skip" || body.action === "defer";
+    const requester = await requirePermission(
+      isSkipDefer ? "house_queue:manage" : "house_queue:allocate",
+    );
+    const orgId = await requireOrgId();
+
     const requesterId = requester.id;
     if (!requesterId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    // Skip/defer need the manage permission instead of allocate.
-    if (body.action === "skip" || body.action === "defer") {
-      await requirePermission("house_queue:manage");
     }
 
     switch (body.action) {
@@ -76,7 +76,12 @@ export async function POST(req: NextRequest) {
       }
       case "skip":
       case "defer": {
-        const data = validateBody(houseQueueSkipDeferSchema, body);
+        // The public contract uses `action`; the shared schema names the same
+        // value `mode`, so normalize here instead of rejecting a valid request.
+        const data = validateBody(houseQueueSkipDeferSchema, {
+          ...body,
+          mode: body.action,
+        });
         if (data instanceof NextResponse) return data;
         const result = await setSkipOrDefer({
           organizationId: orgId,

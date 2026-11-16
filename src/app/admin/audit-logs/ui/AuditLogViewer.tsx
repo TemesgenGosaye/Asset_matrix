@@ -456,7 +456,7 @@ export default function AuditLogViewer() {
     <Card>
       <CardHeader>
         <div className="flex items-center justify-between">
-          <CardTitle>Audit Logs</CardTitle>
+          <CardTitle>Audit Logs: የኦዲት መዝገቦች</CardTitle>
           <div className="flex gap-2">
             <Button
               variant="outline"
@@ -488,6 +488,7 @@ export default function AuditLogViewer() {
               <Search className="text-muted-foreground absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />
               <Input
                 placeholder="Search..."
+                autoFocus
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="pl-9"

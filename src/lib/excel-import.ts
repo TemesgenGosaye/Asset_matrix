@@ -306,6 +306,23 @@ export function cellToText(value: ExcelJS.CellValue): string {
 }
 
 /**
+ * The text a spreadsheet cell DISPLAYS.
+ *
+ * `cell.text` is the cell's formatted representation. It is the authoritative
+ * form for identifier columns: a cell formatted as text keeps its leading
+ * zeros ("007") and a numeric cell with a `00000` format displays "00007".
+ * `cellToText` cannot do that, because it works on the raw value.
+ *
+ * Falls back to the raw value when the cell has no displayable text, which
+ * happens for a formula whose result has not been calculated yet.
+ */
+export function cellDisplayText(cell: ExcelJS.Cell): string {
+  const text = typeof cell.text === "string" ? cell.text.trim() : "";
+  if (text.length > 0) return text;
+  return cellToText(cell.value);
+}
+
+/**
  * Parse a flexible date value: Date, Excel serial, ISO, or common formats.
  *
  * Every branch returns the date at **UTC midnight**, deliberately. Callers
@@ -944,19 +961,40 @@ export interface SheetData {
   name: string;
   rowCount: number;
   headers: string[];
+  /**
+   * Zero-based index of the header row inside `rows`.
+   *
+   * A workbook often starts with a title or an instruction row, so the header
+   * is the first row that has any content, not necessarily the first row of
+   * the sheet. Consumers that report row numbers use this to report the real
+   * worksheet row instead of an offset guess.
+   */
+  headerRowIndex: number;
   rows: string[][]; // 2D array of cell text values
+  /**
+   * The DISPLAYED text of every cell, in the same shape as `rows`.
+   *
+   * Only populated when `parseWorkbook` is asked for it. It exists so a
+   * consumer that imports identifiers (where leading zeros matter) can read
+   * the formatted cell text instead of the raw value.
+   */
+  displayRows?: string[][];
 }
 
 /**
  * Parse an uploaded .xlsx/.xls or .csv buffer into SheetData.
  * For CSV, returns a single virtual sheet named "Sheet1".
+ *
+ * `options.keepDisplayText` additionally returns each cell's formatted text,
+ * which is what identifier columns need so leading zeros survive.
  */
 export async function parseWorkbook(
   buffer: Buffer,
   fileName: string,
+  options: { keepDisplayText?: boolean } = {},
 ): Promise<SheetData[]> {
   if (isExcelFileName(fileName)) {
-    return parseExcelBuffer(buffer);
+    return parseExcelBuffer(buffer, options.keepDisplayText === true);
   }
   if (isCsvFileName(fileName)) {
     return parseCsvBuffer(buffer);
@@ -964,7 +1002,10 @@ export async function parseWorkbook(
   throw new Error(`Unsupported file type: ${fileName}`);
 }
 
-async function parseExcelBuffer(buffer: Buffer): Promise<SheetData[]> {
+async function parseExcelBuffer(
+  buffer: Buffer,
+  keepDisplayText = false,
+): Promise<SheetData[]> {
   const wb = new ExcelJS.Workbook();
   await wb.xlsx.load(buffer as unknown as ExcelJS.Buffer);
 
@@ -974,15 +1015,19 @@ async function parseExcelBuffer(buffer: Buffer): Promise<SheetData[]> {
 
     const maxCol = ws.actualColumnCount || 1;
     const rows: string[][] = [];
+    const displayRows: string[][] = [];
     let foundFirstRow = false;
 
     ws.eachRow({ includeEmpty: true }, (row) => {
       const rowValues: string[] = [];
+      const displayValues: string[] = [];
       for (let c = 1; c <= maxCol; c++) {
         const cell = row.getCell(c);
         rowValues.push(cellToText(cell.value));
+        displayValues.push(cellDisplayText(cell));
       }
       rows.push(rowValues);
+      displayRows.push(displayValues);
       foundFirstRow = true;
     });
 
@@ -1004,12 +1049,20 @@ async function parseExcelBuffer(buffer: Buffer): Promise<SheetData[]> {
       name: ws.name || "Sheet1",
       rowCount: rows.length,
       headers,
+      headerRowIndex: headerRowIdx,
       rows,
+      ...(keepDisplayText ? { displayRows } : {}),
     });
   }
 
   if (sheets.length === 0) {
-    sheets.push({ name: "Sheet1", rowCount: 0, headers: [], rows: [] });
+    sheets.push({
+      name: "Sheet1",
+      rowCount: 0,
+      headers: [],
+      headerRowIndex: 0,
+      rows: [],
+    });
   }
 
   return sheets;
@@ -1063,7 +1116,15 @@ async function parseCsvBuffer(buffer: Buffer): Promise<SheetData[]> {
   const text = buffer.toString("utf-8");
   const lines = text.split(/\r?\n/).filter((l) => l.trim() !== "");
   if (lines.length === 0) {
-    return [{ name: "Sheet1", rowCount: 0, headers: [], rows: [] }];
+    return [
+      {
+        name: "Sheet1",
+        rowCount: 0,
+        headers: [],
+        headerRowIndex: 0,
+        rows: [],
+      },
+    ];
   }
   const delimiter = detectDelimiter(lines[0]);
   const rows = lines.map((l) => parseCsvLine(l, delimiter));
@@ -1073,6 +1134,7 @@ async function parseCsvBuffer(buffer: Buffer): Promise<SheetData[]> {
       name: "Sheet1",
       rowCount: rows.length,
       headers,
+      headerRowIndex: 0,
       rows,
     },
   ];

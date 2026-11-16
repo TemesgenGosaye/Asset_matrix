@@ -52,17 +52,6 @@ enum Gender {
 }
 
 /**
- * Marital status enum for employees. Member names are lowercase to match the
- * House Queue MCDA scoring engine lookup tables.
- */
-enum MaritalStatus {
-  single
-  married
-
-  @@schema("public")
-}
-
-/**
  * Kind of premises rented out by the factory (Pay Rent module). `Other` is only
  * valid when `rentTypeDetail` explains what is being rented.
  */
@@ -149,6 +138,7 @@ model Organization {
   purchaseRequests         PurchaseRequest[]
   purchaseOrders           PurchaseOrder[]
   employees                Employee[]
+  employeeProfiles         EmployeeProfile[]
   households               Household[]
   generalAssets            GeneralAsset[]
   houseAllocations         HouseAllocation[]
@@ -163,6 +153,7 @@ model Organization {
   rentInstallments         RentInstallment[]
   rentPayments             RentPayment[]
   rentReceiptSequences     RentReceiptSequence[]
+  navigationPreferences    NavigationPreference[]
 
   @@map("organizations")
   @@schema("public")
@@ -1162,6 +1153,7 @@ model user {
   maintenance_logs                 maintenance_logs[]
   maintenance_schedules            maintenance_schedules[]
   notification_preferences         notification_preferences?
+  navigation_preference            NavigationPreference?
   notification_queue               notification_queue[]
   organization                     Organization?             @relation(fields: [organizationId], references: [id], onDelete: SetNull)
   roles                            UserRole[]
@@ -1306,12 +1298,35 @@ model user_preferences {
   numberFormat        String   @default("1,234.56") @db.VarChar(20)
   pageSize            Int      @default(20)
   onboardingCompleted Boolean  @default(false)
+  showRecommendedPopup Boolean @default(true)
   dashboardLayout     Json?
   helpDismissed       Json?
   createdAt           DateTime @default(now()) @db.Timestamp(6)
   updatedAt           DateTime @db.Timestamp(6)
   user                user     @relation(fields: [userId], references: [userid], onDelete: Cascade)
 
+  @@schema("public")
+}
+
+/// Per-user navigation visibility preference.
+///
+/// Stores only the HIDDEN menu keys (from `lib/navigation/registry.ts`), so a
+/// menu added in a future release is visible by default without a backfill.
+/// The organisation-wide default lives in `Organization.settings`, not here:
+/// it has no single owning user and Prisma cannot express a nullable unique
+/// "one per org" row cleanly on this table.
+model NavigationPreference {
+  id             String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId         String       @unique @db.Uuid
+  organizationId String?      @db.Uuid
+  hiddenKeys     String[]     @default([])
+  createdAt      DateTime     @default(now()) @db.Timestamp(6)
+  updatedAt      DateTime     @default(now()) @db.Timestamp(6)
+  user           user         @relation(fields: [userId], references: [userid], onDelete: Cascade)
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId])
+  @@map("navigation_preferences")
   @@schema("public")
 }
 
@@ -1766,15 +1781,15 @@ model Employee {
   organizationId String       @db.Uuid
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
-  // Linked system user (optional) — enables tie-in with login accounts
+  // Linked system user (optional) — enables tie-in with login accounts.
   userid String? @unique @db.Uuid
   user   user?   @relation("employee_user", fields: [userid], references: [userid], onDelete: SetNull)
 
-  // Department
+  // Department assignment. A relationship key, not an employee business field.
   departmentId String?     @db.Uuid
   department   Department? @relation(fields: [departmentId], references: [id], onDelete: SetNull)
 
-  // Reporting manager (self-reference)
+  // Reporting manager (self-reference). A relationship key, not business data.
   managerId String?    @db.Uuid
   manager   Employee?  @relation("EmployeeManager", fields: [managerId], references: [id], onDelete: SetNull)
   reports   Employee[] @relation("EmployeeManager")
@@ -1786,40 +1801,33 @@ model Employee {
   // what gates entry to the House Queue.
   requests HouseRequest[]
 
-  // Personal information
-  employeeNumber String    @unique @db.VarChar(50)
-  firstname      String    @db.VarChar(100)
-  lastname       String    @db.VarChar(100)
-  // No `email` column. It was NOT NULL + unique but the service could not meet
-  // the constraint when HR left the address out, so it synthesised
-  // `<empid-slug>@placeholder.invalid` and reported it for later correction.
-  // Nobody ever corrected it, and those addresses cannot receive mail. Nothing
-  // authenticates against this column: BetterAuth signs users in on
-  // `user.email`, and an Employee is tied to a login account by `Employee.userid`.
-  // See migration 20261004000000_drop_employee_email.
-  phone          String?   @db.VarChar(25)
-  dateOfBirth    DateTime? @db.Date
-  gender         Gender?
-  nationalId     String?   @db.VarChar(64)
-  address        String?   @db.VarChar(255)
-  city           String?   @db.VarChar(100)
-  state          String?   @db.VarChar(100)
-  country        String?   @db.VarChar(100)
-  postalCode     String?   @db.VarChar(20)
+  // ---------------------------------------------------------------------
+  // THE CANONICAL EIGHT BUSINESS FIELDS
+  // ---------------------------------------------------------------------
+  // The physical column names are the approved schema names. Prisma keeps the
+  // historical TypeScript field names so the rest of the application does not
+  // have to churn; the @map directives are the single source of that mapping.
+  //
+  // No other business attribute belongs on this table. Retained attributes
+  // (National ID, job title, employment type/status, hire date, family size,
+  // phone, address, notes) live in `EmployeeProfile`. Department, manager and
+  // linked-user remain as relationship keys.
+  employeeNumber   String  @unique @map("emp_id") @db.VarChar(50)
+  firstname        String  @map("first_name") @db.VarChar(100)
+  lastname         String  @map("last_name") @db.VarChar(100)
+  gender           Gender?
+  jobGrade         Int?    @map("job_grade") @db.SmallInt
+  /// Whole-number count of years of service. Used by House Queue ranking.
+  serviceYears     Int?    @map("service_years") @db.SmallInt
+  /// One of single | married | widowed | divorced. Enforced by a CHECK
+  /// constraint so the database and the application agree.
+  maritalStatus    String? @map("marital_status")
+  /// Free text from the source ("Yes", "None", "Physical impairment", ...).
+  /// `null` means "not recorded", NOT "not disabled".
+  disabilityStatus String? @map("disability") @db.VarChar(100)
 
-  // Employment information
-  jobTitle         String?   @db.VarChar(100)
-  employmentType   String    @default("full_time") @db.VarChar(30)
-  employmentStatus String    @default("active") @db.VarChar(30)
-  jobGrade         Int?      @db.SmallInt
-  hireDate         DateTime? @db.Date
-  terminationDate  DateTime? @db.Date
-  notes            String?   @db.VarChar(1000)
-
-  // Housing indicators (used by the House Queue eligibility engine)
-  maritalStatus    MaritalStatus?
-  familySize       Int?           @db.SmallInt
-  disabilityStatus Boolean        @default(false)
+  // Retained employee attributes that other modules still depend on.
+  profile EmployeeProfile?
 
   // Soft delete
   deletedAt DateTime? @db.Timestamp(6)
@@ -1828,15 +1836,72 @@ model Employee {
   updatedAt DateTime @updatedAt @db.Timestamp(6)
 
   @@unique([organizationId, employeeNumber])
-  @@unique([organizationId, nationalId])
   @@index([organizationId])
   @@index([organizationId, deletedAt])
   @@index([departmentId])
   @@index([organizationId, departmentId])
   @@index([managerId])
-  @@index([employmentStatus])
   @@index([organizationId, jobGrade])
+  @@index([organizationId, serviceYears])
+  @@index([organizationId, maritalStatus])
   @@index([organizationId, lastname, firstname])
+  @@schema("public")
+}
+
+/**
+ * Retained employee attributes, separated from the canonical eight-field
+ * Employee row.
+ *
+ * WHY A SEPARATE TABLE:
+ *   The approved employee schema is exactly eight business columns. The
+ *   House Request eligibility gate, House Queue ranking, employee detail page
+ *   and login tie-in still need attributes the canonical schema deliberately
+ *   dropped (employment status/type, hire date, family size, job title,
+ *   National ID, contact details). Deleting them would break those modules;
+ *   keeping them on Employee would violate the eight-field contract. This
+ *   one-to-one table is the compromise: the canonical row stays pure, the
+ *   dependent data is preserved and can be joined only where it is needed.
+ *
+ *   The row is created with every employee. Import and the eight-field form
+ *   only ever write the canonical columns; defaults keep employment status
+ *   "active" so a newly imported employee is immediately eligible to file a
+ *   house request.
+ */
+model EmployeeProfile {
+  employeeId     String       @id @db.Uuid
+  employee       Employee     @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  organizationId String       @db.Uuid
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  /// Identity document used by the House Request verification step.
+  nationalId String? @db.VarChar(64)
+  jobTitle   String? @db.VarChar(100)
+
+  /// House Request eligibility gate: only `active` employees may request.
+  employmentType   String @default("full_time") @db.VarChar(30)
+  employmentStatus String @default("active") @db.VarChar(30)
+  hireDate         DateTime? @db.Date
+  terminationDate  DateTime? @db.Date
+  /// Household size used as a queue tiebreaker.
+  familySize       Int?      @db.SmallInt
+
+  phone       String?   @db.VarChar(25)
+  dateOfBirth DateTime? @db.Date
+  address     String?   @db.VarChar(255)
+  city        String?   @db.VarChar(100)
+  state       String?   @db.VarChar(100)
+  country     String?   @db.VarChar(100)
+  postalCode  String?   @db.VarChar(20)
+  notes       String?   @db.VarChar(1000)
+
+  createdAt DateTime @default(now()) @db.Timestamp(6)
+  updatedAt DateTime @updatedAt @db.Timestamp(6)
+
+  @@unique([organizationId, nationalId])
+  @@index([organizationId])
+  @@index([employmentStatus])
+  @@index([organizationId, employmentStatus])
+  @@map("employee_profiles")
   @@schema("public")
 }
 
@@ -1970,6 +2035,7 @@ model Household {
 
   allocations              HouseAllocation[]
   previousAllocations      HouseAllocation[]         @relation("AllocationPreviousHousehold")
+  transferAllocations      HouseAllocation[]         @relation("AllocationTransferHousehold")
   inspections              HouseInspection[]
   houseTerminationReceipts HouseTerminationReceipt[]
 
@@ -2016,6 +2082,8 @@ model HouseAllocation {
   terminationReason HouseTerminationReason?
   terminatedAt      DateTime?               @db.Timestamp(6)
   terminatedBy      String?                 @db.Uuid
+  effectiveDate     DateTime?               @db.Date
+  transferHouseholdId String?               @db.Uuid
 
   // Relocation (transfer / reassignment) history. Filled when the Queue
   // reassigns a live allocation to a different house: the vacated house is
@@ -2031,6 +2099,7 @@ model HouseAllocation {
   employee            Employee                  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
   household           Household?                @relation(fields: [householdId], references: [id], onDelete: SetNull)
   householdPrev       Household?                @relation("AllocationPreviousHousehold", fields: [previousHouseholdId], references: [id], onDelete: SetNull)
+  transferHousehold   Household?                @relation("AllocationTransferHousehold", fields: [transferHouseholdId], references: [id], onDelete: SetNull)
   inspection          HouseInspection?
   terminationReceipts HouseTerminationReceipt[]
 
@@ -2066,7 +2135,7 @@ model HouseInspection {
   // the release that produced it and only ever moves on to COMPLETED, so this is
   // a read-optimised duplicate of `resolvedTo`: a manager filtering the
   // worklist by lifecycle should not have to reason about two nullable columns.
-  status String                  @default("SCHEDULED") @db.VarChar(20)
+  status String                  @default("PENDING") @db.VarChar(20)
   // The exit branch that raised this inspection, copied from the release row so
   // a handback can be read without joining back to the allocation.
   reason HouseTerminationReason?

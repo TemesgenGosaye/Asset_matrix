@@ -19,13 +19,13 @@ import {
   Building2,
   CalendarClock,
   Download,
-  Eye,
   MoreVertical,
   Plus,
   RefreshCw,
   RotateCcw,
   Search,
   Trash2,
+  TriangleAlert,
   Upload,
   UserCheck,
   Users,
@@ -36,6 +36,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ResponsiveTable, type Column } from "@/components/ui/responsive-table";
 import {
@@ -79,19 +80,20 @@ import {
   GENDER_OPTIONS,
   MARITAL_STATUS_LABELS,
   MARITAL_STATUS_OPTIONS,
+  MISSING_JOB_GRADE_LABEL,
+  MISSING_JOB_GRADE_NOTICE,
+  disabilityDisplayLabel,
+  hasDisabilityRecord,
   labelOrDash,
 } from "@/lib/employees/constants";
-import { DepartmentCombobox } from "./DepartmentCombobox";
 import { EmployeeImportDialog } from "./EmployeeImportDialog";
 import { EmployeeFormModal } from "./EmployeeFormModal";
 import { EmployeeDetailModal } from "./EmployeeDetailModal";
 import { EditIcon, DeleteIcon } from "@/ui/Icons";
 
 const PAGE_SIZE_OPTIONS = ["10", "25", "50", "100"] as const;
-const SEARCH_DEBOUNCE_MS = 300;
 
 export interface EmployeesTableProps {
-  departments: EmployeeReferenceOption[];
   counts: EmployeeCounts;
   canCreate?: boolean;
   canExport?: boolean;
@@ -116,50 +118,54 @@ function initials(item: Pick<EmployeeDto, "firstname" | "lastname">): string {
 }
 
 /**
- * EXACT 9 REQUIRED COLUMNS IN STRICT ORDER:
- * 1. SrNo
- * 2. Employee Name
- * 3. Emp ID
+ * EXACTLY 8 COLUMNS, IN STRICT ORDER:
+ * 1. Emp ID
+ * 2. First Name
+ * 3. Last Name
  * 4. Gender
  * 5. Job Grade
- * 6. Department
+ * 6. Service Years
  * 7. Marital Status
- * 8. National ID
- * 9. Disability
- * + Actions column
+ * 8. Disability
+ *
+ * There is no ninth column: the row actions and the selection checkbox live
+ * inside the Emp ID cell, so the table shows the eight canonical employee
+ * fields and nothing else.
  */
 const REQUIRED_COLUMNS: Column[] = [
-  { key: "srNo", label: "SrNo", align: "center", className: "w-16" },
-  { key: "employeeName", label: "Employee Name", align: "left" },
-  { key: "employeeNumber", label: "Emp ID", align: "left", className: "w-32" },
+  { key: "employeeNumber", label: "Emp ID", align: "left", className: "w-64" },
+  { key: "firstname", label: "First Name", align: "left" },
+  { key: "lastname", label: "Last Name", align: "left" },
   { key: "gender", label: "Gender", align: "left", className: "w-28" },
-  { key: "jobGrade", label: "Job Grade", align: "center", className: "w-28" },
-  { key: "department", label: "Department", align: "left" },
+  { key: "jobGrade", label: "Job Grade", align: "center", className: "w-32" },
+  {
+    key: "serviceYears",
+    label: "Service Years",
+    align: "center",
+    className: "w-28",
+  },
   {
     key: "maritalStatus",
     label: "Marital Status",
     align: "left",
     className: "w-32",
   },
-  { key: "nationalId", label: "National ID", align: "left", className: "w-36" },
   {
     key: "disabilityStatus",
     label: "Disability",
     align: "center",
-    className: "w-28",
+    className: "w-48",
   },
-  { key: "actions", label: "Actions", align: "right", className: "w-20" },
 ];
 
 const SORTABLE_COLUMNS: Record<string, EmployeeSortField> = {
-  employeeName: "lastname",
   employeeNumber: "employeeNumber",
+  firstname: "firstname",
+  lastname: "lastname",
   jobGrade: "jobGrade",
-  department: "department",
 };
 
 export default function EmployeesTable({
-  departments,
   counts,
   canCreate = true,
   canExport = true,
@@ -253,17 +259,8 @@ export default function EmployeesTable({
     }
   }, []);
 
-  // Search debounce effect
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setQuery((prev) =>
-        prev.search === searchDraft
-          ? prev
-          : { ...prev, search: searchDraft, page: 1 },
-      );
-    }, SEARCH_DEBOUNCE_MS);
-    return () => clearTimeout(timer);
-  }, [searchDraft]);
+  // Search submit is explicit (Search button / Enter), so results only change
+  // when the user confirms the term.
 
   // Fetch when query changes. The fetch is started on a microtask so the
   // loading/error flags update outside the commit phase instead of cascading a
@@ -300,6 +297,20 @@ export default function EmployeesTable({
     [],
   );
 
+  // The Search button and the Enter key both apply the typed term and reset to
+  // the first page.
+  const submitSearch = useCallback(() => {
+    applyFilter("search", searchDraft);
+  }, [applyFilter, searchDraft]);
+
+  // Clearing the box also clears the applied term so results reset immediately.
+  const clearSearch = useCallback(() => {
+    setSearchDraft("");
+    setQuery((prev) =>
+      prev.search === "" ? prev : { ...prev, search: "", page: 1 },
+    );
+  }, []);
+
   const toggleSort = useCallback((field: EmployeeSortField) => {
     setQuery((prev) => ({
       ...prev,
@@ -335,7 +346,7 @@ export default function EmployeesTable({
     query.departmentId !== ALL ||
     query.gender !== ALL ||
     query.maritalStatus !== ALL ||
-    query.disabilityStatus !== ALL ||
+    query.disability !== ALL ||
     query.jobGradeFrom !== "" ||
     query.jobGradeTo !== "" ||
     query.search.trim() !== "" ||
@@ -507,158 +518,64 @@ export default function EmployeesTable({
     [refresh],
   );
 
-  // Cell renderer enforcing the exact 9 columns in order
+  // Selection is offered on live rows when the user may archive them, and on
+  // archived rows when the user may restore them.
+  const canSelectRows =
+    (canDelete && !query.onlyDeleted) || (canRestore && query.onlyDeleted);
+
+  const toggleRowSelection = useCallback((id: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const allPageRowsSelected =
+    rows.length > 0 && rows.every((row) => selected.has(row.id));
+
+  const toggleSelectAllOnPage = useCallback(() => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (rows.every((row) => next.has(row.id))) {
+        rows.forEach((row) => next.delete(row.id));
+      } else {
+        rows.forEach((row) => next.add(row.id));
+      }
+      return next;
+    });
+  }, [rows]);
+
+  // Cell renderer enforcing the exact 8 columns in order
   const renderCell = useCallback(
     (item: EmployeeDto, key: string) => {
       switch (key) {
-        // 1. SrNo: auto-generated sequence number for display
-        case "srNo":
-          return (
-            <span className="text-muted-foreground font-mono text-xs tabular-nums">
-              {item.srNo}
-            </span>
-          );
-
-        // 2. Employee Name
-        case "employeeName":
-          return (
-            <button
-              type="button"
-              onClick={() => openViewProfile(item)}
-              className="group flex items-center gap-2.5 text-left transition-opacity hover:opacity-80"
-            >
-              <div className="bg-primary/10 border-primary/20 text-primary flex h-8 w-8 shrink-0 items-center justify-center rounded-full border text-xs font-semibold">
-                {initials(item)}
-              </div>
-              <div className="flex min-w-0 flex-col">
-                <span className="group-hover:text-primary truncate text-sm font-semibold group-hover:underline">
-                  {fullName(item)}
-                </span>
-                <span className="text-muted-foreground truncate text-xs">
-                  {item.jobTitle || item.employeeNumber}
-                </span>
-              </div>
-            </button>
-          );
-
-        // 3. Emp ID
+        // 1. Emp ID — carries the selection checkbox and the row actions, so
+        // the table itself stays at exactly eight columns.
         case "employeeNumber":
           return (
-            <span className="bg-muted/30 border-border/50 rounded border px-2 py-0.5 font-mono text-xs font-medium">
-              {item.employeeNumber}
-            </span>
-          );
-
-        // 4. Gender
-        case "gender":
-          return (
-            <span className="text-sm">
-              {labelOrDash(GENDER_LABELS, item.gender)}
-            </span>
-          );
-
-        // 5. Job Grade
-        case "jobGrade":
-          return item.jobGrade != null ? (
-            <Badge
-              variant="secondary"
-              className="font-mono text-xs font-semibold"
-            >
-              Grade {item.jobGrade}
-            </Badge>
-          ) : (
-            <span className="text-muted-foreground">—</span>
-          );
-
-        // 6. Department: foreign-key relation to Department model
-        case "department":
-          return item.department ? (
-            <div className="flex min-w-0 items-center gap-1.5">
-              <Building2 className="text-muted-foreground h-3.5 w-3.5 shrink-0" />
-              <span className="truncate text-sm font-medium">
-                {item.department.name}
-              </span>
-              {item.department.code ? (
-                <span className="text-muted-foreground font-mono text-[11px]">
-                  ({item.department.code})
-                </span>
+            <div className="flex items-center gap-2">
+              {canSelectRows ? (
+                <Checkbox
+                  checked={selected.has(item.id)}
+                  onCheckedChange={() => toggleRowSelection(item.id)}
+                  aria-label={`Select ${fullName(item)}`}
+                />
               ) : null}
-            </div>
-          ) : (
-            <span className="text-muted-foreground text-xs italic">
-              Unassigned
-            </span>
-          );
 
-        // 7. Marital Status
-        case "maritalStatus":
-          return (
-            <span className="text-sm">
-              {labelOrDash(MARITAL_STATUS_LABELS, item.maritalStatus)}
-            </span>
-          );
-
-        // 8. National ID (unique, validated, masked where appropriate)
-        case "nationalId":
-          return item.nationalId ? (
-            <span
-              className="font-mono text-xs"
-              title={
-                item.nationalIdMasked
-                  ? "Full National ID is restricted to authorized personnel."
-                  : "Validated National ID"
-              }
-            >
-              {item.nationalId}
-              {item.nationalIdMasked ? (
-                <span className="text-muted-foreground/70 bg-muted ml-1 rounded px-1 py-0.5 text-[10px] tracking-wider uppercase">
-                  masked
-                </span>
-              ) : null}
-            </span>
-          ) : (
-            <span className="text-muted-foreground">—</span>
-          );
-
-        // 9. Disability (Yes/No)
-        case "disabilityStatus":
-          return item.disabilityStatus ? (
-            <Badge className="border-amber-500/30 bg-amber-500/20 text-xs text-amber-500">
-              Yes
-            </Badge>
-          ) : (
-            <span className="text-muted-foreground text-xs font-medium">
-              No
-            </span>
-          );
-
-        // Actions
-        case "actions":
-          return (
-            <div className="flex items-center justify-end gap-1">
-              <Button
-                size="icon"
-                variant="ghost"
-                className="text-muted-foreground hover:text-foreground h-7 w-7"
+              <button
+                type="button"
                 onClick={() => openViewProfile(item)}
-                title="View full profile"
-                aria-label={`View ${fullName(item)}`}
+                className="group flex items-center gap-2.5 text-left transition-opacity hover:opacity-80"
               >
-                <Eye className="h-3.5 w-3.5" />
-              </Button>
-
-              {canEdit ? (
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  className="text-muted-foreground hover:text-foreground h-7 w-7"
-                  onClick={() => openEditForm(item)}
-                  title="Edit employee"
-                  aria-label={`Edit ${fullName(item)}`}
-                >
-                  <EditIcon className="h-3.5 w-3.5" />
-                </Button>
-              ) : null}
+                <div className="bg-primary/10 border-primary/20 text-primary flex h-8 w-8 shrink-0 items-center justify-center rounded-full border text-xs font-semibold">
+                  {initials(item)}
+                </div>
+                <span className="bg-muted/30 border-border/50 rounded border px-2 py-0.5 font-mono text-xs font-medium group-hover:text-primary group-hover:underline">
+                  {item.employeeNumber}
+                </span>
+              </button>
 
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -666,14 +583,14 @@ export default function EmployeesTable({
                     size="icon"
                     variant="ghost"
                     className="text-muted-foreground hover:text-foreground h-7 w-7"
-                    aria-label={`More options for ${fullName(item)}`}
+                    aria-label={`Options for ${fullName(item)}`}
                   >
                     <MoreVertical className="h-3.5 w-3.5" />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-40">
                   <DropdownMenuItem onClick={() => openViewProfile(item)}>
-                    <Eye className="mr-2 h-4 w-4" />
+                    <Users className="mr-2 h-4 w-4" />
                     View Details
                   </DropdownMenuItem>
 
@@ -711,6 +628,95 @@ export default function EmployeesTable({
             </div>
           );
 
+        // 2. First Name
+        case "firstname":
+          return (
+            <span className="text-sm font-medium">{item.firstname}</span>
+          );
+
+        // 3. Last Name
+        case "lastname":
+          return (
+            <span className="text-sm font-medium">{item.lastname}</span>
+          );
+
+        // 4. Gender
+        case "gender":
+          return (
+            <span className="text-sm">
+              {labelOrDash(GENDER_LABELS, item.gender)}
+            </span>
+          );
+
+        // 5. Job Grade — a missing grade is called out, because house
+        // eligibility and the House Queue ranking are both derived from it.
+        case "jobGrade":
+          return item.jobGrade != null ? (
+            <Badge
+              variant="secondary"
+              className="font-mono text-xs font-semibold"
+            >
+              Grade {item.jobGrade}
+            </Badge>
+          ) : (
+            <Badge
+              variant="warning"
+              className="gap-1 text-xs"
+              title={MISSING_JOB_GRADE_NOTICE}
+            >
+              <TriangleAlert className="h-3 w-3" />
+              {MISSING_JOB_GRADE_LABEL}
+            </Badge>
+          );
+
+        // 6. Service Years
+        case "serviceYears":
+          return item.serviceYears != null ? (
+            <span className="font-mono text-xs font-semibold tabular-nums">
+              {item.serviceYears} yr{item.serviceYears !== 1 ? "s" : ""}
+            </span>
+          ) : (
+            <span className="text-muted-foreground">—</span>
+          );
+
+        // 7. Marital Status
+        case "maritalStatus":
+          return (
+            <span className="text-sm">
+              {labelOrDash(MARITAL_STATUS_LABELS, item.maritalStatus)}
+            </span>
+          );
+
+        // 8. Disability — one of two labels, plus the MCDA priority score when
+        // the record states a disability.
+        case "disabilityStatus":
+          return hasDisabilityRecord(item.disabilityStatus) ? (
+            <div className="flex flex-col items-center gap-1">
+              <Badge className="border-amber-500/30 bg-amber-500/20 text-xs text-amber-500">
+                {disabilityDisplayLabel(item.disabilityStatus)}
+              </Badge>
+              {item.mcdaScore != null ? (
+                <span
+                  className="text-muted-foreground font-mono text-[10px] tabular-nums"
+                  title={
+                    item.mcdaRank != null && item.mcdaCohortSize != null
+                      ? `MCDA priority score ${item.mcdaScore.toFixed(3)} — rank ${item.mcdaRank} of ${item.mcdaCohortSize} in this job-grade band`
+                      : `MCDA priority score ${item.mcdaScore.toFixed(3)}`
+                  }
+                >
+                  MCDA {item.mcdaScore.toFixed(3)}
+                  {item.mcdaRank != null && item.mcdaCohortSize != null
+                    ? ` · #${item.mcdaRank}/${item.mcdaCohortSize}`
+                    : ""}
+                </span>
+              ) : null}
+            </div>
+          ) : (
+            <span className="text-muted-foreground text-xs font-medium">
+              {disabilityDisplayLabel(item.disabilityStatus)}
+            </span>
+          );
+
         default:
           return null;
       }
@@ -721,6 +727,9 @@ export default function EmployeesTable({
       canEdit,
       canDelete,
       canRestore,
+      canSelectRows,
+      selected,
+      toggleRowSelection,
       query.onlyDeleted,
       handleRestore,
     ],
@@ -745,6 +754,9 @@ export default function EmployeesTable({
   const showingFrom =
     meta.total === 0 ? 0 : (meta.page - 1) * meta.pageSize + 1;
   const showingTo = Math.min(meta.page * meta.pageSize, meta.total);
+  const missingJobGradeCount = rows.filter(
+    (row) => row.jobGrade == null && !row.deletedAt,
+  ).length;
 
   return (
     <div className="w-full space-y-6">
@@ -753,7 +765,7 @@ export default function EmployeesTable({
         <div>
           <h1 className="text-foreground flex items-center gap-2 text-2xl font-bold tracking-tight">
             <Users className="text-primary h-7 w-7" />
-            Employee Register
+            Employee Register: ሠራተኞች
           </h1>
           <p className="text-muted-foreground mt-1 text-sm">
             Maintain staff records, department assignments, and housing
@@ -783,28 +795,34 @@ export default function EmployeesTable({
       </div>
 
       {/* ─── Metric Stat Cards ─── */}
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
-        <div className="bg-card rounded-xl border p-4 shadow-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-muted-foreground text-xs font-medium">
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
+        <div className="bg-card rounded-xl border p-4 shadow-sm transition-shadow hover:shadow-md">
+          <div className="flex items-start justify-between gap-3">
+            <span className="text-muted-foreground text-[11px] font-semibold tracking-wider uppercase">
               Total Employees
             </span>
-            <Users className="text-primary h-4 w-4" />
+            <span className="bg-primary/10 text-primary ring-primary/15 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ring-1">
+              <Users className="h-4 w-4" />
+            </span>
           </div>
-          <div className="mt-2 text-2xl font-bold">{counts.total}</div>
+          <div className="mt-2 text-2xl font-bold tabular-nums">
+            {counts.total}
+          </div>
           <p className="text-muted-foreground mt-1 text-[11px]">
             Live records in register
           </p>
         </div>
 
-        <div className="bg-card rounded-xl border p-4 shadow-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-muted-foreground text-xs font-medium">
+        <div className="bg-card rounded-xl border p-4 shadow-sm transition-shadow hover:shadow-md">
+          <div className="flex items-start justify-between gap-3">
+            <span className="text-muted-foreground text-[11px] font-semibold tracking-wider uppercase">
               Active
             </span>
-            <UserCheck className="h-4 w-4 text-emerald-600" />
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-600 ring-1 ring-emerald-500/20 dark:text-emerald-400">
+              <UserCheck className="h-4 w-4" />
+            </span>
           </div>
-          <div className="mt-2 text-2xl font-bold text-emerald-600 dark:text-emerald-400">
+          <div className="mt-2 text-2xl font-bold text-emerald-600 tabular-nums dark:text-emerald-400">
             {counts.active}
           </div>
           <p className="text-muted-foreground mt-1 text-[11px]">
@@ -812,14 +830,16 @@ export default function EmployeesTable({
           </p>
         </div>
 
-        <div className="bg-card rounded-xl border p-4 shadow-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-muted-foreground text-xs font-medium">
+        <div className="bg-card rounded-xl border p-4 shadow-sm transition-shadow hover:shadow-md">
+          <div className="flex items-start justify-between gap-3">
+            <span className="text-muted-foreground text-[11px] font-semibold tracking-wider uppercase">
               On Leave
             </span>
-            <CalendarClock className="h-4 w-4 text-amber-600" />
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-amber-500/10 text-amber-600 ring-1 ring-amber-500/20 dark:text-amber-400">
+              <CalendarClock className="h-4 w-4" />
+            </span>
           </div>
-          <div className="mt-2 text-2xl font-bold text-amber-600 dark:text-amber-400">
+          <div className="mt-2 text-2xl font-bold text-amber-600 tabular-nums dark:text-amber-400">
             {counts.onLeave}
           </div>
           <p className="text-muted-foreground mt-1 text-[11px]">
@@ -827,14 +847,16 @@ export default function EmployeesTable({
           </p>
         </div>
 
-        <div className="bg-card rounded-xl border p-4 shadow-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-muted-foreground text-xs font-medium">
+        <div className="bg-card rounded-xl border p-4 shadow-sm transition-shadow hover:shadow-md">
+          <div className="flex items-start justify-between gap-3">
+            <span className="text-muted-foreground text-[11px] font-semibold tracking-wider uppercase">
               Terminated / Retired
             </span>
-            <UserX className="text-destructive h-4 w-4" />
+            <span className="bg-destructive/10 text-destructive ring-destructive/20 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ring-1">
+              <UserX className="h-4 w-4" />
+            </span>
           </div>
-          <div className="text-destructive mt-2 text-2xl font-bold">
+          <div className="text-destructive mt-2 text-2xl font-bold tabular-nums">
             {counts.terminated + counts.retired}
           </div>
           <p className="text-muted-foreground mt-1 text-[11px]">
@@ -842,71 +864,71 @@ export default function EmployeesTable({
           </p>
         </div>
 
-        <div className="bg-card rounded-xl border p-4 shadow-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-muted-foreground text-xs font-medium">
-              Without Department
-            </span>
-            <Building2 className="h-4 w-4 text-blue-600" />
-          </div>
-          <div className="mt-2 text-2xl font-bold text-blue-600 dark:text-blue-400">
-            {counts.unassigned}
-          </div>
-          <p className="text-muted-foreground mt-1 text-[11px]">
-            Need department assignment
-          </p>
-        </div>
-
-        <div className="bg-card rounded-xl border p-4 shadow-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-muted-foreground text-xs font-medium">
+        <div className="bg-card rounded-xl border p-4 shadow-sm transition-shadow hover:shadow-md">
+          <div className="flex items-start justify-between gap-3">
+            <span className="text-muted-foreground text-[11px] font-semibold tracking-wider uppercase">
               Archived
             </span>
-            <Archive className="text-muted-foreground h-4 w-4" />
+            <span className="bg-muted text-muted-foreground ring-border flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ring-1">
+              <Archive className="h-4 w-4" />
+            </span>
           </div>
-          <div className="mt-2 text-2xl font-bold">{counts.archived}</div>
+          <div className="mt-2 text-2xl font-bold tabular-nums">
+            {counts.archived}
+          </div>
           <p className="text-muted-foreground mt-1 text-[11px]">
             Soft-deleted, restorable
           </p>
         </div>
       </div>
 
+      {/* ─── Prominent search ─── */}
+      <div className="border-border/60 bg-card rounded-xl border p-3 shadow-sm sm:p-4">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <div className="relative flex-1">
+            <Search className="text-muted-foreground pointer-events-none absolute top-1/2 left-4 h-5 w-5 -translate-y-1/2" />
+            <Input
+              className="h-12 pr-10 pl-12 text-base"
+              placeholder="Search by employee ID or name…"
+              autoFocus
+              value={searchDraft}
+              onChange={(e) => setSearchDraft(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  submitSearch();
+                }
+              }}
+              aria-label="Search employees by ID or name"
+            />
+            {searchDraft ? (
+              <button
+                type="button"
+                aria-label="Clear search"
+                onClick={clearSearch}
+                className="text-muted-foreground hover:text-foreground absolute top-1/2 right-3 -translate-y-1/2 rounded-md p-1 transition-colors"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            ) : null}
+          </div>
+          <Button
+            size="default"
+            className="h-12 shrink-0 px-6"
+            onClick={submitSearch}
+            disabled={isLoading}
+          >
+            Search
+          </Button>
+        </div>
+        <p className="text-muted-foreground mt-2 text-xs">
+          Matches the employee number, first name or last name. Press Enter or
+          click Search.
+        </p>
+      </div>
+
       {/* Filter controls + row actions */}
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
-        {/* Debounced Search across name, Emp ID, National ID */}
-        <div className="relative w-full lg:max-w-md">
-          <Search className="text-muted-foreground absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />
-          <Input
-            className="pr-8 pl-9"
-            placeholder="Search Name, Emp ID, National ID..."
-            value={searchDraft}
-            onChange={(e) => setSearchDraft(e.target.value)}
-            aria-label="Search employees"
-          />
-          {searchDraft ? (
-            <button
-              type="button"
-              aria-label="Clear search"
-              onClick={() => setSearchDraft("")}
-              className="text-muted-foreground hover:text-foreground absolute top-1/2 right-2.5 -translate-y-1/2"
-            >
-              <X className="h-3.5 w-3.5" />
-            </button>
-          ) : null}
-        </div>
-
-        {/* Department: Searchable dropdown fed from Department model */}
-        <div className="w-full sm:w-64">
-          <DepartmentCombobox
-            departments={departments}
-            value={query.departmentId}
-            onChange={(v) => applyFilter("departmentId", v)}
-            allowAll
-            allLabel="All departments"
-            placeholder="Filter by department..."
-          />
-        </div>
-
         {/* Gender Filter */}
         <Select
           value={query.gender}
@@ -951,8 +973,8 @@ export default function EmployeesTable({
 
         {/* Disability Filter */}
         <Select
-          value={query.disabilityStatus}
-          onValueChange={(v) => applyFilter("disabilityStatus", v)}
+          value={query.disability}
+          onValueChange={(v) => applyFilter("disability", v)}
         >
           <SelectTrigger
             className="w-full sm:w-44"
@@ -962,8 +984,8 @@ export default function EmployeesTable({
           </SelectTrigger>
           <SelectContent>
             <SelectItem value={ALL}>Disability: All</SelectItem>
-            <SelectItem value="true">Registered disability (Yes)</SelectItem>
-            <SelectItem value="false">No disability (No)</SelectItem>
+            <SelectItem value="recorded">Disability recorded</SelectItem>
+            <SelectItem value="none">No disability recorded</SelectItem>
           </SelectContent>
         </Select>
 
@@ -1009,32 +1031,38 @@ export default function EmployeesTable({
         </div>
 
         <div className="flex flex-wrap items-center gap-2 lg:ml-auto">
-          {canImport ? (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setIsImportOpen(true)}
-            >
-              <Upload className="text-muted-foreground mr-2 h-4 w-4" />
-              Import
-            </Button>
-          ) : null}
-
-          {canExport ? (
+          {canImport || canExport ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm">
-                  <Download className="text-muted-foreground mr-2 h-4 w-4" />
-                  Export
+                <Button
+                  variant="outline"
+                  size="icon"
+                  aria-label="Import and export options"
+                >
+                  <MoreVertical className="h-4 w-4" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => exportRegister("xlsx")}>
-                  Excel (.xlsx)
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => exportRegister("csv")}>
-                  CSV format
-                </DropdownMenuItem>
+              <DropdownMenuContent align="end" className="w-56">
+                {canImport ? (
+                  <DropdownMenuItem onClick={() => setIsImportOpen(true)}>
+                    <Upload className="mr-2 h-4 w-4" />
+                    Import employees
+                  </DropdownMenuItem>
+                ) : null}
+
+                {canExport ? (
+                  <>
+                    {canImport ? <DropdownMenuSeparator /> : null}
+                    <DropdownMenuItem onClick={() => exportRegister("xlsx")}>
+                      <Download className="mr-2 h-4 w-4" />
+                      Export as Excel (.xlsx)
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => exportRegister("csv")}>
+                      <Download className="mr-2 h-4 w-4" />
+                      Export as CSV
+                    </DropdownMenuItem>
+                  </>
+                ) : null}
               </DropdownMenuContent>
             </DropdownMenu>
           ) : null}
@@ -1059,6 +1087,16 @@ export default function EmployeesTable({
         </span>
 
         <div className="flex items-center gap-2">
+          {canSelectRows && rows.length > 0 ? (
+            <label className="text-muted-foreground flex cursor-pointer items-center gap-2 text-sm">
+              <Checkbox
+                checked={allPageRowsSelected}
+                onCheckedChange={toggleSelectAllOnPage}
+                aria-label="Select every employee on this page"
+              />
+              Select page
+            </label>
+          ) : null}
           <span className="text-muted-foreground text-sm">Rows per page:</span>
           <Select
             value={String(query.pageSize)}
@@ -1077,6 +1115,39 @@ export default function EmployeesTable({
           </Select>
         </div>
       </div>
+
+      {/* Job grade data-quality recommendation */}
+      {missingJobGradeCount > 0 ? (
+        <div
+          role="status"
+          className="border-warning/40 bg-warning/10 text-warning-foreground flex flex-wrap items-center justify-between gap-3 rounded-lg border px-4 py-3 text-sm"
+        >
+          <span className="flex items-start gap-2">
+            <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0" />
+            <span>
+              <strong className="font-semibold">
+                {missingJobGradeCount} employee
+                {missingJobGradeCount === 1 ? "" : "s"} on this page
+                {missingJobGradeCount === 1 ? " has" : " have"} no job grade.
+              </strong>{" "}
+              {MISSING_JOB_GRADE_NOTICE}
+            </span>
+          </span>
+          {canEdit ? (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                const target = rows.find((row) => row.jobGrade == null);
+                if (target) openEditForm(target);
+              }}
+            >
+              <EditIcon className="mr-1.5 h-3.5 w-3.5" />
+              Add job grade
+            </Button>
+          ) : null}
+        </div>
+      ) : null}
 
       {/* Error alert with retry button */}
       {loadError ? (
@@ -1172,12 +1243,6 @@ export default function EmployeesTable({
           }
           stickyHeader
           mobileCardView
-          selectable={
-            (canDelete && !query.onlyDeleted) ||
-            (canRestore && query.onlyDeleted)
-          }
-          selectedKeys={selected}
-          onSelectionChange={setSelected}
         />
       )}
 
@@ -1307,7 +1372,6 @@ export default function EmployeesTable({
         open={isFormOpen}
         onOpenChange={setIsFormOpen}
         employee={editingEmployee}
-        departments={departments}
         onSuccess={refresh}
       />
 

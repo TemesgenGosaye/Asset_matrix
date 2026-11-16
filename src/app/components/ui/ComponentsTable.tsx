@@ -70,7 +70,9 @@ export default function ComponentsTable({
     <div>
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold">Components</h1>
+          <h1 className="text-2xl font-bold tracking-tight">
+            Components: ክፍሎች
+          </h1>
           <p className="text-muted-foreground mt-1 text-sm">
             Track hardware parts like RAM, SSDs, and cables
           </p>
@@ -83,6 +85,7 @@ export default function ComponentsTable({
       <div className="mb-4 flex flex-col gap-3 sm:flex-row">
         <Input
           placeholder="Search by name or serial..."
+          autoFocus
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="sm:max-w-xs"

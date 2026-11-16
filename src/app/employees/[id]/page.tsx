@@ -12,7 +12,6 @@ import {
   FileText,
   Heart,
   Home,
-  Mail,
   MapPin,
   Phone,
   Shield,
@@ -34,6 +33,7 @@ import {
   EMPLOYMENT_STATUS_LABELS,
   EMPLOYMENT_STATUS_BADGE_VARIANT,
   EMPLOYMENT_TYPE_LABELS,
+  hasDisabilityRecord,
   labelOrDash,
 } from "@/lib/employees/constants";
 import { houseCategoryForJobGrade } from "@/lib/house-queue/eligibility";
@@ -101,21 +101,28 @@ export default async function Page({
   const canRestore = ctx.isAdmin || ctx.permissions.has("employee:restore");
 
   const [directReports, auditLogs] = await Promise.all([
-    prisma.employee.findMany({
-      where: {
-        organizationId: orgId,
-        managerId: id,
-        deletedAt: null,
-      },
-      select: {
-        id: true,
-        firstname: true,
-        lastname: true,
-        employeeNumber: true,
-        jobTitle: true,
-      },
-      orderBy: [{ lastname: "asc" }, { firstname: "asc" }],
-    }),
+    prisma.employee
+      .findMany({
+        where: {
+          organizationId: orgId,
+          managerId: id,
+          deletedAt: null,
+        },
+        select: {
+          id: true,
+          firstname: true,
+          lastname: true,
+          employeeNumber: true,
+          profile: { select: { jobTitle: true } },
+        },
+        orderBy: [{ lastname: "asc" }, { firstname: "asc" }],
+      })
+      .then((rows) =>
+        rows.map(({ profile, ...row }) => ({
+          ...row,
+          jobTitle: profile?.jobTitle ?? null,
+        })),
+      ),
     prisma.audit_logs.findMany({
       where: {
         organizationId: orgId,
@@ -293,12 +300,12 @@ export default async function Page({
                 {formatDate(employee.hireDate)}
               </dd>
             </div>
-            {employee.terminationDate ? (
-              <div className="text-destructive flex items-center justify-between">
-                <dt>Termination Date</dt>
-                <dd>{formatDate(employee.terminationDate)}</dd>
-              </div>
-            ) : null}
+            <div className="flex items-center justify-between">
+              <dt className="text-muted-foreground">Service Years</dt>
+              <dd className="text-foreground font-semibold">
+                {employee.serviceYears ?? "—"}
+              </dd>
+            </div>
           </dl>
         </section>
 
@@ -316,12 +323,6 @@ export default async function Page({
               <dd className="text-foreground font-medium">{fullName}</dd>
             </div>
             <div className="flex items-center justify-between">
-              <dt className="text-muted-foreground">Date of Birth</dt>
-              <dd className="text-foreground">
-                {formatDate(employee.dateOfBirth)}
-              </dd>
-            </div>
-            <div className="flex items-center justify-between">
               <dt className="text-muted-foreground">Gender</dt>
               <dd className="text-foreground">
                 {labelOrDash(GENDER_LABELS, employee.gender)}
@@ -334,18 +335,18 @@ export default async function Page({
               </dd>
             </div>
             <div className="flex items-center justify-between">
-              <dt className="text-muted-foreground">Family Size</dt>
-              <dd className="text-foreground font-semibold">
-                {employee.familySize ?? 1}
-              </dd>
-            </div>
-            <div className="flex items-center justify-between">
               <dt className="text-muted-foreground">Disability</dt>
               <dd>
-                {employee.disabilityStatus ? (
-                  <Badge variant="warning">Yes</Badge>
+                {hasDisabilityRecord(employee.disabilityStatus) ? (
+                  <Badge variant="warning">
+                    {employee.disabilityStatus}
+                  </Badge>
                 ) : (
-                  <span className="text-muted-foreground">No</span>
+                  <span className="text-muted-foreground">
+                    {employee.disabilityStatus
+                      ? employee.disabilityStatus
+                      : "Not recorded"}
+                  </span>
                 )}
               </dd>
             </div>
@@ -373,41 +374,36 @@ export default async function Page({
           </dl>
         </section>
 
-        {/* Card 3: Contact & Address */}
+        {/* Card 3: Employee record */}
         <section className="bg-card rounded-lg border p-5 shadow-sm">
           <div className="mb-4 flex items-center gap-2 border-b pb-3">
-            <Mail className="text-primary h-4 w-4" />
+            <FileText className="text-primary h-4 w-4" />
             <h2 className="text-foreground text-sm font-semibold">
-              Contact & Address
+              Employee Record
             </h2>
           </div>
           <dl className="grid grid-cols-1 gap-3 text-sm">
             <div className="flex items-center justify-between">
-              <dt className="text-muted-foreground">Phone Number</dt>
-              <dd className="text-foreground font-mono text-xs">
-                {employee.phone || "—"}
+              <dt className="text-muted-foreground">First Name</dt>
+              <dd className="text-foreground">{employee.firstname}</dd>
+            </div>
+            <div className="flex items-center justify-between">
+              <dt className="text-muted-foreground">Last Name</dt>
+              <dd className="text-foreground">{employee.lastname}</dd>
+            </div>
+            <div className="flex items-center justify-between">
+              <dt className="text-muted-foreground">Employment Status</dt>
+              <dd className="text-foreground capitalize">
+                {labelOrDash(
+                  EMPLOYMENT_STATUS_LABELS,
+                  employee.employmentStatus,
+                )}
               </dd>
             </div>
-            <div className="flex flex-col gap-1">
-              <dt className="text-muted-foreground">Physical Address</dt>
-              <dd className="text-foreground">{employee.address || "—"}</dd>
-            </div>
             <div className="flex items-center justify-between">
-              <dt className="text-muted-foreground">City / Town</dt>
-              <dd className="text-foreground">{employee.city || "—"}</dd>
-            </div>
-            <div className="flex items-center justify-between">
-              <dt className="text-muted-foreground">State / Region</dt>
-              <dd className="text-foreground">{employee.state || "—"}</dd>
-            </div>
-            <div className="flex items-center justify-between">
-              <dt className="text-muted-foreground">Country</dt>
-              <dd className="text-foreground">{employee.country || "—"}</dd>
-            </div>
-            <div className="flex items-center justify-between">
-              <dt className="text-muted-foreground">Postal Code</dt>
-              <dd className="text-foreground font-mono text-xs">
-                {employee.postalCode || "—"}
+              <dt className="text-muted-foreground">Family Size</dt>
+              <dd className="text-foreground font-semibold">
+                {employee.familySize ?? 1}
               </dd>
             </div>
           </dl>
@@ -496,22 +492,7 @@ export default async function Page({
           </div>
         </section>
 
-        {/* Card 5: HR Notes (if any) */}
-        {employee.notes ? (
-          <section className="bg-card rounded-lg border p-5 shadow-sm md:col-span-2 lg:col-span-3">
-            <div className="mb-3 flex items-center gap-2 border-b pb-2">
-              <FileText className="text-primary h-4 w-4" />
-              <h2 className="text-foreground text-sm font-semibold">
-                Confidential HR Notes
-              </h2>
-            </div>
-            <p className="text-foreground/90 text-sm whitespace-pre-wrap">
-              {employee.notes}
-            </p>
-          </section>
-        ) : null}
-
-        {/* Card 6: Audit History */}
+        {/* Card 5: Audit History */}
         {auditLogs.length > 0 ? (
           <section className="bg-card rounded-lg border p-5 shadow-sm md:col-span-2 lg:col-span-3">
             <div className="mb-4 flex items-center justify-between border-b pb-3">

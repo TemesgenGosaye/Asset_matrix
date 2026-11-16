@@ -1,7 +1,20 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">Asset Tracker</string>
-    <string name="title_activity_main">Asset Tracker</string>
+    <string name="app_name">HomeDesk</string>
+    <string name="title_activity_main">HomeDesk</string>
     <string name="package_name">com.company.assettracker</string>
     <string name="custom_url_scheme">com.company.assettracker</string>
+    <string name="launch_logo">MSF</string>
+    <string name="launch_app_name">HomeDesk</string>
+    <string name="launch_tagline">Asset &amp; House Portal</string>
+    <string name="launch_factory">Metahara Sugar Factory</string>
+    <string name="launch_checking_title">Checking connection…</string>
+    <string name="launch_checking_message">Reaching the HomeDesk portal securely.</string>
+    <string name="launch_online_title">Connected</string>
+    <string name="launch_online_message">Opening the sign-in page…</string>
+    <string name="launch_offline_title">No connection</string>
+    <string name="launch_offline_message">Turn on Wi-Fi or mobile data. This screen retries automatically.</string>
+    <string name="launch_retry">Retry connection</string>
+    <string name="launch_cached_login">Open cached login</string>
+    <string name="launch_footer">© 2026 Metahara Sugar Factory · Powered by Temesgen</string>
 </resources>

@@ -10,17 +10,18 @@
  * interaction.
  *
  * The validation itself is not here. It lives in `lib/employees/import.ts` and
- * runs server-side in `POST /api/employees/import`, which resolves department
- * and reporting-manager references against the caller's own organization and
- * rejects anything ambiguous rather than guessing. This component only presents
- * what that endpoint decided.
+ * runs server-side in `POST /api/employees/import`, which maps the workbook's
+ * headers onto the eight canonical employee columns, rejects anything
+ * ambiguous rather than guessing, and flags an Emp ID that already exists as a
+ * duplicate instead of overwriting it. This component only presents what that
+ * endpoint decided.
  *
  * Two-phase by design: the preview writes nothing, and the commit replays the
  * exact rows the user saw and approved. The server re-validates them, so a
  * tampered preview cannot inject a row that was never shown.
  */
 
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { notify } from "@/lib/feedback/notify";
 import {
@@ -134,14 +135,24 @@ function PaginationControls({
 /**
  * Flatten a row's validation errors into one string per row.
  *
- * A row can fail several ways at once (unknown department AND a malformed
- * date), and the point of the preview is to fix the file rather than guess, so
- * every reason is shown rather than just the first.
+ * A row can fail several ways at once (a malformed Emp ID AND an out-of-range
+ * job grade), and the point of the preview is to fix the file rather than
+ * guess, so every reason is shown rather than just the first.
  */
 function rowErrorText(
   row: EmployeeImportPreviewResponse["rows"][number],
 ): string {
   return row.errors.map((e) => e.message).join(" ");
+}
+
+/**
+ * Render one canonical cell for the preview, showing an em dash when the
+ * source workbook left the cell blank rather than inventing a value.
+ */
+function previewCell(value: unknown): string {
+  if (value == null) return "—";
+  const text = String(value).trim();
+  return text.length === 0 ? "—" : text;
 }
 
 // ---------------------------------------------------------------------------
@@ -161,6 +172,7 @@ export default function EmployeeImportWizard({
   const [result, setResult] = useState<BulkResponse | null>(null);
   const [isParsing, setIsParsing] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
+  const [importElapsedSeconds, setImportElapsedSeconds] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [forbidden, setForbidden] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -187,6 +199,23 @@ export default function EmployeeImportWizard({
     const start = (page - 1) * ROWS_PER_PAGE;
     return rows.slice(start, start + ROWS_PER_PAGE);
   }, [preview, page]);
+
+  /**
+   * Keep a running clock while the import is in flight.
+   *
+   * The commit is a single request that writes every row, so the wizard cannot
+   * report a true percentage. It reports how long the write has been running,
+   * which is the honest signal that the work is still going on.
+   */
+  useEffect(() => {
+    if (step !== "importing") return;
+    const startedAt = Date.now();
+    setImportElapsedSeconds(0);
+    const timer = window.setInterval(() => {
+      setImportElapsedSeconds(Math.floor((Date.now() - startedAt) / 1000));
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [step]);
 
   const visibleErrors = useMemo(() => {
     const start = (errorPage - 1) * ERRORS_PER_PAGE;
@@ -250,8 +279,9 @@ export default function EmployeeImportWizard({
 
     try {
       // Only the validated rows go up. The server re-validates each one and
-      // re-resolves department/manager references, so these exact values are
-      // what gets written - nothing the user did not see.
+      // re-checks every Emp ID against the register, so these exact values are
+      // what gets written - nothing the user did not see, and nothing that
+      // overwrites an existing employee.
       const res = await fetch("/api/employees/import", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -259,7 +289,7 @@ export default function EmployeeImportWizard({
           // Display metadata only, so the ImportJob records the source file.
           fileName: preview.fileName,
           rows: preview.rows
-            .filter((r) => r.errors.length === 0)
+            .filter((r) => r.errors.length === 0 && !r.isIgnored)
             .map((r) => r.values),
         }),
       });
@@ -380,7 +410,8 @@ export default function EmployeeImportWizard({
           </Button>
         </div>
         <p className="text-muted-foreground text-sm">
-          Upload an Excel (.xlsx / .xls) or CSV file. The first sheet is read
+          Upload an Excel (.xlsx / .xls) or CSV file with up to{" "}
+          {MAX_IMPORT_ROWS.toLocaleString()} data rows. The first sheet is read
           and every row is validated here — nothing is written until you
           confirm. Only <span className="font-medium">Emp ID</span>,{" "}
           <span className="font-medium">First Name</span> and{" "}
@@ -439,11 +470,11 @@ export default function EmployeeImportWizard({
               was read.
             </p>
             <p className="mt-1">
-              Department and Reporting Manager are resolved against your own
-              organization. A name that does not exist, or that matches more
-              than one record, is reported rather than guessed. Rows are always
-              created as new records — an Emp ID that already exists is rejected
-              rather than overwritten.
+              The import reads exactly the eight employee columns — Emp ID,
+              First Name, Last Name, Gender, Job Grade, Service Years, Marital
+              Status and Disability. Any other column is ignored and listed on
+              the preview step. Rows are always created as new records — an Emp
+              ID that already exists is rejected rather than overwritten.
             </p>
           </div>
         </div>
@@ -459,6 +490,11 @@ export default function EmployeeImportWizard({
       { label: "Total Rows", value: preview.totalRows },
       { label: "Ready", value: preview.validRows, tone: "text-green-600" },
       {
+        label: "Ignored (Empty)",
+        value: preview.ignoredRows ?? 0,
+        tone: "text-muted-foreground",
+      },
+      {
         label: "With Errors",
         value: preview.invalidRows,
         tone: "text-red-600",
@@ -470,7 +506,7 @@ export default function EmployeeImportWizard({
       },
     ];
     return (
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
         {cards.map((c) => (
           <div
             key={c.label}
@@ -565,18 +601,64 @@ export default function EmployeeImportWizard({
                     <th className="px-2 py-2 text-left font-medium">Row</th>
                     <th className="px-2 py-2 text-left font-medium">Emp ID</th>
                     <th className="px-2 py-2 text-left font-medium">Name</th>
+                    <th className="px-2 py-2 text-left font-medium">Gender</th>
+                    <th className="px-2 py-2 text-left font-medium">Grade</th>
                     <th className="px-2 py-2 text-left font-medium">
-                      Department
+                      Service Yrs
                     </th>
+                    <th className="px-2 py-2 text-left font-medium">Marital</th>
                     <th className="px-2 py-2 text-left font-medium">
-                      Employment
+                      Disability
+                    </th>
+                    <th className="px-2 py-2 text-left font-medium">Score</th>
+                    <th className="px-2 py-2 text-left font-medium">
+                      Next References (House/MCDA)
                     </th>
                     <th className="px-2 py-2 text-left font-medium">Result</th>
                   </tr>
                 </thead>
                 <tbody>
                   {visibleRows.map((row) => {
+                    if (row.isIgnored) {
+                      return (
+                        <tr
+                          key={`row-${row.rowNumber}`}
+                          className="border-b last:border-0 opacity-50 bg-muted/20"
+                        >
+                          <td className="text-muted-foreground px-2 py-1.5 tabular-nums">
+                            {row.rowNumber}
+                          </td>
+                          <td className="px-2 py-1.5 font-mono text-muted-foreground italic">
+                            (empty)
+                          </td>
+                          <td className="px-2 py-1.5 text-muted-foreground">—</td>
+                          <td className="px-2 py-1.5 text-muted-foreground">—</td>
+                          <td className="px-2 py-1.5 text-muted-foreground">—</td>
+                          <td className="px-2 py-1.5 text-muted-foreground">—</td>
+                          <td className="px-2 py-1.5 text-muted-foreground">—</td>
+                          <td className="px-2 py-1.5 text-muted-foreground">—</td>
+                          <td className="px-2 py-1.5 text-muted-foreground">—</td>
+                          <td className="px-2 py-1.5 text-xs text-muted-foreground">
+                            Ignored empty Emp ID row
+                          </td>
+                          <td className="px-2 py-1.5">
+                            <Badge variant="outline" className="text-muted-foreground border-dashed">
+                              Ignored
+                            </Badge>
+                          </td>
+                        </tr>
+                      );
+                    }
+
                     const ok = row.errors.length === 0;
+                    const rec = row.recommendation;
+                    const scoreDisplay =
+                      row.score !== null && row.score !== undefined
+                        ? `${Math.round(row.score * 100)}%`
+                        : rec?.projectedScore !== undefined
+                          ? `${Math.round(rec.projectedScore * 100)}%`
+                          : "—";
+
                     return (
                       <tr
                         key={`row-${row.rowNumber}`}
@@ -587,21 +669,45 @@ export default function EmployeeImportWizard({
                         <td className="text-muted-foreground px-2 py-1.5 tabular-nums">
                           {row.rowNumber}
                         </td>
-                        <td className="px-2 py-1.5 font-mono">
+                        <td className="px-2 py-1.5 font-mono font-medium">
                           {row.employeeNumber || "—"}
                         </td>
                         <td className="px-2 py-1.5">{row.fullName || "—"}</td>
-                        <td className="text-muted-foreground px-2 py-1.5">
-                          {row.departmentName ?? "—"}
+                        <td className="px-2 py-1.5">
+                          {previewCell(row.values.gender)}
+                        </td>
+                        <td className="px-2 py-1.5 tabular-nums">
+                          {previewCell(row.values.jobGrade)}
+                        </td>
+                        <td className="px-2 py-1.5 tabular-nums">
+                          {previewCell(row.values.serviceYears)}
                         </td>
                         <td className="px-2 py-1.5">
-                          <div className="text-muted-foreground">
-                            {String(row.values.employmentStatus ?? "active")}
-                          </div>
-                          <div className="text-muted-foreground">
-                            {String(row.values.jobTitle ?? "") ||
-                              "No job title"}
-                          </div>
+                          {previewCell(row.values.maritalStatus)}
+                        </td>
+                        <td className="px-2 py-1.5">
+                          {previewCell(row.values.disabilityStatus)}
+                        </td>
+                        <td className="px-2 py-1.5 font-semibold text-blue-600 dark:text-blue-400">
+                          {scoreDisplay}
+                        </td>
+                        <td className="px-2 py-1.5 max-w-xs">
+                          {rec ? (
+                            <div className="flex flex-col gap-0.5 text-[11px]">
+                              <span className="font-medium text-foreground">
+                                {rec.houseQueueEligible
+                                  ? `House: Band ${rec.houseQueueBand}`
+                                  : "House: Ineligible (no grade)"}
+                              </span>
+                              {rec.tips.length > 0 && (
+                                <span className="text-muted-foreground truncate" title={rec.tips.join(" | ")}>
+                                  {rec.tips[0]}
+                                </span>
+                              )}
+                            </div>
+                          ) : (
+                            "—"
+                          )}
                         </td>
                         <td className="px-2 py-1.5">
                           {ok ? (
@@ -618,7 +724,7 @@ export default function EmployeeImportWizard({
                   {visibleRows.length === 0 && (
                     <tr>
                       <td
-                        colSpan={6}
+                        colSpan={11}
                         className="text-muted-foreground px-2 py-4 text-center"
                       >
                         No records parsed from this file.
@@ -714,17 +820,40 @@ export default function EmployeeImportWizard({
 
   // ---- Render: importing ----
 
-  const renderImporting = () => (
-    <Card>
-      <CardContent className="flex flex-col items-center justify-center py-12">
-        <Loader2 className="text-primary mb-4 h-8 w-8 animate-spin" />
-        <p className="text-lg font-medium">Importing employees...</p>
-        <p className="text-muted-foreground text-sm">
-          Creating employee records. This may take a moment for large files.
-        </p>
-      </CardContent>
-    </Card>
-  );
+  const renderImporting = () => {
+    const rowCount = preview?.validRows ?? 0;
+
+    return (
+      <Card>
+        <CardContent className="space-y-5 py-12">
+          <div className="flex flex-col items-center justify-center text-center">
+            <Loader2 className="text-primary mb-4 h-8 w-8 animate-spin" />
+            <p className="text-lg font-medium">
+              Importing {rowCount.toLocaleString()} employee(s)…
+            </p>
+            <p className="text-muted-foreground text-sm">
+              Every row is written in a single transaction. Nothing is reported
+              as imported until the whole file has landed — keep this page open.
+            </p>
+          </div>
+
+          <div className="bg-secondary relative h-1.5 w-full overflow-hidden rounded-full">
+            <div className="bg-primary/70 animate-import-progress absolute inset-y-0 left-0 w-1/3 rounded-full" />
+          </div>
+
+          <div className="text-muted-foreground flex items-center justify-between text-xs">
+            <span>
+              {rowCount.toLocaleString()} row(s) queued
+              {preview && preview.invalidRows > 0
+                ? ` · ${preview.invalidRows.toLocaleString()} skipped at validation`
+                : ""}
+            </span>
+            <span>{importElapsedSeconds}s elapsed</span>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  };
 
   // ---- Render: results ----
 

@@ -101,6 +101,7 @@ export default function ModelsTable({ items }) {
             <Input
               className="pl-9"
               placeholder="Search models"
+              autoFocus
               value={searchValue}
               onChange={(e) => {
                 setSearchValue(e.target.value);

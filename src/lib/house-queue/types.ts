@@ -44,7 +44,13 @@ export interface HouseQueueRow {
   jobGrade: number | null;
   gender: string | null;
   maritalStatus: string | null;
-  disabilityStatus: boolean;
+  /**
+   * Free-text disability as recorded on the employee record.
+   *
+   * `null` means "not recorded". Use `hasDisabilityRecord()` to decide whether
+   * a disability is on record; the value itself is the source's own wording.
+   */
+  disabilityStatus: string | null;
   serviceYears: number;
   hireDate: string | null;
   /** Dependants on record, used as an MCDA band input. Null when not captured. */

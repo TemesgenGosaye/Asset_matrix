@@ -10,6 +10,7 @@ import React, {
 import Link from "next/link";
 import { useSession, signOut, type SessionUser } from "@/lib/auth-client";
 import GlobalSearch from "./GlobalSearch";
+import QuickCreateMenu from "./QuickCreateMenu";
 import {
   Search,
   X,
@@ -20,8 +21,10 @@ import {
   User,
   LogOut,
   Sparkles,
+  SlidersHorizontal,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { BrandLogo } from "@/components/BrandLockup";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -338,42 +341,44 @@ const Navigation = React.memo(function Navigation() {
   }, []);
 
   return (
-    // `nav-mesh` supplies the fill (see globals.css) and `--shadow-sm` the lift,
-    // which together raise the bar above the canvas without any backdrop filter.
-    // It replaced the old `bg-background/95 backdrop-blur-sm`: `main` is the
-    // scroll container, not the page, so nothing ever passed underneath this bar
-    // and the blur had nothing to sample — it cost a backdrop filter on every
-    // frame for no visible difference.
-    <nav className="nav-mesh border-border border-b shadow-[var(--shadow-sm)]">
+    // `app-chrome` supplies the same fill and hairline as the sidebar rail, so
+    // the two form one continuous frame around the canvas rather than two
+    // unrelated navigation backgrounds. It replaced `bg-background/95
+    // backdrop-blur-sm`: `main` is the scroll container, not the page, so nothing
+    // ever passed underneath this bar and the blur had nothing to sample — it
+    // cost a backdrop filter on every frame for no visible difference.
+    <nav className="app-chrome border-b shadow-sm">
       <div className="flex h-16 items-center px-4 md:px-6">
         <div className="flex flex-1 items-center gap-4">
-          <Link href="/dashboard" className="flex items-center gap-2">
-            <span className="text-foreground text-lg font-bold">
+          <Link href="/dashboard" className="flex items-center gap-2.5 transition-opacity hover:opacity-90">
+            <span className="text-base font-bold tracking-tight text-slate-900 dark:text-white md:text-lg">
               የመተሐራ ስኳር ፋብሪካ
             </span>
-            <span className="text-foreground text-lg font-bold">
+            <span className="hidden text-sm font-semibold tracking-wide text-[#006699] dark:text-[#38bdf8] sm:inline md:text-base">
               የንብረትና የቤት አስተዳደር ፖርታል
             </span>
           </Link>
         </div>
 
         <div className="flex items-center gap-2">
+          {/* Primary create action removed from top nav */}
+
           {/* Global Search Button */}
           <Button
             variant="outline"
-            className="text-muted-foreground hidden w-64 items-center gap-2 md:flex"
+            className="border-chrome-border bg-chrome-hover/60 text-chrome-foreground hover:bg-chrome-hover hidden w-64 items-center gap-2 shadow-sm transition-colors md:flex"
             onClick={() => setSearchOpen(true)}
           >
-            <Search className="h-4 w-4" />
+            <Search className="text-chrome-muted h-4 w-4" />
             <span className="flex-1 text-left">Search...</span>
-            <kbd className="bg-muted pointer-events-none hidden h-5 items-center gap-1 rounded border px-1.5 font-mono text-xs font-medium opacity-100 select-none sm:flex">
+            <kbd className="border-chrome-border bg-chrome text-chrome-muted pointer-events-none hidden h-5 items-center gap-1 rounded border px-1.5 font-mono text-xs font-medium opacity-100 select-none sm:flex">
               <span className="text-xs">⌘</span>K
             </kbd>
           </Button>
           <Button
             variant="ghost"
             size="icon"
-            className="md:hidden"
+            className="text-chrome-muted hover:bg-chrome-hover hover:text-chrome-foreground md:hidden"
             onClick={() => setSearchOpen(true)}
           >
             <Search className="h-5 w-5" />
@@ -387,7 +392,11 @@ const Navigation = React.memo(function Navigation() {
             }}
           >
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="relative">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="text-chrome-muted hover:bg-chrome-hover hover:text-chrome-foreground relative"
+              >
                 <Bell className="h-5 w-5" />
                 {optimisticState.unreadCount > 0 && (
                   <span className="absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-medium text-white">
@@ -540,16 +549,16 @@ const Navigation = React.memo(function Navigation() {
                 window.dispatchEvent(new CustomEvent(TOGGLE_ASSISTANT_EVENT));
               }
             }}
-            className="border-primary/30 text-primary hover:border-primary/60 hover:bg-primary/10 hover:text-primary dark:hover:bg-primary/15 flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors"
+            className="text-chrome-muted hover:bg-chrome-hover hover:text-chrome-foreground flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-colors"
             title={`Open ${ASSISTANT_BRAND.lockup} (Ctrl+J)`}
             aria-label={`Open ${ASSISTANT_BRAND.latin}, the system assistant`}
           >
             <Sparkles className="text-primary h-4 w-4" />
-            <span className="hidden md:inline">{ASSISTANT_BRAND.name}</span>
+            <span className="hidden md:inline">Ask AI</span>
           </Button>
 
           {/* ─── Dark / Light Mode Toggle ─── */}
-          <ThemeSwitcher />
+          <ThemeSwitcher className="text-chrome-muted hover:bg-chrome-hover hover:text-chrome-foreground" />
 
           {/* ─── User Account Avatar ─── */}
           <DropdownMenu>
@@ -557,7 +566,7 @@ const Navigation = React.memo(function Navigation() {
               <Button
                 variant="ghost"
                 size="icon"
-                className="hover:bg-accent hover:text-accent-foreground focus-visible:ring-ring relative h-9 w-9 rounded-md transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
+                className="text-chrome-muted hover:bg-chrome-hover hover:text-chrome-foreground focus-visible:ring-ring focus-visible:ring-offset-chrome relative h-9 w-9 rounded-md transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
                 aria-label="Account menu"
               >
                 <User className="h-5 w-5" strokeWidth={2} />
@@ -573,6 +582,12 @@ const Navigation = React.memo(function Navigation() {
                 </p>
               </div>
               <DropdownMenuSeparator />
+              <DropdownMenuItem asChild>
+                <Link href="/settings/navigation">
+                  <SlidersHorizontal className="mr-2 h-4 w-4" />
+                  Navigation
+                </Link>
+              </DropdownMenuItem>
               <DropdownMenuItem asChild>
                 <Link href={`/user/${user?.id}/settings`}>
                   <Settings className="mr-2 h-4 w-4" />

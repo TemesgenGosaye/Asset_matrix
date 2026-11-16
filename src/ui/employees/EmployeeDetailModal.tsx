@@ -4,13 +4,9 @@ import React, { useMemo } from "react";
 import {
   Building2,
   Edit,
-  FileText,
-  Info,
-  Mail,
-  MapPin,
-  Phone,
   RotateCcw,
   Trash2,
+  TriangleAlert,
   User,
   Users,
 } from "lucide-react";
@@ -30,6 +26,10 @@ import {
   EMPLOYMENT_STATUS_LABELS,
   EMPLOYMENT_STATUS_BADGE_VARIANT,
   EMPLOYMENT_TYPE_LABELS,
+  MISSING_JOB_GRADE_LABEL,
+  MISSING_JOB_GRADE_NOTICE,
+  disabilityDisplayLabel,
+  hasDisabilityRecord,
   labelOrDash,
 } from "@/lib/employees/constants";
 import { houseCategoryForJobGrade } from "@/lib/house-queue/eligibility";
@@ -115,16 +115,6 @@ export function EmployeeDetailModal({
   const fullName = `${employee.firstname} ${employee.lastname}`.trim();
   const initials =
     `${employee.firstname.charAt(0)}${employee.lastname.charAt(0)}`.toUpperCase();
-  const fullAddress =
-    [
-      employee.address,
-      employee.city,
-      employee.state,
-      employee.country,
-      employee.postalCode,
-    ]
-      .filter(Boolean)
-      .join(", ") || "—";
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -155,6 +145,37 @@ export function EmployeeDetailModal({
         </DialogHeader>
 
         <div className="space-y-5 py-2">
+          {/* Job grade recommendation */}
+          {employee.jobGrade == null && !employee.deletedAt ? (
+            <div
+              role="status"
+              className="border-warning/40 bg-warning/10 text-warning-foreground flex flex-wrap items-center justify-between gap-3 rounded-lg border px-4 py-3 text-sm"
+            >
+              <span className="flex items-start gap-2">
+                <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0" />
+                <span>
+                  <strong className="font-semibold">
+                    {MISSING_JOB_GRADE_LABEL}.
+                  </strong>{" "}
+                  {MISSING_JOB_GRADE_NOTICE}
+                </span>
+              </span>
+              {canEdit ? (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    onOpenChange(false);
+                    onEdit(employee);
+                  }}
+                >
+                  <Edit className="mr-1.5 h-3.5 w-3.5" />
+                  Add job grade
+                </Button>
+              ) : null}
+            </div>
+          ) : null}
+
           {/* Key attributes at a glance */}
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             <div className="bg-card rounded-lg border p-3">
@@ -201,11 +222,32 @@ export function EmployeeDetailModal({
                 Disability
               </span>
               <div className="mt-1.5">
-                {employee.disabilityStatus ? (
-                  <Badge variant="warning">Registered</Badge>
+                {hasDisabilityRecord(employee.disabilityStatus) ? (
+                  <Badge variant="warning">
+                    {disabilityDisplayLabel(employee.disabilityStatus)}
+                  </Badge>
                 ) : (
-                  <span className="text-muted-foreground text-xs">None</span>
+                  <span className="text-muted-foreground text-xs">
+                    {disabilityDisplayLabel(employee.disabilityStatus)}
+                  </span>
                 )}
+                {employee.mcdaScore != null ? (
+                  <p
+                    className="text-muted-foreground mt-1 font-mono text-[10px] tabular-nums"
+                    title={
+                      employee.mcdaRank != null &&
+                      employee.mcdaCohortSize != null
+                        ? `MCDA priority score ${employee.mcdaScore.toFixed(3)} — rank ${employee.mcdaRank} of ${employee.mcdaCohortSize} in this job-grade band`
+                        : `MCDA priority score ${employee.mcdaScore.toFixed(3)}`
+                    }
+                  >
+                    MCDA {employee.mcdaScore.toFixed(3)}
+                    {employee.mcdaRank != null &&
+                    employee.mcdaCohortSize != null
+                      ? ` · #${employee.mcdaRank}/${employee.mcdaCohortSize}`
+                      : ""}
+                  </p>
+                ) : null}
               </div>
             </div>
           </div>
@@ -267,10 +309,8 @@ export function EmployeeDetailModal({
               <Field label="Employment Type">
                 {labelOrDash(EMPLOYMENT_TYPE_LABELS, employee.employmentType)}
               </Field>
+              <Field label="Service Years">{employee.serviceYears ?? "—"}</Field>
               <Field label="Hire Date">{formatDate(employee.hireDate)}</Field>
-              <Field label="Termination Date">
-                {formatDate(employee.terminationDate)}
-              </Field>
               <Field label="Family Size">{employee.familySize ?? "—"}</Field>
               <Field label="Reporting Manager">
                 {employee.manager
@@ -278,19 +318,6 @@ export function EmployeeDetailModal({
                   : "—"}
               </Field>
             </dl>
-          </DetailSection>
-
-          <DetailSection icon={FileText} title="HR Notes">
-            {employee.notes ? (
-              <p className="bg-muted/20 text-muted-foreground rounded-md border p-3 text-sm whitespace-pre-wrap">
-                {employee.notes}
-              </p>
-            ) : (
-              <p className="text-muted-foreground flex items-center gap-1.5 text-xs italic">
-                <Info className="h-3.5 w-3.5" />
-                No HR notes recorded for this employee.
-              </p>
-            )}
           </DetailSection>
         </div>
 

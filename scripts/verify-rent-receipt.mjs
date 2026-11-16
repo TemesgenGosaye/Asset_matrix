@@ -189,7 +189,7 @@ try {
     `seeded a ${TERM_MONTHS}-month lease with ${PAID_MONTHS} paid months\n`,
   );
 
-  await page.goto(`${BASE}/facility/pay-rent`, {
+  await page.goto(`${BASE}/houses/pay-rent`, {
     waitUntil: "networkidle",
     timeout: 120_000,
   });

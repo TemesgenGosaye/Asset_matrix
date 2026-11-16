@@ -105,7 +105,7 @@ describe("Employees API Endpoints (/api/employees)", () => {
     nationalId: "NAT-123456",
     jobGrade: 14,
     maritalStatus: "married",
-    disabilityStatus: false,
+    disabilityStatus: null,
     jobTitle: "Senior Agronomist",
     employmentType: "full_time",
     employmentStatus: "active",

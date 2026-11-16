@@ -29,34 +29,46 @@ export interface EmployeeUserRef {
   email: string | null;
 }
 
-/** One row of the employee register, as delivered by the API. */
+/**
+ * One row of the employee register, as delivered by the API.
+ *
+ * The eight canonical business columns come first, in the approved order:
+ * Emp ID, First Name, Last Name, Gender, Job Grade, Service Years, Marital
+ * Status, Disability. The remaining fields are the retained relational and
+ * domain fields other modules depend on, plus technical metadata.
+ */
 export interface EmployeeDto {
   id: string;
+  /** Canonical `emp_id`. Stored as text so leading zeros survive. */
   employeeNumber: string;
   firstname: string;
   lastname: string;
-  phone: string | null;
-  dateOfBirth: string | null;
   gender: "male" | "female" | null;
+  jobGrade: number | null;
+  /** Service years: whole-number count of years the employee has served. */
+  serviceYears: number | null;
+  /** Free text from the source, normalised to the known vocabulary. */
+  maritalStatus: string | null;
+  /** Free text from the source. `null` means "not recorded". */
+  disabilityStatus: string | null;
+  /**
+   * MCDA priority score in [0, 1], set for an employee whose record states a
+   * disability. `null` for every other employee.
+   */
+  mcdaScore: number | null;
+  /** 1-based position of the employee inside their house-band cohort. */
+  mcdaRank: number | null;
+  /** How many employees compete in the same band. */
+  mcdaCohortSize: number | null;
   /** Unmasked when the caller has the sensitive permission, otherwise masked. */
   nationalId: string;
   /** True when `nationalId` was masked by the server. */
   nationalIdMasked: boolean;
-  jobGrade: number | null;
-  maritalStatus: "single" | "married" | null;
-  disabilityStatus: boolean;
   jobTitle: string | null;
   employmentType: EmploymentType;
   employmentStatus: EmploymentStatus;
   familySize: number | null;
   hireDate: string | null;
-  terminationDate: string | null;
-  address: string | null;
-  city: string | null;
-  state: string | null;
-  country: string | null;
-  postalCode: string | null;
-  notes: string | null;
   departmentId: string | null;
   managerId: string | null;
   userid: string | null;
@@ -122,28 +134,11 @@ export interface EmployeeFormValues {
   employeeNumber: string;
   firstname: string;
   lastname: string;
-  phone: string;
-  dateOfBirth: string;
   gender: string;
-  nationalId: string;
-  maritalStatus: string;
-  disabilityStatus: boolean;
-  address: string;
-  city: string;
-  state: string;
-  country: string;
-  postalCode: string;
-  jobTitle: string;
-  employmentType: string;
-  employmentStatus: string;
   jobGrade: string;
-  familySize: string;
-  hireDate: string;
-  terminationDate: string;
-  departmentId: string;
-  managerId: string;
-  userid: string;
-  notes: string;
+  serviceYears: string;
+  maritalStatus: string;
+  disabilityStatus: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -152,31 +147,63 @@ export interface EmployeeFormValues {
 
 export interface EmployeeImportRowError {
   code: string;
+  /** Canonical column the error belongs to, when it is column-specific. */
+  column?: string;
   message: string;
+}
+
+export interface EmployeeRowRecommendation {
+  houseQueueBand: string | null;
+  houseQueueEligible: boolean;
+  projectedScore: number;
+  tips: string[];
 }
 
 export interface EmployeeImportRowPlan {
   rowNumber: number;
   employeeNumber: string;
   fullName: string;
-  /** Resolved department name, for display in the preview. Not a create field. */
-  departmentName?: string;
+  /** The canonical values that would be written for this row. */
   values: Record<string, unknown>;
   errors: EmployeeImportRowError[];
+  /** MCDA or file score in [0, 1] */
+  score?: number | null;
+  /** Smart next references recommendation (House Request, House Queue, MCDA) */
+  recommendation?: EmployeeRowRecommendation;
+  /** True when this row was ignored because Emp ID was empty */
+  isIgnored?: boolean;
 }
 
 export interface EmployeeImportPreviewResponse {
   fileName: string;
   sheetName: string;
+  /** Canonical columns the workbook provided, in canonical order. */
   recognisedColumns: string[];
+  /** Header names in the workbook that map to no canonical column. */
   unmappedColumns: string[];
+  /** Required canonical columns the workbook did not provide. */
+  missingColumns: string[];
   totalRows: number;
   validRows: number;
   invalidRows: number;
+  /** Rows rejected because their Emp ID already exists (in the file or in the DB). */
+  duplicateRows: number;
+  /** Rows ignored because their Emp ID was empty */
+  ignoredRows: number;
   rows: EmployeeImportRowPlan[];
   notes: string[];
-  knownDepartments: string[];
   sample: EmployeeImportRowPlan[];
+}
+
+/** Result of a committed import. */
+export interface EmployeeImportResult {
+  jobId: string;
+  imported: number;
+  /** Rows that were not attempted because the user excluded invalid rows. */
+  skipped: number;
+  /** Rows rejected because their Emp ID already exists. */
+  duplicates: number;
+  failed: BulkFailure[];
 }
 
 export interface BulkFailure {
@@ -209,7 +236,8 @@ export interface EmployeeQueryState {
   departmentId: string;
   gender: string;
   maritalStatus: string;
-  disabilityStatus: string;
+  /** `recorded` | `none` | `all`. */
+  disability: string;
   jobGradeFrom: string;
   jobGradeTo: string;
   onlyDeleted: boolean;
@@ -224,7 +252,7 @@ export const DEFAULT_EMPLOYEE_QUERY: EmployeeQueryState = {
   departmentId: ALL,
   gender: ALL,
   maritalStatus: ALL,
-  disabilityStatus: ALL,
+  disability: ALL,
   jobGradeFrom: "",
   jobGradeTo: "",
   onlyDeleted: false,
@@ -236,7 +264,7 @@ export const FILTER_FIELDS = [
   "departmentId",
   "gender",
   "maritalStatus",
-  "disabilityStatus",
+  "disability",
   "jobGradeFrom",
   "jobGradeTo",
   "onlyDeleted",
@@ -262,8 +290,8 @@ export function toSearchParams(query: EmployeeQueryState): URLSearchParams {
   if (query.gender !== ALL) params.set("gender", query.gender);
   if (query.maritalStatus !== ALL)
     params.set("maritalStatus", query.maritalStatus);
-  if (query.disabilityStatus !== ALL) {
-    params.set("disabilityStatus", query.disabilityStatus);
+  if (query.disability !== ALL) {
+    params.set("disability", query.disability);
   }
   if (query.onlyDeleted) params.set("onlyDeleted", "true");
   return params;

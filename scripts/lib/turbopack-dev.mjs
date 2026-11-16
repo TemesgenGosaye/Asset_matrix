@@ -343,7 +343,7 @@ function waitForReady(child, timeoutMs) {
     };
     const timer = setTimeout(() => {
       finalize();
-      reject(new Error(`Dev server did not become ready within ${Math.round(timeoutMs / 1000)}s. See dev-server.log.`));
+      reject(new Error(`Dev server did not become ready within ${Math.round(timeoutMs / 1000)}s. See the dev server log (its path is printed on startup).`));
     }, timeoutMs);
 
     const settle = (err) => {

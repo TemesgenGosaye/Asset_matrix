@@ -286,7 +286,6 @@ Current schedule:
 
 | Job                        | Schedule        | Purpose                                         |
 | -------------------------- | --------------- | ----------------------------------------------- |
-| `/api/cron/demo-reset`     | Daily 00:00 UTC | Demo data reset (only if `DEMO_MODE=true`)      |
 | `/api/cron/sessions`       | Daily 01:00 UTC | Expired session cleanup                         |
 | `/api/cron/notifications`  | Daily 02:00 UTC | Email notifications (license expiry, low stock) |
 | `/api/cron/workflows`      | Daily 03:00 UTC | Automation rule execution                       |

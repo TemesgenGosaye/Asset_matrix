@@ -4,6 +4,7 @@ import { headers } from "next/headers";
 import AdminSettingsPage from "./ui/AdminSettingsPage";
 import Breadcrumb from "@/components/Breadcrumb";
 import prisma from "@/lib/prisma";
+import { getOrganizationContext } from "@/lib/organization-context";
 
 export const metadata = {
   title: "Admin Settings - Asset Tracker",
@@ -150,6 +151,9 @@ export default async function Page() {
     { label: "Admin Settings", href: "/admin/settings" },
   ];
 
+  const ctx = await getOrganizationContext();
+  const permissions = ctx?.permissions ? Array.from(ctx.permissions) : [];
+
   return (
     <>
       <Breadcrumb options={breadcrumbOptions} />
@@ -163,6 +167,7 @@ export default async function Page() {
         envEmailConfig={envEmailConfig}
         statuses={statuses}
         isSuperAdmin={isSuperAdmin}
+        permissions={permissions}
       />
     </>
   );

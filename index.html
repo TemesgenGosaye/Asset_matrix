@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Housing Request Voucher — Metahara Sugar Factory</title>
+  <style>
+    :root {
+      --color-navy: #1e3a5f;
+      --color-label-bg: #e8eef6;
+      --color-value-bg: #ffffff;
+      --color-value-text: #111827;
+      --color-border: #cfd8e3;
+      --color-pass: #166534;
+      --color-fail: #b42318;
+      --color-action-bg: #fdf0ee;
+      --color-action-text: #b42318;
+      --color-page-bg: #f4f5f7;
+      --color-sheet-bg: #ffffff;
+      --color-muted-text: #6b7280;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--color-page-bg);
+      font-family: Inter, system-ui, -apple-system, 'Segoe UI', Arial, sans-serif;
+      color: var(--color-value-text);
+      padding: 24px 16px;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    /* Print action bar above voucher */
+    .action-bar {
+      max-width: 680px;
+      margin: 0 auto 12px auto;
+      display: flex;
+      justify-content: flex-end;
+    }
+
+    .btn-print {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background-color: var(--color-navy);
+      color: #ffffff;
+      border: 1px solid var(--color-navy);
+      border-radius: 4px;
+      padding: 6px 14px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+      transition: background-color 0.15s ease;
+    }
+
+    .btn-print:hover {
+      background-color: #152942;
+    }
+
+    .btn-print svg {
+      width: 14px;
+      height: 14px;
+      fill: currentColor;
+    }
+
+    /* Voucher container sheet */
+    .voucher-sheet {
+      background-color: var(--color-sheet-bg);
+      border: 1px solid var(--color-border);
+      border-radius: 6px;
+      padding: 14px;
+      max-width: 680px;
+      margin: 0 auto;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
+      overflow-x: auto;
+    }
+
+    /* Single fixed HTML table */
+    .voucher-table {
+      width: 100%;
+      min-width: 560px;
+      border-collapse: collapse;
+      table-layout: fixed;
+    }
+
+    .voucher-table col:nth-child(1) { width: 21%; }
+    .voucher-table col:nth-child(2) { width: 29%; }
+    .voucher-table col:nth-child(3) { width: 21%; }
+    .voucher-table col:nth-child(4) { width: 29%; }
+
+    /* Header styling */
+    .header-cell {
+      padding: 4px 4px 10px 4px;
+      border: none;
+      border-bottom: 2px solid var(--color-navy);
+      vertical-align: bottom;
+    }
+
+    .header-left {
+      text-align: left;
+    }
+
+    .header-right {
+      text-align: right;
+    }
+
+    .org-title {
+      font-size: 15px;
+      font-weight: 700;
+      text-transform: uppercase;
+      color: var(--color-navy);
+      line-height: 1.2;
+      letter-spacing: 0.02em;
+    }
+
+    .doc-subtitle {
+      font-size: 11px;
+      font-weight: 500;
+      text-transform: uppercase;
+      color: var(--color-muted-text);
+      letter-spacing: 0.06em;
+      margin-top: 2px;
+    }
+
+    .voucher-no {
+      font-size: 12.5px;
+      color: var(--color-navy);
+      line-height: 1.2;
+    }
+
+    .voucher-no strong {
+      font-weight: 700;
+    }
+
+    .print-meta {
+      font-size: 11px;
+      color: var(--color-muted-text);
+      margin-top: 2px;
+    }
+
+    /* Section header bands */
+    .section-band {
+      background-color: var(--color-navy);
+      color: #ffffff;
+      font-size: 10.5px;
+      letter-spacing: 0.14em;
+      font-weight: 600;
+      text-transform: uppercase;
+      padding: 6px 10px;
+      border: 1px solid var(--color-navy);
+      text-align: left;
+    }
+
+    /* Data cell styling */
+    .voucher-table th.label-cell {
+      background-color: var(--color-label-bg);
+      color: var(--color-navy);
+      font-weight: 600;
+      font-size: 11.5px;
+      padding: 6px 10px;
+      border: 1px solid var(--color-border);
+      text-align: left;
+      vertical-align: middle;
+      word-break: break-word;
+    }
+
+    .voucher-table td.value-cell {
+      background-color: var(--color-value-bg);
+      color: var(--color-value-text);
+      font-weight: 500;
+      font-size: 12px;
+      padding: 6px 10px;
+      border: 1px solid var(--color-border);
+      text-align: left;
+      vertical-align: middle;
+      word-break: break-word;
+    }
+
+    /* Authorization empty tall slots */
+    .voucher-table td.tall-slot {
+      height: 38px;
+    }
+
+    /* Status indicators */
+    .status-pass {
+      color: var(--color-pass);
+      font-weight: 600;
+    }
+
+    .status-fail {
+      color: var(--color-fail);
+      font-weight: 600;
+    }
+
+    /* Action required callout */
+    .action-required-cell {
+      background-color: var(--color-action-bg);
+      color: var(--color-action-text);
+      font-size: 11.5px;
+      font-weight: 600;
+      padding: 8px 10px;
+      border: 1px solid var(--color-border);
+      text-align: left;
+    }
+
+    /* Sub-header row for Eligibility checks */
+    .sub-th-check {
+      background-color: var(--color-label-bg);
+      color: var(--color-navy);
+      font-weight: 600;
+      font-size: 11px;
+      padding: 5px 10px;
+      border: 1px solid var(--color-border);
+      text-align: left;
+    }
+
+    .sub-th-result {
+      background-color: var(--color-label-bg);
+      color: var(--color-navy);
+      font-weight: 600;
+      font-size: 11px;
+      padding: 5px 10px;
+      border: 1px solid var(--color-border);
+      text-align: right;
+    }
+
+    /* Footer styling */
+    .footer-cell {
+      border: none;
+      text-align: center;
+      font-size: 10px;
+      color: var(--color-muted-text);
+      padding: 12px 6px 4px 6px;
+    }
+
+    /* Print styles */
+    @media print {
+      @page {
+        size: A4 portrait;
+        margin: 12mm;
+      }
+
+      body {
+        background-color: #ffffff !important;
+        padding: 0 !important;
+        margin: 0 !important;
+      }
+
+      .no-print {
+        display: none !important;
+      }
+
+      .voucher-sheet {
+        border: none !important;
+        padding: 0 !important;
+        max-width: 100% !important;
+        border-radius: 0 !important;
+        box-shadow: none !important;
+        overflow: visible !important;
+      }
+
+      .voucher-table {
+        min-width: 100% !important;
+        width: 100% !important;
+        page-break-inside: avoid;
+        break-inside: avoid;
+      }
+
+      .voucher-table tr {
+        page-break-inside: avoid;
+        break-inside: avoid;
+      }
+
+      .voucher-table th,
+      .voucher-table td {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Print Button (Hidden in Print) -->
+  <div class="action-bar no-print">
+    <button class="btn-print" onclick="window.print()" type="button" aria-label="Print Voucher">
+      <svg viewBox="0 0 24 24">
+        <path d="M19 8H5c-1.66 0-3 1.34-3 3v6h4v4h12v-4h4v-6c0-1.66-1.34-3-3-3zm-3 11H8v-5h8v5zm3-7c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1zm-1-9H6v4h12V3z"/>
+      </svg>
+      Print
+    </button>
+  </div>
+
+  <!-- Centered White Voucher Sheet -->
+  <main class="voucher-sheet">
+    <table class="voucher-table" id="voucherTable">
+      <colgroup>
+        <col>
+        <col>
+        <col>
+        <col>
+      </colgroup>
+      <tbody id="voucherBody">
+        <!-- Rendered dynamically from voucherData JavaScript object -->
+      </tbody>
+    </table>
+  </main>
+
+  <script>
+    // All voucher data encapsulated in a single JavaScript object for easy updating
+    const voucherData = {
+      header: {
+        orgName: "Metahara Sugar Factory",
+        voucherTitle: "Housing Request Voucher",
+        voucherNo: "HR-1000599",
+        printedInfo: "Printed Oct 24, 2026 · HAMS Portal"
+      },
+      employee: [
+        { l1: "Full name", v1: "Temesgen Gosaye", l2: "Employee ID", v2: "1000599" },
+        { l1: "Verification", v1: "Verified · Active", status1: "pass", l2: "Eligibility", v2: "Blocked", status2: "fail" },
+        { l1: "Service", v1: "0 yrs", l2: "Job grade", v2: "24" },
+        { l1: "Marital status", v1: "Single", l2: "Disability", v2: "Recorded need" }
+      ],
+      employment: [
+        { l1: "Department", v1: "Commercial Department", l2: "Job title", v2: "SE" },
+        { l1: "Type", v1: "Full-time", l2: "Status", v2: "Active" },
+        { l1: "Hire date", v1: "Oct 5, 2026", l2: "Service years", v2: "0 yrs" }
+      ],
+      personalAndHousehold: [
+        { l1: "Gender", v1: "Male", l2: "Marital status", v2: "Single" },
+        { l1: "Family size", v1: "4", l2: "Accessibility", v2: "Recorded need" },
+        { l1: "Phone", v1: "Not recorded", l2: "National ID", v2: "66776767676" }
+      ],
+      housingPosition: [
+        { l1: "Request status", v1: "Submitted (Oct 15, 2026)", l2: "Queue position", v2: "#2 of 3" },
+        { l1: "Reason on file", v1: "tyyyyyyyyyyyyyyyyyyyyu", l2: "MCDA score", v2: "20%" },
+        { l1: "House band", v1: "Staff", l2: "Job grade", v2: "24" }
+      ],
+      eligibilityChecks: {
+        items: [
+          { check: "Employment is active", result: "PASS", status: "pass" },
+          { check: "Job grade maps to a house band", result: "PASS", status: "pass" },
+          { check: "No allocated house is held", result: "PASS", status: "pass" },
+          { check: "No request is already open", result: "FAIL", status: "fail" }
+        ],
+        actionRequired: "ACTION REQUIRED: Withdraw or resolve the existing open request before filing a new one."
+      },
+      authorization: [
+        { l1: "Verified by", v1: "", tall1: true, l2: "Signature", v2: "", tall2: true },
+        { l1: "Date", v1: "", tall1: true, l2: "Stamp", v2: "", tall2: true }
+      ],
+      footerText: "Metahara Sugar Factory · Computer-generated voucher, valid with authorized signature"
+    };
+
+    // Helper to format values with optional color status classes
+    function formatValueHtml(value, status) {
+      if (status === "pass") {
+        return `<span class="status-pass">${value}</span>`;
+      }
+      if (status === "fail") {
+        return `<span class="status-fail">${value}</span>`;
+      }
+      return value || "";
+    }
+
+    // Render the complete voucher from voucherData into the single table
+    function renderVoucher(data) {
+      const tbody = document.getElementById("voucherBody");
+      let html = "";
+
+      // 1. Header row (spans 2 columns on left, 2 columns on right)
+      html += `
+        <tr>
+          <td colspan="2" class="header-cell header-left">
+            <div class="org-title">${data.header.orgName}</div>
+            <div class="doc-subtitle">${data.header.voucherTitle}</div>
+          </td>
+          <td colspan="2" class="header-cell header-right">
+            <div class="voucher-no">Voucher No. <strong>${data.header.voucherNo}</strong></div>
+            <div class="print-meta">${data.header.printedInfo}</div>
+          </td>
+        </tr>
+      `;
+
+      // Helper function to build 4-column rows: <th> | <td> | <th> | <td>
+      function buildRows(rows) {
+        return rows.map(r => `
+          <tr>
+            <th scope="row" class="label-cell">${r.l1}</th>
+            <td class="value-cell ${r.tall1 ? "tall-slot" : ""}">${formatValueHtml(r.v1, r.status1)}</td>
+            <th scope="row" class="label-cell">${r.l2}</th>
+            <td class="value-cell ${r.tall2 ? "tall-slot" : ""}">${formatValueHtml(r.v2, r.status2)}</td>
+          </tr>
+        `).join("");
+      }
+
+      // 2. Section band: Employee
+      html += `<tr><th colspan="4" class="section-band">Employee</th></tr>`;
+      html += buildRows(data.employee);
+
+      // 3. Section band: 1. Employment
+      html += `<tr><th colspan="4" class="section-band">1. Employment</th></tr>`;
+      html += buildRows(data.employment);
+
+      // 4. Section band: 2. Personal & Household
+      html += `<tr><th colspan="4" class="section-band">2. Personal & Household</th></tr>`;
+      html += buildRows(data.personalAndHousehold);
+
+      // 5. Section band: 3. Housing Position
+      html += `<tr><th colspan="4" class="section-band">3. Housing Position</th></tr>`;
+      html += buildRows(data.housingPosition);
+
+      // 6. Section band: 4. Eligibility Checks
+      html += `<tr><th colspan="4" class="section-band">4. Eligibility Checks</th></tr>`;
+      html += `
+        <tr>
+          <th colspan="3" class="sub-th-check">Check</th>
+          <th class="sub-th-result">Result</th>
+        </tr>
+      `;
+      data.eligibilityChecks.items.forEach(item => {
+        html += `
+          <tr>
+            <td colspan="3" class="value-cell">${item.check}</td>
+            <td class="value-cell" style="text-align: right;">${formatValueHtml(item.result, item.status)}</td>
+          </tr>
+        `;
+      });
+      html += `
+        <tr>
+          <td colspan="4" class="action-required-cell">${data.eligibilityChecks.actionRequired}</td>
+        </tr>
+      `;
+
+      // 7. Section band: Authorization
+      html += `<tr><th colspan="4" class="section-band">Authorization</th></tr>`;
+      html += buildRows(data.authorization);
+
+      // 8. Footer row
+      html += `
+        <tr>
+          <td colspan="4" class="footer-cell">${data.footerText}</td>
+        </tr>
+      `;
+
+      tbody.innerHTML = html;
+    }
+
+    // Initialize render
+    document.addEventListener("DOMContentLoaded", () => {
+      renderVoucher(voucherData);
+    });
+  </script>
+</body>
+</html>

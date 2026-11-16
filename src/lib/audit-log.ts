@@ -221,4 +221,5 @@ export const AUDIT_ENTITIES = {
   HOUSE_INSPECTION: "house_inspection",
   RENT_RENTER: "rent_renter",
   RENT_PAYMENT: "rent_payment",
+  NAVIGATION_PREFERENCE: "navigation_preference",
 } as const;

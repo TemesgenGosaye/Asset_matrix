@@ -31,7 +31,7 @@ const emp = (over: Record<string, unknown>) => ({
   jobGrade: null,
   gender: "female",
   maritalStatus: "married",
-  disabilityStatus: false,
+  disabilityStatus: null,
   hireDate: new Date("2020-01-01"),
   ...over,
 });
@@ -490,7 +490,7 @@ describe("buildGradeGroups - job grade intervals", () => {
       jobGrade: null,
       gender: null,
       maritalStatus: null,
-      disabilityStatus: false,
+      disabilityStatus: null,
       serviceYears: 0,
       hireDate: null,
       familySize: null,
@@ -712,7 +712,7 @@ describe("computeHouseQueue - one table per job grade interval", () => {
           jobGrade: 13,
           hireDate: new Date("2005-01-01"),
           maritalStatus: "married",
-          disabilityStatus: true,
+          disabilityStatus: "Physical",
         }),
         emp({
           id: "b2",
@@ -720,7 +720,7 @@ describe("computeHouseQueue - one table per job grade interval", () => {
           jobGrade: 12,
           hireDate: new Date("2024-01-01"),
           maritalStatus: "single",
-          disabilityStatus: false,
+          disabilityStatus: null,
         }),
       ],
       households: [

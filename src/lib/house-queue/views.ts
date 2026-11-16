@@ -26,9 +26,8 @@ const employeeViewSelect = {
   jobGrade: true,
   gender: true,
   maritalStatus: true,
-  familySize: true,
-  phone: true,
   department: { select: { name: true, code: true } },
+  profile: { select: { familySize: true, phone: true } },
 } as const;
 
 const householdViewSelect = {
@@ -59,6 +58,25 @@ export interface AllocationEmployeeView {
   department: { name: string; code: string | null } | null;
 }
 
+function flattenEmployeeView(row: {
+  id: string;
+  employeeNumber: string;
+  firstname: string;
+  lastname: string;
+  jobGrade: number | null;
+  gender: string | null;
+  maritalStatus: string | null;
+  department: { name: string; code: string | null } | null;
+  profile: { familySize: number | null; phone: string | null } | null;
+}): AllocationEmployeeView {
+  const { profile, ...canonical } = row;
+  return {
+    ...canonical,
+    familySize: profile?.familySize ?? null,
+    phone: profile?.phone ?? null,
+  };
+}
+
 export interface AllocationHouseView {
   id: string;
   hid: string;
@@ -74,8 +92,34 @@ export interface AllocationHouseView {
   tablesCount: number;
 }
 
+export interface ReleaseRequestView {
+  requestedAt: string | null;
+  requestedByName: string | null;
+  branch: string | null;
+  reason: string | null;
+  effectiveDate: string | null;
+  transferHouseholdId: string | null;
+}
+
+export interface AllocatedHouseInspectionView {
+  id: string;
+  status: string;
+  scheduledDate: string | null;
+  inspectorId: string | null;
+  inspectorName: string | null;
+  resolvedTo: string | null;
+  completedAt: string | null;
+  conditionNote: string | null;
+  checklistBedCount?: number;
+  checklistChairsCount?: number;
+  checklistLockerCount?: number;
+  checklistTablesCount?: number;
+  damage: InspectionDamageView;
+}
+
 export interface AllocatedHouseView {
   allocationId: string;
+  status: string;
   mcdScore: number | null;
   priorityRank: number | null;
   decidedAt: string | null;
@@ -89,6 +133,8 @@ export interface AllocatedHouseView {
   awaitingHandback: boolean;
   house: AllocationHouseView | null;
   employee: AllocationEmployeeView | null;
+  inspection: AllocatedHouseInspectionView | null;
+  releaseRequest: ReleaseRequestView | null;
 }
 
 /**
@@ -333,21 +379,79 @@ export async function listAllocatedHouses(
       priorityRank: true,
       decidedAt: true,
       decidedBy: true,
+      reason: true,
+      terminationReason: true,
+      effectiveDate: true,
+      transferHouseholdId: true,
       household: { select: householdViewSelect },
       employee: { select: employeeViewSelect },
+      inspection: {
+        select: {
+          id: true,
+          status: true,
+          scheduledDate: true,
+          inspectorId: true,
+          resolvedTo: true,
+          completedAt: true,
+          conditionNote: true,
+          checklistBedCount: true,
+          checklistChairsCount: true,
+          checklistLockerCount: true,
+          checklistTablesCount: true,
+          ...damageColumnsSelect,
+        },
+      },
     },
   });
-  const names = await resolveUserNames(rows.map((r) => r.decidedBy));
+  const names = await resolveUserNames([
+    ...rows.map((r) => r.decidedBy),
+    ...rows.map((r) => r.inspection?.inspectorId ?? null),
+  ]);
 
   return rows.map((r) => ({
     allocationId: r.id,
+    status: r.status,
     mcdScore: r.mcdScore,
     priorityRank: r.priorityRank,
     decidedAt: r.decidedAt?.toISOString() ?? null,
     decidedByName: r.decidedBy ? (names.get(r.decidedBy) ?? null) : null,
     awaitingHandback: isReleasePending(r.status),
     house: r.household,
-    employee: r.employee ?? null,
+    employee: r.employee ? flattenEmployeeView(r.employee) : null,
+    inspection: r.inspection
+      ? {
+          id: r.inspection.id,
+          status: r.inspection.status,
+          scheduledDate:
+            r.inspection.scheduledDate?.toISOString().slice(0, 10) ?? null,
+          inspectorId: r.inspection.inspectorId,
+          inspectorName: r.inspection.inspectorId
+            ? (names.get(r.inspection.inspectorId) ?? null)
+            : null,
+          resolvedTo: r.inspection.resolvedTo,
+          completedAt: r.inspection.completedAt?.toISOString() ?? null,
+          conditionNote: r.inspection.conditionNote,
+          checklistBedCount: r.inspection.checklistBedCount,
+          checklistChairsCount: r.inspection.checklistChairsCount,
+          checklistLockerCount: r.inspection.checklistLockerCount,
+          checklistTablesCount: r.inspection.checklistTablesCount,
+          damage: buildInspectionDamage(r.inspection),
+        }
+      : null,
+    releaseRequest:
+      isReleasePending(r.status) || r.inspection
+        ? {
+            requestedAt: r.decidedAt?.toISOString() ?? null,
+            requestedByName: r.decidedBy
+              ? (names.get(r.decidedBy) ?? null)
+              : null,
+            branch: r.terminationReason ?? null,
+            reason: r.reason ?? null,
+            effectiveDate:
+              r.effectiveDate?.toISOString().slice(0, 10) ?? null,
+            transferHouseholdId: r.transferHouseholdId ?? null,
+          }
+        : null,
   }));
 }
 
@@ -406,7 +510,7 @@ export async function listTerminatedHouses(
       : null,
     note: r.reason,
     house: r.household,
-    employee: r.employee ?? null,
+    employee: r.employee ? flattenEmployeeView(r.employee) : null,
     inspection: r.inspection
       ? {
           id: r.inspection.id,
@@ -484,7 +588,7 @@ export async function getAllocationDetail(
     movedAt: row.movedAt?.toISOString() ?? null,
     moveCount: row.moveCount,
     house: row.household,
-    employee: row.employee ?? null,
+    employee: row.employee ? flattenEmployeeView(row.employee) : null,
     inspection: row.inspection
       ? {
           id: row.inspection.id,
@@ -625,7 +729,9 @@ export async function listInspections(
     photoCount: r.photoUrls.length,
     damage: buildInspectionDamage(r),
     handback: handbackView(r),
-    employee: r.allocation?.employee ?? null,
+    employee: r.allocation?.employee
+      ? flattenEmployeeView(r.allocation.employee)
+      : null,
   }));
 
   if (query.search) {

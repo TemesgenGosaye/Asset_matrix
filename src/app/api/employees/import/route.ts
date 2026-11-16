@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { buildExportResponse, type ExportFormat } from "@/lib/export";
 import prisma from "@/lib/prisma";
@@ -9,10 +9,13 @@ import {
   withEmployeeMutationContext,
 } from "@/lib/employees/api";
 import {
-  bulkOperateEmployees,
+  bulkCreateEmployees,
   invalidateEmployeeCache,
 } from "@/lib/employees/service";
 import {
+  EMPLOYEE_IMPORT_COLUMNS,
+  findExistingEmployeeNumbers,
+  mapEmployeeHeaders,
   previewEmployeeImport,
   rowsFromSheet,
   type EmployeeSpreadsheetRow,
@@ -26,11 +29,37 @@ import {
   parseWorkbook,
   type SheetData,
 } from "@/lib/excel-import";
-import { MAX_IMPORT_ROWS } from "@/lib/employees/constants";
+import {
+  CANONICAL_EMPLOYEE_COLUMNS,
+  MAX_IMPORT_ROWS,
+  REQUIRED_CANONICAL_EMPLOYEE_COLUMNS,
+} from "@/lib/employees/constants";
 import {
   buildEmployeeTemplateRows,
   EMPLOYEE_TEMPLATE_COLUMNS,
 } from "@/lib/employees/export";
+
+/**
+ * MIME types a spreadsheet upload may declare.
+ *
+ * Browsers are inconsistent about what they report for a spreadsheet — Chrome
+ * sends the precise OOXML type, Safari sends `application/vnd.ms-excel` for a
+ * CSV, and some clients send nothing at all — so an empty type is accepted and
+ * only a clearly wrong type (an image, a PDF) is refused. The file extension is
+ * the authoritative check and is enforced by `parseWorkbook`.
+ */
+function isSupportedSpreadsheetMime(type: string): boolean {
+  const value = type.trim().toLowerCase();
+  if (value.length === 0) return true;
+  return [
+    "excel",
+    "spreadsheet",
+    "csv",
+    "octet-stream",
+    "plain",
+    "zip",
+  ].some((token) => value.includes(token));
+}
 
 /**
  * POST /api/employees/import
@@ -79,12 +108,23 @@ export async function POST(req: NextRequest) {
         { status: 413 },
       );
     }
+    if (!isSupportedSpreadsheetMime(file.type)) {
+      return NextResponse.json(
+        {
+          error:
+            "Unsupported file type. Upload an Excel (.xlsx / .xls) or CSV file.",
+        },
+        { status: 400 },
+      );
+    }
 
     const buffer = Buffer.from(await file.arrayBuffer());
 
     let sheets: SheetData[];
     try {
-      sheets = await parseWorkbook(buffer, file.name);
+      sheets = await parseWorkbook(buffer, file.name, {
+        keepDisplayText: true,
+      });
     } catch (error) {
       return NextResponse.json(
         {
@@ -97,24 +137,69 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const sheet = sheets[0];
-    if (!sheet) {
-      return NextResponse.json(
-        { error: "The workbook contains no readable sheet." },
-        { status: 400 },
+    /**
+     * The header row is the first row with content in each sheet. A workbook
+     * may open with a title row, so every sheet is tried and the first one
+     * whose headers match a canonical column wins.
+     */
+    let selected: {
+      sheet: SheetData;
+      mapping: ReturnType<typeof mapEmployeeHeaders>;
+      rows: EmployeeSpreadsheetRow[];
+      rowNumbers: number[];
+    } | null = null;
+
+    for (const sheet of sheets) {
+      const mapping = mapEmployeeHeaders(sheet.headers);
+      if (Object.keys(mapping.mapping).length === 0) continue;
+      const extracted = rowsFromSheet(
+        sheet.headers,
+        sheet.rows,
+        sheet.headerRowIndex,
+        sheet.displayRows,
       );
+      selected = {
+        sheet,
+        mapping,
+        rows: extracted.rows,
+        rowNumbers: extracted.rowNumbers,
+      };
+      break;
     }
 
-    const { rows, mapping } = rowsFromSheet(sheet.headers, sheet.rows);
-    if (Object.keys(mapping).length === 0) {
+    if (!selected) {
       return NextResponse.json(
         {
           error:
-            "None of the column headers were recognised. Download the template to see the expected format.",
+            "None of the column headers were recognised. The workbook must contain at least " +
+            `${REQUIRED_CANONICAL_EMPLOYEE_COLUMNS.join(", ")}. Download the template to see the expected format.`,
         },
         { status: 400 },
       );
     }
+
+    const { sheet, mapping, rows, rowNumbers } = selected;
+
+    if (mapping.ambiguous.length > 0) {
+      return NextResponse.json(
+        {
+          error: "The workbook's column headers are ambiguous.",
+          details: mapping.ambiguous.map((entry) => entry.reason),
+        },
+        { status: 400 },
+      );
+    }
+
+    if (mapping.missing.length > 0) {
+      return NextResponse.json(
+        {
+          error: `The workbook is missing required column(s): ${mapping.missing.join(", ")}.`,
+          details: `Required columns: ${REQUIRED_CANONICAL_EMPLOYEE_COLUMNS.join(", ")}. Download the template to see the expected format.`,
+        },
+        { status: 400 },
+      );
+    }
+
     if (rows.length === 0) {
       return NextResponse.json(
         { error: "No data rows were found below the header row." },
@@ -124,18 +209,33 @@ export async function POST(req: NextRequest) {
 
     const preview = await previewEmployeeImport({
       organizationId,
-      rows: rows as EmployeeSpreadsheetRow[],
+      rows,
+      rowNumbers,
     });
+
+    const notes = [...preview.notes];
+    if (mapping.unmapped.length > 0) {
+      notes.push(
+        `Ignored ${mapping.unmapped.length} column(s) that are not part of the employee schema: ${mapping.unmapped.join(", ")}.`,
+      );
+    }
 
     return NextResponse.json(
       {
         fileName: file.name,
         sheetName: sheet.name,
-        recognisedColumns: Object.keys(mapping),
-        unmappedColumns: sheet.headers.filter(
-          (_, index) => !Object.values(mapping).includes(index),
+        recognisedColumns: CANONICAL_EMPLOYEE_COLUMNS.filter(
+          (column) => mapping.mapping[column] !== undefined,
         ),
-        ...preview,
+        unmappedColumns: mapping.unmapped,
+        missingColumns: mapping.missing,
+        totalRows: preview.totalRows,
+        validRows: preview.validRows,
+        invalidRows: preview.invalidRows,
+        duplicateRows: preview.duplicateRows,
+        ignoredRows: preview.ignoredRows,
+        rows: preview.rows,
+        notes,
         /** Bounded sample so the UI can render a preview table. */
         sample: preview.rows.slice(0, PREVIEW_ROW_LIMIT),
       },
@@ -149,28 +249,18 @@ export async function POST(req: NextRequest) {
 /**
  * GET /api/employees/import?format=xlsx
  *
- * A blank, correctly-headed workbook. Department cells are pre-filled with two
- * real department names so the template shows the exact spelling the importer
- * matches on.
+ * A blank, correctly-headed workbook with exactly the eight canonical columns.
  */
 export async function GET(req: NextRequest) {
   try {
-    const { response, context } = await withEmployeeContext("employee:import");
+    const { response } = await withEmployeeContext("employee:import");
     if (response) return response;
-    const { organizationId } = context!;
 
     const formatParam = new URL(req.url).searchParams.get("format");
     const format: ExportFormat = formatParam === "csv" ? "csv" : "xlsx";
 
-    const departments = await prisma.department.findMany({
-      where: { organizationId },
-      select: { name: true },
-      orderBy: { name: "asc" },
-      take: 2,
-    });
-
     return await buildExportResponse(
-      buildEmployeeTemplateRows(departments),
+      buildEmployeeTemplateRows(),
       EMPLOYEE_TEMPLATE_COLUMNS,
       format,
       "employee-import-template",
@@ -188,9 +278,9 @@ export async function GET(req: NextRequest) {
  * PUT /api/employees/import
  *
  * Write the rows the user approved. The payload is re-validated against the
- * create schema and every department / manager reference is re-resolved against
- * the caller's organization, so a tampered preview cannot write anything that
- * was not shown and verified.
+ * create schema and every Emp ID is re-checked against the register, so a
+ * tampered preview cannot write anything that was not shown and verified, and
+ * an existing employee is never overwritten.
  */
 const commitSchema = z.object({
   /**
@@ -215,20 +305,6 @@ export async function PUT(req: NextRequest) {
     );
     if (parseError) return parseError;
 
-    const [departments, managers] = await Promise.all([
-      prisma.department.findMany({
-        where: { organizationId },
-        select: { id: true },
-      }),
-      prisma.employee.findMany({
-        where: { organizationId, deletedAt: null },
-        select: { id: true },
-      }),
-    ]);
-    const deptIds = new Set(departments.map((d) => d.id));
-    const managerIds = new Set(managers.map((m) => m.id));
-
-    const validated: { input: Record<string, unknown> }[] = [];
     /**
      * `employeeNumber` is carried through so a failure can be traced back to a
      * specific person in the user's file, not just a row offset.
@@ -240,39 +316,60 @@ export async function PUT(req: NextRequest) {
       code: string;
     }[] = [];
 
+    const validated: { input: Record<string, unknown> }[] = [];
+    const employeeNumbers = data.rows
+      .map((row) =>
+        typeof row.employeeNumber === "string" ? row.employeeNumber : "",
+      )
+      .filter((value) => value.length > 0);
+
+    const existingNumbers = await findExistingEmployeeNumbers(
+      organizationId,
+      employeeNumbers,
+    );
+
     data.rows.forEach((row, index) => {
       const candidate = { ...row };
-
       const employeeNumber =
         typeof candidate.employeeNumber === "string"
-          ? candidate.employeeNumber
+          ? candidate.employeeNumber.trim()
           : undefined;
 
-      if (
-        typeof candidate.departmentId === "string" &&
-        candidate.departmentId
-      ) {
-        if (!deptIds.has(candidate.departmentId)) {
-          failures.push({
-            index,
-            employeeNumber,
-            message: "Department no longer exists in this organization.",
-            code: "UNKNOWN_DEPARTMENT",
-          });
-          return;
-        }
+      // Skip empty Emp ID rows if any were submitted
+      if (!employeeNumber) {
+        return;
       }
 
-      if (typeof candidate.managerId === "string" && candidate.managerId) {
-        if (!managerIds.has(candidate.managerId)) {
-          failures.push({
-            index,
-            employeeNumber,
-            message: "Reporting manager no longer exists in this organization.",
-            code: "UNKNOWN_MANAGER",
-          });
-          return;
-        }
+      // Default missing or empty name fields to "-"
+      if (
+        typeof candidate.firstname !== "string" ||
+        candidate.firstname.trim() === ""
+      ) {
+        candidate.firstname = "-";
+      }
+      if (
+        typeof candidate.lastname !== "string" ||
+        candidate.lastname.trim() === ""
+      ) {
+        candidate.lastname = "-";
+      }
+
+      // Remove non-persisted score before Zod strict validation
+      delete candidate.score;
+
+      // Duplicate policy: an Emp ID that already exists is rejected, never
+      // overwritten. The unique index is the final backstop.
+      if (
+        employeeNumber &&
+        existingNumbers.has(employeeNumber.toLowerCase())
+      ) {
+        failures.push({
+          index,
+          employeeNumber,
+          message: `Emp ID "${employeeNumber}" already exists in the register. Existing records are never overwritten by an import.`,
+          code: "DUPLICATE",
+        });
+        return;
       }
 
       const parsed = createEmployeeSchema.safeParse(candidate);
@@ -290,6 +387,10 @@ export async function PUT(req: NextRequest) {
       validated.push({ input: parsed.data as Record<string, unknown> });
     });
 
+    const duplicateCount = failures.filter(
+      (failure) => failure.code === "DUPLICATE",
+    ).length;
+
     if (validated.length === 0) {
       // Nothing passed re-validation. Still recorded, so a failed attempt is
       // visible in the history rather than looking like it never happened.
@@ -306,7 +407,9 @@ export async function PUT(req: NextRequest) {
           status: "failed",
           errors: failures.slice(0, MAX_REPORTED_ERRORS).map((f) => ({
             row: f.index + 1,
-            error: f.message,
+            error: f.employeeNumber
+              ? `${f.employeeNumber}: ${f.message}`
+              : f.message,
           })),
           startedAt: new Date(),
           completedAt: new Date(),
@@ -317,6 +420,8 @@ export async function PUT(req: NextRequest) {
         {
           jobId: job.id,
           imported: 0,
+          skipped: 0,
+          duplicates: duplicateCount,
           failed: failures,
         },
         { status: 422 },
@@ -338,10 +443,15 @@ export async function PUT(req: NextRequest) {
       },
     });
 
-    const result = await bulkOperateEmployees({
+    /**
+     * Every write happens inside one transaction, in chunks, so a 4,000-row
+     * workbook costs a bounded number of statements instead of four per row.
+     * Each row that could not be written is reported against its own row, and
+     * nothing is reported as imported until the transaction has committed.
+     */
+    const result = await bulkCreateEmployees({
       organizationId,
       actorId: user.id ?? null,
-      operation: "create",
       rows: validated,
     });
 
@@ -351,6 +461,9 @@ export async function PUT(req: NextRequest) {
       (a, b) => a.index - b.index,
     );
     const imported = result.succeeded.length;
+    const totalDuplicates =
+      duplicateCount +
+      allFailures.filter((failure) => failure.code === "DUPLICATE").length;
 
     // A run where nothing landed is "failed"; anything else is "completed" even
     // with per-row failures, because the rows that succeeded did land.
@@ -392,6 +505,8 @@ export async function PUT(req: NextRequest) {
       {
         jobId: job.id,
         imported,
+        skipped: 0,
+        duplicates: totalDuplicates,
         failed: allFailures,
       },
       { status: allFailures.length === 0 ? 200 : 207 },
@@ -402,3 +517,9 @@ export async function PUT(req: NextRequest) {
 }
 
 export const dynamic = "force-dynamic";
+
+/**
+ * A 4,000-row import is one request that writes 4,000 employees, so the
+ * function is given the platform's full budget rather than the default.
+ */
+export const maxDuration = 300;

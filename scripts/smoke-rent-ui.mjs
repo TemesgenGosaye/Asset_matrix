@@ -124,8 +124,8 @@ try {
   }
 
   // 3. Load the Pay Rent page.
-  await page.goto(`${BASE}/facility/pay-rent`, { waitUntil: "networkidle", timeout: 120_000 });
-  console.log("PASS  /facility/pay-rent loaded");
+  await page.goto(`${BASE}/houses/pay-rent`, { waitUntil: "networkidle", timeout: 120_000 });
+  console.log("PASS  /houses/pay-rent loaded");
 
   const heading = await page.locator("h1").first().textContent();
   console.log(`${heading?.includes("Pay Rent") ? "PASS" : "FAIL"}  page heading -- "${heading?.trim()}"`);
@@ -133,7 +133,7 @@ try {
   // 4. The sidebar entry must be present and marked active.
   //    The sidebar is an <aside role="navigation">, not a <nav> element.
   const navLink = page.locator(
-    '[role="navigation"][aria-label="Main navigation"] a[href="/facility/pay-rent"]',
+    '[role="navigation"][aria-label="Main navigation"] a[href="/houses/pay-rent"]',
   );
   const navCount = await navLink.count();
   console.log(`${navCount > 0 ? "PASS" : "FAIL"}  sidebar shows the Pay Rent entry`);

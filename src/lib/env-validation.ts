@@ -80,14 +80,6 @@ export const ENV_CONFIG: EnvVarConfig[] = [
     validate: (v) => ["development", "production", "test"].includes(v),
     validateMessage: "Must be 'development', 'production', or 'test'",
   },
-  {
-    name: "DEMO_MODE",
-    required: false,
-    default: "false",
-    description: "Enable demo mode with sample credentials",
-    validate: (v) => ["true", "false"].includes(v),
-    validateMessage: "Must be 'true' or 'false'",
-  },
 
   // Cron (Required in production — all 7 cron jobs fail silently without it)
   {

@@ -16,6 +16,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
@@ -42,8 +43,17 @@ import {
   Check,
   Package,
   User,
+  X,
+  FileSpreadsheet,
+  FileText,
+  Loader2,
 } from "lucide-react";
 import { notify } from "@/lib/feedback/notify";
+import {
+  exportBrandedTable,
+  type BrandedTableColumn,
+  type BrandedTableFormat,
+} from "@/lib/house-admin/export";
 import HouseholdFormModal from "./HouseholdFormModal";
 import HouseholdStatusModal from "./HouseholdStatusModal";
 import { HouseholdStatusBadge } from "./house-status";
@@ -87,12 +97,32 @@ interface SummaryStats {
   staff: number;
 }
 
+/** One-line damage summary for the export. */
+function householdDamageSummary(h: HouseholdItem): string {
+  const parts: string[] = [];
+  if (h.damageWindow) parts.push("Window");
+  if (h.damageDoor) parts.push("Door");
+  if (h.damageWaterPanel) parts.push("Water panel");
+  if (h.damageRoof) parts.push("Roof");
+  if (h.damageWall) parts.push("Wall");
+  if (h.damageElectricity) parts.push("Electricity");
+  const note = h.damageNotes?.trim();
+  if (parts.length === 0) return note ? note : "No damage";
+  return `${parts.join(", ")}${note ? ` — ${note}` : ""}`;
+}
+
 interface HouseholdRegisterClientProps {
   initialHouseholds: HouseholdItem[];
   locations: LocationItem[];
   initialSummary: SummaryStats;
   /** House ids currently allocated via the House Queue decision ledger. */
   initiallyAssignedHouseIds: string[];
+  /**
+   * Pre-selects the House Type filter. Set from `?type=` on the page so the
+   * dashboard's category tiles can jump straight into a filtered register.
+   * Only known category values are ever passed here (validated page-side).
+   */
+  initialTypeFilter?: string;
 }
 
 const ROWS_PER_PAGE_OPTIONS = [10, 20, 50, 100];
@@ -102,28 +132,41 @@ export default function HouseholdRegisterClient({
   locations,
   initialSummary,
   initiallyAssignedHouseIds,
+  initialTypeFilter = "all",
 }: HouseholdRegisterClientProps) {
   const [households, setHouseholds] =
     useState<HouseholdItem[]>(initialHouseholds);
   const [summary, setSummary] = useState<SummaryStats>(initialSummary);
   const [loading, setLoading] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [assignedHouseIds, setAssignedHouseIds] = useState<string[]>(
     initiallyAssignedHouseIds,
   );
 
   // Filter States
   const [search, setSearch] = useState("");
-  const [typeFilter, setTypeFilter] = useState("all");
+  const [searchDraft, setSearchDraft] = useState("");
+  const [typeFilter, setTypeFilter] = useState(initialTypeFilter);
   const [statusFilter, setStatusFilter] = useState("all");
   const [assignmentFilter, setAssignmentFilter] = useState("all");
   const [rgFilter, setRgFilter] = useState("all");
-  const [locationFilter, setLocationFilter] = useState("all");
 
   // Pagination & Sorting States
   const [page, setPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(20);
   const [sortBy, setSortBy] = useState<string>("srNo");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
+
+  const submitSearch = useCallback(() => {
+    setSearch(searchDraft.trim());
+    setPage(1);
+  }, [searchDraft]);
+
+  const clearSearch = useCallback(() => {
+    setSearchDraft("");
+    setSearch("");
+    setPage(1);
+  }, []);
 
   // Modal States
   const [formModalOpen, setFormModalOpen] = useState(false);
@@ -200,16 +243,13 @@ export default function HouseholdRegisterClient({
         (assignmentFilter === "assigned" && isAssigned) ||
         (assignmentFilter === "unassigned" && !isAssigned);
       const matchesRg = rgFilter === "all" || h.rgType === rgFilter;
-      const matchesLocation =
-        locationFilter === "all" || h.locationId === locationFilter;
 
       return (
         matchesSearch &&
         matchesType &&
         matchesStatus &&
         matchesAssignment &&
-        matchesRg &&
-        matchesLocation
+        matchesRg
       );
     });
   }, [
@@ -219,7 +259,6 @@ export default function HouseholdRegisterClient({
     statusFilter,
     assignmentFilter,
     rgFilter,
-    locationFilter,
     assignedSet,
   ]);
 
@@ -248,6 +287,83 @@ export default function HouseholdRegisterClient({
     const start = (page - 1) * rowsPerPage;
     return sortedItems.slice(start, start + rowsPerPage);
   }, [sortedItems, page, rowsPerPage]);
+
+  const exportColumns = useMemo<BrandedTableColumn<HouseholdItem>[]>(
+    () => [
+      { header: "SR No.", align: "right", width: 0.5, value: (_r, i) => String(i + 1) },
+      { header: "HID", width: 1.2, value: (r) => r.hid },
+      { header: "House No.", width: 1.0, value: (r) => r.houseNumber },
+      { header: "Type", align: "center", width: 0.9, value: (r) => r.houseType },
+      {
+        header: "Category",
+        align: "center",
+        width: 0.9,
+        value: (r) =>
+          r.houseType === "Staff"
+            ? r.staffCategory
+              ? `Staff ${r.staffCategory}`
+              : "Staff"
+            : "—",
+      },
+      {
+        header: "R / G",
+        align: "center",
+        width: 0.9,
+        value: (r) => (r.rgType === "Regular" ? "Regular" : "Guest House"),
+      },
+      {
+        header: "Location",
+        width: 1.3,
+        value: (r) => r.location?.locationname ?? r.locationName ?? "—",
+      },
+      { header: "Status", align: "center", width: 1.1, value: (r) => r.status },
+      {
+        header: "Occupancy",
+        align: "center",
+        width: 1.0,
+        value: (r) => (assignedSet.has(r.id) ? "Occupied" : "Unassigned"),
+      },
+      { header: "Beds", align: "right", width: 0.6, value: (r) => String(r.bedCount) },
+      { header: "Chairs", align: "right", width: 0.6, value: (r) => String(r.chairsCount) },
+      { header: "Lockers", align: "right", width: 0.6, value: (r) => String(r.lockerCount) },
+      { header: "Tables", align: "right", width: 0.6, value: (r) => String(r.tablesCount) },
+      { header: "Damage", width: 1.8, value: (r) => householdDamageSummary(r) },
+    ],
+    [assignedSet],
+  );
+
+  const handleExport = useCallback(
+    async (format: BrandedTableFormat) => {
+      if (sortedItems.length === 0) {
+        notify.error("Nothing to export — no rows match the current filters.");
+        return;
+      }
+      setExporting(true);
+      try {
+        await exportBrandedTable({
+          title: "House Register",
+          subtitle: "House Hold · House Register",
+          summary: `${sortedItems.length} record${
+            sortedItems.length === 1 ? "" : "s"
+          } · generated ${new Date().toLocaleString()}`,
+          accentHex: "#0ea5e9",
+          columns: exportColumns,
+          rows: sortedItems,
+          format,
+          fileStem: "house-register",
+          footerLabel: "house register report",
+        });
+        notify.success(
+          `House register exported as ${format === "excel" ? "Excel" : "PDF"}`,
+        );
+      } catch {
+        notify.error("Failed to export house register. Please try again.");
+      } finally {
+        setExporting(false);
+      }
+    },
+    [sortedItems, exportColumns],
+  );
 
   const handleSort = (field: string) => {
     if (sortBy === field) {
@@ -300,7 +416,7 @@ export default function HouseholdRegisterClient({
         throw new Error(data.error || "Failed to delete household");
       }
 
-      notify.success(`Household ${deletingHousehold.houseNumber} deleted`);
+      notify.success(`House ${deletingHousehold.houseNumber} deleted`);
       setHouseholds((prev) =>
         prev.filter((h) => h.id !== deletingHousehold.id),
       );
@@ -413,7 +529,7 @@ export default function HouseholdRegisterClient({
               {isAssigned ? (
                 <Badge
                   variant="default"
-                  className="w-fit gap-1 bg-blue-600 text-[11px] font-semibold text-white hover:bg-blue-700"
+                  className="w-fit gap-1 bg-[#006699] text-[11px] font-semibold text-white hover:bg-[#004d73]"
                 >
                   <User className="h-3 w-3" />
                   Occupied
@@ -566,30 +682,12 @@ export default function HouseholdRegisterClient({
         <div>
           <h1 className="text-foreground flex items-center gap-2 text-2xl font-bold tracking-tight">
             <Home className="text-primary h-7 w-7" />
-            Household Management
+            House Register: የቤት መዝገብ
           </h1>
           <p className="text-muted-foreground text-sm">
             Register, inspect, and maintain organization houses, staff quarters,
             and facilities.
           </p>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={refreshData}
-            disabled={loading}
-          >
-            <RefreshCw
-              className={`mr-1.5 h-4 w-4 ${loading ? "animate-spin" : ""}`}
-            />
-            Refresh
-          </Button>
-          <Button onClick={handleOpenCreate} size="sm">
-            <Plus className="mr-1.5 h-4 w-4" />
-            Register House
-          </Button>
         </div>
       </div>
 
@@ -689,21 +787,46 @@ export default function HouseholdRegisterClient({
       </div>
 
       {/* ─── Search & Filters Bar ─── */}
-      <div className="bg-card flex flex-col gap-3 rounded-xl border p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
-        <div className="relative max-w-sm flex-1">
-          <Search className="text-muted-foreground absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />
-          <Input
-            value={search}
-            onChange={(e) => {
-              setSearch(e.target.value);
-              setPage(1);
-            }}
-            placeholder="Search house no, HID, location..."
-            className="pl-9 text-xs"
-          />
+      <div className="bg-card flex items-center gap-3 rounded-xl border p-3 shadow-sm overflow-x-auto">
+        <div className="flex shrink-0 items-center gap-2">
+          <div className="relative w-64 sm:w-80">
+            <Search className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />
+            <Input
+              value={searchDraft}
+              onChange={(e) => setSearchDraft(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  submitSearch();
+                }
+              }}
+              placeholder="Search house no, HID, location..."
+              className="h-9 pr-9 pl-9 text-xs"
+              aria-label="Search houses"
+              autoFocus
+            />
+            {searchDraft ? (
+              <button
+                type="button"
+                aria-label="Clear search"
+                onClick={clearSearch}
+                className="text-muted-foreground hover:text-foreground absolute top-1/2 right-2.5 -translate-y-1/2 rounded-md p-0.5 transition-colors"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            ) : null}
+          </div>
+          <Button size="sm" className="h-9 shrink-0 px-4" onClick={submitSearch}>
+            Search
+          </Button>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
+        <div
+          className="bg-border h-6 w-px shrink-0"
+          aria-hidden
+        />
+
+        <div className="flex flex-nowrap items-center gap-2">
           {/* House Type Filter */}
           <Select
             value={typeFilter}
@@ -712,7 +835,7 @@ export default function HouseholdRegisterClient({
               setPage(1);
             }}
           >
-            <SelectTrigger className="h-8 w-[125px] text-xs">
+            <SelectTrigger className="h-9 w-[125px] shrink-0 text-xs">
               <SelectValue placeholder="House Type" />
             </SelectTrigger>
             <SelectContent>
@@ -734,7 +857,7 @@ export default function HouseholdRegisterClient({
               setPage(1);
             }}
           >
-            <SelectTrigger className="h-8 w-[115px] text-xs">
+            <SelectTrigger className="h-9 w-[115px] shrink-0 text-xs">
               <SelectValue placeholder="Status" />
             </SelectTrigger>
             <SelectContent>
@@ -758,7 +881,7 @@ export default function HouseholdRegisterClient({
               setPage(1);
             }}
           >
-            <SelectTrigger className="h-8 w-[135px] text-xs">
+            <SelectTrigger className="h-9 w-[135px] shrink-0 text-xs">
               <SelectValue placeholder="Assignment" />
             </SelectTrigger>
             <SelectContent>
@@ -776,7 +899,7 @@ export default function HouseholdRegisterClient({
               setPage(1);
             }}
           >
-            <SelectTrigger className="h-8 w-[115px] text-xs">
+            <SelectTrigger className="h-9 w-[115px] shrink-0 text-xs">
               <SelectValue placeholder="R / G Type" />
             </SelectTrigger>
             <SelectContent>
@@ -786,36 +909,12 @@ export default function HouseholdRegisterClient({
             </SelectContent>
           </Select>
 
-          {/* Location Filter */}
-          {locations.length > 0 && (
-            <Select
-              value={locationFilter}
-              onValueChange={(val) => {
-                setLocationFilter(val);
-                setPage(1);
-              }}
-            >
-              <SelectTrigger className="h-8 w-[130px] text-xs">
-                <SelectValue placeholder="Location" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Locations</SelectItem>
-                {locations.map((loc) => (
-                  <SelectItem key={loc.locationid} value={loc.locationid}>
-                    {loc.locationname || loc.locationid}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
-
           {/* Clear Filters */}
           {(search ||
             typeFilter !== "all" ||
             statusFilter !== "all" ||
             assignmentFilter !== "all" ||
-            rgFilter !== "all" ||
-            locationFilter !== "all") && (
+            rgFilter !== "all") && (
             <Button
               variant="ghost"
               size="sm"
@@ -825,14 +924,68 @@ export default function HouseholdRegisterClient({
                 setStatusFilter("all");
                 setAssignmentFilter("all");
                 setRgFilter("all");
-                setLocationFilter("all");
                 setPage(1);
               }}
-              className="text-muted-foreground hover:text-foreground h-8 text-xs"
+              className="text-muted-foreground hover:text-foreground h-9 shrink-0 text-xs"
             >
               Clear
             </Button>
           )}
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={refreshData}
+            disabled={loading}
+            className="h-9 shrink-0"
+          >
+            <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+          </Button>
+
+          <Button
+            onClick={handleOpenCreate}
+            size="sm"
+            className="h-9 shrink-0 whitespace-nowrap"
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            Register House
+          </Button>
+
+          {/* Export */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-9 w-9 shrink-0"
+                disabled={exporting}
+                aria-label="Export options"
+              >
+                {exporting ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <MoreVertical className="h-4 w-4" />
+                )}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-44">
+              <DropdownMenuLabel>Export</DropdownMenuLabel>
+              <DropdownMenuItem
+                disabled={exporting}
+                onClick={() => void handleExport("excel")}
+              >
+                <FileSpreadsheet className="h-4 w-4" />
+                Excel (.xlsx)
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                disabled={exporting}
+                onClick={() => void handleExport("pdf")}
+              >
+                <FileText className="h-4 w-4" />
+                PDF (.pdf)
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 
@@ -856,7 +1009,7 @@ export default function HouseholdRegisterClient({
             "damage",
             "actions",
           ]}
-          emptyMessage="No households registered matching your filter criteria."
+          emptyMessage="No houses registered matching your filter criteria."
         />
 
         {/* ─── Table Pagination Bar ─── */}

@@ -85,6 +85,7 @@ export default function StatusTypesTable({ items }) {
             <Input
               className="pl-9"
               placeholder="Search status types"
+              autoFocus
               value={searchValue}
               onChange={(e) => {
                 setSearchValue(e.target.value);

@@ -252,7 +252,7 @@ export default function LocationsTable({ items }) {
     <div className="w-full space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Locations</h1>
+        <h1 className="text-2xl font-bold tracking-tight">Locations: ቦታዎች</h1>
         <Button asChild>
           <Link href="/locations/create">
             <PlusIcon className="mr-2 h-4 w-4" />
@@ -268,6 +268,7 @@ export default function LocationsTable({ items }) {
           <Input
             className="pl-9"
             placeholder="Search by name or address details"
+            autoFocus
             value={searchValue}
             onChange={(e) => {
               setSearchValue(e.target.value);

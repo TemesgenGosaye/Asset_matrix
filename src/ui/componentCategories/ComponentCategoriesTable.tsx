@@ -108,6 +108,7 @@ export default function ComponentCategoriesTable({
             <Input
               className="pl-9"
               placeholder="Search component categories"
+              autoFocus
               value={searchValue}
               onChange={(e) => {
                 setSearchValue(e.target.value);

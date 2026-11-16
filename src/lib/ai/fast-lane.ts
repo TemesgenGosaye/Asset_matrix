@@ -190,22 +190,32 @@ function getAssetOverview(organizationId: string) {
 async function loadEmployeeCounts(organizationId: string) {
   // Archived (soft-deleted) employees are excluded from these counts so the
   // assistant's view of headcount matches the employee register.
-  const [byStatus, byGrade, total] = await Promise.all([
-    prisma.employee.groupBy({
-      by: ["employmentStatus"],
-      where: { organizationId, deletedAt: null },
-      _count: { id: true },
+  const [profiles, byGrade, total] = await Promise.all([
+    prisma.employeeProfile.findMany({
+      where: { organizationId, employee: { deletedAt: null } },
+      select: { employmentStatus: true },
     }),
     prisma.employee.groupBy({
       by: ["jobGrade"],
-      where: { organizationId, employmentStatus: "active", deletedAt: null },
+      where: {
+        organizationId,
+        deletedAt: null,
+        profile: { is: { employmentStatus: "active" } },
+      },
       _count: { id: true },
     }),
     prisma.employee.count({ where: { organizationId, deletedAt: null } }),
   ]);
+  const statusCounts = new Map<string, number>();
+  for (const profile of profiles) {
+    statusCounts.set(
+      profile.employmentStatus,
+      (statusCounts.get(profile.employmentStatus) ?? 0) + 1,
+    );
+  }
   return {
     total,
-    byStatus: byStatus.map((s) => ({ status: s.employmentStatus, count: s._count.id })),
+    byStatus: [...statusCounts].map(([status, count]) => ({ status, count })),
     byGrade: byGrade
       .map((g) => ({ grade: g.jobGrade, count: g._count.id }))
       .sort((a, b) => (b.grade ?? 0) - (a.grade ?? 0)),
@@ -673,9 +683,9 @@ async function resolveOccupantOf(
           firstname: true,
           lastname: true,
           employeeNumber: true,
-          jobTitle: true,
           jobGrade: true,
           department: { select: { name: true } },
+          profile: { select: { jobTitle: true } },
         },
       },
       inspection: {
@@ -721,7 +731,7 @@ async function resolveOccupantOf(
       ? `House ${household.houseNumber} — occupied by ${tenantName}`
       : `House ${household.houseNumber} — ${household.occupancyStatus.toLowerCase()}`,
     summary: tenant
-      ? `${tenant.jobTitle ?? "Employee"} · Grade ${tenant.jobGrade ?? "—"}${tenant.department?.name ? ` · ${tenant.department.name}` : ""}${allocation?.decidedAt ? ` · allocated ${allocation.decidedAt.toISOString().slice(0, 10)}` : ""}`
+      ? `${tenant.profile?.jobTitle ?? "Employee"} · Grade ${tenant.jobGrade ?? "—"}${tenant.department?.name ? ` · ${tenant.department.name}` : ""}${allocation?.decidedAt ? ` · allocated ${allocation.decidedAt.toISOString().slice(0, 10)}` : ""}`
       : "No live allocation is recorded against this house, so it stays in the available pool.",
     stats,
     table: tableFromRows(["Item", "Count"], [

@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireApiAuth } from "@/lib/api-auth";
 import prisma from "@/lib/prisma";
-import { ACCEPTED_THEME_IDS, SYSTEM_THEME_ID } from "@/lib/themes";
+import {
+  ACCEPTED_THEME_IDS,
+  SYSTEM_THEME_ID,
+  normalizeThemeId,
+} from "@/lib/themes";
 
 const DEFAULTS = {
   theme: SYSTEM_THEME_ID,
@@ -12,6 +16,7 @@ const DEFAULTS = {
   numberFormat: "1,234.56",
   pageSize: 20,
   onboardingCompleted: false,
+  showRecommendedPopup: true,
   dashboardLayout: null,
   helpDismissed: null,
 };
@@ -28,7 +33,14 @@ export async function GET() {
       return NextResponse.json(DEFAULTS);
     }
 
-    return NextResponse.json(preferences);
+    // The column is free text, so a row can still hold a theme that no longer
+    // exists ("oled", "paper", …). Those are mapped onto the palette with the
+    // same lightness, so the client never applies a class the stylesheet does
+    // not define. `system` stays symbolic - only the browser can resolve it.
+    return NextResponse.json({
+      ...preferences,
+      theme: normalizeThemeId(preferences.theme, SYSTEM_THEME_ID),
+    });
   } catch (error) {
     if (error instanceof Error && error.message === "Unauthorized") {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -54,6 +66,7 @@ export async function PUT(request: NextRequest) {
       numberFormat,
       pageSize,
       onboardingCompleted,
+      showRecommendedPopup,
       dashboardLayout,
       helpDismissed,
     } = body;
@@ -86,6 +99,8 @@ export async function PUT(request: NextRequest) {
     if (pageSize !== undefined) values.pageSize = pageSize;
     if (onboardingCompleted !== undefined)
       values.onboardingCompleted = onboardingCompleted;
+    if (showRecommendedPopup !== undefined)
+      values.showRecommendedPopup = showRecommendedPopup;
     if (dashboardLayout !== undefined) values.dashboardLayout = dashboardLayout;
     if (helpDismissed !== undefined) values.helpDismissed = helpDismissed;
 

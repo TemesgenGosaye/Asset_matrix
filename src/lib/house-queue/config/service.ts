@@ -264,7 +264,37 @@ export async function ensureEngineConfigExists(
     where: { organizationId },
     select: { id: true },
   });
-  if (existing) return;
+  if (existing) {
+    /**
+     * Repair the invariant when it is broken: an organization can end up with
+     * versions but NO active one (a rollback used to archive every active row,
+     * including the row it had just created). `getActiveConfig` then threw
+     * "Active engine configuration is missing for organization", so the config
+     * page failed and the engine had no configuration to run.
+     *
+     * The newest version is promoted back to active. For a healthy
+     * organization this does nothing - it only runs when there is no active
+     * row at all.
+     */
+    const active = await prisma.engineConfigVersion.findFirst({
+      where: { organizationId, status: "active" },
+      select: { id: true },
+    });
+    if (!active) {
+      const newest = await prisma.engineConfigVersion.findFirst({
+        where: { organizationId },
+        orderBy: { versionNumber: "desc" },
+        select: { id: true },
+      });
+      if (newest) {
+        await prisma.engineConfigVersion.update({
+          where: { id: newest.id },
+          data: { status: "active", publishedAt: new Date() },
+        });
+      }
+    }
+    return;
+  }
 
   try {
     const version = await prisma.engineConfigVersion.create({
@@ -356,7 +386,7 @@ export async function getConfigState(
 ): Promise<EngineConfigState> {
   await ensureEngineConfigExists(organizationId);
 
-  const [versions, latestAudit] = await Promise.all([
+  const [versions, latestAudit, lastRun] = await Promise.all([
     prisma.engineConfigVersion.findMany({
       where: { organizationId },
       select: VERSION_SELECT,
@@ -364,6 +394,14 @@ export async function getConfigState(
     }),
     prisma.configAuditEntry.findFirst({
       where: { organizationId },
+      orderBy: { changedAt: "desc" },
+      select: { changedAt: true },
+    }),
+    // "Last run" is the last time the engine actually executed (manual or
+    // automatic), NOT the last configuration change. They are distinct audit
+    // actions, so this needs its own lookup.
+    prisma.configAuditEntry.findFirst({
+      where: { organizationId, action: { in: ["manual_run", "auto_run"] } },
       orderBy: { changedAt: "desc" },
       select: { changedAt: true },
     }),
@@ -387,7 +425,7 @@ export async function getConfigState(
     editingBase: draft ? fromPrismaRow(draft) : fromPrismaRow(active),
     lastAuditAt: latestAudit?.changedAt ?? null,
     lastPublishedAt: lastPublished?.publishedAt ?? null,
-    lastRunAt: latestAudit?.changedAt ?? null,
+    lastRunAt: lastRun?.changedAt ?? null,
   };
 }
 
@@ -418,6 +456,27 @@ export interface SaveDraftInput {
 }
 
 /**
+ * The next FREE version number for an organization.
+ *
+ * `@@unique([organizationId, versionNumber])` means the number has to be the
+ * highest one already taken PLUS ONE - not `active.versionNumber + 1`. A
+ * pending draft already owns that number, so inserting a row with it violates
+ * the constraint. Deriving the number from the maximum removes the whole
+ * class of collisions.
+ */
+async function nextVersionNumber(
+  tx: Pick<Prisma.TransactionClient, "engineConfigVersion">,
+  organizationId: string,
+): Promise<number> {
+  const highest = await tx.engineConfigVersion.findFirst({
+    where: { organizationId },
+    orderBy: { versionNumber: "desc" },
+    select: { versionNumber: true },
+  });
+  return (highest?.versionNumber ?? 0) + 1;
+}
+
+/**
  * Create or update the draft from a fully-validated payload. Never touches
  * the ACTIVE version. Every field that differs from the ACTIVE payload is
  * recorded as a field-level `draft_save` audit entry.
@@ -428,52 +487,72 @@ export interface SaveDraftInput {
 export async function saveDraft(
   input: SaveDraftInput,
 ): Promise<EngineConfigVersionRow> {
-  const active = await getActiveConfig(input.organizationId);
+  // Self-heal an organization that has never had a config seeded.
+  await ensureEngineConfigExists(input.organizationId);
 
-  const existing = await getDraftConfig(input.organizationId);
-  const diffs = diffPayloads(active.payload, input.payload);
-
-  const data = {
-    organizationId: input.organizationId,
-    ...payloadToPrisma(input.payload),
-  };
-
-  let draft: EngineConfigVersionRow;
-  if (existing) {
-    const updated = await prisma.engineConfigVersion.update({
-      where: { id: existing.id },
-      data: { ...data, changeSummary: undefined },
+  // The draft write and its audit trail must land together: a crash between
+  // them previously left a draft with no audit history (or vice versa).
+  return prisma.$transaction(async (tx) => {
+    const activeRow = await tx.engineConfigVersion.findFirst({
+      where: { organizationId: input.organizationId, status: "active" },
       select: VERSION_SELECT,
     });
-    draft = fromPrismaRow(updated);
-  } else {
-    const created = await prisma.engineConfigVersion.create({
-      data: {
-        ...data,
-        versionNumber: active.versionNumber + 1,
-        status: "draft",
-        createdBy: input.createdBy,
-      },
+    if (!activeRow) {
+      throw new Error("Active engine configuration is missing for organization");
+    }
+    const existingRow = await tx.engineConfigVersion.findFirst({
+      where: { organizationId: input.organizationId, status: "draft" },
       select: VERSION_SELECT,
     });
-    draft = fromPrismaRow(created);
-  }
 
-  if (diffs.length > 0) {
-    await auditRows(
-      {
-        organizationId: input.organizationId,
-        versionId: draft.id,
-        actor: input.createdBy,
-        ipAddress: input.ipAddress,
-        diffs,
-      },
-      "draft_save",
-      prisma,
-    );
-  }
+    const active = fromPrismaRow(activeRow);
+    const existing = existingRow ? fromPrismaRow(existingRow) : null;
+    const diffs = diffPayloads(active.payload, input.payload);
 
-  return draft;
+    const data = {
+      organizationId: input.organizationId,
+      ...payloadToPrisma(input.payload),
+    };
+
+    let draft: EngineConfigVersionRow;
+    if (existing) {
+      const updated = await tx.engineConfigVersion.update({
+        where: { id: existing.id },
+        data: { ...data, changeSummary: undefined },
+        select: VERSION_SELECT,
+      });
+      draft = fromPrismaRow(updated);
+    } else {
+      const created = await tx.engineConfigVersion.create({
+        data: {
+          ...data,
+          // The next free number, so a draft can never collide with an existing
+          // row on the unique (organizationId, versionNumber) constraint.
+          versionNumber: await nextVersionNumber(tx, input.organizationId),
+          status: "draft",
+          createdBy: input.createdBy,
+        },
+        select: VERSION_SELECT,
+      });
+      draft = fromPrismaRow(created);
+    }
+
+    if (diffs.length > 0) {
+      await auditRows(
+        {
+          organizationId: input.organizationId,
+          versionId: draft.id,
+          actor: input.createdBy,
+          ipAddress: input.ipAddress,
+          diffs,
+        },
+        "draft_save",
+        tx,
+      );
+    }
+
+    return draft;
+  });
 }
 
 // ───────────────────────────────────────────────────────────────────────────
@@ -501,37 +580,42 @@ export async function publishDraft(
   if (!draft) {
     throw new Error("No draft to publish — save the draft first");
   }
-  if (draft.payload === state.editingBase.payload) {
+  // The draft is compared against the LIVE version. `editingBase` IS the draft
+  // when one exists, so comparing the two compared an object with itself and
+  // the guard never fired.
+  const diffAgainstRelease = diffPayloads(state.active.payload, draft.payload);
+  if (diffAgainstRelease.length === 0) {
     throw new Error("Draft has no changes to publish");
   }
 
-  const newVersionNumber = state.active.versionNumber + 1;
-  const diffAgainstRelease = diffPayloads(state.active.payload, draft.payload);
-
   return prisma.$transaction(async (tx) => {
-    const released = await tx.engineConfigVersion.create({
+    // Archive the outgoing live version FIRST, and target it by id. Archiving
+    // "every row with status active" after publishing the new one would
+    // archive the version that was just published.
+    await tx.engineConfigVersion.update({
+      where: { id: state.active.id },
+      data: { status: "archived" },
+    });
+
+    /**
+     * The DRAFT ROW IS PROMOTED rather than copied into a new row.
+     *
+     * The draft already carries the payload that is being published and it
+     * already owns a version number. Inserting a second row with the same
+     * `(organizationId, versionNumber)` pair violated the unique constraint
+     * and failed every publish with a 409 - the draft's number and
+     * `active.versionNumber + 1` are the same number.
+     */
+    const released = await tx.engineConfigVersion.update({
+      where: { id: draft.id },
       data: {
-        organizationId: input.organizationId,
-        versionNumber: newVersionNumber,
         status: "active",
-        ...payloadToPrisma(draft.payload),
         changeSummary: input.changeSummary ?? null,
-        createdBy: draft.createdBy ?? input.createdBy,
         publishedBy: input.createdBy,
         publishedAt: new Date(),
         supersededById: state.active.id,
       },
       select: VERSION_SELECT,
-    });
-
-    // Soft-archive the outgoing live version AND the draft row.
-    await tx.engineConfigVersion.updateMany({
-      where: { organizationId: input.organizationId, status: "active" },
-      data: { status: "archived" },
-    });
-    await tx.engineConfigVersion.updateMany({
-      where: { organizationId: input.organizationId, status: "draft" },
-      data: { status: "archived" },
     });
 
     await auditRows(
@@ -556,7 +640,7 @@ export async function publishDraft(
         meta: {
           fieldPath: "version",
           oldValue: `v${state.active.versionNumber}`,
-          newValue: `v${newVersionNumber}`,
+          newValue: `v${released.versionNumber}`,
         },
       },
       "publish",
@@ -603,15 +687,27 @@ export async function rollbackConfig(
     throw new Error("A change summary is required for rollback");
   }
 
-  const newVersionNumber = active.versionNumber + 1;
   const targetRow = fromPrismaRow(target);
   const diffAgainstRelease = diffPayloads(active.payload, targetRow.payload);
 
   return prisma.$transaction(async (tx) => {
+    // Archive the outgoing live version FIRST, and target it by id. Archiving
+    // "every row with status active" AFTER creating the new one archived the
+    // rollback itself, which left the organization with no active version at
+    // all - and every later read of the configuration failed with "Active
+    // engine configuration is missing for organization".
+    await tx.engineConfigVersion.update({
+      where: { id: active.id },
+      data: { status: "archived" },
+    });
+
     const released = await tx.engineConfigVersion.create({
       data: {
         organizationId: input.organizationId,
-        versionNumber: newVersionNumber,
+        // The next FREE number, not `active.versionNumber + 1`: a pending draft
+        // already owns that number, and the unique constraint on
+        // (organizationId, versionNumber) would reject the insert.
+        versionNumber: await nextVersionNumber(tx, input.organizationId),
         status: "active",
         ...payloadToPrisma(targetRow.payload),
         changeSummary: input.changeSummary,
@@ -621,11 +717,6 @@ export async function rollbackConfig(
         supersededById: active.id,
       },
       select: VERSION_SELECT,
-    });
-
-    await tx.engineConfigVersion.updateMany({
-      where: { organizationId: input.organizationId, status: "active" },
-      data: { status: "archived" },
     });
     await tx.engineConfigVersion.updateMany({
       where: { organizationId: input.organizationId, status: "draft" },
@@ -654,7 +745,7 @@ export async function rollbackConfig(
         meta: {
           fieldPath: "version",
           oldValue: `v${active.versionNumber}`,
-          newValue: `v${newVersionNumber}`,
+          newValue: `v${released.versionNumber}`,
         },
       },
       "rollback",

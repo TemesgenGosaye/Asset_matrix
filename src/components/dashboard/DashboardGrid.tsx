@@ -1122,7 +1122,7 @@ function HousingFigure({
  * need watching: handbacks not yet inspected, and whether allocation pace is
  * rising or falling month on month.
  */
-function HousingSummaryWidget() {
+export function HousingSummaryWidget() {
   const { data, loading } = useHousingOverview();
 
   if (loading) {

@@ -368,7 +368,7 @@ export default function LicencesTable({
     <div className="w-full space-y-4">
       <div className="flex flex-col gap-4">
         <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-semibold">Licences</h1>
+          <h1 className="text-2xl font-bold tracking-tight">Licences: ፈቃዶች</h1>
           {isAdmin && (
             <Button asChild>
               <Link href="/licences/create">
@@ -384,6 +384,7 @@ export default function LicencesTable({
             <Input
               className="pl-9"
               placeholder="Search by key, assignee, or metadata"
+              autoFocus
               value={searchValue}
               onChange={(e) => setSearchValue(e.target.value)}
             />

@@ -18,11 +18,12 @@
  *   --password <value> Login for warming authenticated routes (or WARM_PASSWORD)
  *   --concurrency <n>  Parallel warm requests (default: 2)
  *   --timeout <ms>     Max wait for "Ready in" (default: 120000)
- *   --no-log           Do not tee server output to dev-server.log
+ *   --no-log           Do not tee server output to the temp log file
  *   --help             Show this help
  */
 import "dotenv/config";
 import { join } from "node:path";
+import { tmpdir } from "node:os";
 import {
   APP_DIR,
   ROOT,
@@ -128,7 +129,7 @@ ${color("1", "Next.js + Turbopack dev runner")}
   --password <value> Login for authenticated warm-up (or WARM_PASSWORD)
   --concurrency <n>  Parallel warm requests (default: 2)
   --timeout <ms>     Max wait for "Ready in" (default: 120000)
-  --no-log           Do not tee server output to dev-server.log
+  --no-log           Do not tee server output to the temp log file
   --help             Show this help
 `;
 
@@ -156,7 +157,13 @@ if (Boolean(opts.email) !== Boolean(opts.password)) {
 }
 
 const baseUrl = `http://localhost:${opts.port}`;
-const logFile = opts.log ? join(ROOT, "dev-server.log") : null;
+// Keep the log OUTSIDE the project. It used to be written to
+// <root>/dev-server.log, which lives in the directory the dev server watches;
+// appending to it on every request can re-trigger the file watcher and cause
+// Fast Refresh/reload churn. The OS temp dir is not watched.
+const logFile = opts.log
+  ? join(tmpdir(), "msf-asset-house-portal-dev-server.log")
+  : null;
 const abort = new AbortController();
 
 /** Find a process listening on `port`, returning its identity. */

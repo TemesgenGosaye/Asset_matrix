@@ -385,7 +385,9 @@ export default function ConsumablesTable({
     <div className="w-full space-y-4">
       <div className="flex flex-col gap-4">
         <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-semibold">Consumables</h1>
+          <h1 className="text-2xl font-bold tracking-tight">
+            Consumables: ፍጆታ ዕቃዎች
+          </h1>
         </div>
         <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
           <div className="relative w-full lg:max-w-md">
@@ -393,6 +395,7 @@ export default function ConsumablesTable({
             <Input
               className="pl-9"
               placeholder="Search by name, category, manufacturer, or supplier"
+              autoFocus
               value={searchValue}
               onChange={(e) => setSearchValue(e.target.value)}
             />

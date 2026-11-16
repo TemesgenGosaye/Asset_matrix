@@ -9,6 +9,7 @@ import {
   twoFactorClient,
   // 💡 genericOAuthClient has been removed as it is now native to social providers
 } from "better-auth/client/plugins";
+import { clearOfflineQueue } from "@/lib/offline-queue";
 
 /** User fields available in BetterAuth session (includes additionalFields) */
 export interface SessionUser {
@@ -55,5 +56,37 @@ export function useSession(): {
 }
 
 export const signOut = async (): Promise<void> => {
-  await authClient.signOut({});
+  try {
+    await authClient.signOut({});
+  } finally {
+    await clearClientSessionData();
+  }
 };
+
+/**
+ * Remove cached authenticated pages and queued mutations when the session ends.
+ * Without this, a shared device could show the previous user's data offline,
+ * and pending writes could be replayed under the next user's session.
+ */
+async function clearClientSessionData(): Promise<void> {
+  if (typeof window === "undefined") return;
+
+  try {
+    if ("caches" in window) {
+      const keys = await caches.keys();
+      await Promise.all(
+        keys
+          .filter((key) => key.startsWith("asset-tracker"))
+          .map((key) => caches.delete(key)),
+      );
+    }
+  } catch {
+    // Cache API unavailable; continue with the remaining cleanup.
+  }
+
+  try {
+    await clearOfflineQueue();
+  } catch {
+    // IndexedDB unavailable; nothing else to clear here.
+  }
+}

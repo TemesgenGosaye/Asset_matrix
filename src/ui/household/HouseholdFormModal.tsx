@@ -102,8 +102,8 @@ export default function HouseholdFormModal({
           <DialogTitle className="flex items-center gap-2 text-xl font-semibold">
             <Home className="text-primary h-5 w-5" />
             {initialData?.id
-              ? `Edit Household: ${initialData.houseNumber}`
-              : "Register New Household"}
+              ? `Edit House: ${initialData.houseNumber}`
+              : "Register New House"}
           </DialogTitle>
           <DialogDescription>
             {initialData?.id
@@ -859,7 +859,7 @@ function HouseholdFormFields({
           </Button>
           <Button type="submit" disabled={loading || !canSubmit}>
             {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {isEditing ? "Update Household" : "Register Household"}
+            {isEditing ? "Update House" : "Register House"}
           </Button>
         </DialogFooter>
       </form>

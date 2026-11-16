@@ -386,7 +386,8 @@ describe("initiateRelease", () => {
         organizationId: "org1",
         employeeId: "e1",
         decidedBy: "admin1",
-        // @ts-expect-error -- TRANSFER is deliberately not part of ReleaseReason
+        // TRANSFER is a Reassign, not a release — the service rejects it even
+        // though the type permits the branch for the transfer surface.
         branch: "TRANSFER",
       }),
     ).rejects.toThrow(/Reassign/);
@@ -508,7 +509,8 @@ describe("executeRelease", () => {
         organizationId: "org1",
         employeeId: "e1",
         decidedBy: "admin1",
-        // @ts-expect-error -- TRANSFER is deliberately not part of ReleaseReason
+        // TRANSFER is a Reassign, not a release — the service rejects it even
+        // though the type permits the branch for the transfer surface.
         branch: "TRANSFER",
       }),
     ).rejects.toThrow(/Reassign/);

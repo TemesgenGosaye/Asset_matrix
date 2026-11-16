@@ -1,0 +1,312 @@
+/* ===========================================================================
+ * Metahara Sugar Factory — Employee Verification Result Stylesheet
+ * Single-table layout, exact four-column fixed geometry, and A4 print styles.
+ * =========================================================================== */
+
+:root {
+  --evr-navy: #006699;
+  --evr-label-bg: #e6f0f5;
+  --evr-value-bg: #ffffff;
+  --evr-value-text: #111827;
+  --evr-border: #cfd8e3;
+  --evr-pass: #166534;
+  --evr-fail: #b42318;
+  --evr-action-bg: #fdf0ee;
+  --evr-action-text: #b42318;
+  --evr-page-bg: #f4f5f7;
+  --evr-sheet-bg: #ffffff;
+  --evr-muted-text: #6b7280;
+}
+
+/* Page wrapper background */
+.evr-page-wrap {
+  background-color: var(--evr-page-bg);
+  width: 100%;
+  padding: 10px 0 24px 0;
+  font-family: Inter, system-ui, -apple-system, "Segoe UI", Arial, sans-serif;
+}
+
+/* Print action bar above the sheet */
+.evr-action-bar {
+  max-width: 680px;
+  margin: 0 auto 10px auto;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.evr-print-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background-color: var(--evr-navy);
+  color: #ffffff;
+  border: 1px solid var(--evr-navy);
+  border-radius: 4px;
+  padding: 6px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  transition: background-color 0.15s ease;
+}
+
+.evr-print-btn:hover {
+  background-color: #004d73;
+}
+
+/* The 680px white sheet container */
+.evr-sheet {
+  background-color: var(--evr-sheet-bg);
+  border: 1px solid var(--evr-border);
+  border-radius: 6px;
+  padding: 14px;
+  max-width: 680px;
+  margin: 0 auto;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
+  overflow-x: auto;
+}
+
+/* Single HTML table */
+.evr-table {
+  width: 100%;
+  min-width: 560px;
+  border-collapse: collapse;
+  table-layout: fixed;
+  font-family: Inter, system-ui, -apple-system, "Segoe UI", Arial, sans-serif;
+}
+
+.evr-table col:nth-child(1) { width: 21%; }
+.evr-table col:nth-child(2) { width: 29%; }
+.evr-table col:nth-child(3) { width: 21%; }
+.evr-table col:nth-child(4) { width: 29%; }
+
+/* Header row (no borders except 2px navy line below) */
+.evr-header-cell {
+  padding: 4px 4px 10px 4px;
+  border: none !important;
+  border-bottom: 2px solid var(--evr-navy) !important;
+  vertical-align: bottom;
+  background-color: transparent !important;
+}
+
+.evr-header-left {
+  text-align: left;
+}
+
+.evr-header-right {
+  text-align: right;
+}
+
+.evr-org-title {
+  font-size: 15px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--evr-navy);
+  line-height: 1.2;
+  letter-spacing: 0.02em;
+}
+
+.evr-doc-subtitle {
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+  color: var(--evr-muted-text);
+  letter-spacing: 0.06em;
+  margin-top: 2px;
+}
+
+.evr-ref-no {
+  font-size: 12.5px;
+  color: var(--evr-navy);
+  line-height: 1.2;
+}
+
+.evr-ref-no strong {
+  font-weight: 700;
+}
+
+.evr-print-meta {
+  font-size: 11px;
+  color: var(--evr-muted-text);
+  margin-top: 2px;
+}
+
+/* Section header bands */
+.evr-section-band {
+  background-color: var(--evr-navy);
+  color: #ffffff !important;
+  font-size: 10.5px;
+  letter-spacing: 0.14em;
+  font-weight: 600;
+  text-transform: uppercase;
+  padding: 6px 10px;
+  border: 1px solid var(--evr-navy);
+  text-align: left;
+}
+
+/* Table Label and Value cells */
+.evr-table th.evr-label-cell {
+  background-color: var(--evr-label-bg);
+  color: var(--evr-navy);
+  font-weight: 600;
+  font-size: 11.5px;
+  padding: 6px 10px;
+  border: 1px solid var(--evr-border);
+  text-align: left;
+  vertical-align: middle;
+  word-break: break-word;
+}
+
+.evr-table td.evr-value-cell {
+  background-color: var(--evr-value-bg);
+  color: var(--evr-value-text);
+  font-weight: 500;
+  font-size: 12px;
+  padding: 6px 10px;
+  border: 1px solid var(--evr-border);
+  text-align: left;
+  vertical-align: middle;
+  word-break: break-word;
+}
+
+/* Authorization empty slots */
+.evr-table td.evr-tall-slot {
+  height: 38px;
+}
+
+/* Status colors */
+.evr-status-pass {
+  color: var(--evr-pass);
+  font-weight: 600;
+}
+
+.evr-status-fail {
+  color: var(--evr-fail);
+  font-weight: 600;
+}
+
+/* Eligibility checks sub-header */
+.evr-sub-th-check {
+  background-color: var(--evr-label-bg);
+  color: var(--evr-navy);
+  font-weight: 600;
+  font-size: 11px;
+  padding: 5px 10px;
+  border: 1px solid var(--evr-border);
+  text-align: left;
+}
+
+.evr-sub-th-result {
+  background-color: var(--evr-label-bg);
+  color: var(--evr-navy);
+  font-weight: 600;
+  font-size: 11px;
+  padding: 5px 10px;
+  border: 1px solid var(--evr-border);
+  text-align: right;
+}
+
+/* Action required row */
+.evr-action-required-cell {
+  background-color: var(--evr-action-bg);
+  color: var(--evr-action-text);
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 8px 10px;
+  border: 1px solid var(--evr-border);
+  text-align: left;
+}
+
+/* Footer row */
+.evr-footer-cell {
+  border: none !important;
+  text-align: center;
+  font-size: 10px;
+  color: var(--evr-muted-text);
+  padding: 12px 6px 4px 6px;
+  background-color: transparent !important;
+}
+
+/* ===========================================================================
+ * @media print: Single A4 page, no sheet border, no padding, hidden controls
+ * =========================================================================== */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 12mm;
+  }
+
+  /* Hide print button, search input/form, navigation chrome and other page controls */
+  header:not(.evr-header-cell),
+  nav,
+  aside,
+  form,
+  button,
+  .no-print,
+  .evr-no-print,
+  [role="navigation"],
+  [data-feedback-variant] {
+    display: none !important;
+  }
+
+  /* Ensure document and AppShell wrappers expand fully without clipping */
+  html,
+  body {
+    background-color: #ffffff !important;
+    background: #ffffff !important;
+    height: auto !important;
+    min-height: auto !important;
+    overflow: visible !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .h-screen,
+  .overflow-hidden,
+  .overflow-y-auto {
+    height: auto !important;
+    overflow: visible !important;
+    max-height: none !important;
+  }
+
+  body,
+  main,
+  #main-content,
+  .evr-page-wrap {
+    background-color: #ffffff !important;
+    background: #ffffff !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    color: var(--evr-value-text) !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  .evr-sheet {
+    border: none !important;
+    padding: 0 !important;
+    max-width: 100% !important;
+    width: 100% !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    overflow: visible !important;
+  }
+
+  .evr-table {
+    min-width: 100% !important;
+    width: 100% !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  .evr-table tr {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  .evr-table th,
+  .evr-table td {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+}

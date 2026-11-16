@@ -17,8 +17,6 @@
     "start": "next start",
     "lint": "eslint src/",
     "db:seed": "prisma db seed",
-    "db:demo-seed": "node prisma/demo-seed.js",
-    "db:demo-reset": "node scripts/reset-demo-db.mjs",
     "create-admin": "node scripts/create-admin.mjs",
     "test": "vitest run",
     "test:ui": "npx playwright test --ui",
@@ -34,7 +32,13 @@
     "test:unit": "vitest run",
     "test:unit:watch": "vitest",
     "test:unit:coverage": "vitest run --coverage",
-    "test:a11y": "playwright test accessibility"
+    "test:a11y": "playwright test accessibility",
+    "desktop:dev": "npm --prefix desktop run dev",
+    "desktop:start": "npm --prefix desktop run start",
+    "desktop:icons": "npm --prefix desktop run icons",
+    "desktop:pack": "npm --prefix desktop run pack",
+    "desktop:build": "npm --prefix desktop run build",
+    "desktop:dist": "npm --prefix desktop run dist"
   },
   "dependencies": {
     "@ai-sdk/google": "^4.0.80",
@@ -131,6 +135,7 @@
     "happy-dom": "^20.9.0",
     "husky": "^9.1.7",
     "lint-staged": "^16.4.0",
+    "pm2": "^7.1.1",
     "postcss": "^8.5.12",
     "prettier": "^3.8.3",
     "prettier-plugin-tailwindcss": "^0.8.0",

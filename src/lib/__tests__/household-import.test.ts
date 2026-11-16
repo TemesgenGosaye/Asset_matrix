@@ -51,6 +51,7 @@ function makeSheet(
     rowCount: dataRows.length + 1,
     headers,
     rows: [headers, ...dataRows],
+    headerRowIndex: 0,
   };
 }
 

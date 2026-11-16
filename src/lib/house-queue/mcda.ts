@@ -43,7 +43,11 @@ export interface MCDACandidate {
   candidateId: string;
   serviceYears: number;
   maritalStatus?: string | null;
-  disabilityStatus?: boolean | null;
+  /**
+   * Free-text disability as recorded on the employee record. `null` means "not
+   * recorded"; `disabilityLevel()` decides what counts as a recorded need.
+   */
+  disabilityStatus?: string | null;
   gender?: string | null;
 }
 
@@ -112,6 +116,24 @@ export function calculateServiceYears(
   const ms = Date.now() - t;
   if (ms <= 0) return 0;
   return Math.floor(ms / (365.25 * 24 * 60 * 60 * 1000));
+}
+
+/**
+ * Resolve an employee's years of service.
+ *
+ * `serviceYears` is one of the eight canonical employee columns, so the
+ * recorded value is the authority: it is what HR maintains on the register and
+ * what the import writes. The hire date is only the fallback for records whose
+ * service years were never filled in.
+ */
+export function resolveServiceYears(
+  recorded: number | null | undefined,
+  hireDate: Date | string | null | undefined,
+): number {
+  if (typeof recorded === "number" && Number.isFinite(recorded)) {
+    return Math.max(0, Math.floor(recorded));
+  }
+  return calculateServiceYears(hireDate);
 }
 
 /**

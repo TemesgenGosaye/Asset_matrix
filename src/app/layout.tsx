@@ -9,23 +9,55 @@ import ServiceWorkerRegistration from "../components/ServiceWorkerRegistration";
 import AppShell from "../components/AppShell";
 import FeedbackProvider from "../components/feedback/FeedbackProvider";
 import { UserPreferencesProvider } from "../contexts/UserPreferencesContext";
+import { NavigationPreferencesProvider } from "../contexts/NavigationPreferencesContext";
 import { cookies, headers } from "next/headers";
 import { getOrganizationContext } from "../lib/organization-context";
+import { getNavigationState } from "../lib/navigation/preferences";
+
+interface ChromeState {
+  permissions: string[];
+  isAdmin: boolean;
+  hiddenKeys: string[];
+  orgHiddenKeys: string[];
+}
+
+const EMPTY_CHROME_STATE: ChromeState = {
+  permissions: [],
+  isAdmin: false,
+  hiddenKeys: [],
+  orgHiddenKeys: [],
+};
 
 /**
- * Resolve the caller's permission strings once, on the server.
+ * Resolve everything the application chrome needs, once, on the server.
  *
- * Passed down to the sidebar purely so permission-gated nav links (e.g. "Pay
- * Rent") are hidden from users who cannot use them. Returns an empty array for
- * anonymous/public routes; every route still re-checks its own permission via
- * `requirePermission`, so this is presentation only.
+ * Permissions and the admin flag decide which nav links are reachable; the
+ * hidden keys decide which of those the user has turned off. Resolving all three
+ * here — rather than in the client — is what stops the sidebar from flashing
+ * links that are about to disappear.
+ *
+ * Returns an empty state for anonymous/public routes. Every route still
+ * re-checks its own permission via `requirePermission`, so this is presentation
+ * only.
  */
-async function resolvePermissions(): Promise<string[]> {
+async function resolveChromeState(): Promise<ChromeState> {
   try {
     const ctx = await getOrganizationContext();
-    return ctx ? Array.from(ctx.permissions) : [];
+    if (!ctx) return EMPTY_CHROME_STATE;
+
+    const nav = await getNavigationState({
+      userId: ctx.userId,
+      organizationId: ctx.organization?.id ?? null,
+    });
+
+    return {
+      permissions: Array.from(ctx.permissions),
+      isAdmin: ctx.isAdmin,
+      hiddenKeys: nav.hiddenKeys,
+      orgHiddenKeys: nav.orgHiddenKeys,
+    };
   } catch {
-    return [];
+    return EMPTY_CHROME_STATE;
   }
 }
 
@@ -39,11 +71,13 @@ export const metadata = {
     statusBarStyle: "default",
     title: "MSF Asset and House Portal",
   },
-  // src/app/icon.png + apple-icon.png + favicon.ico are emitted from
-  // public/images/msflogo.jpg by scripts/generate-brand-icons.mjs. Declared
-  // explicitly too so the sizing hints survive cached HTML.
+  // The browser-tab (web title) image is the MSF logo, served from
+  // public/icons/msf-logo.png. src/app/icon.png + apple-icon.png + favicon.ico
+  // remain generated from public/images/msflogo.jpg by
+  // scripts/generate-brand-icons.mjs as fallbacks.
   icons: {
     icon: [
+      { url: "/icons/msf-logo.png", sizes: "256x256", type: "image/png" },
       { url: "/icon.png", sizes: "512x512", type: "image/png" },
       { url: "/favicon.ico", sizes: "48x48 32x32 16x16" },
     ],
@@ -52,7 +86,10 @@ export const metadata = {
 };
 
 export const viewport = {
-  themeColor: "#0f172a",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
+    { media: "(prefers-color-scheme: dark)", color: "#090d16" },
+  ],
 };
 
 export default async function RootLayout({ children }) {
@@ -61,9 +98,8 @@ export default async function RootLayout({ children }) {
 
   const sidebarPref = cookieStore.get("sidebar_collapsed");
   const initialSidebarCollapsed = sidebarPref?.value === "true";
-  const isDemo = process.env.DEMO_MODE === "true";
 
-  const permissions = await resolvePermissions();
+  const chrome = await resolveChromeState();
 
   // CSP nonce stamped by src/proxy.ts — passed to next-themes so its inline
   // theme script carries the nonce under the production CSP.
@@ -87,14 +123,24 @@ export default async function RootLayout({ children }) {
         <ServiceWorkerRegistration />
         <Providers nonce={nonce}>
           <UserPreferencesProvider>
-            <AppShell
-              initialSidebarCollapsed={initialSidebarCollapsed}
-              isDemo={isDemo}
-              initialPathname={pathname}
-              permissions={permissions}
+            {/*
+              Navigation visibility is seeded from the server so the sidebar's
+              first paint already matches the saved preference — there is no
+              window in which hidden links flash before the fetch resolves.
+            */}
+            <NavigationPreferencesProvider
+              initialHiddenKeys={chrome.hiddenKeys}
+              initialOrgHiddenKeys={chrome.orgHiddenKeys}
             >
-              {children}
-            </AppShell>
+              <AppShell
+                initialSidebarCollapsed={initialSidebarCollapsed}
+                initialPathname={pathname}
+                permissions={chrome.permissions}
+                isAdmin={chrome.isAdmin}
+              >
+                {children}
+              </AppShell>
+            </NavigationPreferencesProvider>
             <PWAInstallPrompt />
             {/*
               The one feedback surface. Every `notify.*` call in the app renders

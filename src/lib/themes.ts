@@ -42,8 +42,11 @@ export interface ThemeDefinition {
 /**
  * Every theme, in the order the picker shows them.
  *
- * Ordering is deliberate: the two defaults first, then the light alternatives,
- * then the dark alternatives from most-neutral to most-contrasty.
+ * Exactly two: the portal ships a single light palette and a single dark
+ * palette. The registry stays a registry (rather than a two-value enum) so the
+ * picker can keep rendering a live colour preview, a label and a light/dark
+ * flag per option, and so `isThemeId()` can still reject a value the UI never
+ * offered.
  */
 export const THEMES: readonly ThemeDefinition[] = [
   {
@@ -53,7 +56,7 @@ export const THEMES: readonly ThemeDefinition[] = [
     isDark: false,
     swatchBackground: "0 0% 100%",
     swatchSurface: "220 6% 96%",
-    swatchAccent: "217 91% 60%",
+    swatchAccent: "200 100% 30%",
     swatchForeground: "220 9% 12%",
   },
   {
@@ -63,58 +66,8 @@ export const THEMES: readonly ThemeDefinition[] = [
     isDark: true,
     swatchBackground: "220 13% 6%",
     swatchSurface: "220 10% 16%",
-    swatchAccent: "217 91% 60%",
+    swatchAccent: "200 85% 45%",
     swatchForeground: "0 0% 98%",
-  },
-  {
-    id: "oled",
-    label: "OLED",
-    description: "True black — saves battery on OLED screens",
-    isDark: true,
-    swatchBackground: "0 0% 0%",
-    swatchSurface: "0 0% 10%",
-    swatchAccent: "213 94% 62%",
-    swatchForeground: "0 0% 96%",
-  },
-  {
-    id: "midnight",
-    label: "Midnight",
-    description: "Deep navy, calm for night shifts",
-    isDark: true,
-    swatchBackground: "224 47% 7%",
-    swatchSurface: "223 40% 16%",
-    swatchAccent: "199 89% 60%",
-    swatchForeground: "210 40% 96%",
-  },
-  {
-    id: "forest",
-    label: "Forest",
-    description: "Muted greens, low-glare",
-    isDark: true,
-    swatchBackground: "150 15% 7%",
-    swatchSurface: "150 14% 16%",
-    swatchAccent: "142 55% 50%",
-    swatchForeground: "140 20% 95%",
-  },
-  {
-    id: "contrast",
-    label: "High Contrast",
-    description: "Maximum separation for accessibility",
-    isDark: true,
-    swatchBackground: "0 0% 0%",
-    swatchSurface: "0 0% 14%",
-    swatchAccent: "210 100% 70%",
-    swatchForeground: "0 0% 100%",
-  },
-  {
-    id: "paper",
-    label: "Paper",
-    description: "Warm sepia, gentler than pure white",
-    isDark: false,
-    swatchBackground: "40 30% 96%",
-    swatchSurface: "40 25% 90%",
-    swatchAccent: "25 65% 38%",
-    swatchForeground: "25 30% 15%",
   },
 ] as const;
 
@@ -128,9 +81,12 @@ export const DARK_THEME_IDS = THEMES.filter((t) => t.isDark).map((t) => t.id);
 export const LIGHT_THEME_IDS = THEMES.filter((t) => !t.isDark).map((t) => t.id);
 
 /**
- * The pseudo-theme that follows the operating system. Not a real appearance: it
- * is what `next-themes` stores while "follow the OS" is selected, and it resolves
- * to `light` or `dark` at paint time.
+ * The pseudo-theme that follows the operating system. Not a real appearance and
+ * not offered in the picker: it is what `next-themes` stores while the user has
+ * not made an explicit choice, and it resolves to `light` or `dark` at paint
+ * time. Kept in the registry because it is still a legal stored preference
+ * (every user who never picked a theme has it) and because the OS default is
+ * what a fresh visitor gets.
  */
 export const SYSTEM_THEME_ID = "system";
 
@@ -147,18 +103,45 @@ export const ACCEPTED_THEME_IDS: readonly string[] = [
 ];
 
 /**
+ * Themes that used to ship and are no longer selectable.
+ *
+ * The column in `user_preferences` is free text, so rows can still hold one of
+ * these ids. They are mapped onto the palette that matches their original
+ * appearance instead of being rejected outright, so a user who picked OLED does
+ * not lose their choice to a broken class on `<html>`.
+ */
+export const LEGACY_DARK_THEME_IDS: readonly string[] = [
+  "oled",
+  "midnight",
+  "forest",
+  "contrast",
+];
+
+export const LEGACY_LIGHT_THEME_IDS: readonly string[] = ["paper"];
+
+/** Every id that was once selectable but is not any more. */
+export const LEGACY_THEME_IDS: readonly string[] = [
+  ...LEGACY_DARK_THEME_IDS,
+  ...LEGACY_LIGHT_THEME_IDS,
+];
+
+/**
  * Every name `next-themes` must treat as a theme class.
  *
  * The provider's `themes` prop decides which classes it *removes* from
  * `<html>` before adding the active one. Without this list next-themes only
- * clears `light` and `dark`, so the other five classes accumulate and every
- * token block matches at once — and since the blocks all have equal
- * specificity, whichever is last in the stylesheet silently wins.
+ * clears `light` and `dark`, so any other class that ever reached the element
+ * would accumulate - and since the blocks all have equal specificity,
+ * whichever is last in the stylesheet would silently win.
+ *
+ * The retired ids are in the list too: a browser that still has "oled" in
+ * localStorage must have that class REMOVED, otherwise it sits next to the
+ * active theme for the rest of the session.
  *
  * Deduped because `THEME_IDS` already contains `light` and `dark`.
  */
 export const NEXT_THEMES_THEME_NAMES: readonly string[] = [
-  ...new Set([...THEME_IDS, "light", "dark"]),
+  ...new Set([...THEME_IDS, "light", "dark", ...LEGACY_THEME_IDS]),
 ];
 
 /** Narrow an unknown value to a theme id, or `null` when unrecognised. */
@@ -170,6 +153,38 @@ export function toThemeId(value: unknown): string | null {
 /** True when `value` is a registered theme id or the `system` sentinel. */
 export function isAcceptedThemeId(value: unknown): value is string {
   return typeof value === "string" && ACCEPTED_THEME_IDS.includes(value);
+}
+
+/**
+ * Map any stored preference onto a theme that still exists.
+ *
+ * Handles the three kinds of value that can be sitting in the free-text
+ * `user_preferences.theme` column:
+ *   * a live id ("light" / "dark") - returned unchanged;
+ *   * a removed id ("oled", "paper", …) - mapped onto the palette with the
+ *     same lightness, so the user keeps a dark (or light) UI;
+ *   * the `system` sentinel - resolved by the caller, which knows the OS
+ *     preference (`systemTheme`), because the server cannot.
+ *
+ * Anything else falls back to the default, so a corrupt row can never write a
+ * dead class onto `<html>`.
+ */
+export function normalizeThemeId(
+  value: unknown,
+  systemTheme: string = DEFAULT_THEME_ID,
+): string {
+  if (typeof value !== "string") return DEFAULT_THEME_ID;
+  if (THEME_IDS.includes(value)) return value;
+  if (value === SYSTEM_THEME_ID) {
+    // The caller decides how "follow the OS" resolves: pass "light"/"dark"
+    // when the OS preference is known, or SYSTEM_THEME_ID to keep it symbolic
+    // (the server has no way to read the OS preference).
+    if (systemTheme === SYSTEM_THEME_ID) return SYSTEM_THEME_ID;
+    return THEME_IDS.includes(systemTheme) ? systemTheme : DEFAULT_THEME_ID;
+  }
+  if (LEGACY_DARK_THEME_IDS.includes(value)) return "dark";
+  if (LEGACY_LIGHT_THEME_IDS.includes(value)) return "light";
+  return DEFAULT_THEME_ID;
 }
 
 /** Look up a theme by id. Returns `null` for `system` and unknown ids. */
@@ -188,7 +203,7 @@ export function getThemeOrDefault(id: unknown): ThemeDefinition {
  * Is the given theme a dark appearance?
  *
  * Resolves `system` against the OS preference, so callers get one boolean for
- * both "OLED" and "system, currently dark" without special-casing either.
+ * both "dark" and "system, currently dark" without special-casing either.
  */
 export function isDarkTheme(
   id: unknown,

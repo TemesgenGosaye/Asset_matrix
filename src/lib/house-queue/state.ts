@@ -24,6 +24,7 @@ export const ALLOCATION_STATUSES = [
   "allocated",
   "release_pending",
   "RELEASE_PENDING",
+  "RELEASE_PENDING_INSPECTION",
   "pending_inspection",
   "PENDING_INSPECTION",
   "skipped",
@@ -38,6 +39,7 @@ export const PERSISTED_ALLOCATION_STATUSES = [
   "allocated",
   "release_pending",
   "RELEASE_PENDING",
+  "RELEASE_PENDING_INSPECTION",
   "pending_inspection",
   "PENDING_INSPECTION",
   "skipped",
@@ -60,6 +62,7 @@ export const LIVE_ALLOCATION_STATUSES = [
   "allocated",
   "release_pending",
   "RELEASE_PENDING",
+  "RELEASE_PENDING_INSPECTION",
   "pending_inspection",
   "PENDING_INSPECTION",
 ] as const satisfies readonly string[];
@@ -123,9 +126,16 @@ export const ALLOCATION_TRANSITIONS: Readonly<
   waiting: ["allocated", "skipped", "deferred"],
   no_house_available: ["allocated", "skipped", "deferred"],
   ready_for_allocation: ["allocated", "skipped", "deferred"],
-  allocated: ["released", "terminated", "release_pending", "RELEASE_PENDING"],
+  allocated: [
+    "released",
+    "terminated",
+    "release_pending",
+    "RELEASE_PENDING",
+    "RELEASE_PENDING_INSPECTION",
+  ],
   release_pending: ["released"],
   RELEASE_PENDING: ["released"],
+  RELEASE_PENDING_INSPECTION: ["released"],
   pending_inspection: ["released", "terminated", "ready_for_allocation"],
   PENDING_INSPECTION: ["released", "terminated", "ready_for_allocation"],
   skipped: ["allocated", "released", "ready_for_allocation"],
@@ -148,7 +158,11 @@ export function isAllocated(status: string | null | undefined): boolean {
 }
 
 export function isReleasePending(status: string | null | undefined): boolean {
-  return status === "release_pending" || status === "RELEASE_PENDING";
+  return (
+    status === "release_pending" ||
+    status === "RELEASE_PENDING" ||
+    status === "RELEASE_PENDING_INSPECTION"
+  );
 }
 
 export function isPendingInspection(
@@ -177,26 +191,32 @@ export function canTransition(
 
 /**
  * House status transitions (Household.status):
- *   Active → PendingInspection (release initiated / house vacated)
- *   PendingInspection → Active (clean handback inspection completed)
- *   PendingInspection → UnderMaintenance (damaged handback inspection completed)
+ *   Active → UNDER_INSPECTION / PendingInspection (release initiated / house under inspection)
+ *   UNDER_INSPECTION / PendingInspection → Active (clean handback inspection completed)
+ *   UNDER_INSPECTION / PendingInspection → UnderMaintenance (damaged handback inspection completed)
  *   UnderMaintenance → Active (maintenance resolved)
  */
 export const HOUSE_STATUS_TRANSITIONS: Readonly<
   Record<string, readonly string[]>
 > = {
   Active: [
+    "UNDER_INSPECTION",
+    "UnderInspection",
     "PendingInspection",
     "PENDING_INSPECTION",
     "UnderMaintenance",
     "Inactive",
   ],
   active: [
+    "UNDER_INSPECTION",
+    "UnderInspection",
     "PendingInspection",
     "PENDING_INSPECTION",
     "UnderMaintenance",
     "Inactive",
   ],
+  UNDER_INSPECTION: ["Active", "UnderMaintenance", "Occupied", "Inactive"],
+  UnderInspection: ["Active", "UnderMaintenance", "Occupied", "Inactive"],
   PendingInspection: ["Active", "UnderMaintenance", "Inactive"],
   PENDING_INSPECTION: ["Active", "UnderMaintenance", "Inactive"],
   UnderMaintenance: ["Active", "Inactive"],

@@ -34,6 +34,8 @@ const en: Record<string, string> = {
   "nav.section.categories": "Categories",
   "nav.section.tools": "Tools",
   "nav.section.administration": "Administration",
+  "nav.section.settings": "Settings",
+  "nav.navigationSettings": "Navigation",
 
   // Actions
   "action.create": "Create",

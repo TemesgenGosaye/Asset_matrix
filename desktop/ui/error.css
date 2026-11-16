@@ -1,0 +1,304 @@
+/* ─── Design Tokens ──────────────────────────────────────────── */
+:root {
+  color-scheme: light;
+
+  /* Primary brand */
+  --brand:        #006699;
+  --brand-dark:   #005580;
+  --brand-light:  #e6f3f8;
+  --brand-mid:    #cce8f2;
+
+  /* Neutrals */
+  --gray-50:  #f9fafb;
+  --gray-100: #f3f4f6;
+  --gray-200: #e5e7eb;
+  --gray-300: #d1d5db;
+  --gray-400: #9ca3af;
+  --gray-500: #6b7280;
+  --gray-700: #374151;
+  --gray-900: #111827;
+
+  /* Danger */
+  --danger:      #dc2626;
+  --danger-bg:   #fef2f2;
+  --danger-ring: #fca5a5;
+}
+
+* { box-sizing: border-box; }
+
+html, body { min-height: 100%; }
+
+body {
+  margin: 0;
+  font-family: "Segoe UI Variable Text", "Segoe UI", Roboto, Arial, sans-serif;
+  color: var(--gray-900);
+  background: var(--gray-50);
+}
+
+/* ─── Top-bar accent stripe ───────────────────────────────────── */
+body::before {
+  content: "";
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--brand), #38bdf8);
+  z-index: 100;
+}
+
+/* ─── Layout shell ────────────────────────────────────────────── */
+.shell {
+  position: relative;
+  width: min(100% - 48px, 720px);
+  margin: 0 auto;
+  padding: 40px 0 36px;
+}
+
+/* ─── Brand header ────────────────────────────────────────────── */
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  margin-bottom: 40px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--gray-200);
+}
+
+.brand img {
+  width: 42px;
+  height: 42px;
+  border-radius: 10px;
+  border: 1px solid var(--brand-mid);
+  background: var(--brand-light);
+  object-fit: contain;
+  padding: 4px;
+}
+
+.brand p { margin: 0; }
+
+.product {
+  color: var(--gray-900);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.company {
+  margin-top: 2px !important;
+  color: var(--gray-500);
+  font-size: 10.5px;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+/* ─── Status eyebrow ──────────────────────────────────────────── */
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 18px;
+  padding: 5px 12px;
+  border: 1px solid var(--danger-ring);
+  border-radius: 999px;
+  color: var(--danger);
+  background: var(--danger-bg);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.pulse {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--danger);
+  box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.45);
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  70%  { box-shadow: 0 0 0 7px rgba(220, 38, 38, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0); }
+}
+
+/* ─── Hero heading ────────────────────────────────────────────── */
+h1 {
+  max-width: 680px;
+  margin: 0;
+  color: var(--gray-900);
+  font-size: clamp(28px, 4vw, 42px);
+  font-weight: 800;
+  line-height: 1.12;
+  letter-spacing: -0.03em;
+}
+
+h1 span {
+  color: var(--brand);
+  overflow-wrap: anywhere;
+}
+
+.lede {
+  margin: 14px 0 0;
+  color: var(--gray-500);
+  font-size: 15px;
+  line-height: 1.65;
+}
+
+/* ─── Monospace detail badge ──────────────────────────────────── */
+.detail {
+  display: inline-block;
+  max-width: 100%;
+  margin: 12px 0 0;
+  padding: 6px 10px;
+  border: 1px solid var(--gray-200);
+  border-radius: 6px;
+  color: var(--gray-500);
+  background: var(--gray-100);
+  font-family: Consolas, "Cascadia Mono", monospace;
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+
+/* ─── Steps card ──────────────────────────────────────────────── */
+.card {
+  margin-top: 32px;
+  padding: 22px 24px;
+  border: 1px solid var(--gray-200);
+  border-radius: 12px;
+  background: #fff;
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.06),
+    0 4px 12px rgba(0, 0, 0, 0.04);
+}
+
+.card h2 {
+  margin: 0 0 14px;
+  color: var(--gray-700);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.card ul {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.card li {
+  position: relative;
+  padding-left: 20px;
+  color: var(--gray-700);
+  font-size: 13.5px;
+  line-height: 1.6;
+}
+
+.card li::before {
+  content: "";
+  position: absolute;
+  top: 0.58em;
+  left: 1px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--brand);
+}
+
+/* ─── Action row ──────────────────────────────────────────────── */
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-top: 28px;
+}
+
+button {
+  appearance: none;
+  border: 1px solid var(--brand-dark);
+  border-radius: 8px;
+  padding: 10px 22px;
+  color: #fff;
+  background: var(--brand);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  letter-spacing: 0.01em;
+  transition:
+    background 140ms ease,
+    transform 140ms ease,
+    box-shadow 140ms ease;
+  box-shadow: 0 1px 3px rgba(0, 102, 153, 0.25);
+}
+
+button:hover:not(:disabled) {
+  background: var(--brand-dark);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 102, 153, 0.35);
+}
+
+button:active:not(:disabled) { transform: translateY(0); }
+
+button:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 3px;
+}
+
+button:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
+.retry-note {
+  margin: 0;
+  color: var(--gray-400);
+  font-size: 12px;
+}
+
+.retry-note span {
+  color: var(--gray-700);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ─── Page footer ─────────────────────────────────────────────── */
+.page-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 40px;
+  padding-top: 16px;
+  border-top: 1px solid var(--gray-200);
+  color: var(--gray-400);
+  font-size: 11px;
+}
+
+.page-footer strong {
+  color: var(--brand);
+  font-weight: 600;
+}
+
+/* ─── Responsive ──────────────────────────────────────────────── */
+@media (max-width: 620px) {
+  .shell {
+    width: min(100% - 32px, 720px);
+    padding-top: 28px;
+  }
+
+  .brand { margin-bottom: 30px; }
+
+  .actions {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .page-footer {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 6px;
+  }
+}

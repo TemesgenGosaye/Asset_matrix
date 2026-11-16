@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -14,6 +14,12 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { notify } from "@/lib/feedback/notify";
 import { useRouter } from "next/navigation";
+import { SlidersHorizontal } from "lucide-react";
+import {
+  DEFAULT_THEME_ID,
+  SYSTEM_THEME_ID,
+  normalizeThemeId,
+} from "@/lib/themes";
 
 interface UserSettingsClientProps {
   user: {
@@ -34,7 +40,6 @@ interface UserSettingsClientProps {
 }
 
 const THEMES = [
-  { value: "system", label: "System Default" },
   { value: "light", label: "Light" },
   { value: "dark", label: "Dark" },
 ];
@@ -69,12 +74,37 @@ const NUMBER_FORMATS = [
 
 const PAGE_SIZES = ["10", "20", "50", "100"];
 
+/**
+ * Resolve the stored theme onto one of the two selectable themes.
+ *
+ * The picker only offers Light and Dark, but a stored preference can still be
+ * the `system` sentinel ("follow the operating system"). Only the browser knows
+ * the OS preference, so the sentinel is resolved here - on the client - into the
+ * appearance the user is actually looking at.
+ */
+function useResolvedThemeId(stored: string): string {
+  const [resolved, setResolved] = useState(DEFAULT_THEME_ID);
+
+  useEffect(() => {
+    const media = window.matchMedia("(prefers-color-scheme: dark)");
+    const apply = () =>
+      setResolved(normalizeThemeId(stored, media.matches ? "dark" : "light"));
+
+    apply();
+    media.addEventListener("change", apply);
+    return () => media.removeEventListener("change", apply);
+  }, [stored]);
+
+  return resolved;
+}
+
 export default function UserSettingsClient({
   user,
   preferences,
 }: UserSettingsClientProps) {
   const router = useRouter();
   const [saving, setSaving] = useState(false);
+  const resolvedTheme = useResolvedThemeId(preferences.theme);
   const [form, setForm] = useState({
     theme: preferences.theme,
     locale: preferences.locale,
@@ -127,7 +157,9 @@ export default function UserSettingsClient({
             <div>
               <Label htmlFor="theme">Theme</Label>
               <Select
-                value={form.theme}
+                value={
+                  form.theme === SYSTEM_THEME_ID ? resolvedTheme : form.theme
+                }
                 onValueChange={(v) => setForm((f) => ({ ...f, theme: v }))}
               >
                 <SelectTrigger id="theme">
@@ -264,6 +296,28 @@ export default function UserSettingsClient({
           </Button>
         </div>
       </form>
+
+      <section className="border-default-200 mt-6 rounded-lg border p-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="text-foreground-600 mb-1 flex items-center gap-2 text-sm font-semibold">
+              <SlidersHorizontal className="h-4 w-4" />
+              Navigation Preferences
+            </h2>
+            <p className="text-muted-foreground text-sm">
+              Customize which menu items appear in your sidebar, top bar, and mobile navigation.
+            </p>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => router.push("/settings/navigation")}
+            className="shrink-0"
+          >
+            Configure Navigation
+          </Button>
+        </div>
+      </section>
 
       <section className="border-default-200 mt-6 rounded-lg border p-4">
         <h2 className="text-foreground-600 mb-1 text-sm font-semibold">

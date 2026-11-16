@@ -419,6 +419,7 @@ export default function AccessoriesTable({
           <Input
             className="pl-9"
             placeholder="Search by name, tag, manufacturer, or model"
+            autoFocus
             value={searchValue}
             onChange={(e) => setSearchValue(e.target.value)}
           />

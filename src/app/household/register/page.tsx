@@ -21,11 +21,28 @@ function serializeDate(value: Date | string | null | undefined): string {
   return typeof value === "string" ? value : value.toISOString();
 }
 
-export default async function HouseRegisterPage() {
+export default async function HouseRegisterPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+}) {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session?.user) {
     redirect("/login");
   }
+
+  // The dashboard's House Register tiles link here as /register?type=<category>.
+  // Only known categories are accepted; anything else falls back to "all" so a
+  // hand-edited URL cannot wedge the filter into a value with no results.
+  const resolvedParams = await searchParams;
+  const requestedType = Array.isArray(resolvedParams.type)
+    ? resolvedParams.type[0]
+    : resolvedParams.type;
+  const initialTypeFilter = ["Staff", "A", "B", "C", "D", "E"].includes(
+    requestedType ?? "",
+  )
+    ? (requestedType as string)
+    : "all";
 
   const [householdsRaw, summary, locationsRaw, assignedHouseIds] =
     await Promise.all([
@@ -51,7 +68,7 @@ export default async function HouseRegisterPage() {
       <Breadcrumb
         options={[
           { label: "Home", href: "/" },
-          { label: "House Hold", href: "/household/register" },
+          { label: "House Register", href: "/household/register" },
           { label: "House Register", href: "/household/register" },
         ]}
       />
@@ -60,6 +77,7 @@ export default async function HouseRegisterPage() {
         locations={locations}
         initialSummary={summary}
         initiallyAssignedHouseIds={assignedHouseIds}
+        initialTypeFilter={initialTypeFilter}
       />
     </div>
   );

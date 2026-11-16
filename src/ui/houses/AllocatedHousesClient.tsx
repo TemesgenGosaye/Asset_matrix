@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ResponsiveTable, type Column } from "@/components/ui/responsive-table";
@@ -14,7 +14,25 @@ import {
   Search,
   RefreshCw,
   MapPin,
+  MoreVertical,
+  FileSpreadsheet,
+  FileText,
+  Loader2,
+  X,
 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { notify } from "@/lib/feedback/notify";
+import {
+  exportBrandedTable,
+  type BrandedTableColumn,
+  type BrandedTableFormat,
+} from "@/lib/house-admin/export";
 import { formatDate, fullName } from "@/ui/household/house-format";
 import {
   HouseCategoryBadge,
@@ -35,11 +53,62 @@ const columns: Column[] = [
   { key: "location", label: "Location" },
   { key: "occupant", label: "Occupant", hideable: false },
   { key: "grade", label: "Grade", align: "center" },
-  { key: "department", label: "Department" },
   { key: "priority", label: "Priority", align: "center" },
   { key: "allocatedOn", label: "Allocated On" },
   { key: "status", label: "Status", align: "center" },
   { key: "actions", label: "", hideable: false },
+];
+
+const EXPORT_COLUMNS: BrandedTableColumn<AllocatedHouseView>[] = [
+  { header: "#", align: "right", width: 0.4, value: (_r, i) => String(i + 1) },
+  { header: "House No.", width: 1.2, value: (r) => r.house?.houseNumber ?? "—" },
+  { header: "HID", width: 1.3, value: (r) => r.house?.hid ?? "—" },
+  {
+    header: "Category",
+    align: "center",
+    width: 0.9,
+    value: (r) => r.house?.houseType ?? "—",
+  },
+  { header: "Location", width: 1.4, value: (r) => r.house?.locationName ?? "—" },
+  {
+    header: "Occupant",
+    width: 1.9,
+    value: (r) => (r.employee ? fullName(r.employee) : "No employee data"),
+  },
+  {
+    header: "Emp ID",
+    width: 1.2,
+    value: (r) => r.employee?.employeeNumber ?? "—",
+  },
+  {
+    header: "Grade",
+    align: "center",
+    width: 0.7,
+    value: (r) => (r.employee?.jobGrade != null ? String(r.employee.jobGrade) : "—"),
+  },
+  {
+    header: "Priority",
+    align: "center",
+    width: 0.8,
+    value: (r) => (r.priorityRank != null ? `#${r.priorityRank}` : "—"),
+  },
+  {
+    header: "Allocated On",
+    width: 1.2,
+    value: (r) => formatDate(r.decidedAt),
+  },
+  {
+    header: "Occupancy",
+    align: "center",
+    width: 1.0,
+    value: (r) => r.house?.occupancyStatus ?? "—",
+  },
+  {
+    header: "Status",
+    align: "center",
+    width: 1.2,
+    value: (r) => (r.awaitingHandback ? "Release pending" : "Allocated"),
+  },
 ];
 
 export default function AllocatedHousesClient({
@@ -48,7 +117,15 @@ export default function AllocatedHousesClient({
 }: AllocatedHousesClientProps) {
   const router = useRouter();
   const [search, setSearch] = useState("");
+  const [searchDraft, setSearchDraft] = useState("");
   const [refreshing, setRefreshing] = useState(false);
+  const [exporting, setExporting] = useState(false);
+
+  const submitSearch = () => setSearch(searchDraft.trim());
+  const clearSearch = () => {
+    setSearchDraft("");
+    setSearch("");
+  };
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -75,6 +152,39 @@ export default function AllocatedHousesClient({
     router.refresh();
     setRefreshing(false);
   };
+
+  const handleExport = useCallback(
+    async (format: BrandedTableFormat) => {
+      if (filtered.length === 0) {
+        notify.error("Nothing to export — no rows match the current view.");
+        return;
+      }
+      setExporting(true);
+      try {
+        await exportBrandedTable({
+          title: "Allocated Houses",
+          subtitle: "House Hold · Allocated Houses",
+          summary: `${filtered.length} record${filtered.length === 1 ? "" : "s"} · ${
+            filtered.filter((r) => r.awaitingHandback).length
+          } awaiting handback · generated ${new Date().toLocaleString()}`,
+          accentHex: "#22c55e",
+          columns: EXPORT_COLUMNS,
+          rows: filtered,
+          format,
+          fileStem: "allocated-houses",
+          footerLabel: "allocated houses report",
+        });
+        notify.success(
+          `Allocated houses exported as ${format === "excel" ? "Excel" : "PDF"}`,
+        );
+      } catch {
+        notify.error("Failed to export allocated houses. Please try again.");
+      } finally {
+        setExporting(false);
+      }
+    },
+    [filtered],
+  );
 
   const renderCell = (item: AllocatedHouseView, key: string) => {
     switch (key) {
@@ -194,7 +304,7 @@ export default function AllocatedHousesClient({
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">
-            Allocated Houses
+            Allocated Houses: የተመደቡ ቤቶች
           </h1>
           <div className="from-brass-400 mt-1 h-0.5 w-16 rounded bg-gradient-to-r to-transparent" />
           <p className="text-muted-foreground mt-2 text-sm">
@@ -256,15 +366,88 @@ export default function AllocatedHousesClient({
         </div>
       </div>
 
-      <div className="bg-card flex flex-col gap-3 rounded-xl border p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
-        <div className="relative max-w-sm flex-1">
-          <Search className="text-muted-foreground absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />
-          <Input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search house, occupant, department…"
-            className="pl-9 text-xs"
-          />
+      <div className="bg-card flex items-center gap-3 rounded-xl border p-3 shadow-sm overflow-x-auto">
+        <div className="flex shrink-0 items-center gap-2">
+          <div className="relative w-64 sm:w-80">
+            <Search className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />
+            <Input
+              value={searchDraft}
+              onChange={(e) => setSearchDraft(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  submitSearch();
+                }
+              }}
+              placeholder="Search house, occupant…"
+              className="h-9 pr-9 pl-9 text-xs"
+              aria-label="Search allocated houses"
+              autoFocus
+            />
+            {searchDraft ? (
+              <button
+                type="button"
+                aria-label="Clear search"
+                onClick={clearSearch}
+                className="text-muted-foreground hover:text-foreground absolute top-1/2 right-2.5 -translate-y-1/2 rounded-md p-0.5 transition-colors"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            ) : null}
+          </div>
+          <Button size="sm" className="h-9 shrink-0 px-4" onClick={submitSearch}>
+            Search
+          </Button>
+        </div>
+
+        <div className="bg-border h-6 w-px shrink-0" aria-hidden />
+
+        <div className="flex flex-nowrap items-center gap-2">
+          {search && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={clearSearch}
+              className="text-muted-foreground hover:text-foreground h-9 shrink-0 text-xs"
+            >
+              Clear
+            </Button>
+          )}
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-9 w-9 shrink-0"
+                disabled={exporting}
+                aria-label="Export options"
+              >
+                {exporting ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <MoreVertical className="h-4 w-4" />
+                )}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-44">
+              <DropdownMenuLabel>Export</DropdownMenuLabel>
+              <DropdownMenuItem
+                disabled={exporting}
+                onClick={() => void handleExport("excel")}
+              >
+                <FileSpreadsheet className="h-4 w-4" />
+                Excel (.xlsx)
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                disabled={exporting}
+                onClick={() => void handleExport("pdf")}
+              >
+                <FileText className="h-4 w-4" />
+                PDF (.pdf)
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 
@@ -273,7 +456,6 @@ export default function AllocatedHousesClient({
         data={filtered}
         renderCell={renderCell}
         keyExtractor={(row) => row.allocationId}
-        mobileCardView
         minWidth="1150px"
         emptyMessage={
           search ? "No matching allocations" : "No live allocations"

@@ -33,7 +33,8 @@ import {
   houseCategoryLegend,
   type JobGradeRule,
 } from "@/lib/house-queue/eligibility";
-import { calculateServiceYears } from "@/lib/house-queue/mcda";
+import { resolveServiceYears } from "@/lib/house-queue/mcda";
+import { computeEmployeeQueueStanding } from "@/lib/house-queue/engine";
 import { activeEligibilityBands } from "@/lib/house-queue/service";
 import { maskNationalId } from "@/lib/employees/constants";
 import {
@@ -64,20 +65,51 @@ const EMPLOYEE_SELECT = {
   firstname: true,
   lastname: true,
   jobGrade: true,
-  jobTitle: true,
   departmentId: true,
   department: { select: { name: true } },
   gender: true,
-  hireDate: true,
   maritalStatus: true,
-  familySize: true,
   disabilityStatus: true,
-  employmentType: true,
-  employmentStatus: true,
-  phone: true,
-  nationalId: true,
+  serviceYears: true,
   deletedAt: true,
+  // Retained attributes live on the one-to-one profile table so the canonical
+  // Employee row stays exactly eight business fields.
+  profile: {
+    select: {
+      jobTitle: true,
+      hireDate: true,
+      familySize: true,
+      employmentType: true,
+      employmentStatus: true,
+      phone: true,
+      nationalId: true,
+    },
+  },
 } as const;
+
+type EmployeeSelectRow = {
+  id: string;
+  employeeNumber: string;
+  firstname: string;
+  lastname: string;
+  jobGrade: number | null;
+  departmentId: string | null;
+  department: { name: string } | null;
+  gender: string | null;
+  maritalStatus: string | null;
+  disabilityStatus: string | null;
+  serviceYears: number | null;
+  deletedAt: Date | null;
+  profile: {
+    jobTitle: string | null;
+    hireDate: Date | null;
+    familySize: number | null;
+    employmentType: string;
+    employmentStatus: string;
+    phone: string | null;
+    nationalId: string | null;
+  } | null;
+};
 
 type EmployeeRow = {
   id: string;
@@ -92,13 +124,44 @@ type EmployeeRow = {
   hireDate: Date | null;
   maritalStatus: string | null;
   familySize: number | null;
-  disabilityStatus: boolean;
+  disabilityStatus: string | null;
+  serviceYears: number | null;
   employmentType: string;
   employmentStatus: string;
   phone: string | null;
   nationalId: string | null;
   deletedAt: Date | null;
 };
+
+/** Flatten the canonical row + profile into the shape the rest of this file uses. */
+function flattenEmployee(row: EmployeeSelectRow): EmployeeRow {
+  const { profile, ...canonical } = row;
+  // Some unit-test fixtures (and callers that have not migrated yet) still
+  // supply a flat employee object. Prefer the profile relation, then fall back
+  // to the legacy flat keys so a missing profile never silently turns an
+  // inactive employee into an active one.
+  const legacy = row as EmployeeSelectRow & {
+    nationalId?: string | null;
+    jobTitle?: string | null;
+    hireDate?: Date | null;
+    familySize?: number | null;
+    employmentType?: string;
+    employmentStatus?: string;
+    phone?: string | null;
+  };
+  return {
+    ...canonical,
+    nationalId: profile?.nationalId ?? legacy.nationalId ?? null,
+    jobTitle: profile?.jobTitle ?? legacy.jobTitle ?? null,
+    hireDate: profile?.hireDate ?? legacy.hireDate ?? null,
+    familySize: profile?.familySize ?? legacy.familySize ?? null,
+    employmentType:
+      profile?.employmentType ?? legacy.employmentType ?? "full_time",
+    employmentStatus:
+      profile?.employmentStatus ?? legacy.employmentStatus ?? "active",
+    phone: profile?.phone ?? legacy.phone ?? null,
+  };
+}
 
 // ---------------------------------------------------------------------------
 // Errors
@@ -152,15 +215,16 @@ async function findEmployeeByNumber(
     where: { organizationId, employeeNumber },
     select: EMPLOYEE_SELECT,
   });
-  if (exact) return exact;
+  if (exact) return flattenEmployee(exact);
 
-  return prisma.employee.findFirst({
+  const fallback = await prisma.employee.findFirst({
     where: {
       organizationId,
       employeeNumber: { equals: employeeNumber, mode: "insensitive" },
     },
     select: EMPLOYEE_SELECT,
   });
+  return fallback ? flattenEmployee(fallback) : null;
 }
 
 /**
@@ -283,7 +347,7 @@ function toSnapshot(
     departmentId: employee.departmentId,
     departmentName: employee.department?.name ?? null,
     gender: employee.gender,
-    serviceYears: calculateServiceYears(employee.hireDate),
+    serviceYears: resolveServiceYears(employee.serviceYears, employee.hireDate),
     hireDate: employee.hireDate ? employee.hireDate.toISOString() : null,
     maritalStatus: employee.maritalStatus,
     familySize: employee.familySize,
@@ -378,6 +442,14 @@ export async function verifyEmployeeForHouseRequest({
   const alreadyHasActiveAllocation = allocation !== null;
   const hasOpenRequest = existingRequest !== null;
 
+  // The queue position only exists for somebody who is IN the queue, and the
+  // queue is request-gated — so it is computed only when there is a live
+  // request. It is computed rather than read from a stored column because a
+  // rank is a position inside a cohort, not a fact about a row.
+  const queue = hasOpenRequest
+    ? await computeEmployeeQueueStanding(organizationId, employee.id)
+    : null;
+
   return {
     employee: snapshot,
     existingRequest,
@@ -409,6 +481,15 @@ export async function verifyEmployeeForHouseRequest({
 
     alreadyHasActiveAllocation,
     hasOpenRequest,
+
+    queue: queue
+      ? {
+          rank: queue.rank,
+          cohortSize: queue.cohortSize,
+          score: queue.score,
+          category: queue.category,
+        }
+      : null,
   };
 }
 
@@ -577,17 +658,18 @@ export async function searchHouseRequestCandidates({
           { firstname: { contains: term, mode: "insensitive" } },
           { lastname: { contains: term, mode: "insensitive" } },
           { employeeNumber: { contains: term, mode: "insensitive" } },
-          { jobTitle: { contains: term, mode: "insensitive" } },
+          { profile: { jobTitle: { contains: term, mode: "insensitive" } } },
         ],
       },
       select: {
         employeeNumber: true,
         firstname: true,
         lastname: true,
-        jobTitle: true,
         jobGrade: true,
-        employmentStatus: true,
         department: { select: { name: true } },
+        profile: {
+          select: { jobTitle: true, employmentStatus: true },
+        },
       },
       // An exact ID outranks a name that merely contains it, because somebody
       // typing "EMP-0042" means THAT employee and not the four other people
@@ -657,11 +739,11 @@ export async function searchHouseRequestCandidates({
       return {
         employeeNumber: employee.employeeNumber,
         fullName: `${employee.firstname} ${employee.lastname}`.trim(),
-        jobTitle: employee.jobTitle,
+        jobTitle: employee.profile?.jobTitle ?? null,
         departmentName: employee.department?.name ?? null,
         jobGrade: employee.jobGrade,
         houseCategory: houseCategoryForJobGrade(employee.jobGrade, bands),
-        employmentStatus: employee.employmentStatus,
+        employmentStatus: employee.profile?.employmentStatus ?? "active",
         blocked: blockedBy !== null,
         blockedBy,
       };
@@ -855,7 +937,7 @@ async function resolveEmployeeForUpdate(
     where: { organizationId, employeeNumber },
     select: EMPLOYEE_SELECT,
   });
-  const employee =
+  const fallback =
     exact ??
     (await tx.employee.findFirst({
       where: {
@@ -864,6 +946,8 @@ async function resolveEmployeeForUpdate(
       },
       select: EMPLOYEE_SELECT,
     }));
+
+  const employee = fallback ? flattenEmployee(fallback) : null;
 
   if (!employee) {
     throw new HouseRequestRejectedError(

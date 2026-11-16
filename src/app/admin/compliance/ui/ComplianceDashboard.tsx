@@ -238,7 +238,7 @@ export default function ComplianceDashboard() {
     return (
       <div className="space-y-6">
         <div>
-          <h1 className="mb-2 text-2xl font-bold">Compliance Reporting</h1>
+          <h1 className="mb-2 text-2xl font-bold tracking-tight">Compliance Reporting: ተገዢነት</h1>
           <p className="text-muted-foreground">Loading compliance data...</p>
         </div>
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -258,7 +258,7 @@ export default function ComplianceDashboard() {
   if (!data) {
     return (
       <div>
-        <h1 className="mb-2 text-2xl font-bold">Compliance Reporting</h1>
+        <h1 className="mb-2 text-2xl font-bold tracking-tight">Compliance Reporting: ተገዢነት</h1>
         <Card>
           <CardContent className="py-8">
             <p className="text-muted-foreground text-center">
@@ -275,7 +275,7 @@ export default function ComplianceDashboard() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="mb-2 text-2xl font-bold">Compliance Reporting</h1>
+          <h1 className="mb-2 text-2xl font-bold tracking-tight">Compliance Reporting: ተገዢነት</h1>
           <p className="text-muted-foreground">
             SOX and HIPAA compliance overview with audit trail and access
             control metrics.

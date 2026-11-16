@@ -68,7 +68,7 @@ import { getOrganizationContext } from "@/lib/organization-context";
 import {
   createMockRequest,
   parseResponse,
-} from "../../../../../tests/setup/test-helpers";
+} from "../../../../tests/setup/test-helpers";
 import type { HouseRequestVerifyResult } from "../types";
 
 const mockRequirePermission = requirePermission as unknown as ReturnType<
@@ -128,7 +128,7 @@ function employeeRow(overrides: Record<string, unknown> = {}) {
     hireDate: new Date("2019-03-01"),
     maritalStatus: "married",
     familySize: 4,
-    disabilityStatus: false,
+    disabilityStatus: null,
     employmentType: "full_time",
     employmentStatus: "active",
     phone: "0911223344",
@@ -168,6 +168,26 @@ function liveAllocation(overrides: Record<string, unknown> = {}) {
   };
 }
 
+/**
+ * A requester as the queue engine reads them.
+ *
+ * The engine scores a COHORT — everybody holding an open request inside the
+ * same house band — so the standing of one person is a fact about the band,
+ * not about the row.
+ */
+function requesterRow(overrides: Record<string, unknown> = {}) {
+  return {
+    id: EMPLOYEE_ID,
+    employeeNumber: "EMP-0042",
+    jobGrade: 14,
+    gender: "female",
+    maritalStatus: "married",
+    disabilityStatus: null,
+    hireDate: new Date("2019-03-01"),
+    ...overrides,
+  };
+}
+
 async function verify(
   overrides: {
     empId?: string;
@@ -184,6 +204,13 @@ async function verify(
   );
   mock.houseAllocation.findFirst.mockResolvedValue(
     overrides.allocation === undefined ? null : overrides.allocation,
+  );
+  // The queue standing is read from the live requesters of the band.
+  mock.houseRequest.findMany.mockResolvedValue(
+    overrides.request ? [overrides.request] : [],
+  );
+  mock.employee.findMany.mockResolvedValue(
+    overrides.request ? [requesterRow()] : [],
   );
   return verifyEmployeeForHouseRequest({
     organizationId: ORG,
@@ -217,7 +244,7 @@ describe("verifyEmployeeForHouseRequest — a valid Employee ID", () => {
     expect(result.employee.jobGrade).toBe(14);
     expect(result.gender).toBe("female");
     expect(result.maritalStatus).toBe("married");
-    expect(result.disabilityStatus).toBe(false);
+    expect(result.disabilityStatus).toBeNull();
     expect(result.hireDate).toBe("2019-03-01T00:00:00.000Z");
     expect(result.serviceYears).toBeGreaterThan(0);
   });
@@ -305,6 +332,24 @@ describe("verifyEmployeeForHouseRequest — refusals that are still answers", ()
     expect(result.eligibilityReason).toContain(
       "already open in the House Queue",
     );
+  });
+
+  it("reports no queue standing for somebody who has not asked", async () => {
+    // The queue is request-gated: a person who has not filed a request is not
+    // in it, so there is no position to report.
+    const result = await verify();
+
+    expect(result.hasOpenRequest).toBe(false);
+    expect(result.queue).toBeNull();
+  });
+
+  it("reports the position the request holds in the queue", async () => {
+    const result = await verify({ request: activeRequest() });
+
+    expect(result.queue?.rank).toBe(1);
+    expect(result.queue?.cohortSize).toBe(1);
+    expect(result.queue?.category).toBe("B");
+    expect(result.queue?.score).toBeTypeOf("number");
   });
 
   it("reports an inactive employee as a person, not as a missing ID", async () => {

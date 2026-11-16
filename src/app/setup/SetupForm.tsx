@@ -13,6 +13,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { ShieldCheck } from "lucide-react";
+import { isNativeApp } from "@/lib/native-app";
 
 export default function SetupForm() {
   const router = useRouter();
@@ -29,8 +30,14 @@ export default function SetupForm() {
   const [isLoading, setIsLoading] = useState(false);
   const [checking, setChecking] = useState(true);
 
-  // Verify that setup is actually needed; redirect to login if not
+  // Verify that setup is actually needed; redirect to login if not.
+  // The native APK never renders this wizard — it always starts on sign-in.
   useEffect(() => {
+    if (isNativeApp()) {
+      router.replace("/login");
+      return;
+    }
+
     fetch("/api/setup/status")
       .then((res) => res.json())
       .then((data) => {

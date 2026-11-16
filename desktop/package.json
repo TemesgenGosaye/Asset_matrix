@@ -1,0 +1,29 @@
+{
+  "name": "msf-homedesk",
+  "productName": "Msf HomeDesk",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Secure Windows desktop client for Metahara Sugar Factory – Msf HomeDesk",
+  "author": {
+    "name": "Metahara Sugar Factory",
+    "email": "it@metaharasugar.com"
+  },
+  "license": "MIT",
+  "main": "main.js",
+  "scripts": {
+    "icons": "node scripts/generate-icons.mjs",
+    "dev": "npm run icons && electron .",
+    "start": "electron .",
+    "pack": "npm run icons && electron-builder --win --dir",
+    "build": "npm run icons && electron-builder --win nsis --publish never",
+    "dist": "npm run build"
+  },
+  "dependencies": {
+    "electron-updater": "^6.6.2"
+  },
+  "devDependencies": {
+    "electron": "^45.0.0",
+    "electron-builder": "^26.15.3",
+    "sharp": "^0.34.5"
+  }
+}

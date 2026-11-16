@@ -67,6 +67,8 @@ export async function proxy(req: NextRequest) {
     "/forgot-password",
     "/reset-password",
     "/offline",
+    "/terms",
+    "/privacy",
     "/invite",
   ];
   const isPublicRoute = publicRoutes.some(
@@ -99,10 +101,12 @@ export async function proxy(req: NextRequest) {
     return nextWithNonce();
   }
 
-  // Redirect logged-in users away from login page
-  if (isLoggedIn && pathname === "/login") {
-    return withHeaders(NextResponse.redirect(new URL("/dashboard", req.url)));
-  }
+  // NOTE: do NOT redirect /login -> /dashboard here based only on the presence
+  // of a session cookie. `getSessionCookie` cannot tell whether that cookie is
+  // still valid, so a stale/expired cookie would bounce /login -> /dashboard,
+  // the dashboard would reject the invalid session and redirect to /login, and
+  // the browser would loop/reload forever. The login page validates the session
+  // server-side and redirects only when it is genuinely valid.
 
   // Redirect non-logged-in users to login (except for API routes)
   if (!isLoggedIn && !isPublicRoute && !isApiRoute) {

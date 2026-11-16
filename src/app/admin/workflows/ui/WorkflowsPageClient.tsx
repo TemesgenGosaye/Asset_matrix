@@ -562,9 +562,9 @@ export default function WorkflowsPageClient() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="flex items-center gap-2 text-3xl font-bold">
+          <h1 className="flex items-center gap-2 text-3xl font-bold tracking-tight">
             <Zap className="h-7 w-7" />
-            Automation Rules
+            Automation Rules: የሥራ ሂደቶች
           </h1>
           <p className="text-muted-foreground mt-1 text-sm">
             Configure automated workflows triggered by asset events

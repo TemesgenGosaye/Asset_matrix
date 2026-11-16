@@ -4,7 +4,7 @@
  * Pay Rent register.
  *
  * Follows the portal's enterprise-table conventions (see EmployeesTable):
- * server-side pagination / sorting / filtering, a debounced search across name /
+ * server-side pagination / sorting / filtering, an explicit search across name /
  * National ID / phone, real aggregate summary cards, skeleton and error states,
  * row action menus, and CSV/Excel export driven by the same filters.
  *
@@ -51,6 +51,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
@@ -65,12 +66,10 @@ import {
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ResponsiveTable, type Column } from "@/components/ui/responsive-table";
-import MetricCard from "@/components/MetricCard";
 import type { RentCapabilities } from "@/lib/rent/access";
 import {
   GENDER_LABELS,
   RENT_DISPLAY_STATUS_OPTIONS,
-  RENT_GENDER_OPTIONS,
   RENT_TYPE_OPTIONS,
 } from "@/lib/rent/constants";
 import {
@@ -94,7 +93,6 @@ import {
 import { MonthsPaidIndicator, RentStatusBadge } from "./status-badges";
 
 const PAGE_SIZE_OPTIONS = ["10", "25", "50", "100"] as const;
-const SEARCH_DEBOUNCE_MS = 300;
 
 interface RentersTableProps {
   capabilities: RentCapabilities;
@@ -204,17 +202,21 @@ export default function RentersTable({
     }
   }, []);
 
-  // Debounced search: the request only fires 300ms after typing stops.
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setQuery((prev) =>
-        prev.search === searchDraft
-          ? prev
-          : { ...prev, search: searchDraft, page: 1 },
-      );
-    }, SEARCH_DEBOUNCE_MS);
-    return () => clearTimeout(timer);
+  // Explicit search: the request fires only on submit (Search button or the
+  // Enter key), never on a keystroke timer.
+  const submitSearch = useCallback(() => {
+    const next = searchDraft.trim();
+    setQuery((prev) =>
+      prev.search === next ? prev : { ...prev, search: next, page: 1 },
+    );
   }, [searchDraft]);
+
+  const clearSearch = useCallback(() => {
+    setSearchDraft("");
+    setQuery((prev) =>
+      prev.search === "" ? prev : { ...prev, search: "", page: 1 },
+    );
+  }, []);
 
   // Fetch on query change, deferred off the commit phase.
   useEffect(() => {
@@ -287,10 +289,6 @@ export default function RentersTable({
       query.search !== "" ||
       query.rentType !== ALL ||
       query.status !== ALL ||
-      query.gender !== ALL ||
-      query.overdueOnly ||
-      query.startDateFrom !== "" ||
-      query.startDateTo !== "" ||
       query.onlyArchived,
     [query],
   );
@@ -657,80 +655,110 @@ export default function RentersTable({
   return (
     <div className="space-y-4">
       {/* ---- Summary cards, from real aggregates.
-             Same shared MetricCard component and 6-up grid the rest of the
-             portal uses (see hams/KpiRow), each card given its own icon,
-             variant and breakdown strip. ---- */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-        <MetricCard
-          title="Total Renters"
-          value={summary.totalRenters}
-          icon={Users}
-          variant="navy"
-          subtitle="People renting premises from the factory"
-          breakdown={[
-            {
-              label: "Live",
-              value: summary.totalRenters - summary.archivedRenters,
-            },
-            { label: "Archived", value: summary.archivedRenters },
-          ]}
-        />
-        <MetricCard
-          title="Active Leases"
-          value={summary.activeLeases}
-          icon={FileSignature}
-          variant="success"
-          subtitle="Currently collecting rent"
-          breakdown={[
-            { label: "Completed", value: summary.completedLeases },
-            { label: "Terminated", value: summary.terminatedLeases },
-          ]}
-        />
-        <MetricCard
-          title="Overdue"
-          value={summary.overdueRenters}
-          icon={AlertTriangle}
-          variant={summary.overdueRenters > 0 ? "destructive" : "default"}
-          badge={summary.overdueRenters > 0 ? "Needs Action" : "All Current"}
-          subtitle={
-            summary.overdueRenters > 0
-              ? "Leases with an unpaid month past its due date"
-              : "No lease is past its due date"
-          }
-          breakdown={[{ label: "Months", value: summary.overdueMonths }]}
-        />
-        <MetricCard
-          title="Total Collected"
-          value={formatEtbNumber(summary.totalCollected)}
-          icon={Banknote}
-          variant="brass"
-          subtitle="ETB received against live leases"
-        />
-        <MetricCard
-          title="Total Outstanding"
-          value={formatEtbNumber(summary.totalOutstanding)}
-          icon={HandCoins}
-          variant={hasOutstanding ? "warning" : "default"}
-          badge={hasOutstanding ? "Collectable" : "Settled"}
-          subtitle={
-            hasOutstanding
+             Same compact metric-card style used across the portal: uppercase
+             label, tinted ringed icon tile, tabular-nums value. ---- */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
+        <div className="bg-card rounded-xl border p-4 shadow-sm transition-shadow hover:shadow-md">
+          <div className="flex items-start justify-between gap-3">
+            <span className="text-muted-foreground text-[11px] font-semibold tracking-wider uppercase">
+              Total Renters
+            </span>
+            <span className="bg-primary/10 text-primary ring-primary/15 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ring-1">
+              <Users className="h-4 w-4" />
+            </span>
+          </div>
+          <div className="mt-2 text-2xl font-bold tabular-nums">
+            {summary.totalRenters}
+          </div>
+          <p className="text-muted-foreground mt-1 text-[11px]">
+            {summary.totalRenters - summary.archivedRenters} live ·{" "}
+            {summary.archivedRenters} archived
+          </p>
+        </div>
+
+        <div className="bg-card rounded-xl border p-4 shadow-sm transition-shadow hover:shadow-md">
+          <div className="flex items-start justify-between gap-3">
+            <span className="text-muted-foreground text-[11px] font-semibold tracking-wider uppercase">
+              Active Leases
+            </span>
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-600 ring-1 ring-emerald-500/20 dark:text-emerald-400">
+              <FileSignature className="h-4 w-4" />
+            </span>
+          </div>
+          <div className="mt-2 text-2xl font-bold text-emerald-600 tabular-nums dark:text-emerald-400">
+            {summary.activeLeases}
+          </div>
+          <p className="text-muted-foreground mt-1 text-[11px]">
+            {summary.completedLeases} completed · {summary.terminatedLeases}{" "}
+            terminated
+          </p>
+        </div>
+
+        <div className="bg-card rounded-xl border p-4 shadow-sm transition-shadow hover:shadow-md">
+          <div className="flex items-start justify-between gap-3">
+            <span className="text-muted-foreground text-[11px] font-semibold tracking-wider uppercase">
+              Total Collected
+            </span>
+            <span className="bg-brass-500/10 text-brass-600 ring-brass-500/30 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ring-1 dark:text-brass-300">
+              <Banknote className="h-4 w-4" />
+            </span>
+          </div>
+          <div className="mt-2 text-2xl font-bold tabular-nums">
+            {formatEtbNumber(summary.totalCollected)}
+          </div>
+          <p className="text-muted-foreground mt-1 text-[11px]">
+            ETB received against live leases
+          </p>
+        </div>
+
+        <div className="bg-card rounded-xl border p-4 shadow-sm transition-shadow hover:shadow-md">
+          <div className="flex items-start justify-between gap-3">
+            <span className="text-muted-foreground text-[11px] font-semibold tracking-wider uppercase">
+              Total Outstanding
+            </span>
+            <span
+              className={
+                hasOutstanding
+                  ? "bg-amber-500/10 text-amber-600 ring-amber-500/20 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ring-1 dark:text-amber-400"
+                  : "bg-muted text-muted-foreground ring-border flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ring-1"
+              }
+            >
+              <HandCoins className="h-4 w-4" />
+            </span>
+          </div>
+          <div
+            className={
+              hasOutstanding
+                ? "mt-2 text-2xl font-bold text-amber-600 tabular-nums dark:text-amber-400"
+                : "mt-2 text-2xl font-bold tabular-nums"
+            }
+          >
+            {formatEtbNumber(summary.totalOutstanding)}
+          </div>
+          <p className="text-muted-foreground mt-1 text-[11px]">
+            {hasOutstanding
               ? "ETB invoiced and not yet received"
-              : "Nothing outstanding across live leases"
-          }
-        />
-        <MetricCard
-          title="Contract Value"
-          value={formatEtbNumber(summary.totalContractValue)}
-          icon={ScrollText}
-          variant="default"
-          subtitle="ETB billed across all live lease terms"
-          breakdown={[
-            {
-              label: "Collected",
-              value: `${formatEtbNumber(summary.totalCollected)} / ${formatEtbNumber(summary.totalContractValue)}`,
-            },
-          ]}
-        />
+              : "Nothing outstanding across live leases"}
+          </p>
+        </div>
+
+        <div className="bg-card rounded-xl border p-4 shadow-sm transition-shadow hover:shadow-md">
+          <div className="flex items-start justify-between gap-3">
+            <span className="text-muted-foreground text-[11px] font-semibold tracking-wider uppercase">
+              Contract Value
+            </span>
+            <span className="bg-muted text-muted-foreground ring-border flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ring-1">
+              <ScrollText className="h-4 w-4" />
+            </span>
+          </div>
+          <div className="mt-2 text-2xl font-bold tabular-nums">
+            {formatEtbNumber(summary.totalContractValue)}
+          </div>
+          <p className="text-muted-foreground mt-1 text-[11px]">
+            {formatEtbNumber(summary.totalCollected)} collected of{" "}
+            {formatEtbNumber(summary.totalContractValue)}
+          </p>
+        </div>
       </div>
 
       <div role="status" aria-live="polite" className="sr-only">
@@ -744,152 +772,145 @@ export default function RentersTable({
       ) : null}
 
       {/* ---- Toolbar ---- */}
-      <div className="border-border bg-card flex flex-col gap-3 rounded-xl border p-3 lg:flex-row lg:items-center">
-        <div className="relative w-full lg:max-w-md">
-          <Search className="text-muted-foreground absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />
-          <Input
-            className="pr-8 pl-9"
-            placeholder="Search name, National ID or phone..."
-            value={searchDraft}
-            onChange={(e) => setSearchDraft(e.target.value)}
-            aria-label="Search renters"
-          />
-          {searchDraft ? (
-            <button
-              type="button"
-              aria-label="Clear search"
-              onClick={() => setSearchDraft("")}
-              className="text-muted-foreground hover:text-foreground absolute top-1/2 right-2.5 -translate-y-1/2"
-            >
-              <X className="h-3.5 w-3.5" />
-            </button>
-          ) : null}
+      <div className="border-border bg-card flex items-center gap-3 rounded-xl border p-3 shadow-sm overflow-x-auto">
+        <div className="flex shrink-0 items-center gap-2">
+          <div className="relative w-64 sm:w-80">
+            <Search className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />
+            <Input
+              className="h-9 pr-8 pl-9 text-xs"
+              placeholder="Search name, National ID or phone..."
+              autoFocus
+              value={searchDraft}
+              onChange={(e) => setSearchDraft(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  submitSearch();
+                }
+              }}
+              aria-label="Search renters"
+            />
+            {searchDraft ? (
+              <button
+                type="button"
+                aria-label="Clear search"
+                onClick={clearSearch}
+                className="text-muted-foreground hover:text-foreground absolute top-1/2 right-2.5 -translate-y-1/2 rounded p-0.5 transition-colors"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            ) : null}
+          </div>
+          <Button
+            size="sm"
+            className="h-9 shrink-0 px-4"
+            onClick={submitSearch}
+          >
+            Search
+          </Button>
         </div>
 
-        <Select
-          value={query.rentType}
-          onValueChange={(v) => applyFilter("rentType", v)}
-        >
-          <SelectTrigger
-            className="w-full sm:w-40"
-            aria-label="Filter by rent type"
-          >
-            <SelectValue placeholder="Rent type" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={ALL}>Any rent type</SelectItem>
-            {RENT_TYPE_OPTIONS.map((o) => (
-              <SelectItem key={o.value} value={o.value}>
-                {o.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <div
+          className="bg-border h-6 w-px shrink-0"
+          aria-hidden
+        />
 
-        <Select
-          value={query.status}
-          onValueChange={(v) => applyFilter("status", v)}
-        >
-          <SelectTrigger
-            className="w-full sm:w-40"
-            aria-label="Filter by lease status"
+        {/* Filters + row actions follow the search box on one straight row:
+            every control is h-9 and evenly spaced, aligned with the Search
+            button. We use flex-nowrap to keep Register and Export on the same row. */}
+        <div className="flex flex-nowrap items-center gap-2">
+          <Select
+            value={query.rentType}
+            onValueChange={(v) => applyFilter("rentType", v)}
           >
-            <SelectValue placeholder="Status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={ALL}>Any status</SelectItem>
-            {RENT_DISPLAY_STATUS_OPTIONS.map((o) => (
-              <SelectItem key={o.value} value={o.value}>
-                {o.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+            <SelectTrigger
+              className="h-9 w-40 shrink-0"
+              aria-label="Filter by rent type"
+            >
+              <SelectValue placeholder="Rent type" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={ALL}>Any rent type</SelectItem>
+              {RENT_TYPE_OPTIONS.map((o) => (
+                <SelectItem key={o.value} value={o.value}>
+                  {o.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
 
-        <Select
-          value={query.gender}
-          onValueChange={(v) => applyFilter("gender", v)}
-        >
-          <SelectTrigger
-            className="w-full sm:w-36"
-            aria-label="Filter by gender"
+          <Select
+            value={query.status}
+            onValueChange={(v) => applyFilter("status", v)}
           >
-            <SelectValue placeholder="Gender" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={ALL}>Any gender</SelectItem>
-            {RENT_GENDER_OPTIONS.map((o) => (
-              <SelectItem key={o.value} value={o.value}>
-                {o.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+            <SelectTrigger
+              className="h-9 w-40 shrink-0"
+              aria-label="Filter by lease status"
+            >
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={ALL}>Any status</SelectItem>
+              {RENT_DISPLAY_STATUS_OPTIONS.filter((o) => o.value !== "Overdue").map(
+                (o) => (
+                  <SelectItem key={o.value} value={o.value}>
+                    {o.label}
+                  </SelectItem>
+                )
+              )}
+            </SelectContent>
+          </Select>
 
-        <div className="flex items-center gap-1.5">
+          {hasActiveFilters ? (
+            <Button
+              size="sm"
+              className="h-9 shrink-0"
+              variant="ghost"
+              onClick={clearFilters}
+            >
+              <X className="mr-1.5 h-3.5 w-3.5" />
+              Clear
+            </Button>
+          ) : null}
+
           <Button
             size="sm"
-            variant={query.overdueOnly ? "default" : "outline"}
-            aria-pressed={query.overdueOnly}
-            onClick={() => applyFilter("overdueOnly", !query.overdueOnly)}
-          >
-            Overdue only
-          </Button>
-          <Button
-            size="sm"
+            className="h-9 shrink-0"
             variant={query.onlyArchived ? "default" : "outline"}
             aria-pressed={query.onlyArchived}
             onClick={() => applyFilter("onlyArchived", !query.onlyArchived)}
           >
             Archived
           </Button>
-        </div>
 
-        {/* Start-date range */}
-        <div className="flex items-end gap-2">
-          <div className="space-y-1">
-            <Label htmlFor="rent-start-from" className="text-xs">
-              Start from
-            </Label>
-            <Input
-              id="rent-start-from"
-              type="date"
-              className="h-9 w-36"
-              value={query.startDateFrom}
-              onChange={(e) => applyFilter("startDateFrom", e.target.value)}
-            />
-          </div>
-          <div className="space-y-1">
-            <Label htmlFor="rent-start-to" className="text-xs">
-              to
-            </Label>
-            <Input
-              id="rent-start-to"
-              type="date"
-              className="h-9 w-36"
-              value={query.startDateTo}
-              onChange={(e) => applyFilter("startDateTo", e.target.value)}
-            />
-          </div>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2 lg:ml-auto">
-          {hasActiveFilters ? (
-            <Button size="sm" variant="ghost" onClick={clearFilters}>
-              <X className="mr-1.5 h-3.5 w-3.5" />
-              Clear
+          {capabilities.create ? (
+            <Button
+              size="sm"
+              className="h-9 shrink-0 whitespace-nowrap"
+              onClick={() => {
+                setEditing(null);
+                setFormOpen(true);
+              }}
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              Register renter
             </Button>
           ) : null}
 
           {capabilities.export ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button size="sm" variant="outline">
-                  <Download className="text-muted-foreground mr-2 h-4 w-4" />
-                  Export
+                <Button
+                  size="icon"
+                  variant="outline"
+                  className="h-9 w-9 shrink-0"
+                  aria-label="Export options"
+                >
+                  <MoreVertical className="h-4 w-4" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
+              <DropdownMenuContent align="end" className="w-44">
+                <DropdownMenuLabel>Export</DropdownMenuLabel>
                 <DropdownMenuItem onClick={() => exportRegister("xlsx")}>
                   <FileSpreadsheet className="mr-2 h-4 w-4" />
                   Excel (.xlsx)
@@ -900,19 +921,6 @@ export default function RentersTable({
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-          ) : null}
-
-          {capabilities.create ? (
-            <Button
-              size="sm"
-              onClick={() => {
-                setEditing(null);
-                setFormOpen(true);
-              }}
-            >
-              <Plus className="mr-2 h-4 w-4" />
-              Register renter
-            </Button>
           ) : null}
         </div>
       </div>
@@ -961,7 +969,6 @@ export default function RentersTable({
                 : "No renter records exist yet. Click 'Register renter' to add the first one - their monthly rent schedule is generated automatically."
           }
           stickyHeader
-          mobileCardView
           minWidth="1600px"
           storageKey="rent-table-columns"
         />

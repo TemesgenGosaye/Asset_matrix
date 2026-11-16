@@ -5,6 +5,7 @@ import {
   ACCEPTED_THEME_IDS,
   DARK_THEME_IDS,
   DEFAULT_THEME_ID,
+  LEGACY_THEME_IDS,
   LIGHT_THEME_IDS,
   NEXT_THEMES_THEME_NAMES,
   SYSTEM_THEME_ID,
@@ -16,6 +17,7 @@ import {
   getThemeOrDefault,
   isAcceptedThemeId,
   isDarkTheme,
+  normalizeThemeId,
   themeClassFor,
   toThemeId,
 } from "../themes";
@@ -69,11 +71,14 @@ describe("theme registry", () => {
     expect(DEFAULT_THEME_ID).toBe("light");
   });
 
-  it("offers the themes the brief asked for", () => {
-    // OLED, a night theme and a forest theme must all be selectable.
-    expect(THEME_IDS).toContain("oled");
-    expect(THEME_IDS).toContain("midnight");
-    expect(THEME_IDS).toContain("forest");
+  it("offers exactly two themes: light and dark", () => {
+    expect(THEME_IDS).toEqual(["light", "dark"]);
+    expect(THEMES).toHaveLength(2);
+    // Every retired id must be gone from the selectable list, otherwise the
+    // picker would offer a theme the stylesheet no longer defines.
+    for (const retired of LEGACY_THEME_IDS) {
+      expect(THEME_IDS).not.toContain(retired);
+    }
   });
 
   it("partitions every theme into exactly one light/dark bucket", () => {
@@ -107,18 +112,20 @@ describe("theme registry", () => {
    *
    * With `attribute="class"`, next-themes removes only the names in its
    * `themes` prop before adding the active one. Left at its default
-   * `['light','dark']`, `oled`/`midnight`/`forest`/`contrast`/`paper` were never
-   * cleared, so every dark theme ever visited stayed on the element. All the
-   * token blocks have equal specificity, so the last one in the stylesheet won:
-   * picking "High Contrast" after "Paper" rendered as Paper, while the class
-   * list looked plausible. This is what `NEXT_THEMES_THEME_NAMES` prevents.
+   * `['light','dark']`, a retired class such as `oled` was never cleared, so it
+   * sat next to the active theme for the rest of the session. This is what
+   * `NEXT_THEMES_THEME_NAMES` prevents.
    */
   it("tells next-themes every class it must be able to clear", () => {
     expect([...NEXT_THEMES_THEME_NAMES].sort()).toEqual(
-      [...new Set([...THEME_IDS, "light", "dark"])].sort(),
+      [...new Set([...THEME_IDS, "light", "dark", ...LEGACY_THEME_IDS])].sort(),
     );
     // Every registered theme must be removable.
     for (const id of THEME_IDS) {
+      expect(NEXT_THEMES_THEME_NAMES).toContain(id);
+    }
+    // And so must every retired one, or it survives on <html>.
+    for (const id of LEGACY_THEME_IDS) {
       expect(NEXT_THEMES_THEME_NAMES).toContain(id);
     }
     // And the provider must actually be handed it.
@@ -161,9 +168,9 @@ describe("toThemeId / isAcceptedThemeId", () => {
 
 describe("getTheme / getThemeLabel / getThemeOrDefault", () => {
   it("returns the matching definition", () => {
-    const oled = getTheme("oled");
-    expect(oled?.label).toBe("OLED");
-    expect(oled?.isDark).toBe(true);
+    const dark = getTheme("dark");
+    expect(dark?.label).toBe("Dark");
+    expect(dark?.isDark).toBe(true);
   });
 
   it("falls back rather than throwing on bad input", () => {
@@ -174,8 +181,39 @@ describe("getTheme / getThemeLabel / getThemeOrDefault", () => {
   });
 });
 
+describe("normalizeThemeId", () => {
+  it("keeps a live theme unchanged", () => {
+    expect(normalizeThemeId("light")).toBe("light");
+    expect(normalizeThemeId("dark")).toBe("dark");
+  });
+
+  it("maps a retired theme onto the palette with the same lightness", () => {
+    for (const retired of ["oled", "midnight", "forest", "contrast"]) {
+      expect(normalizeThemeId(retired)).toBe("dark");
+    }
+    expect(normalizeThemeId("paper")).toBe("light");
+  });
+
+  it("resolves the system sentinel with the OS preference the caller knows", () => {
+    expect(normalizeThemeId(SYSTEM_THEME_ID, "dark")).toBe("dark");
+    expect(normalizeThemeId(SYSTEM_THEME_ID, "light")).toBe("light");
+    // The server cannot read the OS, so it keeps the sentinel symbolic.
+    expect(normalizeThemeId(SYSTEM_THEME_ID, SYSTEM_THEME_ID)).toBe(
+      SYSTEM_THEME_ID,
+    );
+  });
+
+  it("falls back to the default for junk", () => {
+    expect(normalizeThemeId("neon")).toBe(DEFAULT_THEME_ID);
+    expect(normalizeThemeId("")).toBe(DEFAULT_THEME_ID);
+    expect(normalizeThemeId(null)).toBe(DEFAULT_THEME_ID);
+    expect(normalizeThemeId(undefined)).toBe(DEFAULT_THEME_ID);
+    expect(normalizeThemeId(42)).toBe(DEFAULT_THEME_ID);
+  });
+});
+
 describe("isDarkTheme", () => {
-  it("reads the registry, so OLED/Midnight/Forest/Contrast count as dark", () => {
+  it("reads the registry, so the dark theme counts as dark", () => {
     // The regression this guards: the old switcher used
     // `resolvedTheme === "dark"`, which is false for every theme except "dark".
     for (const id of DARK_THEME_IDS) {
@@ -201,8 +239,8 @@ describe("isDarkTheme", () => {
 
 describe("themeClassFor", () => {
   it("returns the id itself for a concrete theme", () => {
-    expect(themeClassFor("forest")).toBe("forest");
-    expect(themeClassFor("oled")).toBe("oled");
+    expect(themeClassFor("light")).toBe("light");
+    expect(themeClassFor("dark")).toBe("dark");
   });
 
   it("resolves `system` to the class next-themes writes", () => {
@@ -212,6 +250,8 @@ describe("themeClassFor", () => {
 
   it("falls back to the default for an unknown id", () => {
     expect(themeClassFor("nope")).toBe(DEFAULT_THEME_ID);
+    // A retired id has no class any more, so it must not be handed to the DOM.
+    expect(themeClassFor("oled")).toBe(DEFAULT_THEME_ID);
   });
 });
 
@@ -326,17 +366,21 @@ describe("globals.css stays in sync with the registry", () => {
     }
   });
 
-  it("gives OLED a true-black background and High Contrast maximum contrast", () => {
-    expect(blockFor(".oled")).toContain("--background: 0 0% 0%;");
-    expect(blockFor(".contrast")).toContain("--background: 0 0% 0%;");
-    expect(blockFor(".contrast")).toContain("--foreground: 0 0% 100%;");
-    expect(blockFor(".contrast")).toContain("--border: 0 0% 45%;");
+  it("keeps only the light and dark token blocks", () => {
+    // A retired theme must lose its block, otherwise its rules would still
+    // apply to any element that kept the class.
+    for (const retired of LEGACY_THEME_IDS) {
+      expect(
+        new RegExp(`\\.${retired}\\s*\\{`).test(css),
+        `globals.css still defines a token block for the retired theme "${retired}"`,
+      ).toBe(false);
+    }
   });
 
   it("has no leftover per-theme dark overrides that would bypass the tokens", () => {
     // The maplibre popup and assistant rules used to be `.dark`-scoped with
     // hard-coded colours; they are now token-driven. A `.dark`-scoped override
-    // would mean a colour that ignores which of the five dark themes is active.
+    // would mean a colour that ignores which of the two themes is active.
     // Matched against comment-stripped CSS: the prose explaining this rule
     // mentions the old selectors by name on purpose.
     expect(cssWithoutComments).not.toMatch(/\.dark\s+\.maplibregl-popup/);

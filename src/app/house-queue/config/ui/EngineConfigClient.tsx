@@ -550,22 +550,33 @@ export default function EngineConfigClient() {
   };
 
   const publishDraft = async () => {
-    const changed = editingBase
-      ? diffSections(editingBase, effectiveDraft)
-      : [];
-    if (changed.length === 0) {
-      notify.info("Nothing to publish — the draft matches the live configuration");
-      setPublishOpen(false);
-      return;
-    }
-    // Unsaved edits are invisible to the publish endpoint, which reads the
-    // saved draft. Publishing while `isDirty` silently drops them, so the user
-    // is told to save first.
+    /**
+     * Two DIFFERENT questions, answered by two different sources.
+     *
+     * 1. "Are there unsaved edits in the editor?" - a local question: diff the
+     *    local editors against the loaded baseline. Publishing promotes the
+     *    SAVED draft, so unsaved edits would be silently dropped.
+     * 2. "Does the saved draft differ from the live configuration?" - NOT a
+     *    local question: the server diffs the saved draft against the ACTIVE
+     *    version and ships the answer as `publishGate.hasPublishableChanges`.
+     *
+     * Both guards used to be answered with the same local diff, so they were
+     * mutually exclusive: one always said "nothing to publish" and the other
+     * always said "save the draft first". The publish request was never sent.
+     */
     if (isDirty) {
       notify.error({
-      title: "Save the draft before publishing",
-      description: "Publishing promotes the saved draft. Unsaved edits would not be included.",
-    });
+        title: "Save the draft before publishing",
+        description:
+          "Publishing promotes the saved draft. Unsaved edits would not be included.",
+      });
+      return;
+    }
+    if (!state?.publishGate.hasPublishableChanges) {
+      notify.info(
+        "Nothing to publish — the draft matches the live configuration",
+      );
+      setPublishOpen(false);
       return;
     }
     setPublishLoading(true);
@@ -891,8 +902,8 @@ export default function EngineConfigClient() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">
-            Engine Configuration
-          </h1>
+              Engine Configuration: የምደባ ውቅር
+            </h1>
           <p className="text-muted-foreground text-sm">
             Tune how the house queue ranks and recommends. Changes are drafted,
             previewed and published — never applied silently.
@@ -1479,7 +1490,6 @@ export default function EngineConfigClient() {
                   data={previewData.engineA.rows}
                   renderCell={renderPreviewCell}
                   keyExtractor={(r) => r.employeeId}
-                  mobileCardView
                   minWidth="760px"
                   emptyMessage="No affected rows"
                 />

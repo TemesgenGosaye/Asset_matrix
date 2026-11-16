@@ -14,8 +14,6 @@ export interface FeatureFlags {
   accountLockout: boolean;
   /** Enable session timeout for inactivity */
   sessionTimeout: boolean;
-  /** Enable demo mode features */
-  demoMode: boolean;
   /** Enable audit logging */
   auditLogging: boolean;
   /** Enable email notifications */
@@ -43,7 +41,6 @@ export interface FeatureFlags {
 const DEFAULT_FLAGS: FeatureFlags = {
   accountLockout: true,
   sessionTimeout: true,
-  demoMode: false,
   auditLogging: true,
   emailNotifications: false,
   advancedSearch: true,
@@ -72,7 +69,6 @@ function loadFromEnvironment(): Partial<FeatureFlags> {
       "FEATURE_SESSION_TIMEOUT",
       DEFAULT_FLAGS.sessionTimeout,
     ),
-    demoMode: getBoolEnvVar("DEMO_MODE", DEFAULT_FLAGS.demoMode),
     auditLogging: getBoolEnvVar(
       "FEATURE_AUDIT_LOGGING",
       DEFAULT_FLAGS.auditLogging,

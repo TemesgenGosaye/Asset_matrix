@@ -33,11 +33,11 @@ import {
 } from "./eligibility";
 import {
   scoreAndRankCohort,
-  calculateServiceYears,
+  resolveServiceYears,
   type RankCohortCandidate,
 } from "./mcda";
 import { pickBestHouse } from "./recommendation";
-import { deriveQueueStatus } from "./state";
+import { deriveQueueStatus, isReleasePending } from "./state";
 import { getActiveConfig } from "./config/service";
 import {
   DEFAULT_ENGINE_CONFIG,
@@ -62,7 +62,8 @@ interface EmployeeRow {
   jobGrade: number | null;
   gender: string | null;
   maritalStatus: string | null;
-  disabilityStatus: boolean;
+  disabilityStatus: string | null;
+  serviceYears: number | null;
   hireDate: Date | null;
   familySize: number | null;
 }
@@ -187,8 +188,12 @@ async function fetchSourceData(organizationId: string) {
   const [employees, households, allocations, requests] = await Promise.all([
     prisma.employee.findMany({
       // Archived employees are excluded: a soft-deleted person must never be
-      // scored into the house queue.
-      where: { organizationId, employmentStatus: "active", deletedAt: null },
+      // scored into the house queue. Employment status lives on the profile.
+      where: {
+        organizationId,
+        deletedAt: null,
+        profile: { is: { employmentStatus: "active" } },
+      },
       select: {
         id: true,
         employeeNumber: true,
@@ -198,8 +203,8 @@ async function fetchSourceData(organizationId: string) {
         gender: true,
         maritalStatus: true,
         disabilityStatus: true,
-        hireDate: true,
-        familySize: true,
+        serviceYears: true,
+        profile: { select: { hireDate: true, familySize: true } },
       },
     }),
     prisma.household.findMany({
@@ -236,7 +241,22 @@ async function fetchSourceData(organizationId: string) {
     }),
   ]);
 
-  return { employees, households, allocations, requests };
+  return {
+    employees: employees.map(({ profile, ...employee }) => {
+      const legacy = employee as typeof employee & {
+        hireDate?: Date | null;
+        familySize?: number | null;
+      };
+      return {
+        ...employee,
+        hireDate: profile?.hireDate ?? legacy.hireDate ?? null,
+        familySize: profile?.familySize ?? legacy.familySize ?? null,
+      };
+    }),
+    households,
+    allocations,
+    requests,
+  };
 }
 
 /**
@@ -289,7 +309,11 @@ export async function computeHouseQueue(
   // House ids that are live-allocated to someone (kept out of the pool).
   const allocatedHouseIds = new Set(
     allocations
-      .filter((a) => a.status === "allocated" && a.householdId)
+      .filter(
+        (a) =>
+          (a.status === "allocated" || isReleasePending(a.status)) &&
+          a.householdId,
+      )
       .map((a) => a.householdId as string),
   );
 
@@ -349,7 +373,7 @@ export async function computeHouseQueue(
     // -----------------------------------------------------------------
     const candidates: RankCohortCandidate[] = cohort.map((emp) => ({
       candidateId: emp.id,
-      serviceYears: calculateServiceYears(emp.hireDate),
+      serviceYears: resolveServiceYears(emp.serviceYears, emp.hireDate),
       maritalStatus: emp.maritalStatus,
       disabilityStatus: emp.disabilityStatus,
       gender: emp.gender,
@@ -389,7 +413,10 @@ export async function computeHouseQueue(
 
       // Allocated employees keep their persisted house as the recommendation
       // and are excluded from the live pool (the house is in allocatedHouseIds).
-      if (persistedStatus === "allocated" && allocation.householdId) {
+      if (
+        (persistedStatus === "allocated" || isReleasePending(persistedStatus)) &&
+        allocation.householdId
+      ) {
         const house = householdById.get(allocation.householdId);
         if (house) {
           recommendedHouse = {
@@ -436,7 +463,7 @@ export async function computeHouseQueue(
         gender: emp.gender,
         maritalStatus: emp.maritalStatus,
         disabilityStatus: emp.disabilityStatus,
-        serviceYears: calculateServiceYears(emp.hireDate),
+        serviceYears: resolveServiceYears(emp.serviceYears, emp.hireDate),
         hireDate: emp.hireDate ? emp.hireDate.toISOString() : null,
         familySize: emp.familySize,
         houseCategory: category,
@@ -516,6 +543,145 @@ export async function computeHouseQueueWithActiveConfig(
     payload: active.payload,
     versionNumber: active.versionNumber,
   });
+}
+
+/**
+ * Where ONE employee stands in the live queue.
+ *
+ * The House Request page has to answer "where is this person in the queue?"
+ * without materialising the whole queue: the page is opened dozens of times a
+ * day, once per employee, and the reader only ever cares about one row.
+ *
+ * WHY THIS RE-DERIVES THE COHORT INSTEAD OF READING A STORED RANK
+ * `house_allocations.priorityRank` is a SNAPSHOT written when a decision is
+ * taken. A request that was filed five minutes ago has no stored rank at all,
+ * so reading the column would answer "no rank" for exactly the employees whose
+ * rank matters most. The rank is a computed value — a position inside a
+ * cohort — and it is computed here, the same way the queue page computes it.
+ *
+ * WHY THE ANSWER MATCHES THE QUEUE PAGE EXACTLY
+ * The cohort is the unit of competition: everyone inside the same house band
+ * is scored against everyone else inside it. So the ranking of one employee
+ * depends only on that employee's band and on the OTHER requesters in that
+ * band — never on the houses, never on the other bands. This function
+ * therefore rebuilds exactly that cohort and ranks it with the same
+ * `scoreAndRankCohort` call and the same active weights the engine uses.
+ *
+ * The comparator (`compareCandidates`) is total and deterministic — score,
+ * then service years, then hire date, then employee number — so the same
+ * cohort always produces the same order, whatever order the database returned
+ * the rows in. That is what makes this number agree with the queue table.
+ *
+ * Queue entry stays REQUEST-GATED, exactly as in the engine: an employee with
+ * no live request is not in the queue, so they have no standing here either.
+ */
+export interface EmployeeQueueStanding {
+  /** 1-based position inside the employee's house-band cohort. */
+  rank: number | null;
+  /** How many requesters compete in the same band. */
+  cohortSize: number | null;
+  /** The MCDA composite score behind the rank (0 – 1). */
+  score: number | null;
+  /** The band the employee competes in. */
+  category: HouseCategory | null;
+}
+
+export async function computeEmployeeQueueStanding(
+  organizationId: string,
+  employeeId: string,
+): Promise<EmployeeQueueStanding> {
+  const NO_STANDING: EmployeeQueueStanding = {
+    rank: null,
+    cohortSize: null,
+    score: null,
+    category: null,
+  };
+
+  const [active, requests] = await Promise.all([
+    getActiveConfig(organizationId),
+    prisma.houseRequest.findMany({
+      where: { organizationId, status: ACTIVE_HOUSE_REQUEST_STATUS },
+      select: { id: true, employeeId: true, createdAt: true },
+    }),
+  ]);
+
+  // The queue-entry gate: no live request, no standing.
+  const requesterIds = new Set(requests.map((r) => r.employeeId));
+  if (!requesterIds.has(employeeId)) return NO_STANDING;
+
+  const bands = eligibilityBandsToJobGradeRules(
+    active.payload.eligibilityBands,
+  );
+
+  // The cohort is the requesters inside ONE band, so only the requesters are
+  // loaded — the whole employee directory is never dragged in.
+  const employeeRows = await prisma.employee.findMany({
+    where: {
+      organizationId,
+      id: { in: [...requesterIds] },
+      deletedAt: null,
+      profile: { is: { employmentStatus: "active" } },
+    },
+    select: {
+      id: true,
+      employeeNumber: true,
+      jobGrade: true,
+      gender: true,
+      maritalStatus: true,
+      disabilityStatus: true,
+      serviceYears: true,
+      profile: { select: { hireDate: true } },
+    },
+  });
+
+  const employees = employeeRows.map(({ profile, ...employee }) => {
+    const legacy = employee as typeof employee & {
+      hireDate?: Date | null;
+    };
+    return {
+      ...employee,
+      hireDate: profile?.hireDate ?? legacy.hireDate ?? null,
+    };
+  });
+
+  const target = employees.find((e) => e.id === employeeId);
+  if (!target) return NO_STANDING;
+
+  const category = houseCategoryForJobGrade(target.jobGrade, bands);
+  const cohort = employees.filter(
+    (e) => houseCategoryForJobGrade(e.jobGrade, bands) === category,
+  );
+
+  // An ungraded requester is in the queue but has no band, so the engine
+  // leaves them unranked. Mirrored here rather than ranked arbitrarily.
+  if (category === null) {
+    return {
+      rank: null,
+      cohortSize: cohort.length,
+      score: null,
+      category: null,
+    };
+  }
+
+  const candidates: RankCohortCandidate[] = cohort.map((emp) => ({
+    candidateId: emp.id,
+    serviceYears: resolveServiceYears(emp.serviceYears, emp.hireDate),
+    maritalStatus: emp.maritalStatus,
+    disabilityStatus: emp.disabilityStatus,
+    gender: emp.gender,
+    hireDate: emp.hireDate,
+    employeeNumber: emp.employeeNumber,
+  }));
+
+  const ranked = scoreAndRankCohort(candidates, active.payload.weights);
+  const row = ranked.find((r) => r.candidateId === employeeId);
+
+  return {
+    rank: row?.rank ?? null,
+    cohortSize: cohort.length,
+    score: row?.score ?? null,
+    category,
+  };
 }
 
 function buildAvailability(

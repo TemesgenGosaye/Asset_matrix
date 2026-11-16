@@ -192,7 +192,9 @@ export default function TeamInvitationsClient() {
     <div>
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Team Management</h1>
+          <h1 className="text-2xl font-bold tracking-tight">
+            Team Management: ቡድን
+          </h1>
           <p className="text-muted-foreground">
             Invite and manage team members
           </p>

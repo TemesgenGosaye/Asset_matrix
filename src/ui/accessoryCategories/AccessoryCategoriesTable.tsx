@@ -101,6 +101,7 @@ export default function AccessoryCategoriesTable({ items }) {
             <Input
               className="pl-9"
               placeholder="Search accessory categories"
+              autoFocus
               value={searchValue}
               onChange={(e) => {
                 setSearchValue(e.target.value);

@@ -140,6 +140,9 @@ export default async function Page() {
           { label: "Assets", href: "/assets" },
         ]}
       />
+      <h1 className="mb-4 text-2xl font-bold tracking-tight">
+        Assets: ንብረቶች
+      </h1>
       <AssetsTableClient
         data={displayAssets}
         locations={location}

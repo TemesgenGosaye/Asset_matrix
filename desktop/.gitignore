@@ -1,0 +1,9 @@
+dist/
+node_modules/
+
+build/signing/*.pfx
+build/signing/*.p12
+build/signing/*.cer
+build/signing/*.key
+build/signing/*.pem
+build/signing/*.txt

@@ -36,7 +36,9 @@ interface RetentionSettings {
 export default function GDPRDashboard() {
   return (
     <div>
-      <h1 className="mb-2 text-2xl font-bold">GDPR Management</h1>
+      <h1 className="mb-2 text-2xl font-bold tracking-tight">
+        GDPR Management: ጂጅፒአር (የመረጃ ጥበቃ ደንብ)
+      </h1>
       <p className="text-muted-foreground mb-6">
         Manage data subject requests, anonymization, and data retention
         policies.
@@ -148,6 +150,7 @@ function DataExportTab() {
         <div className="flex gap-2">
           <Input
             placeholder="Search by name or email..."
+            autoFocus
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="max-w-md"

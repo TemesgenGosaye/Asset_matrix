@@ -71,34 +71,23 @@ export interface NavSection {
 
 export const navSections: NavSection[] = [
   {
-    title: "Overview",
+    title: "House Admin",
     items: [
       {
         label: "Dashboard",
-        href: "/dashboard",
+        href: "/dashboard/house-allocation",
         icon: LayoutDashboard,
-        exact: true,
       },
-      { label: "Users", href: "/user", icon: Users, adminOnly: true },
       {
         label: "Employees",
         href: "/employees",
         icon: UsersRound,
         adminOnly: true,
       },
-      { label: "Assets", href: "/assets", icon: Boxes },
-      { label: "General Asset", href: "/general-asset", icon: Warehouse },
-      { label: "Accessories", href: "/accessories", icon: Puzzle },
-      { label: "Notifications", href: "/notifications", icon: Bell },
-    ],
-  },
-  {
-    title: "House Admin",
-    items: [
       {
-        label: "HAMS Dashboard",
-        href: "/dashboard/house-allocation",
-        icon: LayoutDashboard,
+        label: "House Request",
+        href: "/house-request",
+        icon: FileText,
       },
       {
         label: "House Register",
@@ -111,17 +100,12 @@ export const navSections: NavSection[] = [
         icon: ListOrdered,
       },
       {
-        label: "House Request",
-        href: "/house-request",
-        icon: FileText,
-      },
-      {
-        label: "Allocated Houses",
+        label: "Allocated",
         href: "/houses/allocated",
         icon: KeyRound,
       },
       {
-        label: "Terminated Houses",
+        label: "Terminated",
         href: "/houses/terminated",
         icon: Archive,
       },
@@ -132,7 +116,7 @@ export const navSections: NavSection[] = [
       },
       {
         label: "Pay Rent",
-        href: "/facility/pay-rent",
+        href: "/houses/pay-rent",
         icon: Banknote,
         permission: "rent:view",
       },
@@ -142,6 +126,22 @@ export const navSections: NavSection[] = [
         icon: SlidersHorizontal,
         adminOnly: true,
       },
+      { label: "Notifications", href: "/notifications", icon: Bell },
+    ],
+  },
+  {
+    title: "Overview",
+    items: [
+      {
+        label: "Dashboard",
+        href: "/dashboard",
+        icon: LayoutDashboard,
+        exact: true,
+      },
+      { label: "Users", href: "/user", icon: Users, adminOnly: true },
+      { label: "Assets", href: "/assets", icon: Boxes },
+      { label: "General Asset", href: "/general-asset", icon: Warehouse },
+      { label: "Accessories", href: "/accessories", icon: Puzzle },
     ],
   },
   {

@@ -934,27 +934,45 @@ export const houseInspectionReasons = [
 ] as const;
 
 /**
- * Release Workflow - Step 1 (initiate). Records which exit branch was chosen
- * (Transfer, employee leave or retirement) with an optional note.
+ * Release Workflow - Step 1 (request). Records which exit branch was chosen
+ * (Transfer, employee leave or retirement) with reason note, effective date,
+ * and optional transfer replacement house.
  */
+export const houseQueueReleaseRequestSchema = z.object({
+  employeeId: uuidField,
+  branch: z.enum(houseInspectionReasons),
+  reason: optionalLimited(500),
+  effectiveDate: z.string().optional().nullable(),
+  transferHouseholdId: uuidField.optional().nullable(),
+});
+
 export const houseQueueReleaseInitiateSchema = z.object({
   employeeId: uuidField,
   branch: z.enum(houseInspectionReasons),
   reason: optionalLimited(500),
+  effectiveDate: z.string().optional().nullable(),
+  transferHouseholdId: uuidField.optional().nullable(),
+});
+
+export const houseQueueReleaseCancelSchema = z.object({
+  allocationId: uuidField.optional().nullable(),
+  employeeId: uuidField.optional().nullable(),
+});
+
+export const houseQueueReleaseFinalizeSchema = z.object({
+  allocationId: uuidField.optional().nullable(),
+  employeeId: uuidField.optional().nullable(),
 });
 
 /**
- * Release Workflow - Step 2 (execute).
- * For TRANSFER: requires `targetHouseholdId` (the replacement house chosen from Engine B free houses).
- * In one transaction: allocates employee to new house, vacates old house to PendingInspection,
- * marks old allocation release_pending, and auto-schedules inspection.
- * For EMPLOYEE_LEAVE / RETIREMENT: moves allocation to release_pending, house to PendingInspection,
- * and auto-schedules inspection.
+ * Release Workflow - Step 2 (execute / request release).
  */
 export const houseQueueReleaseExecuteSchema = z.object({
   employeeId: uuidField,
   branch: z.enum(houseInspectionReasons),
   reason: optionalLimited(500),
+  effectiveDate: z.string().optional().nullable(),
+  transferHouseholdId: uuidField.optional().nullable(),
   targetHouseholdId: uuidField.optional().nullable(),
 });
 

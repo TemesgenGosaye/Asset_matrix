@@ -18,7 +18,7 @@ import RecentActivity from "@/components/hams/RecentActivity";
 import { Badge } from "@/components/ui/badge";
 
 export const metadata = {
-  title: "Asset Tracker - House Allocation Management System (HAMS)",
+  title: "Asset Tracker - House Dashboard",
   description:
     "Central command console for residential housing allocations, queue tracking, and capacity analysis.",
 };
@@ -61,7 +61,7 @@ export default async function HamsDashboardPage() {
         options={[
           { label: "Dashboard", href: "/dashboard" },
           { label: "Facility & House", href: "/dashboard/house-allocation" },
-          { label: "HAMS Dashboard", href: "/dashboard/house-allocation", current: true },
+          { label: "House Dashboard", href: "/dashboard/house-allocation", current: true },
         ]}
       />
 
@@ -69,7 +69,7 @@ export default async function HamsDashboardPage() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
-            House Allocation Management (HAMS)
+            House Dashboard: የቤት ዳሽቦርድ
           </h1>
           <div className="mt-1 h-0.5 w-16 rounded bg-gradient-to-r from-brass-400 to-transparent" />
           <p className="mt-2 text-sm text-muted-foreground">

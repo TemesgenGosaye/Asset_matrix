@@ -525,9 +525,12 @@ export default function AllocatedHouseDetailClient({
     );
   }
 
+  const isTerminated = Boolean(
+    detail.terminatedAt ||
+      detail.status === "terminated" ||
+      detail.status === "released",
+  );
   const isReleasePendingState = isReleasePending(detail.status);
-  const isTerminated =
-    detail.status === "terminated" || detail.status === "released";
 
   /**
    * Termination and transfer receipts may only be printed once the handback
@@ -640,7 +643,7 @@ export default function AllocatedHouseDetailClient({
       </div>
 
       {/* ─── Release Pending banner ─── */}
-      {isReleasePendingState && (
+      {isReleasePendingState && !isTerminated && (
         <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm dark:border-amber-900 dark:bg-amber-950/50">
           <div className="flex items-center gap-3">
             <ClipboardCheck className="h-5 w-5 text-amber-600" />

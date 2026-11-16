@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; base-uri 'none'; form-action 'none'"
+    />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Cannot reach Msf HomeDesk</title>
+    <link rel="stylesheet" href="error.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <header class="brand">
+        <img src="icon.png" alt="" width="44" height="44" />
+        <div>
+          <p class="product">Msf HomeDesk</p>
+          <p class="company">Metahara Sugar Factory &middot; IT Department</p>
+        </div>
+      </header>
+
+      <section class="hero" aria-labelledby="error-title">
+        <p class="eyebrow"><span class="pulse" aria-hidden="true"></span> Connection unavailable</p>
+        <h1 id="error-title">Cannot reach <span id="targetHost">house.taild2df63.ts.net</span></h1>
+        <p class="lede">Msf HomeDesk cannot connect to the portal. Please check your network connection.</p>
+        <p class="detail" id="errorDetail" hidden></p>
+      </section>
+
+      <section class="card" aria-labelledby="steps-title">
+        <h2 id="steps-title">Try these steps</h2>
+        <ul>
+          <li>Confirm the portal server is powered on and reachable on the factory network.</li>
+          <li>Check your network cable or Wi-Fi connection.</li>
+          <li>Make sure a firewall or proxy is not blocking port 3000.</li>
+          <li>Wait for the automatic retry, or try again now.</li>
+        </ul>
+      </section>
+
+      <section class="actions">
+        <button id="retryButton" type="button">Retry Connection</button>
+        <p class="retry-note" id="retryNote">
+          Retrying automatically in <span id="countdown">15</span> seconds.
+        </p>
+      </section>
+
+      <footer class="page-footer">
+        <span>Powered by <strong>Temesgen G.</strong></span>
+        <span id="version"></span>
+      </footer>
+    </main>
+
+    <script src="error.js" defer></script>
+  </body>
+</html>

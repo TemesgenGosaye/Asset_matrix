@@ -1,6 +1,6 @@
 "use client";
 
-import { get, set, del, keys, createStore } from "idb-keyval";
+import { get, set, del, keys, clear, createStore } from "idb-keyval";
 
 const offlineStore = createStore("asset-tracker-offline", "mutation-queue");
 
@@ -41,6 +41,14 @@ export async function getPendingMutations(): Promise<QueuedMutation[]> {
 export async function getPendingCount(): Promise<number> {
   const allKeys = await keys(offlineStore);
   return allKeys.length;
+}
+
+/**
+ * Drops every queued mutation. Called on sign-out so one user's pending writes
+ * are never replayed under the next user's session on a shared device.
+ */
+export async function clearOfflineQueue(): Promise<void> {
+  await clear(offlineStore);
 }
 
 export async function removeMutation(id: string): Promise<void> {

@@ -106,7 +106,7 @@ export const PERMISSIONS = {
    */
   "employee:sensitive_view": "View unmasked National ID values",
 
-  // Household Management
+  // House Register
   "household:view": "View households",
   "household:create": "Create households",
   "household:edit": "Edit households",

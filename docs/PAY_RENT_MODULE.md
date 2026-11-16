@@ -1,7 +1,7 @@
 # Pay Rent — House, Shop & Grocery Rent Management
 
 Module for people who rent premises from the factory, under the **Facility &
-House** sidebar group at `/facility/pay-rent`.
+House** sidebar group at `/houses/pay-rent`.
 
 Unlike the rest of the housing module (which models _occupancy_ through the House
 Queue), this module models _money_: a recurring monthly price, a materialised
@@ -16,7 +16,7 @@ schedule, receipts, and a payment ledger.
 npx prisma migrate deploy
 
 # 2. Run it
-npm run dev            # http://localhost:3000/facility/pay-rent
+npm run dev            # http://localhost:3000/houses/pay-rent
 
 # 3. Tests
 npx vitest run src/lib/rent          # 153 unit + live-PostgreSQL tests
@@ -265,7 +265,7 @@ src/lib/rent/
   export.ts      CSV/XLSX columns, statement shaping
 
 src/app/api/rent/…        8 route files
-src/app/facility/pay-rent/page.tsx   server component: gate, capabilities, summary
+src/app/houses/pay-rent/page.tsx   server component: gate, capabilities, summary
 src/ui/rent/
   PayRentClient.tsx        owns the Gregorian/Ethiopian calendar toggle
   RentersTable.tsx         server-paginated register, filters, export, row actions

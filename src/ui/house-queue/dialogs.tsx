@@ -37,7 +37,9 @@ import {
 } from "@/ui/household/house-status";
 import type { HouseQueueRow } from "@/lib/house-queue/types";
 import type { McdaWeights } from "@/lib/house-queue/config/types";
+import { hasDisabilityRecord } from "@/lib/employees/constants";
 import { McdaBreakdownTable } from "./McdaBreakdown";
+
 
 // ---------------------------------------------------------------------------
 // Shared bits
@@ -110,7 +112,9 @@ export function QueueDetailsDialog({
           </Field>
           <Field label="Marital Status">{row.maritalStatus ?? "—"}</Field>
           <Field label="Disability">
-            {row.disabilityStatus ? "Yes" : "No"}
+            {hasDisabilityRecord(row.disabilityStatus)
+              ? row.disabilityStatus
+              : row.disabilityStatus || "No"}
           </Field>
           <Field label="Hired">{formatDate(row.hireDate)}</Field>
           <Field label="Allocation Ledger">

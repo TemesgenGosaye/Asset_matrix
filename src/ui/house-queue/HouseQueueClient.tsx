@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import React, {
   useCallback,
@@ -43,10 +43,14 @@ import {
   Home,
   Sparkles,
   AlertTriangle,
+  X,
   XCircle,
   PencilRuler,
   HelpCircle,
   FileText,
+  Download,
+  FileSpreadsheet,
+  Loader2,
 } from "lucide-react";
 import { fmtScore, formatDate, fullName } from "@/ui/household/house-format";
 import { notify } from "@/lib/feedback/notify";
@@ -55,11 +59,9 @@ import {
   HouseCategoryBadge,
   QueueStatusBadge,
 } from "@/ui/household/house-status";
-import {
-  houseCategoryLegend,
-  jobGradeBandLabel,
-} from "@/lib/house-queue/eligibility";
+import { jobGradeBandLabel } from "@/lib/house-queue/eligibility";
 import { MCDA_CRITERIA } from "@/lib/house-queue/weights";
+import { hasDisabilityRecord } from "@/lib/employees/constants";
 import type {
   GradeGroup,
   HouseAvailability,
@@ -68,6 +70,10 @@ import type {
 } from "@/lib/house-queue/types";
 import type { McdaWeights } from "@/lib/house-queue/config/types";
 import type { QueueActionResult } from "@/lib/house-queue/service";
+import {
+  exportHouseQueueGroup,
+  type HouseQueueExportFormat,
+} from "@/lib/house-queue/export";
 import { McdaLegend } from "./McdaBreakdown";
 
 /** Verdict of one queue decision, as the dialogs consume it. */
@@ -144,6 +150,62 @@ const mcdaColumns: Column[] = MCDA_CRITERIA.map((criterion, i) => ({
   align: "center",
 }));
 
+/**
+ * Short letter shown in the band header, e.g. `Staff` → `S band`. The letter
+ * doubles as the monogram on the band's logo tile, so the heading and the tile
+ * always read the same.
+ */
+const BAND_SHORT_LABEL: Record<string, string> = {
+  Staff: "S",
+  A: "A",
+  B: "B",
+  C: "C",
+  D: "D",
+  E: "E",
+};
+
+/**
+ * Distinct colour identity per band for the heading chip above each table.
+ * `chip` tints the pill, `tile` fills the letter monogram, and `label` colours
+ * the band name — so S/A/B/C/D/E each read as their own band at a glance while
+ * staying consistent with the app's existing category hues.
+ */
+const BAND_HEADER_STYLES: Record<
+  string,
+  { chip: string; tile: string; label: string }
+> = {
+  Staff: {
+    chip: "border-sky-300/70 bg-gradient-to-r from-sky-500/15 to-transparent dark:border-sky-800/70",
+    tile: "bg-gradient-to-br from-sky-500 to-sky-700 text-white",
+    label: "text-sky-700 dark:text-sky-300",
+  },
+  A: {
+    chip: "border-indigo-300/70 bg-gradient-to-r from-indigo-500/15 to-transparent dark:border-indigo-800/70",
+    tile: "bg-gradient-to-br from-indigo-500 to-indigo-700 text-white",
+    label: "text-indigo-700 dark:text-indigo-300",
+  },
+  B: {
+    chip: "border-cyan-300/70 bg-gradient-to-r from-cyan-500/15 to-transparent dark:border-cyan-800/70",
+    tile: "bg-gradient-to-br from-cyan-500 to-cyan-700 text-white",
+    label: "text-cyan-700 dark:text-cyan-300",
+  },
+  C: {
+    chip: "border-emerald-300/70 bg-gradient-to-r from-emerald-500/15 to-transparent dark:border-emerald-800/70",
+    tile: "bg-gradient-to-br from-emerald-500 to-emerald-700 text-white",
+    label: "text-emerald-700 dark:text-emerald-300",
+  },
+  D: {
+    chip: "border-amber-300/70 bg-gradient-to-r from-amber-500/15 to-transparent dark:border-amber-800/70",
+    tile: "bg-gradient-to-br from-amber-500 to-amber-600 text-white",
+    label: "text-amber-700 dark:text-amber-300",
+  },
+  E: {
+    chip: "border-slate-300/70 bg-gradient-to-r from-slate-500/15 to-transparent dark:border-slate-700/70",
+    tile: "bg-gradient-to-br from-slate-500 to-slate-700 text-white",
+    label: "text-slate-700 dark:text-slate-300",
+  },
+};
+
 const columns: Column[] = [
   { key: "srNo", label: "#", hideable: false, align: "right" },
   { key: "employee", label: "Employee", hideable: false },
@@ -191,12 +253,25 @@ export default function HouseQueueClient({
 
   // Filters (applied on the client — ranks stay cohort-true on the server)
   const [search, setSearch] = useState("");
+  const [searchDraft, setSearchDraft] = useState("");
   const [gradeFilter, setGradeFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
+
+  const submitSearch = useCallback(() => {
+    setSearch(searchDraft.trim());
+  }, [searchDraft]);
+
+  const clearSearch = useCallback(() => {
+    setSearchDraft("");
+    setSearch("");
+  }, []);
 
   // Row actions
   const [activeRow, setActiveRow] = useState<HouseQueueRow | null>(null);
   const [dialogKey, setDialogKey] = useState<DialogKey | null>(null);
+
+  /** Band currently being exported, so its own Export control can show progress. */
+  const [exportingBand, setExportingBand] = useState<string | null>(null);
 
   // Keep the latest filter values for the background refresh callback.
   const filtersRef = useRef({ search, gradeFilter, statusFilter });
@@ -436,6 +511,24 @@ export default function HouseQueueClient({
     }
   }, []);
 
+  const handleExport = useCallback(
+    async (group: GradeGroup, format: HouseQueueExportFormat) => {
+      const key = group.category ?? "ungraded";
+      setExportingBand(key);
+      try {
+        await exportHouseQueueGroup({ group, weights, format });
+        notify.success(
+          `${group.category ?? "Ungraded"} band exported as ${format === "excel" ? "Excel" : "PDF"}`,
+        );
+      } catch {
+        notify.error("Failed to export this band. Please try again.");
+      } finally {
+        setExportingBand(null);
+      }
+    },
+    [weights],
+  );
+
   // -----------------------------------------------------------------
   // Client-side (display-only) filtering + grouping
   // -----------------------------------------------------------------
@@ -479,6 +572,7 @@ export default function HouseQueueClient({
         return {
           grade: group.grade,
           category: group.category,
+          total: groupRows.length,
           rows: groupRows,
           ready,
           allocated,
@@ -550,10 +644,12 @@ export default function HouseQueueClient({
         case "marital":
           return item.maritalStatus ?? "—";
         case "disability":
-          return item.disabilityStatus ? (
-            <Badge variant="destructive">Yes</Badge>
+          return hasDisabilityRecord(item.disabilityStatus) ? (
+            <Badge variant="destructive">{item.disabilityStatus}</Badge>
           ) : (
-            <span className="text-muted-foreground">No</span>
+            <span className="text-muted-foreground">
+              {item.disabilityStatus ? item.disabilityStatus : "No"}
+            </span>
           );
         case "category":
           return <HouseCategoryBadge category={item.houseCategory} />;
@@ -733,14 +829,10 @@ export default function HouseQueueClient({
       <div className="flex flex-col gap-2">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="space-y-1">
-            <h1 className="text-2xl font-bold tracking-tight">House Queue</h1>
+            <h1 className="text-2xl font-bold tracking-tight">
+            House Queue: የቤት ወረፋ
+          </h1>
             <div className="from-brass-400 mt-1 h-0.5 w-16 rounded bg-gradient-to-r to-transparent" />
-            <p className="text-muted-foreground mt-2 max-w-2xl text-sm">
-              One table per job grade interval — everyone inside an interval
-              competes for the same houses and is ranked against each other by
-              Engine A. Only employees who submitted a request are ranked.
-              Recomputed on every view.
-            </p>
           </div>
           <div className="flex shrink-0 items-center gap-2 self-start sm:self-start">
             {mounted && lastRefreshed && (
@@ -786,10 +878,6 @@ export default function HouseQueueClient({
             </Button>
           </div>
         </div>
-        <p className="bg-muted/40 text-muted-foreground rounded-lg border px-3 py-1.5 text-xs">
-          <span className="font-semibold">Eligibility rule:</span>{" "}
-          {houseCategoryLegend()}
-        </p>
       </div>
 
       {/* ─── Metric Stat Cards ─── */}
@@ -905,19 +993,49 @@ export default function HouseQueueClient({
       )}
 
       {/* ─── Filters toolbar ─── */}
-      <div className="bg-card flex flex-col gap-3 rounded-xl border p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
-        <div className="relative max-w-sm flex-1">
-          <Search className="text-muted-foreground absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />
-          <Input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search name or employee no…"
-            className="pl-9 text-xs"
-          />
+      <div className="bg-card flex items-center gap-3 rounded-xl border p-3 shadow-sm overflow-x-auto">
+        <div className="flex shrink-0 items-center gap-2">
+          <div className="relative w-64 sm:w-80">
+            <Search className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />
+            <Input
+              value={searchDraft}
+              onChange={(e) => setSearchDraft(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  submitSearch();
+                }
+              }}
+              placeholder="Search name or employee no…"
+              className="h-9 pr-9 pl-9 text-xs"
+              aria-label="Search house queue"
+              autoFocus
+            />
+            {searchDraft ? (
+              <button
+                type="button"
+                aria-label="Clear search"
+                onClick={clearSearch}
+                className="text-muted-foreground hover:text-foreground absolute top-1/2 right-2.5 -translate-y-1/2 rounded-md p-0.5 transition-colors"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            ) : null}
+          </div>
+          <Button
+            size="sm"
+            className="h-9 shrink-0 px-4"
+            onClick={submitSearch}
+          >
+            Search
+          </Button>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+
+        <div className="bg-border h-6 w-px shrink-0" aria-hidden />
+
+        <div className="flex flex-nowrap items-center gap-2">
           <Select value={gradeFilter} onValueChange={setGradeFilter}>
-            <SelectTrigger className="h-8 w-[130px] text-xs">
+            <SelectTrigger className="h-9 w-[130px] shrink-0 text-xs">
               <SelectValue placeholder="Job Grade" />
             </SelectTrigger>
             <SelectContent>
@@ -930,7 +1048,7 @@ export default function HouseQueueClient({
             </SelectContent>
           </Select>
           <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="h-8 w-[160px] text-xs">
+            <SelectTrigger className="h-9 w-[160px] shrink-0 text-xs">
               <SelectValue placeholder="Status" />
             </SelectTrigger>
             <SelectContent>
@@ -949,6 +1067,21 @@ export default function HouseQueueClient({
               <SelectItem value="not_eligible">Not Eligible</SelectItem>
             </SelectContent>
           </Select>
+
+          {(search || gradeFilter !== "all" || statusFilter !== "all") && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setSearch("");
+                setGradeFilter("all");
+                setStatusFilter("all");
+              }}
+              className="text-muted-foreground hover:text-foreground h-9 shrink-0 text-xs"
+            >
+              Clear
+            </Button>
+          )}
         </div>
       </div>
 
@@ -990,6 +1123,8 @@ export default function HouseQueueClient({
         groups.map((group) => {
           const isUngraded = group.category === null;
           const headingId = `interval-${group.category ?? "ungraded"}`;
+          const exportKey = group.category ?? "ungraded";
+          const isExporting = exportingBand === exportKey;
           return (
             <section
               key={headingId}
@@ -997,33 +1132,111 @@ export default function HouseQueueClient({
               aria-labelledby={headingId}
             >
               <div className="flex flex-wrap items-center gap-2">
-                <h2 id={headingId} className="text-sm font-semibold">
-                  {isUngraded
-                    ? "No job grade on record"
-                    : `${group.category} band`}
-                </h2>
-                <HouseCategoryBadge category={group.category} />
-                {group.category && (
-                  <span className="text-muted-foreground text-xs">
-                    {jobGradeBandLabel(group.category)}
+                <div
+                  className={
+                    group.category
+                      ? `flex items-center gap-2 rounded-lg border px-2.5 py-1 shadow-sm ${
+                          BAND_HEADER_STYLES[group.category]?.chip ??
+                          "border-slate-300/70 bg-gradient-to-r from-slate-500/15 to-transparent dark:border-slate-700/70"
+                        }`
+                      : "border-border text-muted-foreground flex items-center gap-2 rounded-lg border px-2.5 py-1"
+                  }
+                >
+                  <span
+                    aria-hidden="true"
+                    className={
+                      group.category
+                        ? `flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-xs font-bold uppercase shadow-sm ${
+                            BAND_HEADER_STYLES[group.category]?.tile ??
+                            "bg-gradient-to-br from-slate-500 to-slate-700 text-white"
+                          }`
+                        : "border-border text-muted-foreground flex h-7 w-7 shrink-0 items-center justify-center rounded-md border text-xs font-bold"
+                    }
+                  >
+                    {group.category
+                      ? (BAND_SHORT_LABEL[group.category] ?? group.category)
+                      : "—"}
                   </span>
-                )}
+                  <h2
+                    id={headingId}
+                    className={
+                      group.category
+                        ? `text-sm font-semibold ${
+                            BAND_HEADER_STYLES[group.category]?.label ?? ""
+                          }`
+                        : "text-sm font-semibold"
+                    }
+                  >
+                    {isUngraded
+                      ? "No job grade on record"
+                      : `${BAND_SHORT_LABEL[group.category] ?? group.category} band`}
+                  </h2>
+                  {group.category && (
+                    <span className="text-muted-foreground text-xs">
+                      {jobGradeBandLabel(group.category)}
+                    </span>
+                  )}
+                </div>
                 <span className="text-muted-foreground text-xs">
                   {group.rows.length} requester
                   {group.rows.length !== 1 ? "s" : ""} · {group.ready} ready ·{" "}
                   {group.allocated} allocated
                 </span>
-                {capabilities.manage && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="ml-auto h-7 gap-1 text-xs"
-                    onClick={() => void handleRecalculate(null)}
-                  >
-                    <PencilRuler className="h-3.5 w-3.5" />
-                    Recalculate
-                  </Button>
-                )}
+                <div className="ml-auto flex items-center gap-2">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-7 gap-1 text-xs"
+                        disabled={isExporting}
+                      >
+                        {isExporting ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <Download className="h-3.5 w-3.5" />
+                        )}
+                        Export
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuLabel>
+                        Export {group.category ? `${group.category} band` : "ungraded"}
+                      </DropdownMenuLabel>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        disabled={isExporting}
+                        onClick={() => void handleExport(group, "excel")}
+                      >
+                        <FileSpreadsheet className="h-4 w-4" />
+                        Excel (.xlsx)
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        disabled={isExporting}
+                        onClick={() => void handleExport(group, "pdf")}
+                      >
+                        <FileText className="h-4 w-4" />
+                        PDF (.pdf)
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                  {capabilities.manage && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className={`h-7 gap-1 text-xs text-white shadow-sm hover:text-white hover:opacity-90 ${
+                        group.category
+                          ? (BAND_HEADER_STYLES[group.category]?.tile ??
+                            "bg-gradient-to-br from-slate-500 to-slate-700 text-white")
+                          : "bg-gradient-to-br from-slate-500 to-slate-700 text-white"
+                      }`}
+                      onClick={() => void handleRecalculate(null)}
+                    >
+                      <PencilRuler className="h-3.5 w-3.5" />
+                      Calculate
+                    </Button>
+                  )}
+                </div>
               </div>
               {isUngraded && (
                 <p className="rounded-lg border border-amber-500/40 bg-amber-500/5 px-3 py-1.5 text-xs text-amber-800 dark:text-amber-300">
@@ -1039,7 +1252,6 @@ export default function HouseQueueClient({
                 data={group.rows}
                 renderCell={renderCell}
                 keyExtractor={(row) => row.employeeId}
-                mobileCardView
                 minWidth="1560px"
                 emptyMessage="No requesters in this band"
                 emptyDescription="Nobody in this band has submitted a house request."

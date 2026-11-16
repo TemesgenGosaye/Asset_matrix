@@ -99,6 +99,7 @@ export default function AssetCategoriesTable({ items }) {
             <Input
               className="pl-9"
               placeholder="Search asset categories"
+              autoFocus
               value={searchValue}
               onChange={(e) => {
                 setSearchValue(e.target.value);

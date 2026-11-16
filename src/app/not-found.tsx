@@ -1,49 +1,54 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { FileQuestion, Home, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { Compass, ArrowLeft, LayoutDashboard } from "lucide-react";
 
+/**
+ * 404 — the page does not exist.
+ *
+ * Same centred, status-led layout as `error.tsx` so the two failures read as
+ * one family, but the tone is neutral (slate, not red): a wrong URL is not a
+ * fault, and the copy avoids blaming the user. The way back is offered first.
+ */
 export default function NotFound() {
   const router = useRouter();
 
   return (
-    <div className="flex min-h-[60vh] items-center justify-center p-4">
-      <Card className="w-full max-w-md text-center">
-        <CardHeader className="space-y-4">
-          <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-muted">
-            <FileQuestion className="h-10 w-10 text-muted-foreground" />
-          </div>
-          <CardTitle className="text-4xl font-bold">404</CardTitle>
-          <CardDescription className="text-lg">
-            Page Not Found
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <p className="text-muted-foreground">
-            Sorry, we couldn&apos;t find the page you&apos;re looking for. It may have been
-            moved, deleted, or the URL might be incorrect.
-          </p>
-          <div className="flex flex-col gap-2 sm:flex-row sm:justify-center">
-            <Button
-              variant="outline"
-              onClick={() => router.back()}
-              className="gap-2"
-            >
-              <ArrowLeft className="h-4 w-4" />
-              Go Back
-            </Button>
-            <Button asChild className="gap-2">
-              <Link href="/dashboard">
-                <Home className="h-4 w-4" />
-                Go Home
-              </Link>
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+    <div className="flex min-h-[100dvh] w-full flex-col items-center justify-center bg-slate-50 px-6 py-12 text-center">
+      <div className="grid h-24 w-24 place-items-center rounded-full border border-slate-200 bg-white text-slate-400 shadow-[0_0_0_12px_rgba(241,245,249,0.7)]">
+        <Compass className="h-11 w-11" strokeWidth={1.8} />
+      </div>
+
+      <span className="mt-6 inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] font-bold tracking-widest text-slate-500 uppercase">
+        Error 404
+      </span>
+
+      <h1 className="mt-3 text-2xl font-bold tracking-tight text-slate-900">
+        Page not found
+      </h1>
+      <p className="mt-3 max-w-md text-sm leading-relaxed text-slate-500">
+        The page you&rsquo;re looking for doesn&rsquo;t exist or may have been
+        moved. Check the address, or head back to a page you know.
+      </p>
+
+      <div className="mt-8 flex w-full max-w-sm flex-col gap-2.5 sm:flex-row sm:justify-center">
+        <button
+          type="button"
+          onClick={() => router.back()}
+          className="inline-flex h-12 flex-1 cursor-pointer items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white text-sm font-semibold text-slate-700 shadow-sm transition-all duration-200 hover:bg-slate-50 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Go back
+        </button>
+        <Link
+          href="/dashboard"
+          className="inline-flex h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-primary text-sm font-semibold text-primary-foreground shadow-md shadow-primary/25 transition-all duration-200 hover:bg-primary/90 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+        >
+          <LayoutDashboard className="h-4 w-4" />
+          Dashboard
+        </Link>
+      </div>
     </div>
   );
 }

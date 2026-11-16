@@ -37,8 +37,16 @@ describe("EmployeeImportWizard", () => {
     expect(html).toContain("Last Name");
   });
 
-  it("explains that a reference which does not resolve is reported, not guessed", () => {
-    expect(html).toContain("reported rather than guessed");
+  it("explains that only the eight canonical columns are read", () => {
+    expect(html).toContain("reads exactly the eight employee columns");
+    expect(html).toContain("Job Grade");
+    expect(html).toContain("Service Years");
+    expect(html).toContain("Marital Status");
+    expect(html).toContain("Disability");
+  });
+
+  it("states that an existing Emp ID is rejected rather than overwritten", () => {
+    expect(html).toContain("rejected rather than overwritten");
   });
 
   it("accepts spreadsheet uploads and caps them at the documented size", () => {

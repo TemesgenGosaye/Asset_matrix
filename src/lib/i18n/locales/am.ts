@@ -38,6 +38,8 @@ const am: Record<string, string> = {
   "nav.gdpr": "GDPR",
   "nav.compliance": "ተጠያቂነት",
   "nav.adminSettings": "የአስተዳዳሪ ቅንብሮች",
+  "nav.section.settings": "ቅንብሮች",
+  "nav.navigationSettings": "አሰሳ",
   "nav.components": "ክፍሎች",
   "nav.componentCategories": "የክፍል ዘርፎች",
   "nav.kits": "ቅጾች",

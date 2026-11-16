@@ -2,7 +2,6 @@ import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
 import Breadcrumb from "@/components/Breadcrumb";
-import TCODashboard from "./ui/TCODashboard";
 
 export const metadata = {
   title: "Asset Tracker - TCO Analysis",
@@ -23,7 +22,14 @@ export default async function Page() {
           { label: "TCO Analysis", href: "/tco" },
         ]}
       />
-      <TCODashboard />
+      <section className="bg-card rounded-lg border p-5 shadow-sm">
+        <h2 className="text-foreground text-sm font-semibold">
+          Total Cost of Ownership: የጠቅላላ ባለቤትነት ወጪ ትንተና
+        </h2>
+        <p className="text-muted-foreground mt-2 text-sm">
+          The TCO dashboard is not available in this deployment.
+        </p>
+      </section>
     </>
   );
 }

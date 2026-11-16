@@ -23,9 +23,9 @@ export function Providers({ children, nonce }: ProvidersProps) {
       enableSystem={true}
       // Required, not optional: with `attribute="class"` next-themes removes
       // only the names in this list before adding the active one. Left at its
-      // default of ['light','dark'] it never clears `oled`/`midnight`/`paper`,
-      // so classes pile up and the LAST theme in the stylesheet wins - picking
-      // "High Contrast" after "Paper" would silently render as Paper.
+      // default of ['light','dark'] it never clears a retired class such as
+      // `oled`, so the stale class would sit next to the active theme for the
+      // rest of the session.
       themes={[...NEXT_THEMES_THEME_NAMES]}
       // From the registry, so adding a theme cannot leave the saved key behind.
       storageKey={THEME_STORAGE_KEY}

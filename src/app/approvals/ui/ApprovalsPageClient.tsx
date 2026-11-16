@@ -907,7 +907,6 @@ export default function ApprovalsPageClient({
                           <Button
                             size="sm"
                             variant="default"
-                            className="bg-blue-600 hover:bg-blue-700"
                             onClick={() =>
                               openItemRequestConfirmDialog(ir, "returned")
                             }
@@ -1026,7 +1025,7 @@ export default function ApprovalsPageClient({
                 itemRequestDialogAction === "approve"
                   ? "bg-green-600 hover:bg-green-700"
                   : itemRequestDialogAction === "returned"
-                    ? "bg-blue-600 hover:bg-blue-700"
+                    ? "bg-primary hover:bg-primary/90"
                     : ""
               }
               onClick={handleConfirmItemRequestAction}

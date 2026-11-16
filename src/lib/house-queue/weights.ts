@@ -11,6 +11,8 @@
  * score is always in [0, 1].
  */
 
+import { hasDisabilityRecord } from "@/lib/employees/constants";
+
 /** Relative importance of each criterion (must sum to 1). */
 export const MCDA_WEIGHTS = {
   /** Length of service in whole years — seniority. */
@@ -131,9 +133,17 @@ export function genderLevel(value: string | null | undefined): number {
   return GENDER_LEVELS[value.trim().toLowerCase()] ?? 1;
 }
 
-/** Level used for the disability criterion (1 = some, 0 = none). */
+/**
+ * Level used for the disability criterion (1 = some, 0 = none).
+ *
+ * The employee's disability is free text (the source workbook's own wording),
+ * so the level is derived rather than stored: a recorded condition scores 1,
+ * and a blank value or an explicit "none" token scores 0. `hasDisabilityRecord`
+ * owns that vocabulary, so the register, the list filter and the scoring
+ * engine all agree on what "recorded" means.
+ */
 export function disabilityLevel(
-  disabilityStatus: boolean | null | undefined,
+  disabilityStatus: string | null | undefined,
 ): number {
-  return disabilityStatus ? 1 : 0;
+  return hasDisabilityRecord(disabilityStatus) ? 1 : 0;
 }

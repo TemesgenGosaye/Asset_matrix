@@ -94,6 +94,14 @@ export interface HouseRequestFlow {
   hasOpenRequest: boolean;
   /** Why the ID in the box cannot be verified, or null when it can. */
   idProblem: string | null;
+  /**
+   * True once ANY Employee ID has verified in this session.
+   *
+   * Not the same as "there is a record on screen": editing the ID drops the
+   * record but does not un-open the register, because the register is a
+   * reference surface and the reader's decision to open it was made once.
+   */
+  hasVerifiedOnce: boolean;
 
   confirmation: Confirmation | null;
 
@@ -116,6 +124,17 @@ export function useHouseRequestFlow({
   const [lookup, setLookup] = useState<HouseRequestVerifyResult | null>(null);
   const [error, setError] = useState<HouseRequestFailure | null>(null);
   const [confirmation, setConfirmation] = useState<Confirmation | null>(null);
+
+  /**
+   * Whether any Employee ID has verified in this session.
+   *
+   * Held here rather than in the component because it is a fact about the
+   * FLOW, not about the screen: the register opens on the first successful
+   * verification and stays open while the reader types a different ID, because
+   * the register is a reference surface and the decision to open it was made
+   * once. It is cleared only by `reset()` — starting over.
+   */
+  const [hasVerifiedOnce, setHasVerifiedOnce] = useState(false);
 
   const [lookupLoading, setLookupLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -283,15 +302,29 @@ export function useHouseRequestFlow({
     setLookupLoading(true);
     setError(null);
 
+    const abortController = new AbortController();
+    const timeoutId = setTimeout(() => {
+      abortController.abort("TIMEOUT");
+    }, 10000);
+
+    const startTime = Date.now();
+
     try {
       const params = new URLSearchParams({ empId: needle });
       const res = await fetch(
         `/api/house-requests/verify?${params.toString()}`,
         {
           cache: "no-store",
+          signal: abortController.signal,
         },
       );
       const body = (await res.json().catch(() => null)) as unknown;
+
+      // Ensure verification spinner is visible for at least 450ms
+      const elapsed = Date.now() - startTime;
+      if (elapsed < 450) {
+        await new Promise((resolve) => setTimeout(resolve, 450 - elapsed));
+      }
 
       if (token !== lookupToken.current) return;
 
@@ -310,6 +343,7 @@ export function useHouseRequestFlow({
 
       const result = body as HouseRequestVerifyResult;
       setLookup(result);
+      setHasVerifiedOnce(true);
       setRemarksState("");
       setRemarksTouched(false);
       setStage("form");
@@ -317,8 +351,21 @@ export function useHouseRequestFlow({
       if (token !== lookupToken.current) return;
       setLookup(null);
       setStage("search");
-      setError(describeNetworkFailure("lookup"));
+      if (abortController.signal.aborted) {
+        setError({
+          code: "NETWORK_ERROR",
+          severity: "system",
+          title: "Verification timed out",
+          message:
+            "The Employee Register did not respond within the 10-second verification window.",
+          hint: "Check your network connection and click 'Try again'.",
+          requiresReverification: false,
+        });
+      } else {
+        setError(describeNetworkFailure("lookup"));
+      }
     } finally {
+      clearTimeout(timeoutId);
       if (token === lookupToken.current) setLookupLoading(false);
     }
   }, []);
@@ -402,6 +449,7 @@ export function useHouseRequestFlow({
     setRemarksState("");
     setRemarksTouched(false);
     setConfirmation(null);
+    setHasVerifiedOnce(false);
     setLookupLoading(false);
     setSubmitting(false);
   }, []);
@@ -445,6 +493,7 @@ export function useHouseRequestFlow({
     alreadyHasActiveAllocation,
     hasOpenRequest,
     idProblem,
+    hasVerifiedOnce,
     confirmation,
     runLookup,
     runSubmit,

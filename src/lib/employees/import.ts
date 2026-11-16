@@ -1,38 +1,119 @@
-﻿/**
+/**
  * Employee spreadsheet import.
  *
- * The flow is deliberately two-phase:
- *   1. `previewEmployeeImport` parses the workbook, resolves references and
- *      validates every row without writing anything;
- *   2. `commitEmployeeImport` re-validates and writes the good rows.
+ * The approved employee schema is exactly eight business columns, and this
+ * module is the only place that decides what a workbook may write:
  *
- * Between the two phases the file is not trusted â€” `commitEmployeeImport` always
- * re-reads the stored plan from the client's payload and re-validates it, so a
- * tampered preview cannot inject rows. Department and manager references are
- * always resolved server-side against the caller's organization; a value that
- * does not resolve is reported, never guessed.
+ *   1. `mapEmployeeHeaders` resolves the workbook's header row against those
+ *      eight columns, case-insensitively and whitespace-tolerantly, and
+ *      rejects ambiguous or missing headers;
+ *   2. `previewEmployeeImport` validates every row without writing anything,
+ *      including duplicate detection inside the workbook and against the
+ *      records already in PostgreSQL;
+ *   3. the commit step re-validates the approved rows and writes them inside a
+ *      transaction, so a tampered preview cannot inject a row that was never
+ *      shown.
+ *
+ * IMPORT POLICY (documented, because it is a business decision):
+ *   * Only the eight canonical columns are read. Any other column in the
+ *     workbook is ignored and reported as `unmappedColumns`; it is never
+ *     written to the employee table.
+ *   * Duplicate Emp IDs are REJECTED, never overwritten — inside the workbook
+ *     and against the existing database records. An employee is only ever
+ *     created by an import.
+ *   * An empty cell in an optional column means "not recorded" (NULL). It is
+ *     never interpreted as a confirmed "no" / "none".
+ *   * A blank Job Grade is imported as "not recorded" (NULL) — never as 0. A
+ *     source that spells "no grade" as 0 is read the same way, because 0 is
+ *     not a grade. The register then asks the user to add the real grade.
+ *   * Marital status and disability keep the source's own vocabulary. A value
+ *     outside the documented marital-status vocabulary is a validation error,
+ *     not a silent guess.
  */
 
-import {
-  MAX_REPORTED_ERRORS,
-  cellToText,
-  parseBool,
-  parseFlexibleDate,
-} from "@/lib/excel-import";
+import { MAX_REPORTED_ERRORS, normalizeRef } from "@/lib/excel-import";
 import prisma from "@/lib/prisma";
-import { normalizeRef } from "@/lib/excel-import";
+import { houseCategoryForJobGrade } from "@/lib/house-queue/eligibility";
 import {
-  EMPLOYMENT_STATUSES,
-  EMPLOYMENT_TYPES,
-  GENDER_LABELS,
-  MARITAL_STATUS_LABELS,
+  MCDA_WEIGHTS,
+  maritalStatusLevel,
+  disabilityLevel,
+  genderLevel,
+} from "@/lib/house-queue/weights";
+import {
+  CANONICAL_EMPLOYEE_COLUMNS,
+  DISABILITY_MAX,
+  EMPLOYEE_NUMBER_MAX,
+  GENDER_VALUES,
+  IMPORT_LOOKUP_CHUNK_SIZE,
+  JOB_GRADE_MAX,
+  JOB_GRADE_MIN,
+  MARITAL_STATUS_VALUES,
   MAX_IMPORT_ROWS,
-  NATIONAL_ID_MAX,
+  SERVICE_YEARS_MAX,
+  SERVICE_YEARS_MIN,
+  REQUIRED_CANONICAL_EMPLOYEE_COLUMNS,
+  hasDisabilityRecord,
+  type CanonicalEmployeeColumn,
 } from "./constants";
-import { createEmployeeSchema, type CreateEmployeeInput } from "./schemas";
+import type { EmployeeRowRecommendation } from "./types";
 
-/** A single spreadsheet row keyed by the template's human-readable header. */
-export type EmployeeSpreadsheetRow = Record<string, string>;
+/** A canonical employee column, identified by its physical column name. */
+export type EmployeeImportColumn = CanonicalEmployeeColumn;
+
+/** All eight canonical columns, in presentation order. */
+export const EMPLOYEE_IMPORT_COLUMNS = CANONICAL_EMPLOYEE_COLUMNS;
+
+/**
+ * Header spellings accepted for each canonical column.
+ *
+ * Matching is case-insensitive and tolerates whitespace and punctuation
+ * differences, so "Emp ID", "emp_id", "EMP  ID" and "EmpId" all resolve to the
+ * same column. The first entry of each list is the header the import template
+ * uses.
+ */
+export const EMPLOYEE_IMPORT_HEADER_ALIASES: Record<
+  EmployeeImportColumn,
+  readonly string[]
+> = {
+  employeeNumber: [
+    "Emp ID",
+    "EmpId",
+    "Employee ID",
+    "Employee Number",
+    "Staff ID",
+    "Personnel ID",
+    "ID",
+  ],
+  firstname: ["First Name", "Firstname", "Given Name", "FName"],
+  lastname: ["Last Name", "Lastname", "Surname", "Family Name", "LName"],
+  gender: ["Gender", "Sex"],
+  jobGrade: ["Job Grade", "JobGrade", "Grade", "Salary Grade", "Level"],
+  serviceYears: [
+    "Service Years",
+    "ServiceYears",
+    "Years of Service",
+    "Years Served",
+    "Service",
+    "Svc Years",
+  ],
+  maritalStatus: ["Marital Status", "MaritalStatus", "Marital"],
+  disabilityStatus: [
+    "Disability",
+    "Disability Status",
+    "DisabilityStatus",
+    "Disabled",
+  ],
+  score: [
+    "Score",
+    "MCDA Score",
+    "Priority Score",
+    "Priority",
+    "MCDA",
+    "House Score",
+    "Queue Score",
+  ],
+};
 
 /** Why a row was rejected. */
 export type EmployeeRowErrorCode =
@@ -41,52 +122,16 @@ export type EmployeeRowErrorCode =
   | "MISSING_NAME"
   | "INVALID_GENDER"
   | "INVALID_MARITAL_STATUS"
-  | "INVALID_EMPLOYMENT_TYPE"
-  | "INVALID_EMPLOYMENT_STATUS"
   | "INVALID_JOB_GRADE"
-  | "INVALID_FAMILY_SIZE"
-  | "INVALID_DATE"
-  | "INVALID_NATIONAL_ID"
+  | "INVALID_SERVICE_YEARS"
   | "INVALID_DISABILITY"
-  | "UNKNOWN_DEPARTMENT"
-  | "AMBIGUOUS_DEPARTMENT"
-  | "UNKNOWN_MANAGER"
-  | "DUPLICATE_IN_FILE";
-
-/**
- * Marker stored in a lookup when a spreadsheet value matches more than one
- * candidate. A colliding reference is reported rather than resolved, so the
- * import can never silently pick the wrong department or manager.
- */
-export const AMBIGUOUS_REFERENCE = "__ambiguous__";
-
-/**
- * Build a reference lookup that detects ambiguity.
- *
- * Unlike the shared `buildReferenceLookup` (which keeps the first match), a key
- * seen twice is recorded as {@link AMBIGUOUS_REFERENCE} and no longer resolves
- * to an id.
- */
-export function buildStrictReferenceLookup(
-  records: { id: string; name: string; code?: string | null }[],
-): Map<string, string> {
-  const map = new Map<string, string>();
-  const add = (key: string, id: string) => {
-    if (!key) return;
-    const existing = map.get(key);
-    if (existing === undefined) map.set(key, id);
-    else if (existing !== id) map.set(key, AMBIGUOUS_REFERENCE);
-  };
-
-  for (const r of records) {
-    add(normalizeRef(r.name), r.id);
-    if (r.code) add(normalizeRef(r.code), r.id);
-  }
-  return map;
-}
+  | "DUPLICATE_IN_FILE"
+  | "DUPLICATE_EXISTING";
 
 export interface EmployeeRowError {
   code: EmployeeRowErrorCode;
+  /** The canonical column the error belongs to. */
+  column: string;
   message: string;
 }
 
@@ -95,138 +140,236 @@ export interface EmployeeRowPlan {
   rowNumber: number;
   employeeNumber: string;
   fullName: string;
-  /**
-   * The department's name, resolved alongside its id.
-   *
-   * `values.departmentId` is a UUID, which tells an HR user reviewing the
-   * preview nothing about whether their department resolved to the record they
-   * meant. The name is display-only and is not part of `values`.
-   */
-  departmentName?: string;
-  values: Partial<CreateEmployeeInput>;
+  /** The canonical values that would be written for this row. */
+  values: Record<string, unknown>;
   errors: EmployeeRowError[];
-}
-
-export interface EmployeeImportPreview {
-  totalRows: number;
-  validRows: number;
-  invalidRows: number;
-  rows: EmployeeRowPlan[];
-  /** Human-readable notes about the run as a whole. */
-  notes: string[];
-  /** Department names in this organization, offered as autocomplete values. */
-  knownDepartments: string[];
-}
-
-/** Header aliases so an HR-authored file need not match the template exactly. */
-const HEADER_ALIASES: Record<string, string[]> = {
-  employeeNumber: [
-    "empid",
-    "empid",
-    "employeeid",
-    "employeeno",
-    "employeenumber",
-    "id",
-  ],
-  firstname: ["firstname", "first name", "given name", "fname"],
-  lastname: ["lastname", "last name", "surname", "family name", "lname"],
-  phone: ["phone", "phone number", "mobile", "telephone", "tel"],
-  gender: ["gender", "sex"],
-  nationalId: [
-    "nationalid",
-    "national id",
-    "national identity",
-    "idnumber",
-    "fayda",
-  ],
-  maritalStatus: ["maritalstatus", "marital status", "marital"],
-  disabilityStatus: [
-    "disability",
-    "disabilitystatus",
-    "disability status",
-    "disabled",
-  ],
-  jobGrade: ["jobgrade", "job grade", "grade"],
-  department: ["department", "dept", "department name", "division"],
-  jobTitle: ["jobtitle", "job title", "title", "position", "role"],
-  employmentType: ["employmenttype", "employment type", "type"],
-  employmentStatus: ["employmentstatus", "employment status", "status"],
-  familySize: ["familysize", "family size", "family"],
-  dateOfBirth: ["dateofbirth", "date of birth", "dob", "birthdate"],
-  hireDate: ["hiredate", "hire date", "joining date", "start date"],
-  terminationDate: [
-    "terminationdate",
-    "termination date",
-    "exit date",
-    "end date",
-  ],
-  managerNumber: [
-    "manager",
-    "managerid",
-    "manager id",
-    "reporting manager",
-    "reports to",
-  ],
-  address: ["address", "street", "street address"],
-  city: ["city", "town"],
-  state: ["state", "region", "province"],
-  country: ["country"],
-  postalCode: ["postalcode", "postal code", "zip", "zipcode"],
-  notes: ["notes", "note", "comment", "comments", "remarks"],
-};
-
-/** Normalise a header to its lookup key. */
-function headerKey(raw: string): string {
-  return String(raw ?? "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]/g, "");
+  /** MCDA or file score in [0, 1] */
+  score?: number | null;
+  /** Smart next references recommendation (House Request, House Queue, MCDA) */
+  recommendation?: EmployeeRowRecommendation;
+  /** True when this row was ignored because Emp ID was empty */
+  isIgnored?: boolean;
 }
 
 /**
- * Map spreadsheet headers to field ids.
- * Exact canonical name wins, then aliases, then a contains-match fallback.
+ * Calculate an estimated MCDA score in [0, 1] based on weighted policy criteria:
+ * - Service years: 40%
+ * - Marital status: 25%
+ * - Disability: 20%
+ * - Gender: 15%
  */
-export function mapEmployeeHeaders(headers: string[]): Record<string, number> {
-  const normalised = headers.map(headerKey);
-  const mapping: Record<string, number> = {};
+export function calculateProjectedScore(values: {
+  serviceYears?: number | null;
+  maritalStatus?: string | null;
+  disabilityStatus?: string | null;
+  gender?: string | null;
+}): number {
+  const svNorm = Math.min(1, Math.max(0, (values.serviceYears ?? 0) / 30));
+  const msNorm = maritalStatusLevel(values.maritalStatus) / 3;
+  const dsNorm = disabilityLevel(values.disabilityStatus);
+  const gnNorm = values.gender ? genderLevel(values.gender) : 0;
 
-  for (const [field, aliases] of Object.entries(HEADER_ALIASES)) {
-    const aliasKeys = aliases.map(headerKey);
+  const composite =
+    svNorm * MCDA_WEIGHTS.serviceYears +
+    msNorm * MCDA_WEIGHTS.maritalStatus +
+    dsNorm * MCDA_WEIGHTS.disability +
+    gnNorm * MCDA_WEIGHTS.gender;
 
-    let index = normalised.findIndex((h) => h === field);
-    if (index === -1) {
-      index = normalised.findIndex((h) => aliasKeys.includes(h));
-    }
-    if (index === -1) {
-      // Last resort: a header that literally contains the field name.
-      index = normalised.findIndex(
-        (h) =>
-          h.length > 3 &&
-          (h.includes(field) || aliasKeys.some((a) => h.includes(a))),
-      );
-    }
-    if (index !== -1) mapping[field] = index;
+  return Math.round(composite * 100) / 100;
+}
+
+/**
+ * Generate intelligent recommendations for next references (House Request, House Queue, MCDA).
+ */
+export function generateRowRecommendation(values: {
+  employeeNumber: string;
+  firstname?: string | null;
+  lastname?: string | null;
+  jobGrade?: number | null;
+  serviceYears?: number | null;
+  maritalStatus?: string | null;
+  disabilityStatus?: string | null;
+  gender?: string | null;
+}): EmployeeRowRecommendation {
+  const tips: string[] = [];
+  const band = houseCategoryForJobGrade(values.jobGrade);
+  const houseQueueEligible = band !== null;
+
+  // 1. House Queue Category Recommendation
+  if (band) {
+    tips.push(`House Queue: Eligible for House Category ${band} (Job Grade ${values.jobGrade}).`);
+  } else {
+    tips.push("House Queue: Missing or 0 Job Grade — not eligible for queue band allocation until grade (1–50) is set.");
   }
 
-  return mapping;
+  // 2. House Request Guidance
+  const hasName =
+    Boolean(values.firstname && values.firstname.trim() !== "" && values.firstname !== "-") &&
+    Boolean(values.lastname && values.lastname.trim() !== "" && values.lastname !== "-");
+  if (!hasName) {
+    tips.push("House Request: Incomplete name — complete employee profile before filing a House Request.");
+  } else {
+    tips.push("House Request: Ready for house application & dossier verification.");
+  }
+
+  // 3. MCDA Score Recommendations
+  if (values.serviceYears === null || values.serviceYears === undefined) {
+    tips.push("MCDA Tenure: Service Years not recorded (defaults to 0 score in queue ranking).");
+  }
+  if (!values.maritalStatus) {
+    tips.push("MCDA Household: Marital Status not recorded (defaults to single/base priority).");
+  }
+  if (hasDisabilityRecord(values.disabilityStatus)) {
+    tips.push("MCDA Accessibility: Disability priority applied (+20% queue weighting).");
+  }
+
+  const projectedScore = calculateProjectedScore(values);
+
+  return {
+    houseQueueBand: band,
+    houseQueueEligible,
+    projectedScore,
+    tips,
+  };
 }
+
+// ---------------------------------------------------------------------------
+// Header mapping
+// ---------------------------------------------------------------------------
+
+/** Lower-cased, whitespace-collapsed header key. */
+function headerKey(raw: string): string {
+  return String(raw ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, " ");
+}
+
+/** Header key with every non-alphanumeric character removed. */
+function compactHeaderKey(raw: string): string {
+  return headerKey(raw).replace(/[^a-z0-9]/g, "");
+}
+
+/** True when a header matches an alias, ignoring case, spacing and punctuation. */
+function headerMatchesAlias(header: string, alias: string): boolean {
+  const h = headerKey(header);
+  const a = headerKey(alias);
+  if (h === a) return true;
+  const hc = compactHeaderKey(header);
+  const ac = compactHeaderKey(alias);
+  return hc.length > 0 && hc === ac;
+}
+
+export interface EmployeeHeaderMapping {
+  /** Canonical column -> zero-based index of the worksheet column. */
+  mapping: Record<string, number>;
+  /** Header names that map to no canonical column. */
+  unmapped: string[];
+  /** Required canonical columns the workbook does not provide. */
+  missing: string[];
+  /**
+   * Headers that could not be resolved to exactly one canonical column, or
+   * that more than one header claimed. The file is rejected when this is not
+   * empty.
+   */
+  ambiguous: { header: string; reason: string }[];
+}
+
+/**
+ * Resolve a header row against the eight canonical columns.
+ *
+ * A header that matches two canonical columns is ambiguous. Two headers that
+ * claim the same canonical column are ambiguous too (usually a duplicated
+ * column). Neither is guessed: the caller rejects the file and tells the user
+ * exactly which header is the problem.
+ */
+export function mapEmployeeHeaders(
+  headers: string[],
+): EmployeeHeaderMapping {
+  const mapping: Record<string, number> = {};
+  const unmapped: string[] = [];
+  const ambiguous: { header: string; reason: string }[] = [];
+  /** column -> the header names that claimed it. */
+  const claimants = new Map<string, string[]>();
+
+  headers.forEach((header, index) => {
+    const label = String(header ?? "").trim();
+    if (label.length === 0) return;
+
+    const matches = EMPLOYEE_IMPORT_COLUMNS.filter((column) =>
+      EMPLOYEE_IMPORT_HEADER_ALIASES[column].some((alias) =>
+        headerMatchesAlias(label, alias),
+      ),
+    );
+
+    if (matches.length === 0) {
+      unmapped.push(label);
+      return;
+    }
+    if (matches.length > 1) {
+      ambiguous.push({
+        header: label,
+        reason: `"${label}" matches more than one employee column (${matches.join(", ")}). Rename it so it identifies exactly one column.`,
+      });
+      return;
+    }
+
+    const column = matches[0];
+    const existing = claimants.get(column) ?? [];
+    existing.push(label);
+    claimants.set(column, existing);
+  });
+
+  for (const [column, labels] of claimants) {
+    if (labels.length > 1) {
+      ambiguous.push({
+        header: labels.join(", "),
+        reason: `The employee column "${column}" is provided by more than one header (${labels.join(", ")}). Keep exactly one of them.`,
+      });
+      continue;
+    }
+    const index = headers.findIndex((h) =>
+      headerMatchesAlias(String(h ?? "").trim(), labels[0]),
+    );
+    if (index >= 0) mapping[column] = index;
+  }
+
+  const missing = REQUIRED_CANONICAL_EMPLOYEE_COLUMNS.filter(
+    (column) => mapping[column] === undefined,
+  );
+
+  return { mapping, unmapped, missing, ambiguous };
+}
+
+// ---------------------------------------------------------------------------
+// Value parsing
+// ---------------------------------------------------------------------------
 
 /** Coerce a cell to trimmed text. */
 function cellText(row: EmployeeSpreadsheetRow, key: string): string {
   return (row[key] ?? "").trim();
 }
 
-/** Parse a bounded integer cell, returning an error message on failure. */
+/**
+ * Parse a bounded integer cell.
+ *
+ * An empty cell means "not recorded" and yields `null` — it is never read as
+ * zero, because zero is a real value for Service Years.
+ */
 function parseBoundedInt(
   raw: string,
   min: number,
   max: number,
   label: string,
-): { value: number } | { error: string } {
-  if (raw === "") return { value: 0 };
-  const n = Number(raw);
-  if (!Number.isInteger(n))
+): { value: number | null } | { error: string } {
+  if (raw === "") return { value: null };
+  if (!/^\d+$/.test(raw)) {
     return { error: `${label} must be a whole number.` };
+  }
+  const n = Number(raw);
+  if (!Number.isInteger(n)) {
+    return { error: `${label} must be a whole number.` };
+  }
   if (n < min || n > max) {
     return { error: `${label} must be between ${min} and ${max}.` };
   }
@@ -234,161 +377,230 @@ function parseBoundedInt(
 }
 
 /**
- * Case/space-insensitive lookup of an enum value from a spreadsheet cell.
- * Accepts the enum value, its display label, or a loose variant
- * ("Male", "M", "married", "Married").
+ * Parse a Job Grade cell.
+ *
+ * An EMPTY cell is "not recorded": the grade stays NULL. It is never stored as
+ * 0, because 0 is not a grade — it is the value the House Queue treats as
+ * "not eligible", and writing it would look like a real grade on the register
+ * and in the export.
+ *
+ * A source that spells "no grade" as 0 is read the same way: 0 is not a valid
+ * grade (the valid range is 1–50), so it means the same thing as a blank cell
+ * and is accepted as "not recorded" rather than rejected. The register then
+ * asks the user to add the employee's real grade.
  */
-function matchEnum<T extends string>(
+function parseJobGrade(
   raw: string,
-  values: readonly T[],
-  labels: Record<string, string> | undefined,
-  fuzzy: Record<string, T>,
-): T | null {
-  if (raw === "") return null;
-  const key = headerKey(raw);
-  if ((values as readonly string[]).includes(key)) return key as T;
-  if (labels) {
-    for (const [value, label] of Object.entries(labels)) {
-      if (headerKey(label) === key) return value as T;
-    }
-  }
-  return fuzzy[key] ?? null;
+): { value: number | null } | { error: string } {
+  const trimmed = raw.trim();
+  if (trimmed === "" || trimmed === "0") return { value: null };
+  return parseBoundedInt(
+    trimmed,
+    JOB_GRADE_MIN,
+    JOB_GRADE_MAX,
+    "Job Grade",
+  );
 }
 
-const GENDER_FUZZY: Record<string, "male" | "female"> = {
-  m: "male",
-  male: "male",
-  f: "female",
-  female: "female",
-};
-
-const MARITAL_FUZZY: Record<string, "single" | "married"> = {
-  single: "single",
-  unmarried: "single",
-  solo: "single",
-  married: "married",
-  spouse: "married",
-};
-
-/** Fuzzy aliases for employment type and status. */
-const EMPLOYMENT_TYPE_FUZZY: Record<string, (typeof EMPLOYMENT_TYPES)[number]> =
-  {
-    fulltime: "full_time",
-    permanent: "full_time",
-    regular: "full_time",
-    parttime: "part_time",
-    contract: "contract",
-    contractor: "contract",
-    intern: "intern",
-    internship: "intern",
-    temporary: "temporary",
-    temp: "temporary",
+/**
+ * Normalise a gender cell.
+ *
+ * The database stores gender in the `Gender` enum (male | female), which is
+ * the documented, source-compatible validation policy. "M" / "F" are accepted
+ * as the obvious abbreviations; anything else is rejected rather than guessed.
+ */
+function parseGender(raw: string): { value: string } | { error: string } | null {
+  if (raw === "") return null;
+  const key = headerKey(raw);
+  if ((GENDER_VALUES as readonly string[]).includes(key)) {
+    return { value: key };
+  }
+  if (key === "m") return { value: "male" };
+  if (key === "f") return { value: "female" };
+  return {
+    error: `Gender "${raw}" is not recognised. Use ${GENDER_VALUES.join(" or ")}.`,
   };
-
-const EMPLOYMENT_STATUS_FUZZY: Record<
-  string,
-  (typeof EMPLOYMENT_STATUSES)[number]
-> = {
-  active: "active",
-  current: "active",
-  employed: "active",
-  onleave: "on_leave",
-  leave: "on_leave",
-  terminated: "terminated",
-  resigned: "terminated",
-  left: "terminated",
-  ended: "terminated",
-  retired: "retired",
-  pension: "retired",
-};
-
-const DISABILITY_FUZZY: Record<string, boolean> = {
-  yes: true,
-  y: true,
-  true: true,
-  1: true,
-  disabled: true,
-  no: false,
-  n: false,
-  false: false,
-  0: false,
-  none: false,
-};
+}
 
 /**
- * Read a date cell as `YYYY-MM-DD`, or report an error.
+ * Normalise a marital-status cell.
  *
- * `parseFlexibleDate` returns UTC midnight, so `toISOString()` reads back the
- * calendar day the user typed. The alternative — building at local midnight and
- * slicing — reads a day early east of UTC, which on UTC+3 means every hire date
- * and birthday in the file silently shifts to the day before.
+ * The vocabulary is exactly the four states the House Queue policy scores. A
+ * value outside it is rejected: the source's own wording is preserved, but a
+ * status the business does not define is not invented into one.
  */
-function parseDateCell(
+function parseMaritalStatus(
   raw: string,
 ): { value: string } | { error: string } | null {
   if (raw === "") return null;
-  const parsed = parseFlexibleDate(raw);
-  if (!parsed) {
+  const key = headerKey(raw);
+  if ((MARITAL_STATUS_VALUES as readonly string[]).includes(key)) {
+    return { value: key };
+  }
+  if (key === "unmarried") return { value: "single" };
+  return {
+    error: `Marital status "${raw}" is not recognised. Use ${MARITAL_STATUS_VALUES.join(", ")}.`,
+  };
+}
+
+/**
+ * A disability cell is stored exactly as the source stated it.
+ *
+ * Only the length is constrained. The vocabulary belongs to the source file,
+ * so it is preserved verbatim rather than mapped onto a yes/no flag.
+ */
+function parseDisability(
+  raw: string,
+): { value: string | null } | { error: string } {
+  if (raw === "") return { value: null };
+  if (raw.length > DISABILITY_MAX) {
     return {
-      error: `Unrecognised date "${raw}". Use YYYY-MM-DD (for example 2026-03-01).`,
+      error: `Disability must be ${DISABILITY_MAX} characters or fewer.`,
     };
   }
-  return { value: parsed.toISOString().slice(0, 10) };
+  return { value: raw };
+}
+
+/** A spreadsheet row keyed by canonical column name. */
+export type EmployeeSpreadsheetRow = Record<string, string>;
+
+// ---------------------------------------------------------------------------
+// Row extraction
+// ---------------------------------------------------------------------------
+
+export interface EmployeeSheetRows {
+  rows: EmployeeSpreadsheetRow[];
+  /** 1-based worksheet row number for each extracted row. */
+  rowNumbers: number[];
+  mapping: Record<string, number>;
+}
+
+/**
+ * Convert a workbook sheet into canonical row objects.
+ *
+ * `headerRowIndex` is the zero-based index of the header row inside `matrix`;
+ * data starts on the next row. Fully empty rows are skipped (they are
+ * formatting, not employees).
+ *
+ * `displayRows` is the DISPLAYED text of each cell. When supplied it is used
+ * for the Emp ID column so a text-formatted cell keeps its leading zeros.
+ */
+export function rowsFromSheet(
+  headers: string[],
+  matrix: string[][],
+  headerRowIndex = 0,
+  displayRows?: string[][],
+): EmployeeSheetRows {
+  const { mapping } = mapEmployeeHeaders(headers);
+  const rows: EmployeeSpreadsheetRow[] = [];
+  const rowNumbers: number[] = [];
+
+  for (let i = headerRowIndex + 1; i < matrix.length; i++) {
+    const line = matrix[i];
+    if (!line || line.every((cell) => (cell ?? "").trim() === "")) continue;
+
+    const row: EmployeeSpreadsheetRow = {};
+    for (const [field, index] of Object.entries(mapping)) {
+      if (field === "employeeNumber") {
+        const display = displayRows?.[i]?.[index];
+        row[field] = (display ?? line[index] ?? "").trim();
+      } else {
+        row[field] = (line[index] ?? "").trim();
+      }
+    }
+    rows.push(row);
+    rowNumbers.push(i + 1);
+  }
+
+  return { rows, rowNumbers, mapping };
+}
+
+// ---------------------------------------------------------------------------
+// Preview
+// ---------------------------------------------------------------------------
+
+function parseScore(raw: string): number | null {
+  const trimmed = raw.trim();
+  if (trimmed === "") return null;
+  const num = Number(trimmed);
+  if (isNaN(num)) return null;
+  if (num > 1 && num <= 100) return Math.round((num / 100) * 100) / 100;
+  if (num >= 0 && num <= 1) return Math.round(num * 100) / 100;
+  return null;
+}
+
+export interface EmployeeImportPreview {
+  totalRows: number;
+  validRows: number;
+  invalidRows: number;
+  duplicateRows: number;
+  ignoredRows: number;
+  rows: EmployeeRowPlan[];
+  /** Human-readable notes about the run as a whole. */
+  notes: string[];
+}
+
+/**
+ * Look up the Emp IDs that already exist in the organization.
+ *
+ * Comparison is case-insensitive because the House Request module already
+ * resolves employees by `employeeNumber` with `mode: "insensitive"`, so
+ * "EMP001" and "emp001" are the same person everywhere in the product.
+ *
+ * The lookup is chunked: a 4,000-row import asks about thousands of Emp IDs,
+ * and one `IN` list that long is both a heavy statement and a long bind list.
+ */
+export async function findExistingEmployeeNumbers(
+  organizationId: string,
+  employeeNumbers: string[],
+): Promise<Set<string>> {
+  const wanted = new Set<string>();
+  for (const raw of employeeNumbers) {
+    const value = raw.trim();
+    if (value.length === 0) continue;
+    wanted.add(value.toLowerCase());
+  }
+  if (wanted.size === 0) return new Set();
+
+  const found = new Set<string>();
+  const values = [...wanted];
+
+  for (
+    let offset = 0;
+    offset < values.length;
+    offset += IMPORT_LOOKUP_CHUNK_SIZE
+  ) {
+    const slice = values.slice(offset, offset + IMPORT_LOOKUP_CHUNK_SIZE);
+    const rows = await prisma.employee.findMany({
+      where: {
+        organizationId,
+        // The unique index is exact-match, so the comparison is made
+        // case-insensitively here: "EMP001" and "emp001" are the same person
+        // everywhere else in the product, including here.
+        employeeNumber: { in: slice, mode: "insensitive" },
+      },
+      select: { employeeNumber: true },
+    });
+    for (const row of rows) found.add(row.employeeNumber.toLowerCase());
+  }
+
+  return found;
 }
 
 /**
  * Validate a batch of spreadsheet rows and build an import plan.
  *
- * Does not write to the database. Reference resolution (department, manager)
- * happens against `lookups`, which the caller builds from the caller's own
- * organization only.
+ * Does not write to the database.
  */
 export async function previewEmployeeImport(params: {
   organizationId: string;
   rows: EmployeeSpreadsheetRow[];
-  /** Row numbers (1-based, including the header) from the parser. */
+  /** 1-based worksheet row numbers, parallel to `rows`. */
   rowNumbers?: number[];
 }): Promise<EmployeeImportPreview> {
   const { organizationId, rows, rowNumbers } = params;
 
   const capped = rows.slice(0, MAX_IMPORT_ROWS);
-
-  const [departments, managers] = await Promise.all([
-    prisma.department.findMany({
-      where: { organizationId },
-      select: { id: true, name: true, code: true },
-    }),
-    prisma.employee.findMany({
-      where: { organizationId, deletedAt: null },
-      select: {
-        id: true,
-        firstname: true,
-        lastname: true,
-        employeeNumber: true,
-      },
-    }),
-  ]);
-
-  const departmentLookup = buildStrictReferenceLookup(
-    departments.map((d) => ({ id: d.id, name: d.name, code: d.code })),
-  );
-
-  /** id → name, so the preview can show what a department reference resolved to. */
-  const departmentNames = new Map(departments.map((d) => [d.id, d.name]));
-
-  // Managers may be referenced by employee number, or by "First Last".
-  const managerLookup = buildStrictReferenceLookup(
-    managers.map((m) => ({
-      id: m.id,
-      name: `${m.firstname} ${m.lastname}`.trim(),
-      code: m.employeeNumber,
-    })),
-  );
-
-  const seenEmployeeNumbers = new Set<string>();
-  const plans: EmployeeRowPlan[] = [];
-  let validRows = 0;
-  let invalidRows = 0;
   const notes: string[] = [];
 
   if (rows.length > MAX_IMPORT_ROWS) {
@@ -398,289 +610,197 @@ export async function previewEmployeeImport(params: {
     );
   }
 
+  const seenInFile = new Set<string>();
+  const existingNumbers = await findExistingEmployeeNumbers(
+    organizationId,
+    capped.map((row) => row.employeeNumber ?? ""),
+  );
+
+  const plans: EmployeeRowPlan[] = [];
+  let validRows = 0;
+  let invalidRows = 0;
+  let duplicateRows = 0;
+  let ignoredRows = 0;
+
   capped.forEach((row, i) => {
-    const rowNumber = rowNumbers?.[i] ?? i + 2; // +2: 1-based, skip header
+    const rowNumber = rowNumbers?.[i] ?? i + 2;
     const errors: EmployeeRowError[] = [];
-    const values: Partial<CreateEmployeeInput> = {};
+    const values: Record<string, unknown> = {};
 
     const employeeNumber = cellText(row, "employeeNumber");
     const firstname = cellText(row, "firstname");
     const lastname = cellText(row, "lastname");
 
+    // Gracefully handle empty Emp ID rows: ignore them as requested
     if (!employeeNumber) {
-      errors.push({
-        code: "MISSING_EMPLOYEE_NUMBER",
-        message: "Emp ID is required.",
+      ignoredRows++;
+      plans.push({
+        rowNumber,
+        employeeNumber: "",
+        fullName: "—",
+        values: {},
+        errors: [],
+        score: null,
+        isIgnored: true,
+        recommendation: {
+          houseQueueBand: null,
+          houseQueueEligible: false,
+          projectedScore: 0,
+          tips: ["Ignored row: Empty Emp ID row skipped during import."],
+        },
       });
-    } else if (employeeNumber.length > 50) {
+      return;
+    }
+
+    if (employeeNumber.length > EMPLOYEE_NUMBER_MAX) {
       errors.push({
         code: "INVALID_EMPLOYEE_NUMBER",
-        message: "Emp ID is longer than 50 characters.",
+        column: "employeeNumber",
+        message: `Emp ID is longer than ${EMPLOYEE_NUMBER_MAX} characters.`,
       });
     }
 
-    if (!firstname || !lastname) {
+    // Accept other 7 columns even if empty: default missing names to "-"
+    const resolvedFirstname = firstname || "-";
+    const resolvedLastname = lastname || "-";
+    values.firstname = resolvedFirstname;
+    values.lastname = resolvedLastname;
+
+    // Duplicate detection inside the workbook itself.
+    const key = normalizeRef(employeeNumber);
+    if (seenInFile.has(key)) {
       errors.push({
-        code: "MISSING_NAME",
-        message: "First and last name are required.",
+        code: "DUPLICATE_IN_FILE",
+        column: "employeeNumber",
+        message: `Emp ID "${employeeNumber}" appears more than once in this file.`,
       });
     }
+    seenInFile.add(key);
 
-    // Duplicate detection inside the file itself.
-    if (employeeNumber) {
-      const key = normalizeRef(employeeNumber);
-      if (seenEmployeeNumbers.has(key)) {
-        errors.push({
-          code: "DUPLICATE_IN_FILE",
-          message: `Emp ID "${employeeNumber}" appears more than once in this file.`,
-        });
-      }
-      seenEmployeeNumbers.add(key);
-    }
-
-    // Enum columns
-    const genderRaw = cellText(row, "gender");
-    if (genderRaw !== "") {
-      const gender = matchEnum(
-        genderRaw,
-        ["male", "female"],
-        GENDER_LABELS,
-        GENDER_FUZZY,
-      );
-      if (!gender) {
-        errors.push({
-          code: "INVALID_GENDER",
-          message: `Gender "${genderRaw}" is not recognised. Use Male or Female.`,
-        });
-      } else {
-        values.gender = gender;
-      }
-    }
-
-    const maritalRaw = cellText(row, "maritalStatus");
-    if (maritalRaw !== "") {
-      const marital = matchEnum(
-        maritalRaw,
-        ["single", "married"],
-        MARITAL_STATUS_LABELS,
-        MARITAL_FUZZY,
-      );
-      if (!marital) {
-        errors.push({
-          code: "INVALID_MARITAL_STATUS",
-          message: `Marital status "${maritalRaw}" is not recognised. Use Single or Married.`,
-        });
-      } else {
-        values.maritalStatus = marital;
-      }
-    }
-
-    const typeRaw = cellText(row, "employmentType");
-    if (typeRaw !== "") {
-      const type = matchEnum(
-        typeRaw,
-        EMPLOYMENT_TYPES,
-        undefined,
-        EMPLOYMENT_TYPE_FUZZY,
-      );
-      if (!type) {
-        errors.push({
-          code: "INVALID_EMPLOYMENT_TYPE",
-          message: `Employment type "${typeRaw}" is not recognised.`,
-        });
-      } else {
-        values.employmentType = type;
-      }
-    }
-
-    const statusRaw = cellText(row, "employmentStatus");
-    if (statusRaw !== "") {
-      const status = matchEnum(
-        statusRaw,
-        EMPLOYMENT_STATUSES,
-        undefined,
-        EMPLOYMENT_STATUS_FUZZY,
-      );
-      if (!status) {
-        errors.push({
-          code: "INVALID_EMPLOYMENT_STATUS",
-          message: `Employment status "${statusRaw}" is not recognised.`,
-        });
-      } else {
-        values.employmentStatus = status;
-      }
-    }
-
-    // Disability â€” accept a real boolean or the usual yes/no spellings.
-    const disabilityRaw = cellText(row, "disabilityStatus");
-    if (disabilityRaw !== "") {
-      const parsed =
-        parseBool(disabilityRaw) ??
-        DISABILITY_FUZZY[headerKey(disabilityRaw)] ??
-        null;
-      if (parsed === null) {
-        errors.push({
-          code: "INVALID_DISABILITY",
-          message: `Disability "${disabilityRaw}" is not recognised. Use Yes or No.`,
-        });
-      } else {
-        values.disabilityStatus = parsed;
-      }
-    }
-
-    // National ID
-    const nationalIdRaw = cellText(row, "nationalId");
-    if (nationalIdRaw.length > NATIONAL_ID_MAX) {
+    // Duplicate detection against the records already in PostgreSQL.
+    if (existingNumbers.has(employeeNumber.toLowerCase())) {
       errors.push({
-        code: "INVALID_NATIONAL_ID",
-        message: `National ID is longer than ${NATIONAL_ID_MAX} characters.`,
+        code: "DUPLICATE_EXISTING",
+        column: "employeeNumber",
+        message: `Emp ID "${employeeNumber}" already exists in the register. Existing records are never overwritten by an import.`,
       });
-    } else if (nationalIdRaw !== "") {
-      values.nationalId = nationalIdRaw;
     }
 
-    // Numerics
-    const gradeRaw = cellText(row, "jobGrade");
-    if (gradeRaw !== "") {
-      const grade = parseBoundedInt(gradeRaw, 1, 50, "Job Grade");
-      if ("error" in grade) {
-        errors.push({ code: "INVALID_JOB_GRADE", message: grade.error });
-      } else {
-        values.jobGrade = grade.value;
-      }
+    const gender = parseGender(cellText(row, "gender"));
+    if (gender && "error" in gender) {
+      errors.push({
+        code: "INVALID_GENDER",
+        column: "gender",
+        message: gender.error,
+      });
+    } else if (gender && "value" in gender) {
+      values.gender = gender.value;
     }
 
-    const familyRaw = cellText(row, "familySize");
-    if (familyRaw !== "") {
-      const family = parseBoundedInt(familyRaw, 1, 30, "Family Size");
-      if ("error" in family) {
-        errors.push({ code: "INVALID_FAMILY_SIZE", message: family.error });
-      } else {
-        values.familySize = family.value;
-      }
+    const maritalStatus = parseMaritalStatus(cellText(row, "maritalStatus"));
+    if (maritalStatus && "error" in maritalStatus) {
+      errors.push({
+        code: "INVALID_MARITAL_STATUS",
+        column: "maritalStatus",
+        message: maritalStatus.error,
+      });
+    } else if (maritalStatus && "value" in maritalStatus) {
+      values.maritalStatus = maritalStatus.value;
     }
 
-    // Dates
-    for (const [field, label] of [
-      ["dateOfBirth", "Date of Birth"],
-      ["hireDate", "Hire Date"],
-      ["terminationDate", "Termination Date"],
-    ] as const) {
-      const raw = cellText(row, field);
-      const parsed = parseDateCell(raw);
-      if (parsed && "error" in parsed) {
-        errors.push({
-          code: "INVALID_DATE",
-          message: `${label}: ${parsed.error}`,
-        });
-      } else if (parsed && "value" in parsed) {
-        (values as Record<string, unknown>)[field] = parsed.value;
-      }
+    const jobGrade = parseJobGrade(cellText(row, "jobGrade"));
+    if ("error" in jobGrade) {
+      errors.push({
+        code: "INVALID_JOB_GRADE",
+        column: "jobGrade",
+        message: jobGrade.error,
+      });
+    } else if (jobGrade.value !== null) {
+      values.jobGrade = jobGrade.value;
     }
 
-    // Department
-    let departmentName: string | undefined;
-    const departmentRaw = cellText(row, "department");
-    if (departmentRaw !== "") {
-      const match = departmentLookup.get(normalizeRef(departmentRaw));
-      if (!match) {
-        errors.push({
-          code: "UNKNOWN_DEPARTMENT",
-          message: `Department "${departmentRaw}" does not exist in your organization.`,
-        });
-      } else if (match === AMBIGUOUS_REFERENCE) {
-        errors.push({
-          code: "AMBIGUOUS_DEPARTMENT",
-          message: `Department "${departmentRaw}" matches more than one department.`,
-        });
-      } else {
-        values.departmentId = match;
-        departmentName = departmentNames.get(match);
-      }
+    const serviceYears = parseBoundedInt(
+      cellText(row, "serviceYears"),
+      SERVICE_YEARS_MIN,
+      SERVICE_YEARS_MAX,
+      "Service Years",
+    );
+    if ("error" in serviceYears) {
+      errors.push({
+        code: "INVALID_SERVICE_YEARS",
+        column: "serviceYears",
+        message: serviceYears.error,
+      });
+    } else if (serviceYears.value !== null) {
+      values.serviceYears = serviceYears.value;
     }
 
-    // Reporting manager
-    const managerRaw = cellText(row, "managerNumber");
-    if (managerRaw !== "") {
-      const match = managerLookup.get(normalizeRef(managerRaw));
-      if (!match) {
-        errors.push({
-          code: "UNKNOWN_MANAGER",
-          message: `Reporting manager "${managerRaw}" was not found.`,
-        });
-      } else if (match === AMBIGUOUS_REFERENCE) {
-        errors.push({
-          code: "UNKNOWN_MANAGER",
-          message: `Reporting manager "${managerRaw}" is ambiguous. Use their Emp ID.`,
-        });
-      } else {
-        values.managerId = match;
-      }
+    const disability = parseDisability(cellText(row, "disabilityStatus"));
+    if ("error" in disability) {
+      errors.push({
+        code: "INVALID_DISABILITY",
+        column: "disabilityStatus",
+        message: disability.error,
+      });
+    } else if (disability.value !== null) {
+      values.disabilityStatus = disability.value;
     }
 
-    // Plain text passthrough
-    for (const field of [
-      "phone",
-      "jobTitle",
-      "address",
-      "city",
-      "state",
-      "country",
-      "postalCode",
-      "notes",
-    ] as const) {
-      const raw = cellText(row, field);
-      if (raw !== "") (values as Record<string, unknown>)[field] = raw;
-    }
+    // Score column: parse if present in file or calculate projected MCDA score
+    const parsedScore = parseScore(cellText(row, "score"));
+    const recommendation = generateRowRecommendation({
+      employeeNumber,
+      firstname: firstname || null,
+      lastname: lastname || null,
+      jobGrade: values.jobGrade as number | null | undefined,
+      serviceYears: values.serviceYears as number | null | undefined,
+      maritalStatus: values.maritalStatus as string | null | undefined,
+      disabilityStatus: values.disabilityStatus as string | null | undefined,
+      gender: values.gender as string | null | undefined,
+    });
+
+    const finalScore = parsedScore !== null ? parsedScore : recommendation.projectedScore;
+    values.score = finalScore;
 
     const plan: EmployeeRowPlan = {
       rowNumber,
       employeeNumber,
-      fullName: `${firstname} ${lastname}`.trim(),
-      departmentName,
+      fullName: (firstname || lastname) ? `${firstname} ${lastname}`.trim() : "—",
       values: {
         ...values,
         employeeNumber,
-        firstname,
-        lastname,
-      } as Partial<CreateEmployeeInput>,
+      },
       errors: errors.slice(0, MAX_REPORTED_ERRORS),
+      score: finalScore,
+      recommendation,
+      isIgnored: false,
     };
 
     if (errors.length === 0) validRows++;
     else invalidRows++;
+    if (
+      plan.errors.some(
+        (error) =>
+          error.code === "DUPLICATE_IN_FILE" ||
+          error.code === "DUPLICATE_EXISTING",
+      )
+    ) {
+      duplicateRows++;
+    }
     plans.push(plan);
   });
+
+  if (ignoredRows > 0) {
+    notes.push(`Ignored ${ignoredRows.toLocaleString()} row(s) with empty Emp ID.`);
+  }
 
   return {
     totalRows: plans.length,
     validRows,
     invalidRows,
+    duplicateRows,
+    ignoredRows,
     rows: plans,
     notes,
-    knownDepartments: departments.map((d) => d.name).sort(),
   };
-}
-
-/** Convert a workbook sheet into canonical row objects using a header map. */
-export function rowsFromSheet(
-  headers: string[],
-  matrix: (string | number | boolean | null | undefined)[][],
-  startIndex = 1,
-): { rows: EmployeeSpreadsheetRow[]; mapping: Record<string, number> } {
-  const mapping = mapEmployeeHeaders(headers);
-  const rows: EmployeeSpreadsheetRow[] = [];
-
-  for (let i = startIndex; i < matrix.length; i++) {
-    const line = matrix[i];
-    if (!line || line.every((cell) => cellToText(cell).trim() === "")) continue;
-
-    const row: EmployeeSpreadsheetRow = {};
-    for (const [field, index] of Object.entries(mapping)) {
-      row[field] = cellToText(line[index]).trim();
-    }
-    rows.push(row);
-  }
-
-  return { rows, mapping };
 }

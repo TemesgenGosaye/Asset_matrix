@@ -77,7 +77,7 @@ describe("Employee Service Layer", () => {
           lastname: "Tulu",
           gender: "female",
           jobGrade: 16,
-          disabilityStatus: false,
+          disabilityStatus: "No",
           employmentType: "full_time",
           employmentStatus: "active",
         },
@@ -96,6 +96,31 @@ describe("Employee Service Layer", () => {
       );
     });
 
+    it("stores a missing job grade as NULL rather than zero", async () => {
+      mockPrisma.employee.create.mockImplementation(async ({ data }) => ({
+        id: "emp-new-uuid",
+        ...data,
+      }));
+
+      await createEmployee({
+        organizationId: orgId,
+        actorId,
+        input: {
+          employeeNumber: "EMP-NOGRADE",
+          firstname: "Marta",
+          lastname: "Gebre",
+          employmentType: "full_time",
+          employmentStatus: "active",
+        },
+        db: mockPrisma as any,
+      });
+
+      const { data } = mockPrisma.employee.create.mock.calls[0][0] as {
+        data: Record<string, unknown>;
+      };
+      expect(data.jobGrade).toBeNull();
+    });
+
     it("fails with friendly 409 error on unique constraint violation", async () => {
       mockPrisma.employee.create.mockRejectedValue({
         code: "P2002",
@@ -110,7 +135,7 @@ describe("Employee Service Layer", () => {
             employeeNumber: "EMP-DUP",
             firstname: "Kenenisa",
             lastname: "Bekele",
-            disabilityStatus: false,
+            disabilityStatus: "No",
             employmentType: "full_time",
             employmentStatus: "active",
           },
@@ -131,7 +156,7 @@ describe("Employee Service Layer", () => {
             firstname: "Haile",
             lastname: "Gebrselassie",
             departmentId: "foreign-dept-uuid",
-            disabilityStatus: false,
+            disabilityStatus: "No",
             employmentType: "full_time",
             employmentStatus: "active",
           },

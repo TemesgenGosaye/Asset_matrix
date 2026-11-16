@@ -43,7 +43,13 @@ const PREVIEW_COLUMNS: Column[] = [
   { key: "rowNumber", label: "Row", align: "right" },
   { key: "employeeNumber", label: "Emp ID" },
   { key: "fullName", label: "Name" },
-  { key: "department", label: "Department" },
+  { key: "gender", label: "Gender" },
+  { key: "jobGrade", label: "Grade" },
+  { key: "serviceYears", label: "Service Years" },
+  { key: "maritalStatus", label: "Marital Status" },
+  { key: "disabilityStatus", label: "Disability" },
+  { key: "score", label: "Score" },
+  { key: "recommendation", label: "Guidance" },
   { key: "status", label: "Status" },
 ];
 
@@ -159,7 +165,7 @@ function EmployeeImportFields({
   const commit = useCallback(async () => {
     if (!preview) return;
     const rows = preview.rows.filter(
-      (r) => r.errors.length === 0 || !skipInvalid,
+      (r) => !r.isIgnored && (r.errors.length === 0 || !skipInvalid),
     );
     if (rows.length === 0) {
       setError("No rows are eligible for import.");
@@ -210,9 +216,56 @@ function EmployeeImportFields({
           );
         case "fullName":
           return row.fullName || "—";
-        case "department":
-          return String(row.values.departmentName ?? "—") || "—";
+        case "gender":
+          return String(row.values.gender ?? "—") || "—";
+        case "jobGrade":
+          return (
+            <span className="tabular-nums">
+              {String(row.values.jobGrade ?? "—") || "—"}
+            </span>
+          );
+        case "serviceYears":
+          return (
+            <span className="tabular-nums">
+              {String(row.values.serviceYears ?? "—") || "—"}
+            </span>
+          );
+        case "maritalStatus":
+          return String(row.values.maritalStatus ?? "—") || "—";
+        case "disabilityStatus":
+          return String(row.values.disabilityStatus ?? "—") || "—";
+        case "score": {
+          const s = row.score ?? row.recommendation?.projectedScore;
+          return s !== null && s !== undefined ? (
+            <span className="font-semibold text-blue-600 dark:text-blue-400">
+              {Math.round(s * 100)}%
+            </span>
+          ) : (
+            "—"
+          );
+        }
+        case "recommendation": {
+          const rec = row.recommendation;
+          if (!rec) return "—";
+          return (
+            <span
+              className="inline-block max-w-[120px] truncate text-xs text-muted-foreground"
+              title={rec.tips.join(" | ")}
+            >
+              {rec.houseQueueEligible
+                ? `Band ${rec.houseQueueBand}`
+                : "Ineligible"}
+            </span>
+          );
+        }
         case "status":
+          if (row.isIgnored) {
+            return (
+              <Badge variant="outline" className="border-dashed text-muted-foreground">
+                Ignored
+              </Badge>
+            );
+          }
           return row.errors.length === 0 ? (
             <Badge variant="success">
               <CheckCircle2 className="mr-1 h-3 w-3" />
@@ -233,6 +286,17 @@ function EmployeeImportFields({
 
   const importable = preview
     ? preview.rows.filter((r) => r.errors.length === 0).length
+    : 0;
+
+  /**
+   * The rows this run actually sends.
+   *
+   * When the user chooses to keep the failing rows, they are sent as well and
+   * the server rejects them one by one — so the progress message has to count
+   * what is on the wire, not only what is expected to land.
+   */
+  const queued = preview
+    ? preview.rows.filter((r) => r.errors.length === 0 || !skipInvalid).length
     : 0;
 
   return (
@@ -274,7 +338,7 @@ function EmployeeImportFields({
 
       {phase === "preview" && preview ? (
         <div className="space-y-4">
-          <div className="grid grid-cols-3 gap-2 text-sm">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-sm">
             <div className="rounded-md border px-3 py-2">
               <div className="text-muted-foreground text-xs">Total rows</div>
               <div className="text-lg font-semibold">{preview.totalRows}</div>
@@ -283,6 +347,12 @@ function EmployeeImportFields({
               <div className="text-muted-foreground text-xs">Ready</div>
               <div className="text-lg font-semibold text-emerald-600">
                 {preview.validRows}
+              </div>
+            </div>
+            <div className="rounded-md border px-3 py-2">
+              <div className="text-muted-foreground text-xs">Ignored (Empty)</div>
+              <div className="text-muted-foreground text-lg font-semibold">
+                {preview.ignoredRows ?? 0}
               </div>
             </div>
             <div className="rounded-md border px-3 py-2">
@@ -342,9 +412,16 @@ function EmployeeImportFields({
 
       {phase === "committing" ? (
         <div className="space-y-3 py-6 text-center">
-          <Progress value={undefined} className="h-1.5" />
+          <div className="bg-secondary relative h-1.5 w-full overflow-hidden rounded-full">
+            <div className="bg-primary/70 animate-import-progress absolute inset-y-0 left-0 w-1/3 rounded-full" />
+          </div>
           <p className="text-muted-foreground text-sm">
-            Importing employees… please do not close this dialog.
+            Importing {queued.toLocaleString()} employee(s)… please do not
+            close this dialog.
+          </p>
+          <p className="text-muted-foreground text-xs">
+            Every row is written in a single transaction. Nothing is reported as
+            imported until the whole file has landed.
           </p>
         </div>
       ) : null}

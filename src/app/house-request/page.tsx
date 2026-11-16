@@ -9,7 +9,7 @@ import { getOrganizationContext } from "@/lib/organization-context";
 export const metadata = {
   title: "Asset Tracker - House Request",
   description:
-    "Verify an employee ID against the Employee Register and file a house request. Eligibility follows the central job grade to house category rule.",
+    "Verify a single employee by their exact Employee ID, review their live record and eligibility, and file a house request into the House Queue.",
 };
 
 export default async function HouseRequestPage() {
@@ -40,7 +40,16 @@ export default async function HouseRequestPage() {
           { label: "House Request", href: "/house-request" },
         ]}
       />
-      <HouseRequestClient capabilities={{ create: canCreate }} />
+      <HouseRequestClient
+        capabilities={{ create: canCreate }}
+        organizationName={
+          ctx.organization?.name &&
+          !ctx.organization.name.toLowerCase().includes("demo") &&
+          !ctx.organization.name.toLowerCase().includes("test")
+            ? ctx.organization.name
+            : "Metahara Sugar Factory"
+        }
+      />
     </div>
   );
 }

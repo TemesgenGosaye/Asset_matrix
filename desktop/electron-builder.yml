@@ -1,0 +1,59 @@
+appId: com.metahara.msfhomedesk.desktop
+productName: Msf HomeDesk
+copyright: Copyright © 2026 Metahara Sugar Factory. Developed by Temesgen G.
+
+directories:
+  output: dist
+  buildResources: build
+
+files:
+  - main.js
+  - preload.js
+  - app.config.js
+  - window-state.js
+  - ui/**/*
+  - package.json
+
+asar: true
+compression: maximum
+npmRebuild: false
+removePackageScripts: true
+
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+  icon: build/icon.ico
+  artifactName: Msf-HomeDesk-Setup-${version}.${ext}
+  signAndEditExecutable: true
+  requestedExecutionLevel: asInvoker
+  legalTrademarks: Metahara Sugar Factory
+
+nsis:
+  oneClick: false
+  perMachine: false
+  selectPerMachineByDefault: false
+  allowElevation: true
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: Msf HomeDesk
+  menuCategory: Metahara Sugar Factory
+  runAfterFinish: true
+  deleteAppDataOnUninstall: true
+  differentialPackage: true
+  displayLanguageSelector: false
+  uninstallDisplayName: ${productName}
+  artifactName: Msf-HomeDesk-Setup-${version}.${ext}
+  installerIcon: build/icon.ico
+  uninstallerIcon: build/icon.ico
+  installerHeaderIcon: build/icon.ico
+  license: build/license.txt
+  include: build/installer.nsh
+
+publish:
+  provider: github
+  owner: TemesgenGosaye
+  repo: Asset_matrix
+  releaseType: release

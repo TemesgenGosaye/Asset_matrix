@@ -471,6 +471,7 @@ export default function App({
             <Input
               className="pl-9"
               placeholder="Search for an Item..."
+              autoFocus
               value={filterValue}
               onChange={onSearchChange}
             />

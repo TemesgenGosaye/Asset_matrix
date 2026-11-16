@@ -19,8 +19,14 @@ const pool = new pg.Pool({
   max: process.env.NODE_ENV === "production" ? 3 : 10,
   // Return idle connections quickly in serverless
   idleTimeoutMillis: process.env.NODE_ENV === "production" ? 10_000 : 30_000,
-  // Don't wait forever for a connection
-  connectionTimeoutMillis: 5_000,
+  // Don't wait forever for a connection. Production runs on managed Postgres,
+  // where a 5s budget fails fast on a genuinely unreachable database. In
+  // development the database is local and the bottleneck is host load, not
+  // latency: a 5s budget aborts healthy localhost handshakes whenever the
+  // event loop stalls under Turbopack work, which then surfaces as
+  // BetterAuth's masked "Failed to get session". Give dev more headroom.
+  connectionTimeoutMillis:
+    process.env.NODE_ENV === "production" ? 5_000 : 30_000,
   // Prevent runaway queries
   statement_timeout: 30_000,
 });

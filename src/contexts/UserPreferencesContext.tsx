@@ -23,6 +23,7 @@ export interface UserPreferences {
   numberFormat: string;
   pageSize: number;
   onboardingCompleted: boolean;
+  showRecommendedPopup: boolean;
   dashboardLayout: unknown | null;
   helpDismissed: unknown | null;
 }
@@ -36,6 +37,7 @@ const DEFAULT_PREFERENCES: UserPreferences = {
   numberFormat: "1,234.56",
   pageSize: 20,
   onboardingCompleted: false,
+  showRecommendedPopup: true,
   dashboardLayout: null,
   helpDismissed: null,
 };
@@ -86,17 +88,19 @@ export function UserPreferencesProvider({
             setPreferences((prev) => ({ ...prev, ...data }));
             // Apply the stored theme to next-themes so the whole page reacts.
             // Only do this if the client hasn't made an explicit theme choice
-            // (still "system") — otherwise a late/preferences re-fetch would
-            // instantly snap the page back after the user picked a theme.
+            // (still "system") or if the stored value is one that no longer
+            // exists ("oled", "paper", …) — otherwise a late/preferences
+            // re-fetch would instantly snap the page back after the user picked
+            // a theme, and a retired id would leave the page unstyled.
             //
-            // Validated against the theme registry rather than a hard-coded
-            // list, so a stored "oled" / "forest" / "contrast" applies and a
-            // stale or bogus value is ignored instead of writing a dead class
-            // onto <html>.
-            if (
-              isAcceptedThemeId(data.theme) &&
-              themeRef.current === SYSTEM_THEME_ID
-            ) {
+            // The API hands back a theme the registry still knows (a retired id
+            // is mapped onto the palette that replaced it), so the value is
+            // checked against the registry here rather than trusted blindly:
+            // a bogus value must never write a dead class onto <html>.
+            const current = themeRef.current;
+            const hasExplicitChoice =
+              current !== SYSTEM_THEME_ID && isAcceptedThemeId(current);
+            if (isAcceptedThemeId(data.theme) && !hasExplicitChoice) {
               setTheme(data.theme);
             }
 

@@ -122,6 +122,7 @@ export default function RecentActivity({ activities }: RecentActivityProps) {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search candidate, house, actor…"
+              autoFocus
               className="h-8 w-48 sm:w-60 pl-8 text-xs"
             />
           </div>

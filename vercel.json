@@ -4,10 +4,6 @@
   "installCommand": "bun install",
   "crons": [
     {
-      "path": "/api/cron/demo-reset",
-      "schedule": "0 0 * * *"
-    },
-    {
       "path": "/api/cron/sessions",
       "schedule": "0 1 * * *"
     },

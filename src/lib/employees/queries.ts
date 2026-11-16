@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Employee read layer.
  *
  * All employee reads go through here so that:
@@ -13,34 +13,42 @@
 
 import { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
-import { maskNationalId } from "./constants";
+import {
+  DISABILITY_NEGATIVE_VALUES,
+  hasDisabilityRecord,
+  maskNationalId,
+} from "./constants";
+import { computeEmployeeMcdaScores } from "./mcda";
 import { EMPLOYEE_SORT_FIELDS, type EmployeeListQuery } from "./schemas";
 
-/** Columns returned for employee rows. */
+/**
+ * Columns returned for employee rows.
+ *
+ * The eight canonical business columns come first; the rest are the retained
+ * relational / domain fields other modules depend on plus technical metadata.
+ * Columns that are no longer part of the approved schema are not selected, so
+ * they cannot leak into an API response.
+ */
 const employeeSelect = {
   id: true,
   employeeNumber: true,
   firstname: true,
   lastname: true,
-  phone: true,
-  dateOfBirth: true,
   gender: true,
-  nationalId: true,
   jobGrade: true,
+  serviceYears: true,
   maritalStatus: true,
   disabilityStatus: true,
-  jobTitle: true,
-  employmentType: true,
-  employmentStatus: true,
-  familySize: true,
-  hireDate: true,
-  terminationDate: true,
-  address: true,
-  city: true,
-  state: true,
-  country: true,
-  postalCode: true,
-  notes: true,
+  profile: {
+    select: {
+      nationalId: true,
+      jobTitle: true,
+      employmentType: true,
+      employmentStatus: true,
+      familySize: true,
+      hireDate: true,
+    },
+  },
   departmentId: true,
   managerId: true,
   userid: true,
@@ -59,9 +67,24 @@ export type EmployeeRow = Prisma.EmployeeGetPayload<{
 }>;
 
 /** A row as returned to the browser, with National ID masked or not. */
-export type EmployeeDto = Omit<EmployeeRow, "nationalId"> & {
+export type EmployeeDto = Omit<EmployeeRow, "profile"> & {
   nationalId: string;
   nationalIdMasked: boolean;
+  jobTitle: string | null;
+  employmentType: string;
+  employmentStatus: string;
+  familySize: number | null;
+  hireDate: Date | null;
+  /**
+   * MCDA priority score in [0, 1] for an employee whose record states a
+   * disability. `null` for every other employee, and for a disabled employee
+   * the engine could not place (no band, no cohort).
+   */
+  mcdaScore: number | null;
+  /** 1-based position of the employee inside their house-band cohort. */
+  mcdaRank: number | null;
+  /** How many employees compete in the same band. */
+  mcdaCohortSize: number | null;
   /** Display-only serial number, computed from the page position. */
   srNo: number;
 };
@@ -84,13 +107,39 @@ function toDto(
   row: EmployeeRow,
   srNo: number,
   canSeeSensitive: boolean,
+  mcda?: {
+    score: number;
+    rank: number;
+    cohortSize: number;
+  },
 ): EmployeeDto {
-  const { nationalId, ...rest } = row;
+  const { profile, ...rest } = row;
+  // Tests and a few fixtures still build flat employee objects; production
+  // reads always return the profile relation. Support both without changing
+  // the wire shape.
+  const legacy = row as EmployeeRow & {
+    nationalId?: string | null;
+    jobTitle?: string | null;
+    employmentType?: string;
+    employmentStatus?: string;
+    familySize?: number | null;
+    hireDate?: Date | null;
+  };
+  const nationalId = profile?.nationalId ?? legacy.nationalId ?? null;
   const revealed = canSeeSensitive && nationalId != null && nationalId !== "";
   return {
     ...rest,
     nationalId: revealed ? nationalId : maskNationalId(nationalId),
     nationalIdMasked: Boolean(nationalId) && !revealed,
+    jobTitle: profile?.jobTitle ?? legacy.jobTitle ?? null,
+    employmentType: profile?.employmentType ?? legacy.employmentType ?? "full_time",
+    employmentStatus:
+      profile?.employmentStatus ?? legacy.employmentStatus ?? "active",
+    familySize: profile?.familySize ?? legacy.familySize ?? null,
+    hireDate: profile?.hireDate ?? legacy.hireDate ?? null,
+    mcdaScore: mcda?.score ?? null,
+    mcdaRank: mcda?.rank ?? null,
+    mcdaCohortSize: mcda?.cohortSize ?? null,
     srNo,
     user: row.user
       ? {
@@ -104,6 +153,37 @@ function toDto(
 }
 
 /**
+ * The MCDA standing of every employee on the page who has a disability on
+ * record.
+ *
+ * The score is only asked for when there is somebody to score: a page of
+ * employees with no recorded disability costs no extra query at all.
+ */
+async function loadMcdaScores(
+  organizationId: string,
+  rows: readonly { id: string; disabilityStatus: string | null }[],
+): Promise<Map<string, { score: number; rank: number; cohortSize: number }>> {
+  const disabledIds = rows
+    .filter((row) => hasDisabilityRecord(row.disabilityStatus))
+    .map((row) => row.id);
+  if (disabledIds.length === 0) return new Map();
+
+  const standings = await computeEmployeeMcdaScores(organizationId, disabledIds);
+  const result = new Map<
+    string,
+    { score: number; rank: number; cohortSize: number }
+  >();
+  for (const [id, standing] of standings) {
+    result.set(id, {
+      score: standing.score,
+      rank: standing.rank,
+      cohortSize: standing.cohortSize,
+    });
+  }
+  return result;
+}
+
+/**
  * Build the Prisma `where` clause from the parsed list query.
  *
  * `includeDeleted` shows archived employees *alongside* live ones (the
@@ -114,6 +194,12 @@ export function buildEmployeeWhere(
   organizationId: string,
 ): Prisma.EmployeeWhereInput {
   const where: Prisma.EmployeeWhereInput = { organizationId };
+  /**
+   * Conditions that are ANDed together. Several of them are OR groups (search,
+   * "no disability recorded"), so they cannot all live on the top-level `OR`
+   * key without overwriting each other.
+   */
+  const and: Prisma.EmployeeWhereInput[] = [];
 
   if (query.onlyDeleted) {
     where.deletedAt = { not: null };
@@ -123,22 +209,62 @@ export function buildEmployeeWhere(
 
   if (query.search) {
     const term = query.search;
-    where.OR = [
-      { firstname: { contains: term, mode: "insensitive" } },
-      { lastname: { contains: term, mode: "insensitive" } },
-      { employeeNumber: { contains: term, mode: "insensitive" } },
-      { jobTitle: { contains: term, mode: "insensitive" } },
-      { nationalId: { contains: term, mode: "insensitive" } },
-    ];
+    // Search runs against the approved columns only: Emp ID, first name and
+    // last name. The pg_trgm GIN indexes on those columns make the
+    // case-insensitive substring match index-backed.
+    and.push({
+      OR: [
+        { firstname: { contains: term, mode: "insensitive" } },
+        { lastname: { contains: term, mode: "insensitive" } },
+        { employeeNumber: { contains: term, mode: "insensitive" } },
+      ],
+    });
   }
 
   if (query.departmentId) where.departmentId = query.departmentId;
-  if (query.employmentStatus) where.employmentStatus = query.employmentStatus;
-  if (query.employmentType) where.employmentType = query.employmentType;
+  if (query.employmentStatus || query.employmentType) {
+    where.profile = {
+      is: {
+        ...(query.employmentStatus
+          ? { employmentStatus: query.employmentStatus }
+          : {}),
+        ...(query.employmentType
+          ? { employmentType: query.employmentType }
+          : {}),
+      },
+    };
+  }
   if (query.gender) where.gender = query.gender;
   if (query.maritalStatus) where.maritalStatus = query.maritalStatus;
-  if (query.disabilityStatus !== undefined) {
-    where.disabilityStatus = query.disabilityStatus;
+
+  if (query.disability === "recorded") {
+    // A disability is on record when the column holds a value that is not one
+    // of the explicit "none" tokens. `not: null` is stated separately because
+    // SQL's `NOT IN` is unknown for NULL and would drop unrecorded employees.
+    //
+    // The comparison is case-insensitive because the column stores the
+    // source's own wording — "No", "no", "None" all mean the same thing, and
+    // `hasDisabilityRecord()` (which the UI and the scoring engine use) reads
+    // them the same way.
+    and.push({ disabilityStatus: { not: null } });
+    and.push({
+      disabilityStatus: {
+        notIn: [...DISABILITY_NEGATIVE_VALUES],
+        mode: "insensitive",
+      },
+    });
+  } else if (query.disability === "none") {
+    and.push({
+      OR: [
+        { disabilityStatus: null },
+        {
+          disabilityStatus: {
+            in: [...DISABILITY_NEGATIVE_VALUES],
+            mode: "insensitive",
+          },
+        },
+      ],
+    });
   }
 
   const gradeMin = query.jobGradeFrom;
@@ -150,16 +276,17 @@ export function buildEmployeeWhere(
     };
   }
 
+  if (and.length > 0) where.AND = and;
+
   return where;
 }
 
 /**
  * Build the Prisma `orderBy` from an allowlisted sort field.
  *
- * `department` sorts on the related row via `relation` ordering; every field is
- * checked against {@link EMPLOYEE_SORT_FIELDS} so a caller cannot sort by an
- * arbitrary column. A secondary key is always appended to keep pagination
- * stable when the primary key has ties.
+ * Every field is checked against {@link EMPLOYEE_SORT_FIELDS} so a caller
+ * cannot sort by an arbitrary column. A secondary key is always appended to
+ * keep pagination stable when the primary key has ties.
  */
 export function buildEmployeeOrderBy(
   query: EmployeeListQuery,
@@ -172,11 +299,7 @@ export function buildEmployeeOrderBy(
     (EMPLOYEE_SORT_FIELDS as readonly string[]).includes(value);
 
   const primary: Prisma.EmployeeOrderByWithRelationInput | null =
-    field && isAllowed(field)
-      ? field === "department"
-        ? { department: { name: direction } }
-        : { [field]: direction }
-      : null;
+    field && isAllowed(field) ? { [field]: direction } : null;
 
   const orderBy: Prisma.EmployeeOrderByWithRelationInput[] = primary
     ? [primary]
@@ -209,8 +332,12 @@ export async function listEmployees(params: {
     prisma.employee.count({ where }),
   ]);
 
+  const mcdaScores = await loadMcdaScores(organizationId, rows);
+
   return {
-    data: rows.map((row, i) => toDto(row, skip + i + 1, canSeeSensitive)),
+    data: rows.map((row, i) =>
+      toDto(row, skip + i + 1, canSeeSensitive, mcdaScores.get(row.id)),
+    ),
     total,
     page: query.page,
     pageSize: query.pageSize,
@@ -242,7 +369,10 @@ export async function getEmployee(params: {
     select: employeeSelect,
   });
 
-  return row ? toDto(row, 0, canSeeSensitive) : null;
+  if (!row) return null;
+
+  const mcdaScores = await loadMcdaScores(organizationId, [row]);
+  return toDto(row, 0, canSeeSensitive, mcdaScores.get(row.id));
 }
 
 /** Unmasked employee record for internal server-side use only. */
@@ -360,14 +490,22 @@ export async function getEmployeeCounts(organizationId: string): Promise<{
       where: { organizationId, deletedAt: { not: null } },
     }),
     prisma.employee.count({
-      where: { organizationId, deletedAt: null, disabilityStatus: true },
+      where: {
+        organizationId,
+        deletedAt: null,
+        disabilityStatus: {
+          not: null,
+          notIn: [...DISABILITY_NEGATIVE_VALUES],
+          mode: "insensitive",
+        },
+      },
     }),
     prisma.employee.count({
       where: { organizationId, deletedAt: null, departmentId: null },
     }),
-    prisma.employee.groupBy({
+    prisma.employeeProfile.groupBy({
       by: ["employmentStatus"],
-      where: { organizationId, deletedAt: null },
+      where: { organizationId, employee: { deletedAt: null } },
       _count: { _all: true },
     }),
   ]);

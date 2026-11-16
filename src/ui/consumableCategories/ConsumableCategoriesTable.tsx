@@ -101,6 +101,7 @@ export default function ConsumableCategoriesTable({ items }) {
             <Input
               className="pl-9"
               placeholder="Search consumable categories"
+              autoFocus
               value={searchValue}
               onChange={(e) => {
                 setSearchValue(e.target.value);

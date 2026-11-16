@@ -66,8 +66,39 @@ mobile/*.orig.*
 
 # local dev logs / runtime artifacts
 *.log
+
+# database backups (never commit dumps)
+backups/
 $log
 vitest-failures.txt
 
+# PM2 daemon state (process dump + logs) — kept project-local via PM2_HOME
+/.pm2/
+
 # generated one-off backfill report (scripts/backfill-employee-departments.mjs)
 employee-department-backfill-report.csv
+
+# Electron desktop client build output
+desktop/dist/
+desktop/out/
+desktop/.vite/
+
+# Release artifacts (Windows installer + Android APK)
+dist/
+
+# Android signing material - never commit the keystore or its credentials
+android/keystore/
+android/keystore.properties
+*.jks
+*.keystore
+
+# One-off scratch scripts, probes and dumps (never commit)
+scripts/tmp-*
+scripts/.tmp-*
+*.tmp.mjs
+tsconfig.probe.json
+.tmp-*.sql
+
+.pm2 
+.pm2 /
+.pm2*

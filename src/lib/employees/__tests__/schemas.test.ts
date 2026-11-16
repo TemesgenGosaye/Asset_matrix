@@ -18,7 +18,7 @@ describe("Employee Zod Schemas", () => {
       gender: "male" as const,
       jobGrade: 14,
       maritalStatus: "married" as const,
-      disabilityStatus: false,
+      disabilityStatus: "No",
       nationalId: "NAT-123456",
     };
 
@@ -86,7 +86,7 @@ describe("Employee Zod Schemas", () => {
       ).toBe(false);
     });
 
-    it("validates MaritalStatus enum ('single' | 'married')", () => {
+    it("validates MaritalStatus against the approved vocabulary", () => {
       expect(
         createEmployeeSchema.safeParse({
           ...validEmployee,
@@ -104,6 +104,12 @@ describe("Employee Zod Schemas", () => {
           ...validEmployee,
           maritalStatus: "divorced",
         }).success,
+      ).toBe(true);
+      expect(
+        createEmployeeSchema.safeParse({
+          ...validEmployee,
+          maritalStatus: "banana",
+        }).success,
       ).toBe(false);
     });
 
@@ -116,17 +122,17 @@ describe("Employee Zod Schemas", () => {
     });
 
     /**
-     * `email` is no longer part of the employee contract, so a payload that
-     * still carries one is not silently accepted as if it were — the key is
-     * ignored rather than persisted, which is the whole point of removing it.
+     * `email` is no longer part of the employee contract. Both schemas are
+     * `.strict()`, so a payload that still carries one is rejected outright
+     * rather than silently dropped — which is what stops a removed employee
+     * field from being accepted (and persisted) through mass assignment.
      */
-    it("ignores an email key left over from an older client", () => {
+    it("rejects an email key left over from an older client", () => {
       const result = createEmployeeSchema.safeParse({
         ...validEmployee,
         email: "left.over@example.com",
       });
-      expect(result.success).toBe(true);
-      expect(result.success && "email" in result.data).toBe(false);
+      expect(result.success).toBe(false);
     });
   });
 
@@ -134,15 +140,37 @@ describe("Employee Zod Schemas", () => {
     it("accepts partial updates", () => {
       const result = updateEmployeeSchema.safeParse({
         jobGrade: 18,
-        disabilityStatus: true,
+        disabilityStatus: "Yes",
       });
       expect(result.success).toBe(true);
     });
 
+    /**
+     * A partial update must not materialise `null` for keys the caller omitted:
+     * an absent key means "leave the column untouched", while an explicit
+     * `null` means "clear it". If the transforms coerced `undefined` to `null`,
+     * a PATCH of one field would silently wipe gender / marital status /
+     * disability.
+     */
+    it("keeps omitted keys out of the parsed output", () => {
+      const result = updateEmployeeSchema.safeParse({ jobGrade: 18 });
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data).toEqual({ jobGrade: 18 });
+      }
+    });
+
+    it("still lets an explicit null clear a field", () => {
+      const result = updateEmployeeSchema.safeParse({ disabilityStatus: null });
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data).toEqual({ disabilityStatus: null });
+      }
+    });
+
     it("rejects an empty update object", () => {
-      // The .refine checks Object.keys(data).length > 0 after transforms.
-      // Fields with plain .optional() (no .default()) don't add keys for
-      // absent inputs, so {} produces an empty output and the refine fires.
+      // The .refine requires at least one non-`undefined` value, so an empty
+      // (or all-undefined) payload produces no writable column and is rejected.
       const result = updateEmployeeSchema.safeParse({});
       expect(result.success).toBe(false);
     });
@@ -188,13 +216,13 @@ describe("Employee Zod Schemas", () => {
         gender: "male",
         jobGradeFrom: "10",
         jobGradeTo: "20",
-        disabilityStatus: "true",
+        disability: "recorded",
       });
       expect(result.success).toBe(true);
       if (result.success) {
         expect(result.data.page).toBe(2);
         expect(result.data.pageSize).toBe(50);
-        expect(result.data.disabilityStatus).toBe(true);
+        expect(result.data.disability).toBe("recorded");
       }
     });
   });

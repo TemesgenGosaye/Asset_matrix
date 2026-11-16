@@ -101,6 +101,7 @@ export default function LicenceCategoriesTable({ items }) {
             <Input
               className="pl-9"
               placeholder="Search licence categories"
+              autoFocus
               value={searchValue}
               onChange={(e) => {
                 setSearchValue(e.target.value);

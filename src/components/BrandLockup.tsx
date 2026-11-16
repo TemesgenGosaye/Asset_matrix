@@ -66,26 +66,13 @@ export function BrandLockup({
 }) {
   const dims = SIZES[size];
 
-  const label = `${BRAND.factoryAm} ${BRAND.portalAm}`;
+  const label = subtitle || "Workspace";
 
   const content = text ? (
     <span className="flex min-w-0 flex-col leading-tight">
-      <span
-        className={cn("truncate font-semibold", dims.factory)}
-        // The Amharic line is the organisation's name; the English is a
-        // courtesy rendering of the same thing, not the other way round.
-        lang="am"
-      >
-        {BRAND.factoryAm}
+      <span className={cn("truncate font-semibold tracking-tight text-slate-900 dark:text-white", dims.factory)}>
+        {subtitle || "Workspace"}
       </span>
-      <span className={cn("text-muted-foreground truncate", dims.portal)}>
-        {BRAND.portalAm}
-      </span>
-      {subtitle ? (
-        <span className="text-muted-foreground truncate text-[10px]">
-          {subtitle}
-        </span>
-      ) : null}
     </span>
   ) : null;
 

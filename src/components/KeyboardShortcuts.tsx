@@ -9,10 +9,12 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
+import { OPEN_QUICK_CREATE_EVENT } from "./QuickCreateMenu";
 
 const shortcuts = [
   { keys: ["Ctrl/Cmd", "K"], description: "Focus search" },
   { keys: ["Ctrl/Cmd", "J"], description: "Toggle AI Copilot" },
+  { keys: ["C"], description: "Create a new record" },
   { keys: ["?"], description: "Show keyboard shortcuts" },
   { keys: ["g", "d"], description: "Go to Dashboard" },
   { keys: ["g", "a"], description: "Go to Assets" },
@@ -81,6 +83,14 @@ export default function KeyboardShortcuts() {
       if (e.key === "?") {
         e.preventDefault();
         setDialogOpen((prev) => !prev);
+        return;
+      }
+
+      // C: open the create menu. The menu itself is rendered by the app bar,
+      // so it is asked to open rather than rendered here.
+      if (e.key === "c" && !pendingKeyRef.current) {
+        e.preventDefault();
+        window.dispatchEvent(new CustomEvent(OPEN_QUICK_CREATE_EVENT));
         return;
       }
 

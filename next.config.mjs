@@ -16,10 +16,38 @@ const appVersion = JSON.parse(
   readFileSync(new URL("./package.json", import.meta.url), "utf8"),
 ).version;
 
+/**
+ * Host patterns for Next's dev-origin allowlist, derived from
+ * BETTER_AUTH_TRUSTED_ORIGINS so the two can never disagree.
+ *
+ * Next matches hostnames only (no scheme, no port), so each trusted origin is
+ * reduced to its hostname. Origins that do not use a real host scheme
+ * (`capacitor://localhost`) have no hostname and are skipped.
+ */
+function allowedDevOrigins() {
+  const raw = process.env.BETTER_AUTH_TRUSTED_ORIGINS ?? "";
+  const hosts = raw
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter(Boolean)
+    .map((origin) => {
+      try {
+        return new URL(origin.includes("://") ? origin : `http://${origin}`).hostname;
+      } catch {
+        return null;
+      }
+    })
+    .filter(Boolean);
+  return [...new Set(hosts)];
+}
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   // Standalone server output for production server deployments
   output: "standalone",
+
+
+
 
   // Skip TypeScript type checking during build (we'll run it separately)
   typescript: {
@@ -38,7 +66,12 @@ const nextConfig = {
   // devices use to reach this machine (see NEXT_PUBLIC_APP_URL in .env).
   // Without a match, Next 16 returns 403 for every `/_next/*` chunk and the HMR
   // websocket. `10.3.12.*` keeps working if DHCP hands out a new address.
-  allowedDevOrigins: ["10.3.12.32", "10.3.12.*", "10.3.12.34", "26.174.35.123"],
+  //
+  // Derived from BETTER_AUTH_TRUSTED_ORIGINS rather than listed separately:
+  // BetterAuth rejects an untrusted Origin with 403 on /sign-in/email, so an
+  // origin that is missing here but present above used to load the app fine and
+  // then fail authentication. One list, one behaviour.
+  allowedDevOrigins: allowedDevOrigins(),
 
   // Inject build-time values without shipping package.json to the client.
   env: {
@@ -64,7 +97,16 @@ const nextConfig = {
       "@radix-ui/react-icons",
       "idb-keyval",
     ],
-    optimizeCss: true,
+
+    // Turbopack's persistent dev cache (on by default since Next 16.1) writes
+    // and compacts into .next/dev/cache. On this host (2-core CPU that is
+    // routinely saturated by the dev server plus other tooling) those writes
+    // block for 15-22s at a time, stalling the Node event loop past pg's
+    // connection timeout. That surfaces as BetterAuth's masked
+    // "Failed to get session" and 500s every unguarded server component.
+    // Opting out trades a slower cold start for a dev server that stays
+    // responsive; production builds are unaffected.
+    turbopackFileSystemCacheForDev: false,
   },
 
   async headers() {
@@ -107,7 +149,13 @@ const nextConfig = {
   },
 };
 
-export default withBundleAnalyzer(withSentryConfig(nextConfig, {
+const isSentryConfigured = Boolean(
+  process.env.SENTRY_AUTH_TOKEN ||
+    process.env.NEXT_PUBLIC_SENTRY_DSN ||
+    process.env.SENTRY_DSN,
+);
+
+const sentryOptions = {
   // For all available options, see:
   // https://www.npmjs.com/package/@sentry/webpack-plugin#options
 
@@ -147,4 +195,10 @@ export default withBundleAnalyzer(withSentryConfig(nextConfig, {
       removeDebugLogging: true,
     },
   },
-}));
+};
+
+const configWithSentry = isSentryConfigured
+  ? withSentryConfig(nextConfig, sentryOptions)
+  : nextConfig;
+
+export default withBundleAnalyzer(configWithSentry);

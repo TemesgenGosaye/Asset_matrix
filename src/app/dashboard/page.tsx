@@ -6,11 +6,15 @@ import {
   getAccessoryStatusDistribution,
   getStatus,
   getMapLocations,
+  getHouseRegisterStat,
 } from "@/lib/data";
 import Breadcrumb from "@/components/Breadcrumb";
 import dynamic from "next/dynamic";
 import DismissibleHelpTip from "@/components/DismissibleHelpTip";
-import DashboardGrid from "@/components/dashboard/DashboardGrid";
+import DashboardGrid, {
+  HousingSummaryWidget,
+} from "@/components/dashboard/DashboardGrid";
+import HouseRegisterDashboard from "@/components/dashboard/HouseRegisterDashboard";
 import QuickActions from "@/components/dashboard/QuickActions";
 
 import { getOrganizationContext } from "@/lib/organization-context";
@@ -35,17 +39,6 @@ const AssetStatusChart = dynamic(
   },
 );
 
-function canAccessHouseLedger(
-  ctx: NonNullable<Awaited<ReturnType<typeof getOrganizationContext>>>,
-) {
-  return (
-    (ctx.isAdmin ?? false) ||
-    ctx.permissions.has("house_queue:view") ||
-    ctx.permissions.has("household:view") ||
-    ctx.permissions.has("employee:view")
-  );
-}
-
 export default async function DashboardPage() {
   let ctx: Awaited<ReturnType<typeof getOrganizationContext>> = null;
   try {
@@ -58,7 +51,6 @@ export default async function DashboardPage() {
   }
   const isAdmin = ctx.isAdmin ?? false;
   const canRequestHouse = ctx.permissions.has("house_request:create");
-  const canViewHouseLedger = canAccessHouseLedger(ctx);
 
   // The full permission set, flattened for the client widget grid. The grid uses
   // it to hide cards the caller could not add (the API enforces the same rules),
@@ -80,10 +72,7 @@ export default async function DashboardPage() {
               Your assets, requests, and tickets at a glance
             </p>
           </div>
-          <QuickActions
-            canRequestHouse={canRequestHouse}
-            canViewHouseLedger={canViewHouseLedger}
-          />
+          <QuickActions canRequestHouse={canRequestHouse} />
         </div>
         <div className="mt-6">
           <DashboardGrid isAdmin={false} permissions={permissionKeys} />
@@ -100,6 +89,7 @@ export default async function DashboardPage() {
     accessoryStatusDistribution,
     statuses,
     mapLocations,
+    houseRegisterStat,
   ] = await Promise.all([
     getUserCount(),
     getAssetCount(),
@@ -108,6 +98,7 @@ export default async function DashboardPage() {
     getAccessoryStatusDistribution(),
     getStatus(),
     getMapLocations(),
+    getHouseRegisterStat(),
   ]);
 
   const statusCounts = new Map<string, number>();
@@ -171,19 +162,28 @@ export default async function DashboardPage() {
             Your house and assets at a glance
           </p>
         </div>
-        <QuickActions
-          canRequestHouse={canRequestHouse}
-          canViewHouseLedger={canViewHouseLedger}
-        />
+        <QuickActions canRequestHouse={canRequestHouse} />
       </div>
       <DismissibleHelpTip id="dashboard-welcome">
         Welcome to your dashboard! Here you can see a quick overview of your
         assets, accessories, and users. Use the sidebar to navigate to specific
         sections, or click the stat cards below to jump to detailed views.
       </DismissibleHelpTip>
+      <div className="mt-6 sm:mt-8">
+        <HouseRegisterDashboard stat={houseRegisterStat} />
+      </div>
       <div className="mt-6 grid grid-cols-1 gap-4 sm:mt-8 sm:gap-6 lg:grid-cols-2">
         <AssetStatusChart data={chartData} title="Asset Status" />
-        <AssetStatusChart data={accChartData} title="Vehicle Status" />
+        <div className="bg-card text-card-foreground rounded-xl border shadow-sm">
+          <div className="flex flex-col space-y-1.5 p-6 pb-3">
+            <h3 className="leading-none font-semibold tracking-tight">
+              Housing Summary
+            </h3>
+          </div>
+          <div className="p-6 pt-0">
+            <HousingSummaryWidget />
+          </div>
+        </div>
       </div>
 
       <div className="mt-6 sm:mt-8 md:mt-10">

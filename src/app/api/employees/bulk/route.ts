@@ -61,8 +61,14 @@ export async function POST(req: NextRequest) {
 
     // Validate each row against the schema for its operation. Rows that fail
     // validation are reported per-row rather than failing the whole request.
+    //
+    // Archive and restore carry NO field values — the row is identified by its
+    // id alone — so there is nothing for a field schema to validate. They used
+    // to be run through the update schema, which rejected an empty payload
+    // with "No fields to update" and made every archive fail with a 422.
     const rowSchema =
       operation === "create" ? createEmployeeSchema : updateEmployeeSchema;
+    const isIdOnlyOperation = operation === "delete" || operation === "restore";
 
     const validated: { id?: string; input: Record<string, unknown> }[] = [];
     const failures: {
@@ -73,14 +79,30 @@ export async function POST(req: NextRequest) {
     }[] = [];
 
     rows.forEach((row, index) => {
+      const employeeNumber =
+        typeof row.values.employeeNumber === "string"
+          ? row.values.employeeNumber
+          : undefined;
+
+      if (isIdOnlyOperation) {
+        if (!row.id) {
+          failures.push({
+            index,
+            employeeNumber,
+            message: "id is required for this operation.",
+            code: "VALIDATION",
+          });
+          return;
+        }
+        validated.push({ id: row.id, input: {} });
+        return;
+      }
+
       const parsed = rowSchema.safeParse(row.values);
       if (!parsed.success) {
         failures.push({
           index,
-          employeeNumber:
-            typeof row.values.employeeNumber === "string"
-              ? row.values.employeeNumber
-              : undefined,
+          employeeNumber,
           message: parsed.error.issues
             .map((i) => `${i.path.join(".") || "row"}: ${i.message}`)
             .join("; "),
@@ -91,10 +113,7 @@ export async function POST(req: NextRequest) {
       if (operation !== "create" && !row.id) {
         failures.push({
           index,
-          employeeNumber:
-            typeof row.values.employeeNumber === "string"
-              ? row.values.employeeNumber
-              : undefined,
+          employeeNumber,
           message: "id is required for this operation.",
           code: "VALIDATION",
         });

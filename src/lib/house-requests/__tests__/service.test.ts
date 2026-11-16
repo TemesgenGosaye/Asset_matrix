@@ -107,7 +107,7 @@ function employeeRow(over: Record<string, unknown> = {}) {
     hireDate: new Date("2018-05-01"),
     maritalStatus: "married",
     familySize: 4,
-    disabilityStatus: false,
+    disabilityStatus: null,
     employmentType: "full_time",
     employmentStatus: "active",
     phone: "+251911000000",

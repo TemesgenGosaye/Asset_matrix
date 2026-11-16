@@ -542,6 +542,7 @@ export default function GeneralAssetClient({
               setPage(1);
             }}
             placeholder="Search PID, item type, category, brand..."
+            autoFocus
             className="pl-9 text-xs"
           />
         </div>
@@ -679,7 +680,6 @@ export default function GeneralAssetClient({
           ]}
           emptyMessage="No general assets registered matching your filter criteria."
           emptyDescription="Add your first asset with the 'Add Asset' button."
-          mobileCardView
         />
 
         {/* ─── Table Pagination Bar ─── */}
