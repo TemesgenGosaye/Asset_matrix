@@ -43,8 +43,7 @@ function allowedDevOrigins() {
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Standalone server output for production server deployments
-  output: "standalone",
+  // "standalone" is for PM2 self-hosted only. Vercel manages its own output format.
 
 
 
