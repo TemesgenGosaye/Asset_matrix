@@ -34,7 +34,9 @@ export default function OfflineBanner() {
             ? "border-rose-500/40 bg-rose-600/95 text-white"
             : "border-emerald-500/40 bg-emerald-600/95 text-white",
         ].join(" ")}
-        style={{ animation: "bannerDrop 300ms cubic-bezier(0.16, 1, 0.3, 1) both" }}
+        style={{
+          animation: "bannerDrop 300ms cubic-bezier(0.16, 1, 0.3, 1) both",
+        }}
       >
         {showOffline ? (
           <>

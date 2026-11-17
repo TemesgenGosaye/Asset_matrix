@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { requireApiAuth, requireApiAdmin, requireNotDemoMode } from "@/lib/api-auth";
+import {
+  requireApiAuth,
+  requireApiAdmin,
+  requireNotDemoMode,
+} from "@/lib/api-auth";
 import { handleRouteError, requireOrgId } from "@/lib/api-route";
 import { validateBody } from "@/lib/validation";
 import { createAuditLog, AUDIT_ACTIONS, AUDIT_ENTITIES } from "@/lib/audit-log";
@@ -30,7 +34,10 @@ function invalidKeysResponse(
   field: string,
   keys: string[],
 ): NextResponse {
-  return NextResponse.json({ error: message, code, [field]: keys }, { status: 422 });
+  return NextResponse.json(
+    { error: message, code, [field]: keys },
+    { status: 422 },
+  );
 }
 
 /** GET /api/navigation/organization — the org default hidden keys. */

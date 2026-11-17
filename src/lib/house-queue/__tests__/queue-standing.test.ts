@@ -20,10 +20,7 @@ const client = vi.hoisted(() => ({
 
 vi.mock("@/lib/prisma", () => ({ default: client }));
 
-import {
-  computeEmployeeQueueStanding,
-  computeHouseQueue,
-} from "../engine";
+import { computeEmployeeQueueStanding, computeHouseQueue } from "../engine";
 import { DEFAULT_ENGINE_CONFIG } from "../config/types";
 import prisma from "@/lib/prisma";
 
@@ -103,9 +100,7 @@ beforeEach(() => {
 describe("computeEmployeeQueueStanding", () => {
   it("reports no standing for an employee who has not asked for a house", async () => {
     seed({
-      employees: [
-        emp({ id: "e1", employeeNumber: "EMP001", jobGrade: 14 }),
-      ],
+      employees: [emp({ id: "e1", employeeNumber: "EMP001", jobGrade: 14 })],
       requests: [],
     });
 

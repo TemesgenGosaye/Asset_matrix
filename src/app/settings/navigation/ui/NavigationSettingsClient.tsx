@@ -157,8 +157,7 @@ export default function NavigationSettingsClient({
   }, [sections, labelFor, titleFor]);
 
   const hideableItems = useMemo(
-    () =>
-      flattenSectionItems(sections).filter((item) => item.locked !== true),
+    () => flattenSectionItems(sections).filter((item) => item.locked !== true),
     [sections],
   );
   const lockedCount = useMemo(
@@ -219,7 +218,7 @@ export default function NavigationSettingsClient({
         />
         <div className="relative flex flex-col gap-5 p-5 sm:p-6">
           <div className="flex items-start gap-4">
-            <span className="from-primary/80 to-primary flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br text-primary-foreground shadow-sm">
+            <span className="from-primary/80 to-primary text-primary-foreground flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br shadow-sm">
               <LayoutDashboard className="h-5 w-5" aria-hidden="true" />
             </span>
             <div className="min-w-0">

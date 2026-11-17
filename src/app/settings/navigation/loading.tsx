@@ -9,7 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton";
  */
 export default function NavigationSettingsLoading() {
   return (
-    <div className="mx-auto w-full max-w-6xl animate-in fade-in fill-mode-both">
+    <div className="animate-in fade-in fill-mode-both mx-auto w-full max-w-6xl">
       <Skeleton className="mb-4 h-5 w-64" />
       <Skeleton className="h-36 w-full rounded-xl" />
 

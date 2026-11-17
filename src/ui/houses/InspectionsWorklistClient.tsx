@@ -217,7 +217,7 @@ function CompleteInspectionDialog({
         <div className="-mr-1 max-h-[min(60vh,560px)] space-y-4 overflow-y-auto pr-1">
           {/* Check-list: Damaged parts */}
           <div>
-            <Label className="text-muted-foreground mb-2 block text-xs font-semibold uppercase tracking-wider">
+            <Label className="text-muted-foreground mb-2 block text-xs font-semibold tracking-wider uppercase">
               Damaged Parts Checklist
             </Label>
             <DamageChecklistEditor
@@ -229,7 +229,7 @@ function CompleteInspectionDialog({
 
           {/* Inside items */}
           <div className="space-y-2 rounded-lg border p-3">
-            <Label className="text-muted-foreground block text-xs font-semibold uppercase tracking-wider">
+            <Label className="text-muted-foreground block text-xs font-semibold tracking-wider uppercase">
               Inside Items Count
             </Label>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -256,7 +256,9 @@ function CompleteInspectionDialog({
                   type="number"
                   min="0"
                   value={chairsCount}
-                  onChange={(e) => setChairsCount(parseInt(e.target.value) || 0)}
+                  onChange={(e) =>
+                    setChairsCount(parseInt(e.target.value) || 0)
+                  }
                   disabled={completing}
                   className="h-8 text-xs"
                 />
@@ -270,7 +272,9 @@ function CompleteInspectionDialog({
                   type="number"
                   min="0"
                   value={lockerCount}
-                  onChange={(e) => setLockerCount(parseInt(e.target.value) || 0)}
+                  onChange={(e) =>
+                    setLockerCount(parseInt(e.target.value) || 0)
+                  }
                   disabled={completing}
                   className="h-8 text-xs"
                 />
@@ -284,7 +288,9 @@ function CompleteInspectionDialog({
                   type="number"
                   min="0"
                   value={tablesCount}
-                  onChange={(e) => setTablesCount(parseInt(e.target.value) || 0)}
+                  onChange={(e) =>
+                    setTablesCount(parseInt(e.target.value) || 0)
+                  }
                   disabled={completing}
                   className="h-8 text-xs"
                 />
@@ -364,9 +370,13 @@ function CompleteInspectionDialog({
                 Inspection Completed & Release Finalised
               </div>
               <p className="mt-2 text-xs text-emerald-800 dark:text-emerald-300">
-                The inspection for House {inspection.houseNumber} has been marked as
-                COMPLETED (Findings: {issued.resolvedTo === "UnderMaintenance" ? "Damage recorded" : "No damage"}).
-                The release has been atomically finalised and the allocation archived.
+                The inspection for House {inspection.houseNumber} has been
+                marked as COMPLETED (Findings:{" "}
+                {issued.resolvedTo === "UnderMaintenance"
+                  ? "Damage recorded"
+                  : "No damage"}
+                ). The release has been atomically finalised and the allocation
+                archived.
               </p>
             </div>
           )}
@@ -435,8 +445,9 @@ const columns: Column[] = [
 /** One-line damage summary for the export: count + priced total. */
 function damageSummary(r: InspectionWorklistView): string {
   if (!r.completedAt) return "Recorded on completion";
-  const damagedCount = DAMAGE_ITEMS.filter((i) => r.damage.state[i.stateKey])
-    .length;
+  const damagedCount = DAMAGE_ITEMS.filter(
+    (i) => r.damage.state[i.stateKey],
+  ).length;
   if (damagedCount === 0) return "No damage";
   return `${damagedCount} damaged · ${formatEtb(
     runningDamageTotal(r.damage.state, r.damage.costs),
@@ -447,7 +458,12 @@ const EXPORT_COLUMNS: BrandedTableColumn<InspectionWorklistView>[] = [
   { header: "#", align: "right", width: 0.4, value: (_r, i) => String(i + 1) },
   { header: "House No.", width: 1.0, value: (r) => r.houseNumber },
   { header: "HID", width: 1.3, value: (r) => r.hid },
-  { header: "Category", align: "center", width: 0.8, value: (r) => r.houseType },
+  {
+    header: "Category",
+    align: "center",
+    width: 0.8,
+    value: (r) => r.houseType,
+  },
   { header: "Location", width: 1.3, value: (r) => r.locationName ?? "—" },
   {
     header: "Reason",
@@ -481,9 +497,15 @@ const EXPORT_COLUMNS: BrandedTableColumn<InspectionWorklistView>[] = [
   {
     header: "Scheduled",
     width: 1.1,
-    value: (r) => (r.scheduledDate ? formatDate(r.scheduledDate) : "Unscheduled"),
+    value: (r) =>
+      r.scheduledDate ? formatDate(r.scheduledDate) : "Unscheduled",
   },
-  { header: "House Status", align: "center", width: 1.1, value: (r) => r.houseStatus },
+  {
+    header: "House Status",
+    align: "center",
+    width: 1.1,
+    value: (r) => r.houseStatus,
+  },
   {
     header: "Resolution",
     align: "center",
@@ -951,7 +973,7 @@ export default function InspectionsWorklistClient({
         </div>
       </div>
 
-      <div className="bg-card flex items-center gap-3 rounded-xl border p-3 shadow-sm overflow-x-auto">
+      <div className="bg-card flex items-center gap-3 overflow-x-auto rounded-xl border p-3 shadow-sm">
         <div className="flex shrink-0 items-center gap-2">
           <div className="relative w-64 sm:w-80">
             <Search className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />

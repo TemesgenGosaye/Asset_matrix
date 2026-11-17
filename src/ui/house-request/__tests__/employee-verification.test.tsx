@@ -27,7 +27,7 @@ function createMockVerifyResult(
     queue: {
       rank: 2,
       cohortSize: 3,
-      score: 0.20,
+      score: 0.2,
       category: "Staff",
     },
     employee: {
@@ -60,7 +60,8 @@ function createMockVerifyResult(
     },
     hasAllocatedHouse: false,
     allocation: null,
-    eligibilityLegend: "> 17 → Staff · 15 – 17 → A · 12 – 14 → B · 10 – 11 → C · 7 – 9 → D · 1 – 6 → E",
+    eligibilityLegend:
+      "> 17 → Staff · 15 – 17 → A · 12 – 14 → B · 10 – 11 → C · 7 – 9 → D · 1 – 6 → E",
     ...overrides,
   };
 }
@@ -158,14 +159,18 @@ describe("Metahara Sugar Factory — Employee Verification Result Panel", () => 
     expect(html).toContain("FAIL");
 
     // Full-width Action Required row when blocked
-    expect(html).toContain("ACTION REQUIRED: Withdraw or resolve the existing open request before filing a new one.");
+    expect(html).toContain(
+      "ACTION REQUIRED: Withdraw or resolve the existing open request before filing a new one.",
+    );
 
     // Authorization section is intentionally absent (removed from the document)
     expect(html).not.toContain("Verified by");
     expect(html).not.toContain("Stamp");
 
     // Footer row
-    expect(html).toContain("Metahara Sugar Factory · Computer-generated verification result, valid with authorized signature");
+    expect(html).toContain(
+      "Metahara Sugar Factory · Computer-generated verification result, valid with authorized signature",
+    );
 
     // Print button
     expect(html).toContain("Print");
@@ -180,9 +185,7 @@ describe("Metahara Sugar Factory — Employee Verification Result Panel", () => 
     });
 
     const html = renderToStaticMarkup(
-      <EmployeeVerificationResult
-        verify={mock}
-      />,
+      <EmployeeVerificationResult verify={mock} />,
     );
 
     expect(html).toContain("Eligible");
@@ -236,7 +239,8 @@ describe("EmployeeVerificationError in Sheet Container", () => {
           code: "NETWORK_ERROR",
           severity: "system",
           title: "Verification timed out",
-          message: "The Employee Register did not respond within the 10-second verification window.",
+          message:
+            "The Employee Register did not respond within the 10-second verification window.",
           requiresReverification: false,
         }}
         onRetry={vi.fn()}

@@ -40,7 +40,6 @@ import type { McdaWeights } from "@/lib/house-queue/config/types";
 import { hasDisabilityRecord } from "@/lib/employees/constants";
 import { McdaBreakdownTable } from "./McdaBreakdown";
 
-
 // ---------------------------------------------------------------------------
 // Shared bits
 // ---------------------------------------------------------------------------

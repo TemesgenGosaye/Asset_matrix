@@ -5,6 +5,7 @@ const appUrl = document.getElementById("appUrl");
 const electronVersion = document.getElementById("electronVersion");
 const copyright = document.getElementById("copyright");
 const closeButton = document.getElementById("closeButton");
+const licenseButton = document.getElementById("licenseButton");
 
 async function initialise() {
   try {
@@ -22,6 +23,10 @@ async function initialise() {
 
 closeButton.addEventListener("click", () => {
   window.desktop.closeAbout();
+});
+
+licenseButton.addEventListener("click", () => {
+  window.desktop.openLicense();
 });
 
 document.addEventListener("keydown", (event) => {

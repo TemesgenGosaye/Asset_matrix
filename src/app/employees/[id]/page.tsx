@@ -338,9 +338,7 @@ export default async function Page({
               <dt className="text-muted-foreground">Disability</dt>
               <dd>
                 {hasDisabilityRecord(employee.disabilityStatus) ? (
-                  <Badge variant="warning">
-                    {employee.disabilityStatus}
-                  </Badge>
+                  <Badge variant="warning">{employee.disabilityStatus}</Badge>
                 ) : (
                   <span className="text-muted-foreground">
                     {employee.disabilityStatus

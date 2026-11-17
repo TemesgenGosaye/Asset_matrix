@@ -66,8 +66,7 @@ export default function EmployeeVerificationResult({
   const gradeEligible = Boolean(verify.isEligible);
   const noHouseHeld = !verify.alreadyHasActiveAllocation;
   const noOpenRequest = !verify.hasOpenRequest;
-  const isBlocked =
-    !active || !gradeEligible || !noHouseHeld || !noOpenRequest;
+  const isBlocked = !active || !gradeEligible || !noHouseHeld || !noOpenRequest;
 
   // Derive the action required copy
   const actionRequiredText = useMemo(() => {
@@ -107,8 +106,7 @@ export default function EmployeeVerificationResult({
   const mcdaScoreText =
     queue?.score != null ? `${Math.round(queue.score * 100)}%` : "—";
 
-  const queueBandText =
-    verify.eligibleHouseType ?? queue?.category ?? "Staff";
+  const queueBandText = verify.eligibleHouseType ?? queue?.category ?? "Staff";
 
   // Printed date string
   const printedDate = useMemo(() => {
@@ -143,7 +141,10 @@ export default function EmployeeVerificationResult({
       </div>
 
       {/* Centered White Sheet */}
-      <section className="evr-sheet" aria-label="Employee Verification Result Panel">
+      <section
+        className="evr-sheet"
+        aria-label="Employee Verification Result Panel"
+      >
         <table className="evr-table">
           <colgroup>
             <col />
@@ -158,7 +159,9 @@ export default function EmployeeVerificationResult({
             <tr>
               <td colSpan={2} className="evr-header-cell evr-header-left">
                 <div className="evr-org-title">{displayOrgName}</div>
-                <div className="evr-doc-subtitle">Employee Verification Result</div>
+                <div className="evr-doc-subtitle">
+                  Employee Verification Result
+                </div>
               </td>
               <td colSpan={2} className="evr-header-cell evr-header-right">
                 <div className="evr-ref-no">
@@ -179,29 +182,46 @@ export default function EmployeeVerificationResult({
               </th>
             </tr>
             <tr>
-              <th scope="row" className="evr-label-cell">Full name</th>
+              <th scope="row" className="evr-label-cell">
+                Full name
+              </th>
               <td className="evr-value-cell">{verify.fullName}</td>
-              <th scope="row" className="evr-label-cell">Employee ID</th>
+              <th scope="row" className="evr-label-cell">
+                Employee ID
+              </th>
               <td className="evr-value-cell">{verify.empId}</td>
             </tr>
             <tr>
-              <th scope="row" className="evr-label-cell">Verification</th>
+              <th scope="row" className="evr-label-cell">
+                Verification
+              </th>
               <td className="evr-value-cell">
                 <span className="evr-status-pass">
-                  Verified · {active ? "Active" : humaniseEnum(employee.employmentStatus)}
+                  Verified ·{" "}
+                  {active ? "Active" : humaniseEnum(employee.employmentStatus)}
                 </span>
               </td>
-              <th scope="row" className="evr-label-cell">Eligibility</th>
+              <th scope="row" className="evr-label-cell">
+                Eligibility
+              </th>
               <td className="evr-value-cell">
-                <span className={isBlocked ? "evr-status-fail" : "evr-status-pass"}>
+                <span
+                  className={isBlocked ? "evr-status-fail" : "evr-status-pass"}
+                >
                   {isBlocked ? "Blocked" : "Eligible"}
                 </span>
               </td>
             </tr>
             <tr>
-              <th scope="row" className="evr-label-cell">Service</th>
-              <td className="evr-value-cell">{employee.serviceYears ?? 0} yrs</td>
-              <th scope="row" className="evr-label-cell">Job grade</th>
+              <th scope="row" className="evr-label-cell">
+                Service
+              </th>
+              <td className="evr-value-cell">
+                {employee.serviceYears ?? 0} yrs
+              </td>
+              <th scope="row" className="evr-label-cell">
+                Job grade
+              </th>
               <td className="evr-value-cell">
                 {employee.jobGrade != null
                   ? employee.jobGrade
@@ -209,11 +229,17 @@ export default function EmployeeVerificationResult({
               </td>
             </tr>
             <tr>
-              <th scope="row" className="evr-label-cell">Marital status</th>
+              <th scope="row" className="evr-label-cell">
+                Marital status
+              </th>
               <td className="evr-value-cell">
-                {valOrFallback(labelFor(MARITAL_STATUS_LABELS, employee.maritalStatus))}
+                {valOrFallback(
+                  labelFor(MARITAL_STATUS_LABELS, employee.maritalStatus),
+                )}
               </td>
-              <th scope="row" className="evr-label-cell">Disability</th>
+              <th scope="row" className="evr-label-cell">
+                Disability
+              </th>
               <td className="evr-value-cell">
                 {hasDisabilityRecord(employee.disabilityStatus)
                   ? employee.disabilityStatus
@@ -230,34 +256,54 @@ export default function EmployeeVerificationResult({
               </th>
             </tr>
             <tr>
-              <th scope="row" className="evr-label-cell">Department</th>
+              <th scope="row" className="evr-label-cell">
+                Department
+              </th>
               <td className="evr-value-cell">
                 {valOrFallback(verify.department ?? employee.departmentName)}
               </td>
-              <th scope="row" className="evr-label-cell">Job title</th>
-              <td className="evr-value-cell">{valOrFallback(employee.jobTitle)}</td>
+              <th scope="row" className="evr-label-cell">
+                Job title
+              </th>
+              <td className="evr-value-cell">
+                {valOrFallback(employee.jobTitle)}
+              </td>
             </tr>
             <tr>
-              <th scope="row" className="evr-label-cell">Type</th>
+              <th scope="row" className="evr-label-cell">
+                Type
+              </th>
               <td className="evr-value-cell">
                 {valOrFallback(
                   labelFor(EMPLOYMENT_TYPE_LABELS, employee.employmentType) ??
                     employee.employmentType,
                 )}
               </td>
-              <th scope="row" className="evr-label-cell">Status</th>
+              <th scope="row" className="evr-label-cell">
+                Status
+              </th>
               <td className="evr-value-cell">
                 {valOrFallback(
-                  labelFor(EMPLOYMENT_STATUS_LABELS, employee.employmentStatus) ??
-                    humaniseEnum(employee.employmentStatus),
+                  labelFor(
+                    EMPLOYMENT_STATUS_LABELS,
+                    employee.employmentStatus,
+                  ) ?? humaniseEnum(employee.employmentStatus),
                 )}
               </td>
             </tr>
             <tr>
-              <th scope="row" className="evr-label-cell">Hire date</th>
-              <td className="evr-value-cell">{formatDate(employee.hireDate)}</td>
-              <th scope="row" className="evr-label-cell">Service years</th>
-              <td className="evr-value-cell">{employee.serviceYears ?? 0} yrs</td>
+              <th scope="row" className="evr-label-cell">
+                Hire date
+              </th>
+              <td className="evr-value-cell">
+                {formatDate(employee.hireDate)}
+              </td>
+              <th scope="row" className="evr-label-cell">
+                Service years
+              </th>
+              <td className="evr-value-cell">
+                {employee.serviceYears ?? 0} yrs
+              </td>
             </tr>
 
             {/* ================================================================
@@ -269,19 +315,33 @@ export default function EmployeeVerificationResult({
               </th>
             </tr>
             <tr>
-              <th scope="row" className="evr-label-cell">Gender</th>
+              <th scope="row" className="evr-label-cell">
+                Gender
+              </th>
               <td className="evr-value-cell">
-                {valOrFallback(labelFor(GENDER_LABELS, employee.gender) ?? employee.gender)}
+                {valOrFallback(
+                  labelFor(GENDER_LABELS, employee.gender) ?? employee.gender,
+                )}
               </td>
-              <th scope="row" className="evr-label-cell">Marital status</th>
+              <th scope="row" className="evr-label-cell">
+                Marital status
+              </th>
               <td className="evr-value-cell">
-                {valOrFallback(labelFor(MARITAL_STATUS_LABELS, employee.maritalStatus))}
+                {valOrFallback(
+                  labelFor(MARITAL_STATUS_LABELS, employee.maritalStatus),
+                )}
               </td>
             </tr>
             <tr>
-              <th scope="row" className="evr-label-cell">Family size</th>
-              <td className="evr-value-cell">{valOrFallback(employee.familySize)}</td>
-              <th scope="row" className="evr-label-cell">Accessibility</th>
+              <th scope="row" className="evr-label-cell">
+                Family size
+              </th>
+              <td className="evr-value-cell">
+                {valOrFallback(employee.familySize)}
+              </td>
+              <th scope="row" className="evr-label-cell">
+                Accessibility
+              </th>
               <td className="evr-value-cell">
                 {hasDisabilityRecord(employee.disabilityStatus)
                   ? employee.disabilityStatus
@@ -289,10 +349,18 @@ export default function EmployeeVerificationResult({
               </td>
             </tr>
             <tr>
-              <th scope="row" className="evr-label-cell">Phone</th>
-              <td className="evr-value-cell">{valOrFallback(employee.phone)}</td>
-              <th scope="row" className="evr-label-cell">National ID</th>
-              <td className="evr-value-cell">{valOrFallback(employee.nationalIdMasked)}</td>
+              <th scope="row" className="evr-label-cell">
+                Phone
+              </th>
+              <td className="evr-value-cell">
+                {valOrFallback(employee.phone)}
+              </td>
+              <th scope="row" className="evr-label-cell">
+                National ID
+              </th>
+              <td className="evr-value-cell">
+                {valOrFallback(employee.nationalIdMasked)}
+              </td>
             </tr>
 
             {/* ================================================================
@@ -304,7 +372,9 @@ export default function EmployeeVerificationResult({
               </th>
             </tr>
             <tr>
-              <th scope="row" className="evr-label-cell">Request status</th>
+              <th scope="row" className="evr-label-cell">
+                Request status
+              </th>
               <td className="evr-value-cell">
                 {verify.existingRequest
                   ? `${humaniseEnum(verify.existingRequest.status)} (${formatDate(verify.existingRequest.submittedAt)})`
@@ -312,21 +382,31 @@ export default function EmployeeVerificationResult({
                     ? `Allocated (${formatDate(verify.allocation?.allocatedAt)})`
                     : "Submitted (Oct 15, 2026)"}
               </td>
-              <th scope="row" className="evr-label-cell">Queue position</th>
+              <th scope="row" className="evr-label-cell">
+                Queue position
+              </th>
               <td className="evr-value-cell">{queuePositionText}</td>
             </tr>
             <tr>
-              <th scope="row" className="evr-label-cell">Reason on file</th>
+              <th scope="row" className="evr-label-cell">
+                Reason on file
+              </th>
               <td className="evr-value-cell">
                 {valOrFallback(verify.existingRequest?.remarks)}
               </td>
-              <th scope="row" className="evr-label-cell">MCDA score</th>
+              <th scope="row" className="evr-label-cell">
+                MCDA score
+              </th>
               <td className="evr-value-cell">{mcdaScoreText}</td>
             </tr>
             <tr>
-              <th scope="row" className="evr-label-cell">House band</th>
+              <th scope="row" className="evr-label-cell">
+                House band
+              </th>
               <td className="evr-value-cell">{queueBandText}</td>
-              <th scope="row" className="evr-label-cell">Job grade</th>
+              <th scope="row" className="evr-label-cell">
+                Job grade
+              </th>
               <td className="evr-value-cell">
                 {employee.jobGrade != null
                   ? employee.jobGrade
@@ -355,7 +435,9 @@ export default function EmployeeVerificationResult({
                 Employment is active
               </td>
               <td className="evr-value-cell" style={{ textAlign: "right" }}>
-                <span className={active ? "evr-status-pass" : "evr-status-fail"}>
+                <span
+                  className={active ? "evr-status-pass" : "evr-status-fail"}
+                >
                   {active ? "PASS" : "FAIL"}
                 </span>
               </td>
@@ -365,7 +447,11 @@ export default function EmployeeVerificationResult({
                 Job grade maps to a house band
               </td>
               <td className="evr-value-cell" style={{ textAlign: "right" }}>
-                <span className={gradeEligible ? "evr-status-pass" : "evr-status-fail"}>
+                <span
+                  className={
+                    gradeEligible ? "evr-status-pass" : "evr-status-fail"
+                  }
+                >
                   {gradeEligible ? "PASS" : "FAIL"}
                 </span>
               </td>
@@ -375,7 +461,11 @@ export default function EmployeeVerificationResult({
                 No allocated house is held
               </td>
               <td className="evr-value-cell" style={{ textAlign: "right" }}>
-                <span className={noHouseHeld ? "evr-status-pass" : "evr-status-fail"}>
+                <span
+                  className={
+                    noHouseHeld ? "evr-status-pass" : "evr-status-fail"
+                  }
+                >
                   {noHouseHeld ? "PASS" : "FAIL"}
                 </span>
               </td>
@@ -385,7 +475,11 @@ export default function EmployeeVerificationResult({
                 No request is already open
               </td>
               <td className="evr-value-cell" style={{ textAlign: "right" }}>
-                <span className={noOpenRequest ? "evr-status-pass" : "evr-status-fail"}>
+                <span
+                  className={
+                    noOpenRequest ? "evr-status-pass" : "evr-status-fail"
+                  }
+                >
                   {noOpenRequest ? "PASS" : "FAIL"}
                 </span>
               </td>
@@ -409,7 +503,8 @@ export default function EmployeeVerificationResult({
                 ================================================================ */}
             <tr>
               <td colSpan={4} className="evr-footer-cell">
-                Metahara Sugar Factory · Computer-generated verification result, valid with authorized signature
+                Metahara Sugar Factory · Computer-generated verification result,
+                valid with authorized signature
               </td>
             </tr>
           </tbody>

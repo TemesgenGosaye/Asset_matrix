@@ -221,9 +221,7 @@ export function normalizeDisability(
  * disability is recorded. Every other value counts as a recorded disability,
  * because the source is the authority on what the condition is.
  */
-export function hasDisabilityRecord(
-  value: string | null | undefined,
-): boolean {
+export function hasDisabilityRecord(value: string | null | undefined): boolean {
   const normalized = normalizeDisability(value);
   if (normalized === null) return false;
   const key = normalized.toLowerCase().replace(/\s+/g, " ");
@@ -246,7 +244,9 @@ export const DISABILITY_LABEL_FINE = "Fine (Has no disability)";
 export function disabilityDisplayLabel(
   value: string | null | undefined,
 ): string {
-  return hasDisabilityRecord(value) ? DISABILITY_LABEL_HAS : DISABILITY_LABEL_FINE;
+  return hasDisabilityRecord(value)
+    ? DISABILITY_LABEL_HAS
+    : DISABILITY_LABEL_FINE;
 }
 
 /**

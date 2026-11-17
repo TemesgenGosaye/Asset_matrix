@@ -143,9 +143,9 @@ describe("isActivePath", () => {
 
   it("matches exactly when the item is marked exact", () => {
     expect(isActivePath("/dashboard", "/dashboard", true)).toBe(true);
-    expect(isActivePath("/dashboard/house-allocation", "/dashboard", true)).toBe(
-      false,
-    );
+    expect(
+      isActivePath("/dashboard/house-allocation", "/dashboard", true),
+    ).toBe(false);
   });
 });
 
@@ -219,7 +219,10 @@ describe("resolveHiddenKeys (precedence)", () => {
 
   it("honours an explicit empty user list over the org default", () => {
     // An empty array is a deliberate "I want everything" choice, not absent.
-    const resolved = resolveHiddenKeys({ userHidden: [], orgHidden: ["overview.assets"] });
+    const resolved = resolveHiddenKeys({
+      userHidden: [],
+      orgHidden: ["overview.assets"],
+    });
     expect(resolved.size).toBe(0);
   });
 
@@ -239,7 +242,10 @@ describe("resolveHiddenKeys (precedence)", () => {
 
 describe("applyHiddenKeys (preference gate)", () => {
   it("removes a hidden item", () => {
-    const sections = applyHiddenKeys(NAV_REGISTRY, new Set(["overview.assets"]));
+    const sections = applyHiddenKeys(
+      NAV_REGISTRY,
+      new Set(["overview.assets"]),
+    );
     const keys = flattenSectionItems(sections).map((i) => i.key);
     expect(keys).not.toContain("overview.assets");
   });
@@ -342,9 +348,7 @@ describe("resolveNavSections (full pipeline)", () => {
       hiddenKeys: hidden,
     });
     const keys = flattenSectionItems(sections).map((i) => i.key);
-    expect(keys).toEqual(
-      expect.arrayContaining(["overview.dashboard"]),
-    );
+    expect(keys).toEqual(expect.arrayContaining(["overview.dashboard"]));
     expect(sections.length).toBeGreaterThan(0);
   });
 });

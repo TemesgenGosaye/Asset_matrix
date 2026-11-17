@@ -86,6 +86,8 @@ export interface NavRegistryItem {
   key: string;
   /** Default (English) label. Used when no `labelKey` is set or resolves. */
   label: string;
+  /** Short 1-word label for mobile bottom bar and compact views. */
+  shortLabel?: string;
   /** Catalog key resolved through `useT()`; falls back to `label`. */
   labelKey?: string;
   href: string;
@@ -142,6 +144,7 @@ export const NAV_REGISTRY: readonly NavRegistrySection[] = [
       {
         key: "overview.dashboard",
         label: "Dashboard",
+        shortLabel: "Home",
         labelKey: "nav.dashboard",
         href: "/dashboard",
         icon: LayoutDashboard,
@@ -169,6 +172,7 @@ export const NAV_REGISTRY: readonly NavRegistrySection[] = [
       {
         key: "house.hams-dashboard",
         label: "Dashboard",
+        shortLabel: "Home",
         href: "/dashboard/house-allocation",
         icon: LayoutDashboard,
       },
@@ -188,18 +192,21 @@ export const NAV_REGISTRY: readonly NavRegistrySection[] = [
           {
             key: "house.request",
             label: "House Request",
+            shortLabel: "Request",
             href: "/house-request",
             icon: FileText,
           },
           {
             key: "house.register",
             label: "House Register",
+            shortLabel: "Register",
             href: "/household/register",
             icon: Home,
           },
           {
             key: "house.queue",
             label: "House Queue",
+            shortLabel: "Queue",
             href: "/house-queue",
             icon: ListOrdered,
           },
@@ -214,24 +221,28 @@ export const NAV_REGISTRY: readonly NavRegistrySection[] = [
           {
             key: "house.allocated",
             label: "Allocated",
+            shortLabel: "Active",
             href: "/houses/allocated",
             icon: KeyRound,
           },
           {
             key: "house.terminated",
             label: "Terminated",
+            shortLabel: "Ended",
             href: "/houses/terminated",
             icon: Archive,
           },
           {
             key: "house.inspections",
             label: "Inspections",
+            shortLabel: "Inspect",
             href: "/houses/inspections",
             icon: ClipboardCheck,
           },
           {
             key: "house.pay-rent",
             label: "Pay Rent",
+            shortLabel: "Rent",
             href: "/houses/pay-rent",
             icon: Banknote,
             permission: "rent:view",

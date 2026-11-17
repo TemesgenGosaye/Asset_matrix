@@ -527,8 +527,8 @@ export default function AllocatedHouseDetailClient({
 
   const isTerminated = Boolean(
     detail.terminatedAt ||
-      detail.status === "terminated" ||
-      detail.status === "released",
+    detail.status === "terminated" ||
+    detail.status === "released",
   );
   const isReleasePendingState = isReleasePending(detail.status);
 

@@ -572,7 +572,7 @@ export default function EmployeesTable({
                 <div className="bg-primary/10 border-primary/20 text-primary flex h-8 w-8 shrink-0 items-center justify-center rounded-full border text-xs font-semibold">
                   {initials(item)}
                 </div>
-                <span className="bg-muted/30 border-border/50 rounded border px-2 py-0.5 font-mono text-xs font-medium group-hover:text-primary group-hover:underline">
+                <span className="bg-muted/30 border-border/50 group-hover:text-primary rounded border px-2 py-0.5 font-mono text-xs font-medium group-hover:underline">
                   {item.employeeNumber}
                 </span>
               </button>
@@ -630,15 +630,11 @@ export default function EmployeesTable({
 
         // 2. First Name
         case "firstname":
-          return (
-            <span className="text-sm font-medium">{item.firstname}</span>
-          );
+          return <span className="text-sm font-medium">{item.firstname}</span>;
 
         // 3. Last Name
         case "lastname":
-          return (
-            <span className="text-sm font-medium">{item.lastname}</span>
-          );
+          return <span className="text-sm font-medium">{item.lastname}</span>;
 
         // 4. Gender
         case "gender":

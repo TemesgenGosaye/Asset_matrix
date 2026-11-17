@@ -26,6 +26,9 @@ module.exports = {
 
       // Supervision
       autorestart: true, // bring it back after a crash
+      // A clean exit means the wrapper found another instance already serving
+      // on :3000. Do not turn that into a restart loop against the same port.
+      stop_exit_codes: [0],
       watch: false, // never watch files in production
       min_uptime: "15s", // must stay up 15s to count as a good start
       max_restarts: 10, // stop flapping after 10 rapid failures

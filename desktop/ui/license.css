@@ -1,0 +1,325 @@
+/* ==========================================================================
+   Msf HomeDesk - End User License Agreement
+   Readable, premium legal document layout.
+   ========================================================================== */
+
+:root {
+  color-scheme: dark;
+
+  --navy-950: #050b18;
+  --navy-900: #081428;
+  --brand: #38bdf8;
+  --brand-strong: #0ea5e9;
+  --text: #f1f5f9;
+  --text-soft: #cbd5e1;
+  --text-muted: #94a3b8;
+  --line: rgba(148, 163, 184, 0.16);
+  --line-strong: rgba(148, 163, 184, 0.28);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  color: var(--text);
+  background:
+    radial-gradient(110% 70% at 50% 0%, #0b1e3d 0%, transparent 55%),
+    linear-gradient(180deg, var(--navy-900) 0%, var(--navy-950) 100%);
+  font-family:
+    "Segoe UI Variable Text",
+    "Segoe UI",
+    -apple-system,
+    Roboto,
+    Arial,
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+}
+
+/* --------------------------------------------------------------------------
+   Header
+   -------------------------------------------------------------------------- */
+.license-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex: 0 0 auto;
+  padding: 18px 28px;
+  border-bottom: 1px solid var(--line);
+  background: rgba(8, 20, 40, 0.72);
+  backdrop-filter: blur(10px);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.brand-mark {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border: 1px solid var(--line-strong);
+  border-radius: 12px;
+  background: rgba(15, 42, 82, 0.6);
+}
+
+.brand-mark img {
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
+  border-radius: 8px;
+}
+
+.brand-copy p {
+  margin: 0;
+}
+
+.product {
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.company {
+  margin-top: 2px !important;
+  color: var(--text-muted);
+  font-size: 9.5px;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.doc-badge {
+  padding: 5px 11px;
+  border: 1px solid rgba(56, 189, 248, 0.28);
+  border-radius: 999px;
+  color: var(--brand);
+  background: rgba(56, 189, 248, 0.08);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+/* --------------------------------------------------------------------------
+   Scrollable body
+   -------------------------------------------------------------------------- */
+.license-body {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding: 36px 0 28px;
+  width: min(100% - 48px, 680px);
+  margin: 0 auto;
+  scrollbar-color: rgba(56, 189, 248, 0.35) transparent;
+  scrollbar-width: thin;
+}
+
+.license-body::-webkit-scrollbar {
+  width: 9px;
+}
+
+.license-body::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background: rgba(56, 189, 248, 0.35);
+  background-clip: content-box;
+}
+
+.license-body::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.eyebrow {
+  margin: 0 0 8px;
+  color: var(--brand);
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+
+h1 {
+  margin: 0;
+  color: var(--text);
+  font-size: 30px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+
+.meta {
+  margin: 8px 0 0;
+  color: var(--text-muted);
+  font-size: 11px;
+  letter-spacing: 0.01em;
+}
+
+.notice {
+  margin: 24px 0 8px;
+  padding: 14px 16px;
+  border: 1px solid rgba(250, 204, 21, 0.28);
+  border-radius: 12px;
+  color: #fde68a;
+  background: rgba(250, 204, 21, 0.07);
+  font-size: 12px;
+  line-height: 1.65;
+}
+
+.notice strong {
+  color: #facc15;
+}
+
+/* --------------------------------------------------------------------------
+   Sections
+   -------------------------------------------------------------------------- */
+section {
+  margin-top: 26px;
+}
+
+h2 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 10px;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+h2::before {
+  content: "";
+  width: 3px;
+  height: 14px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, var(--brand), var(--brand-strong));
+}
+
+p {
+  margin: 0;
+  color: var(--text-soft);
+  font-size: 12px;
+  line-height: 1.8;
+}
+
+p + p {
+  margin-top: 10px;
+}
+
+ul {
+  display: grid;
+  gap: 7px;
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+li {
+  position: relative;
+  padding-left: 20px;
+  color: var(--text-soft);
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+li::before {
+  content: "";
+  position: absolute;
+  top: 0.62em;
+  left: 2px;
+  width: 6px;
+  height: 6px;
+  border: 1.5px solid var(--brand-strong);
+  border-radius: 50%;
+  background: rgba(56, 189, 248, 0.16);
+}
+
+.mono {
+  color: var(--brand);
+  font-family: "Cascadia Mono", Consolas, monospace;
+  font-size: 11px;
+}
+
+/* --------------------------------------------------------------------------
+   Acknowledgement
+   -------------------------------------------------------------------------- */
+.acknowledgement {
+  margin-top: 30px;
+  padding: 18px 20px;
+  border: 1px solid rgba(56, 189, 248, 0.22);
+  border-radius: 14px;
+  background:
+    linear-gradient(140deg, rgba(14, 165, 233, 0.1), rgba(14, 165, 233, 0.02)),
+    rgba(13, 26, 48, 0.6);
+}
+
+.acknowledgement .copyright {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+  color: var(--text-muted);
+  font-size: 10px;
+  line-height: 1.7;
+}
+
+/* --------------------------------------------------------------------------
+   Footer
+   -------------------------------------------------------------------------- */
+.license-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex: 0 0 auto;
+  padding: 14px 28px;
+  border-top: 1px solid var(--line);
+  background: rgba(8, 20, 40, 0.72);
+  backdrop-filter: blur(10px);
+  color: var(--text-muted);
+  font-size: 10.5px;
+}
+
+button {
+  appearance: none;
+  padding: 8px 22px;
+  border: 1px solid rgba(56, 189, 248, 0.5);
+  border-radius: 9px;
+  color: #04121f;
+  background: linear-gradient(180deg, #7dd3fc 0%, var(--brand) 100%);
+  font: inherit;
+  font-size: 11.5px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 8px 18px -10px rgba(56, 189, 248, 0.8);
+  transition:
+    transform 150ms ease,
+    filter 150ms ease;
+}
+
+button:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.05);
+}
+
+button:active {
+  transform: translateY(0);
+}
+
+button:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 3px;
+}

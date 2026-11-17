@@ -77,15 +77,16 @@ export default function HouseRequestClient({
   return (
     <div className="mx-auto w-full max-w-4xl space-y-6">
       {/* Professional Centered Search Section */}
-      <section className="no-print mx-auto w-full max-w-2xl text-center pt-2">
-        <p className="text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
+      <section className="no-print mx-auto w-full max-w-2xl pt-2 text-center">
+        <p className="text-muted-foreground text-[11px] font-semibold tracking-wider uppercase">
           {displayOrg} · HAMS Portal
         </p>
-        <h1 className="mt-1 text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
+        <h1 className="text-foreground mt-1 text-2xl font-bold tracking-tight sm:text-3xl">
           House Request: Employee Verification
         </h1>
-        <p className="mt-1 text-xs text-muted-foreground sm:text-sm">
-          Look up an employee by their exact ID to verify active employment and housing eligibility.
+        <p className="text-muted-foreground mt-1 text-xs sm:text-sm">
+          Look up an employee by their exact ID to verify active employment and
+          housing eligibility.
         </p>
 
         <form
@@ -95,8 +96,8 @@ export default function HouseRequestClient({
             void runLookup();
           }}
         >
-          <div className="relative flex items-center rounded-xl border border-border bg-card p-1 shadow-sm transition-all focus-within:border-primary/60 focus-within:ring-2 focus-within:ring-primary/15">
-            <div className="pointer-events-none pl-3 text-muted-foreground">
+          <div className="border-border bg-card focus-within:border-primary/60 focus-within:ring-primary/15 relative flex items-center rounded-xl border p-1 shadow-sm transition-all focus-within:ring-2">
+            <div className="text-muted-foreground pointer-events-none pl-3">
               <Search className="h-4 w-4" aria-hidden />
             </div>
             <input
@@ -113,7 +114,7 @@ export default function HouseRequestClient({
               disabled={lookupLoading}
               aria-invalid={Boolean(idProblem)}
               aria-describedby="employee-id-help"
-              className="h-10 flex-1 border-0 bg-transparent px-3 font-mono text-sm tracking-wide text-foreground placeholder:font-sans placeholder:tracking-normal placeholder:text-muted-foreground focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+              className="text-foreground placeholder:text-muted-foreground h-10 flex-1 border-0 bg-transparent px-3 font-mono text-sm tracking-wide placeholder:font-sans placeholder:tracking-normal focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
             />
             {employeeNumber && !lookupLoading ? (
               <button
@@ -122,21 +123,21 @@ export default function HouseRequestClient({
                   setEmployeeNumber("");
                   searchRef.current?.focus();
                 }}
-                className="mr-1 rounded-md p-1 text-muted-foreground hover:bg-secondary hover:text-foreground"
+                className="text-muted-foreground hover:bg-secondary hover:text-foreground mr-1 rounded-md p-1"
                 aria-label="Clear Employee ID"
               >
                 <X className="h-3.5 w-3.5" />
               </button>
             ) : null}
             <div className="hidden items-center pr-2 sm:flex">
-              <kbd className="rounded border border-border bg-secondary/80 px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
+              <kbd className="border-border bg-secondary/80 text-muted-foreground rounded border px-1.5 py-0.5 font-mono text-[10px]">
                 /
               </kbd>
             </div>
             <Button
               type="submit"
               disabled={lookupLoading || !employeeNumber.trim()}
-              className="h-10 shrink-0 gap-2 rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground px-5 text-xs font-semibold shadow-none transition-colors"
+              className="bg-primary hover:bg-primary/90 text-primary-foreground h-10 shrink-0 gap-2 rounded-lg px-5 text-xs font-semibold shadow-none transition-colors"
             >
               {lookupLoading ? (
                 <>
@@ -154,7 +155,7 @@ export default function HouseRequestClient({
 
           <div
             id="employee-id-help"
-            className="mt-2 flex items-center justify-center gap-2 text-[11px] text-muted-foreground"
+            className="text-muted-foreground mt-2 flex items-center justify-center gap-2 text-[11px]"
           >
             <span>Reads live from Employee Register</span>
             <span>•</span>

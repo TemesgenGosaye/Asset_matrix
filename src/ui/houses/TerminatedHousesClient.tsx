@@ -18,6 +18,7 @@ import {
   FileSpreadsheet,
   FileText,
   Loader2,
+  Upload,
 } from "lucide-react";
 import {
   Select,
@@ -31,8 +32,16 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { notify } from "@/lib/feedback/notify";
 import {
   exportBrandedTable,
@@ -51,6 +60,7 @@ import {
 import type { TerminatedHouseView } from "@/lib/house-queue/views";
 import { canPrintHouseReceipt } from "@/lib/house-queue/receipt-gate";
 import { TerminationReceiptButton } from "./TerminationReceiptButton";
+import HouseholdImportWizard from "@/app/import/ui/HouseholdImportWizard";
 
 interface TerminatedHousesClientProps {
   initialData: TerminatedHouseView[];
@@ -101,7 +111,11 @@ const columns: Column[] = [
 
 const EXPORT_COLUMNS: BrandedTableColumn<TerminatedHouseView>[] = [
   { header: "#", align: "right", width: 0.4, value: (_r, i) => String(i + 1) },
-  { header: "House No.", width: 1.1, value: (r) => r.house?.houseNumber ?? "—" },
+  {
+    header: "House No.",
+    width: 1.1,
+    value: (r) => r.house?.houseNumber ?? "—",
+  },
   { header: "HID", width: 1.3, value: (r) => r.house?.hid ?? "—" },
   {
     header: "Category",
@@ -123,7 +137,8 @@ const EXPORT_COLUMNS: BrandedTableColumn<TerminatedHouseView>[] = [
     header: "Grade",
     align: "center",
     width: 0.7,
-    value: (r) => (r.employee?.jobGrade != null ? String(r.employee.jobGrade) : "—"),
+    value: (r) =>
+      r.employee?.jobGrade != null ? String(r.employee.jobGrade) : "—",
   },
   {
     header: "Reason",
@@ -164,6 +179,7 @@ export default function TerminatedHousesClient({
   const [reasonFilter, setReasonFilter] = useState("all");
   const [refreshing, setRefreshing] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
 
   const submitSearch = () => setSearch(searchDraft.trim());
   const clearSearch = () => {
@@ -427,7 +443,7 @@ export default function TerminatedHousesClient({
         </div>
       </div>
 
-      <div className="bg-card flex items-center gap-3 rounded-xl border p-3 shadow-sm overflow-x-auto">
+      <div className="bg-card flex items-center gap-3 overflow-x-auto rounded-xl border p-3 shadow-sm">
         <div className="flex shrink-0 items-center gap-2">
           <div className="relative w-64 sm:w-80">
             <Search className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />
@@ -503,7 +519,7 @@ export default function TerminatedHousesClient({
                 size="icon"
                 className="h-9 w-9 shrink-0"
                 disabled={exporting}
-                aria-label="Export options"
+                aria-label="More options"
               >
                 {exporting ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -512,7 +528,13 @@ export default function TerminatedHousesClient({
                 )}
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-44">
+            <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuLabel>Actions</DropdownMenuLabel>
+              <DropdownMenuItem onClick={() => setImportOpen(true)}>
+                <Upload className="h-4 w-4" />
+                Import house records
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
               <DropdownMenuLabel>Export</DropdownMenuLabel>
               <DropdownMenuItem
                 disabled={exporting}
@@ -550,6 +572,25 @@ export default function TerminatedHousesClient({
             : "Release an allocation with a reason code in the House Queue to see it here."
         }
       />
+
+      <Dialog open={importOpen} onOpenChange={setImportOpen}>
+        <DialogContent className="max-h-[90vh] max-w-5xl overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Import House Records</DialogTitle>
+            <DialogDescription>
+              Import or update house register records using the existing import
+              workflow. Termination/allocation history is managed by the House
+              Queue.
+            </DialogDescription>
+          </DialogHeader>
+          <HouseholdImportWizard
+            onComplete={() => {
+              setImportOpen(false);
+              router.refresh();
+            }}
+          />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

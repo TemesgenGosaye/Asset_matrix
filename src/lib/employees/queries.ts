@@ -132,7 +132,8 @@ function toDto(
     nationalId: revealed ? nationalId : maskNationalId(nationalId),
     nationalIdMasked: Boolean(nationalId) && !revealed,
     jobTitle: profile?.jobTitle ?? legacy.jobTitle ?? null,
-    employmentType: profile?.employmentType ?? legacy.employmentType ?? "full_time",
+    employmentType:
+      profile?.employmentType ?? legacy.employmentType ?? "full_time",
     employmentStatus:
       profile?.employmentStatus ?? legacy.employmentStatus ?? "active",
     familySize: profile?.familySize ?? legacy.familySize ?? null,
@@ -168,7 +169,10 @@ async function loadMcdaScores(
     .map((row) => row.id);
   if (disabledIds.length === 0) return new Map();
 
-  const standings = await computeEmployeeMcdaScores(organizationId, disabledIds);
+  const standings = await computeEmployeeMcdaScores(
+    organizationId,
+    disabledIds,
+  );
   const result = new Map<
     string,
     { score: number; rank: number; cohortSize: number }

@@ -644,7 +644,9 @@ export default function EngineConfigClient() {
       setRollbackSummary("");
       setPassword("");
       setTotpCode("");
-      notify.success("Configuration rolled back to v" + rollbackTarget.versionNumber);
+      notify.success(
+        "Configuration rolled back to v" + rollbackTarget.versionNumber,
+      );
     } catch {
       notify.error("Failed to roll back the configuration");
     } finally {
@@ -902,8 +904,8 @@ export default function EngineConfigClient() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">
-              Engine Configuration: የምደባ ውቅር
-            </h1>
+            Engine Configuration: የምደባ ውቅር
+          </h1>
           <p className="text-muted-foreground text-sm">
             Tune how the house queue ranks and recommends. Changes are drafted,
             previewed and published — never applied silently.

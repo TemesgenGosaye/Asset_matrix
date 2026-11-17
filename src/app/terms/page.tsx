@@ -21,8 +21,8 @@ const SECTIONS: Section[] = [
   {
     title: "1. Overview",
     body: [
-      "The MSF Asset & House Portal (\"HomeDesk\", \"the Portal\") is an internal business system operated by Metahara Sugar Factory (\"the Factory\", \"we\", \"us\"). It supports the management of assets, houses, allocations, inspections, and related administrative records.",
-      "These Terms of Service (\"Terms\") govern your access to and use of the Portal, whether through a web browser, the HomeDesk desktop application, or the HomeDesk mobile application (the APK).",
+      'The MSF Asset & House Portal ("HomeDesk", "the Portal") is an internal business system operated by Metahara Sugar Factory ("the Factory", "we", "us"). It supports the management of assets, houses, allocations, inspections, and related administrative records.',
+      'These Terms of Service ("Terms") govern your access to and use of the Portal, whether through a web browser, the HomeDesk desktop application, or the HomeDesk mobile application (the APK).',
     ],
   },
   {
@@ -68,7 +68,7 @@ const SECTIONS: Section[] = [
   {
     title: "8. Availability & Support",
     body: [
-      "The Portal is provided on an \"as available\" basis. Access may be interrupted for maintenance, upgrades, or circumstances beyond our control, and network connectivity is required for most functions.",
+      'The Portal is provided on an "as available" basis. Access may be interrupted for maintenance, upgrades, or circumstances beyond our control, and network connectivity is required for most functions.',
       "For assistance, please contact the support channel provided by the Factory.",
     ],
   },
@@ -107,9 +107,7 @@ export default function TermsOfServicePage() {
           <h1 className="mt-4 text-2xl font-bold tracking-tight sm:text-3xl">
             Terms of Service
           </h1>
-          <p className="mt-1 text-sm font-medium text-white/75">
-            የአገልግሎት ደንቦች
-          </p>
+          <p className="mt-1 text-sm font-medium text-white/75">የአገልግሎት ደንቦች</p>
           <p className="mt-3 text-xs font-medium tracking-wide text-white/60">
             Last updated: {LAST_UPDATED}
           </p>
@@ -155,7 +153,7 @@ export default function TermsOfServicePage() {
                 href={SUPPORT_URL}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="mt-3 inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-primary shadow-sm transition-colors hover:bg-slate-50"
+                className="text-primary mt-3 inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold shadow-sm transition-colors hover:bg-slate-50"
               >
                 <Send className="h-4 w-4" />
                 Contact support on Telegram
@@ -166,13 +164,13 @@ export default function TermsOfServicePage() {
           <div className="mt-9 flex flex-wrap items-center justify-between gap-4 border-t border-slate-100 pt-6">
             <Link
               href="/privacy"
-              className="text-sm font-semibold text-primary transition-colors hover:text-primary/80"
+              className="text-primary hover:text-primary/80 text-sm font-semibold transition-colors"
             >
               Read the Privacy Policy
             </Link>
             <Link
               href="/login"
-              className="inline-flex items-center gap-2 text-sm font-semibold text-primary transition-colors hover:text-primary/80"
+              className="text-primary hover:text-primary/80 inline-flex items-center gap-2 text-sm font-semibold transition-colors"
             >
               <ArrowLeft className="h-4 w-4" />
               Back to sign in

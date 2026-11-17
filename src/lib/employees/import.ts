@@ -197,30 +197,52 @@ export function generateRowRecommendation(values: {
 
   // 1. House Queue Category Recommendation
   if (band) {
-    tips.push(`House Queue: Eligible for House Category ${band} (Job Grade ${values.jobGrade}).`);
+    tips.push(
+      `House Queue: Eligible for House Category ${band} (Job Grade ${values.jobGrade}).`,
+    );
   } else {
-    tips.push("House Queue: Missing or 0 Job Grade — not eligible for queue band allocation until grade (1–50) is set.");
+    tips.push(
+      "House Queue: Missing or 0 Job Grade — not eligible for queue band allocation until grade (1–50) is set.",
+    );
   }
 
   // 2. House Request Guidance
   const hasName =
-    Boolean(values.firstname && values.firstname.trim() !== "" && values.firstname !== "-") &&
-    Boolean(values.lastname && values.lastname.trim() !== "" && values.lastname !== "-");
+    Boolean(
+      values.firstname &&
+      values.firstname.trim() !== "" &&
+      values.firstname !== "-",
+    ) &&
+    Boolean(
+      values.lastname &&
+      values.lastname.trim() !== "" &&
+      values.lastname !== "-",
+    );
   if (!hasName) {
-    tips.push("House Request: Incomplete name — complete employee profile before filing a House Request.");
+    tips.push(
+      "House Request: Incomplete name — complete employee profile before filing a House Request.",
+    );
   } else {
-    tips.push("House Request: Ready for house application & dossier verification.");
+    tips.push(
+      "House Request: Ready for house application & dossier verification.",
+    );
   }
 
   // 3. MCDA Score Recommendations
   if (values.serviceYears === null || values.serviceYears === undefined) {
-    tips.push("MCDA Tenure: Service Years not recorded (defaults to 0 score in queue ranking).");
+    tips.push(
+      "MCDA Tenure: Service Years not recorded (defaults to 0 score in queue ranking).",
+    );
   }
   if (!values.maritalStatus) {
-    tips.push("MCDA Household: Marital Status not recorded (defaults to single/base priority).");
+    tips.push(
+      "MCDA Household: Marital Status not recorded (defaults to single/base priority).",
+    );
   }
   if (hasDisabilityRecord(values.disabilityStatus)) {
-    tips.push("MCDA Accessibility: Disability priority applied (+20% queue weighting).");
+    tips.push(
+      "MCDA Accessibility: Disability priority applied (+20% queue weighting).",
+    );
   }
 
   const projectedScore = calculateProjectedScore(values);
@@ -283,9 +305,7 @@ export interface EmployeeHeaderMapping {
  * column). Neither is guessed: the caller rejects the file and tells the user
  * exactly which header is the problem.
  */
-export function mapEmployeeHeaders(
-  headers: string[],
-): EmployeeHeaderMapping {
+export function mapEmployeeHeaders(headers: string[]): EmployeeHeaderMapping {
   const mapping: Record<string, number> = {};
   const unmapped: string[] = [];
   const ambiguous: { header: string; reason: string }[] = [];
@@ -394,12 +414,7 @@ function parseJobGrade(
 ): { value: number | null } | { error: string } {
   const trimmed = raw.trim();
   if (trimmed === "" || trimmed === "0") return { value: null };
-  return parseBoundedInt(
-    trimmed,
-    JOB_GRADE_MIN,
-    JOB_GRADE_MAX,
-    "Job Grade",
-  );
+  return parseBoundedInt(trimmed, JOB_GRADE_MIN, JOB_GRADE_MAX, "Job Grade");
 }
 
 /**
@@ -409,7 +424,9 @@ function parseJobGrade(
  * the documented, source-compatible validation policy. "M" / "F" are accepted
  * as the obvious abbreviations; anything else is rejected rather than guessed.
  */
-function parseGender(raw: string): { value: string } | { error: string } | null {
+function parseGender(
+  raw: string,
+): { value: string } | { error: string } | null {
   if (raw === "") return null;
   const key = headerKey(raw);
   if ((GENDER_VALUES as readonly string[]).includes(key)) {
@@ -759,13 +776,14 @@ export async function previewEmployeeImport(params: {
       gender: values.gender as string | null | undefined,
     });
 
-    const finalScore = parsedScore !== null ? parsedScore : recommendation.projectedScore;
+    const finalScore =
+      parsedScore !== null ? parsedScore : recommendation.projectedScore;
     values.score = finalScore;
 
     const plan: EmployeeRowPlan = {
       rowNumber,
       employeeNumber,
-      fullName: (firstname || lastname) ? `${firstname} ${lastname}`.trim() : "—",
+      fullName: firstname || lastname ? `${firstname} ${lastname}`.trim() : "—",
       values: {
         ...values,
         employeeNumber,
@@ -791,7 +809,9 @@ export async function previewEmployeeImport(params: {
   });
 
   if (ignoredRows > 0) {
-    notes.push(`Ignored ${ignoredRows.toLocaleString()} row(s) with empty Emp ID.`);
+    notes.push(
+      `Ignored ${ignoredRows.toLocaleString()} row(s) with empty Emp ID.`,
+    );
   }
 
   return {

@@ -61,28 +61,33 @@ export default async function HamsDashboardPage() {
         options={[
           { label: "Dashboard", href: "/dashboard" },
           { label: "Facility & House", href: "/dashboard/house-allocation" },
-          { label: "House Dashboard", href: "/dashboard/house-allocation", current: true },
+          {
+            label: "House Dashboard",
+            href: "/dashboard/house-allocation",
+            current: true,
+          },
         ]}
       />
 
       {/* ─── Page Header Matching Existing Portal Module Style ─── */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
+          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
             House Dashboard: የቤት ዳሽቦርድ
           </h1>
-          <div className="mt-1 h-0.5 w-16 rounded bg-gradient-to-r from-brass-400 to-transparent" />
-          <p className="mt-2 text-sm text-muted-foreground">
-            Central executive command console for residential housing capacity, priority queue decisions, and occupancy.
+          <div className="from-brass-400 mt-1 h-0.5 w-16 rounded bg-gradient-to-r to-transparent" />
+          <p className="text-muted-foreground mt-2 text-sm">
+            Central executive command console for residential housing capacity,
+            priority queue decisions, and occupancy.
           </p>
         </div>
 
         <div className="flex items-center gap-2">
           <Badge
             variant="outline"
-            className="gap-1.5 py-1 px-2.5 font-medium border-emerald-500/40 text-emerald-700 dark:text-emerald-400 bg-emerald-50/60 dark:bg-emerald-950/30"
+            className="gap-1.5 border-emerald-500/40 bg-emerald-50/60 px-2.5 py-1 font-medium text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400"
           >
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />
             Live Queue Synced
           </Badge>
         </div>

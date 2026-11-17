@@ -77,14 +77,14 @@ function LiveClock() {
     : "";
 
   return (
-    <div className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3.5 py-1 text-xs font-semibold tracking-wide text-slate-700 shadow-xs border border-slate-200/70">
-      {dateStr && <span className="opacity-80 font-normal">{dateStr}</span>}
+    <div className="inline-flex items-center gap-2 rounded-full border border-slate-200/70 bg-slate-100 px-3.5 py-1 text-xs font-semibold tracking-wide text-slate-700 shadow-xs">
+      {dateStr && <span className="font-normal opacity-80">{dateStr}</span>}
       {dateStr && <span className="opacity-40">•</span>}
       <div className="inline-flex items-center font-mono">
         <span>{hours}</span>
-        <span className="animate-pulse text-sky-600 font-bold">:</span>
+        <span className="animate-pulse font-bold text-sky-600">:</span>
         <span>{minutes}</span>
-        <span className="animate-pulse text-sky-600 font-bold">:</span>
+        <span className="animate-pulse font-bold text-sky-600">:</span>
         <span>{seconds}</span>
       </div>
     </div>
@@ -175,7 +175,7 @@ function OfflineNotice({
       className={`relative flex flex-col items-center rounded-2xl border border-rose-200/90 bg-rose-50/95 p-4 text-center shadow-xs ${className}`}
     >
       {/* Wi-Fi off on top */}
-      <span className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-rose-100 text-rose-600 shadow-xs mb-2">
+      <span className="relative mb-2 flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-rose-100 text-rose-600 shadow-xs">
         <WifiOff className="h-5 w-5" />
         <span className="absolute -top-0.5 -right-0.5 flex h-2.5 w-2.5">
           <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-rose-400 opacity-75" />
@@ -191,17 +191,15 @@ function OfflineNotice({
       <p className="mt-1 text-[11px] leading-tight text-rose-600/80">
         ፖርታሉን ለመጠቀም ኢንተርኔት ያስፈልጋል። እባክዎ Wi-Fi ወይም የሞባይል ዳታ ያብሩና እንደገና ይሞክሩ።
       </p>
-      
+
       {/* Retry Button - Primary action */}
       <button
         type="button"
         onClick={handleRetry}
         disabled={retrying}
-        className="mt-4 w-full inline-flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-rose-200 bg-white px-4 py-2.5 text-sm font-semibold text-rose-700 shadow-xs transition-all hover:bg-rose-100 hover:text-rose-950 active:scale-95 disabled:opacity-60"
+        className="mt-4 inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg border border-rose-200 bg-white px-4 py-2.5 text-sm font-semibold text-rose-700 shadow-xs transition-all hover:bg-rose-100 hover:text-rose-950 active:scale-95 disabled:opacity-60"
       >
-        <RefreshCw
-          className={`h-4 w-4 ${retrying ? "animate-spin" : ""}`}
-        />
+        <RefreshCw className={`h-4 w-4 ${retrying ? "animate-spin" : ""}`} />
         <span>{retrying ? "Reconnecting..." : "Retry"}</span>
       </button>
 
@@ -211,7 +209,9 @@ function OfflineNotice({
           <div className="w-full border-t border-rose-200/60"></div>
         </div>
         <div className="relative flex justify-center text-[10px] uppercase">
-          <span className="bg-rose-50/95 px-2 text-rose-400 font-medium tracking-wider">or</span>
+          <span className="bg-rose-50/95 px-2 font-medium tracking-wider text-rose-400">
+            or
+          </span>
         </div>
       </div>
 
@@ -220,10 +220,10 @@ function OfflineNotice({
         href={TELEGRAM_HELP_URL}
         target="_blank"
         rel="noopener noreferrer"
-        className="w-full inline-flex items-center justify-center gap-2 rounded-lg border border-sky-200 bg-white px-4 py-2.5 text-sm font-semibold text-[#0088cc] shadow-xs transition-all hover:bg-sky-50 active:scale-95"
+        className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-sky-200 bg-white px-4 py-2.5 text-sm font-semibold text-[#0088cc] shadow-xs transition-all hover:bg-sky-50 active:scale-95"
       >
         <svg className="h-4 w-4 shrink-0 fill-current" viewBox="0 0 24 24">
-          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69a.2.2 0 0 0-.05-.18c-.06-.05-.14-.03-.21-.02-.09.02-1.49.95-4.22 2.79-.4.27-.76.41-1.08.4-.36-.01-1.04-.2-1.55-.37-.63-.2-1.12-.31-1.08-.66.02-.18.27-.36.75-.55 2.92-1.27 4.86-2.11 5.83-2.52 2.77-1.16 3.35-1.36 3.73-1.36.08 0 .27.02.39.12.1.08.13.19.14.27-.01.06.01.24 0 .38z"/>
+          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69a.2.2 0 0 0-.05-.18c-.06-.05-.14-.03-.21-.02-.09.02-1.49.95-4.22 2.79-.4.27-.76.41-1.08.4-.36-.01-1.04-.2-1.55-.37-.63-.2-1.12-.31-1.08-.66.02-.18.27-.36.75-.55 2.92-1.27 4.86-2.11 5.83-2.52 2.77-1.16 3.35-1.36 3.73-1.36.08 0 .27.02.39.12.1.08.13.19.14.27-.01.06.01.24 0 .38z" />
         </svg>
         <span>Help and Contact</span>
       </a>
@@ -245,24 +245,24 @@ function TermsModal({
     <div
       role="dialog"
       aria-modal="true"
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-xs p-0 sm:p-4 animate-in fade-in duration-200"
+      className="animate-in fade-in fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-0 backdrop-blur-xs duration-200 sm:items-center sm:p-4"
       onClick={onClose}
     >
       <div
-        className="relative flex max-h-[85vh] sm:max-h-[80vh] w-full max-w-lg flex-col rounded-t-3xl sm:rounded-2xl bg-white shadow-2xl transition-all"
+        className="relative flex max-h-[85vh] w-full max-w-lg flex-col rounded-t-3xl bg-white shadow-2xl transition-all sm:max-h-[80vh] sm:rounded-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
         <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
           <div className="flex items-center gap-2.5">
-            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
+            <span className="bg-primary/10 text-primary flex h-9 w-9 items-center justify-center rounded-xl">
               <ScrollText className="h-5 w-5" />
             </span>
             <div>
               <h2 className="text-base font-bold text-slate-900">
                 Terms of Service
               </h2>
-              <p className="text-xs text-slate-500 font-medium">
+              <p className="text-xs font-medium text-slate-500">
                 Metahara Sugar Factory • የአገልግሎት ደንቦች
               </p>
             </div>
@@ -271,58 +271,78 @@ function TermsModal({
             type="button"
             onClick={onClose}
             aria-label="Close Terms"
-            className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors"
+            className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700"
           >
             <X className="h-4 w-4" />
           </button>
         </div>
 
         {/* Scrollable Terms Content */}
-        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4 text-xs sm:text-sm text-slate-600 leading-relaxed">
+        <div className="flex-1 space-y-4 overflow-y-auto px-5 py-4 text-xs leading-relaxed text-slate-600 sm:text-sm">
           <section>
-            <h3 className="font-bold text-slate-900">1. Overview &amp; Acceptance</h3>
+            <h3 className="font-bold text-slate-900">
+              1. Overview &amp; Acceptance
+            </h3>
             <p className="mt-1">
-              The MSF Asset &amp; House Portal (&quot;HomeDesk&quot;) is an official enterprise management system operated by Metahara Sugar Factory. By accessing or signing in to the mobile APK or web portal, you agree to comply with all company operational standards and guidelines.
+              The MSF Asset &amp; House Portal (&quot;HomeDesk&quot;) is an
+              official enterprise management system operated by Metahara Sugar
+              Factory. By accessing or signing in to the mobile APK or web
+              portal, you agree to comply with all company operational standards
+              and guidelines.
             </p>
           </section>
 
           <section>
-            <h3 className="font-bold text-slate-900">2. Authorized Personnel</h3>
+            <h3 className="font-bold text-slate-900">
+              2. Authorized Personnel
+            </h3>
             <p className="mt-1">
-              Access is strictly restricted to verified employees and administrative staff. You must use only your assigned corporate credentials. Unauthorized access attempts are monitored and recorded.
+              Access is strictly restricted to verified employees and
+              administrative staff. You must use only your assigned corporate
+              credentials. Unauthorized access attempts are monitored and
+              recorded.
             </p>
           </section>
 
           <section>
-            <h3 className="font-bold text-slate-900">3. Data Confidentiality</h3>
+            <h3 className="font-bold text-slate-900">
+              3. Data Confidentiality
+            </h3>
             <p className="mt-1">
-              All asset records, housing allocations, employee directories, and inspection data are strictly confidential property of Metahara Sugar Factory. Extracting or sharing data without authorization is prohibited.
+              All asset records, housing allocations, employee directories, and
+              inspection data are strictly confidential property of Metahara
+              Sugar Factory. Extracting or sharing data without authorization is
+              prohibited.
             </p>
           </section>
 
           <section>
-            <h3 className="font-bold text-slate-900">4. Support &amp; Developer Contact</h3>
+            <h3 className="font-bold text-slate-900">
+              4. Support &amp; Developer Contact
+            </h3>
             <p className="mt-1">
-              For system inquiries, account provisioning, or technical assistance, reach the developer directly via Telegram at{" "}
+              For system inquiries, account provisioning, or technical
+              assistance, reach the developer directly via Telegram at{" "}
               <a
                 href={TELEGRAM_HELP_URL}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="font-semibold text-primary hover:underline"
+                className="text-primary font-semibold hover:underline"
               >
                 https://t.me/Thefluxor
-              </a>.
+              </a>
+              .
             </p>
           </section>
         </div>
 
         {/* Footer actions */}
-        <div className="flex items-center justify-between border-t border-slate-100 bg-slate-50/70 px-5 py-3 rounded-b-2xl">
+        <div className="flex items-center justify-between rounded-b-2xl border-t border-slate-100 bg-slate-50/70 px-5 py-3">
           <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
             <Link
               href="/terms"
               target="_blank"
-              className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:underline"
+              className="text-primary inline-flex items-center gap-1.5 text-xs font-semibold hover:underline"
             >
               <span>Read Full Terms</span>
               <ExternalLink className="h-3 w-3" />
@@ -330,7 +350,7 @@ function TermsModal({
             <Link
               href="/privacy"
               target="_blank"
-              className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:underline"
+              className="text-primary inline-flex items-center gap-1.5 text-xs font-semibold hover:underline"
             >
               <span>Privacy Policy</span>
               <ExternalLink className="h-3 w-3" />
@@ -339,7 +359,7 @@ function TermsModal({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-xl bg-primary px-4 py-2 text-xs font-semibold text-white shadow-xs hover:bg-primary/90 active:scale-95 transition-all cursor-pointer"
+            className="bg-primary hover:bg-primary/90 cursor-pointer rounded-xl px-4 py-2 text-xs font-semibold text-white shadow-xs transition-all active:scale-95"
           >
             I Understand
           </button>
@@ -380,7 +400,7 @@ function DesktopField({
     <div className="group space-y-1.5 text-left">
       <label
         htmlFor={id}
-        className="block text-xs sm:text-sm font-medium text-slate-700"
+        className="block text-xs font-medium text-slate-700 sm:text-sm"
       >
         {label}
       </label>
@@ -403,9 +423,9 @@ function DesktopField({
             setFocused(false);
             props.onBlur?.(e);
           }}
-          className={`h-11 sm:h-11.5 w-full rounded-xl border bg-slate-50/90 pr-11 pl-10.5 text-base sm:text-sm text-slate-900 transition-all duration-200 outline-none placeholder:text-slate-400 ${
+          className={`h-11 w-full rounded-xl border bg-slate-50/90 pr-11 pl-10.5 text-base text-slate-900 transition-all duration-200 outline-none placeholder:text-slate-400 sm:h-11.5 sm:text-sm ${
             focused
-              ? "border-primary bg-white ring-2 ring-primary/20"
+              ? "border-primary ring-primary/20 bg-white ring-2"
               : "border-slate-200 hover:border-slate-300"
           } ${className ?? ""}`}
         />
@@ -435,10 +455,7 @@ function MobileField({
 
   return (
     <div className="space-y-1 text-left">
-      <label
-        htmlFor={id}
-        className="block text-sm font-medium text-slate-800"
-      >
+      <label htmlFor={id} className="block text-sm font-medium text-slate-800">
         {label}
         {required && <span className="text-primary ml-0.5">*</span>}
       </label>
@@ -457,7 +474,7 @@ function MobileField({
           }}
           className={`h-12 w-full rounded-xl border bg-slate-100 px-4 pr-11 text-sm text-slate-900 transition-all duration-150 outline-none placeholder:text-slate-400 ${
             focused
-              ? "border-primary bg-white ring-2 ring-primary/20"
+              ? "border-primary ring-primary/20 bg-white ring-2"
               : "border-transparent hover:bg-slate-200/70"
           } ${className ?? ""}`}
         />
@@ -489,17 +506,6 @@ export default function LoginPage({
   const { token: turnstileToken, reset: resetTurnstile } =
     useTurnstile(turnstileRef);
   const { isOnline } = useOnlineStatus();
-
-  useEffect(() => {
-    // The native APK must always start on sign-in. Never detour to the
-    // first-run /setup wizard from inside the app shell.
-    fetch("/api/setup/status")
-      .then((r) => r.json())
-      .then((d) => {
-        if (d.needsSetup && !isNativeApp()) router.replace("/setup");
-      })
-      .catch(() => {});
-  }, [router]);
 
   useEffect(() => {
     fetch("/api/auth/sso-status")
@@ -536,7 +542,9 @@ export default function LoginPage({
 
       if (result?.error) {
         const message = result.error.message || "Invalid username or password";
-        setError(isNetworkErrorMessage(message) ? NETWORK_ERROR_MESSAGE : message);
+        setError(
+          isNetworkErrorMessage(message) ? NETWORK_ERROR_MESSAGE : message,
+        );
         resetTurnstile();
         setIsLoading(false);
       } else if ((result?.data as any)?.twoFactorRedirect) {
@@ -572,7 +580,9 @@ export default function LoginPage({
 
     // Google Sign-In - Under Development
     if (provider === "google") {
-      setDevMessage("Google Sign-In is currently under development. Please use email sign-in for now.");
+      setDevMessage(
+        "Google Sign-In is currently under development. Please use email sign-in for now.",
+      );
       setTimeout(() => setDevMessage(""), 4000);
       return;
     }
@@ -593,7 +603,9 @@ export default function LoginPage({
         const message =
           result.error.message ||
           `${provider === "google" ? "Google" : "Microsoft"} Sign-In failed`;
-        setError(isNetworkErrorMessage(message) ? NETWORK_ERROR_MESSAGE : message);
+        setError(
+          isNetworkErrorMessage(message) ? NETWORK_ERROR_MESSAGE : message,
+        );
       }
     } catch {
       setError(NETWORK_ERROR_MESSAGE);
@@ -602,22 +614,17 @@ export default function LoginPage({
 
   /* ─────────────────── MOBILE / APK view (< md) ─────────────────── */
   const mobileView = (
-    <div className="md:hidden relative flex min-h-[100dvh] w-full flex-col justify-between items-center overflow-x-hidden overflow-y-auto px-4 py-6 font-sans select-none
-      pt-[max(1.5rem,env(safe-area-inset-top))]
-      pb-[max(1.5rem,env(safe-area-inset-bottom))]
-      pl-[max(1rem,env(safe-area-inset-left))]
-      pr-[max(1rem,env(safe-area-inset-right))]">
-
+    <div className="relative flex min-h-[100dvh] w-full flex-col items-center justify-between overflow-x-hidden overflow-y-auto px-4 py-6 pt-[max(1.5rem,env(safe-area-inset-top))] pr-[max(1rem,env(safe-area-inset-right))] pb-[max(1.5rem,env(safe-area-inset-bottom))] pl-[max(1rem,env(safe-area-inset-left))] font-sans select-none md:hidden">
       {/* ── Clean white canvas with a faint primary glow (reference design) ── */}
       <div aria-hidden className="pointer-events-none fixed inset-0 bg-white">
-        <div className="absolute -top-1/4 left-1/2 h-[55%] w-[140%] -translate-x-1/2 rounded-[50%] bg-primary/10 blur-[80px]" />
+        <div className="bg-primary/10 absolute -top-1/4 left-1/2 h-[55%] w-[140%] -translate-x-1/2 rounded-[50%] blur-[80px]" />
       </div>
 
-      <div className="relative z-10 w-full max-w-[420px] mx-auto mt-6 px-1">
+      <div className="relative z-10 mx-auto mt-6 w-full max-w-[420px] px-1">
         {/* ── Top section: Logo + Title ── */}
         <div className="flex flex-col items-center gap-3 pt-2 pb-2">
           {/* Circular logo using system primary color */}
-          <div className="relative flex h-[72px] w-[72px] items-center justify-center rounded-full bg-primary shadow-lg shadow-primary/30 overflow-hidden">
+          <div className="bg-primary shadow-primary/30 relative flex h-[72px] w-[72px] items-center justify-center overflow-hidden rounded-full shadow-lg">
             <Image
               src="/images/msflogo.jpg"
               alt="MSF Logo"
@@ -628,11 +635,11 @@ export default function LoginPage({
             />
           </div>
 
-          <div className="text-center space-y-0.5 mt-1">
+          <div className="mt-1 space-y-0.5 text-center">
             <h1 className="text-2xl font-bold tracking-tight text-slate-900">
               Sign in
             </h1>
-            <p className="text-sm text-slate-500 font-medium">
+            <p className="text-sm font-medium text-slate-500">
               Sign in to MSF Asset &amp; House Portal
             </p>
           </div>
@@ -652,7 +659,7 @@ export default function LoginPage({
         {/* ── Form ── */}
         <form
           onSubmit={handleSubmit}
-          className="mt-6 space-y-4 w-full"
+          className="mt-6 w-full space-y-4"
           noValidate
         >
           <MobileField
@@ -694,7 +701,7 @@ export default function LoginPage({
                 tabIndex={-1}
                 aria-label={showPassword ? "Hide password" : "Show password"}
                 onClick={() => setShowPassword((v) => !v)}
-                className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-400 transition-colors hover:text-slate-600 active:scale-95 cursor-pointer"
+                className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-lg text-slate-400 transition-colors hover:text-slate-600 active:scale-95"
               >
                 {showPassword ? (
                   <EyeOff className="h-4 w-4" />
@@ -707,7 +714,7 @@ export default function LoginPage({
 
           {/* Options row */}
           <div className="flex items-center justify-between pt-0.5">
-            <label className="group flex items-center gap-2 cursor-pointer select-none">
+            <label className="group flex cursor-pointer items-center gap-2 select-none">
               <input
                 type="checkbox"
                 checked={remember}
@@ -721,9 +728,7 @@ export default function LoginPage({
                     : "border-slate-300 bg-white group-hover:border-slate-400"
                 }`}
               >
-                {remember && (
-                  <Check className="h-2.5 w-2.5 stroke-[3]" />
-                )}
+                {remember && <Check className="h-2.5 w-2.5 stroke-[3]" />}
               </span>
               <span className="text-sm font-medium text-slate-600">
                 Remember me
@@ -731,7 +736,7 @@ export default function LoginPage({
             </label>
             <Link
               href="/forgot-password"
-              className="text-sm font-semibold text-primary hover:text-primary/80 transition-colors"
+              className="text-primary hover:text-primary/80 text-sm font-semibold transition-colors"
             >
               Forgot Password?
             </Link>
@@ -741,7 +746,7 @@ export default function LoginPage({
           {error && !isNetworkErrorMessage(error) && (
             <div
               role="alert"
-              className="login-shake relative flex items-start gap-2.5 rounded-xl bg-red-50 pl-4 pr-3.5 py-3 text-sm text-red-700 border-l-4 border-red-500 shadow-sm"
+              className="login-shake relative flex items-start gap-2.5 rounded-xl border-l-4 border-red-500 bg-red-50 py-3 pr-3.5 pl-4 text-sm text-red-700 shadow-sm"
             >
               <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-500" />
               <span className="leading-snug font-medium">{error}</span>
@@ -753,7 +758,7 @@ export default function LoginPage({
             <div
               role="status"
               aria-live="polite"
-              className="relative flex items-start gap-2.5 rounded-xl bg-blue-50 pl-4 pr-3.5 py-3 text-sm text-blue-700 border-l-4 border-blue-500 shadow-sm animate-in fade-in slide-in-from-top-2 duration-300"
+              className="animate-in fade-in slide-in-from-top-2 relative flex items-start gap-2.5 rounded-xl border-l-4 border-blue-500 bg-blue-50 py-3 pr-3.5 pl-4 text-sm text-blue-700 shadow-sm duration-300"
             >
               <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-blue-500" />
               <span className="leading-snug font-medium">{devMessage}</span>
@@ -770,7 +775,7 @@ export default function LoginPage({
             type="submit"
             disabled={isLoading || !isOnline}
             title={!isOnline ? "You're offline" : undefined}
-            className="group relative flex h-12 w-full items-center justify-center rounded-xl bg-primary text-white text-sm font-semibold shadow-md shadow-primary/25 transition-all duration-200 hover:bg-primary/90 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer mt-2"
+            className="group bg-primary shadow-primary/25 hover:bg-primary/90 relative mt-2 flex h-12 w-full cursor-pointer items-center justify-center rounded-xl text-sm font-semibold text-white shadow-md transition-all duration-200 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
           >
             {isLoading ? (
               <span className="flex items-center gap-2">
@@ -787,7 +792,9 @@ export default function LoginPage({
         <div className="mt-5 space-y-3">
           <div className="relative flex items-center gap-3">
             <div className="h-px flex-1 bg-slate-200" />
-            <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">or sign in with</span>
+            <span className="text-xs font-medium tracking-wider text-slate-400 uppercase">
+              or sign in with
+            </span>
             <div className="h-px flex-1 bg-slate-200" />
           </div>
           <div className="flex flex-col gap-2.5">
@@ -795,9 +802,13 @@ export default function LoginPage({
             <button
               type="button"
               onClick={() => handleSocialSignIn("google")}
-              className="flex h-11.5 w-full items-center justify-center gap-3 rounded-xl border border-slate-200 bg-white text-sm font-semibold text-slate-700 shadow-xs transition-all duration-200 hover:border-slate-300 hover:bg-slate-50/90 active:scale-[0.99] cursor-pointer"
+              className="flex h-11.5 w-full cursor-pointer items-center justify-center gap-3 rounded-xl border border-slate-200 bg-white text-sm font-semibold text-slate-700 shadow-xs transition-all duration-200 hover:border-slate-300 hover:bg-slate-50/90 active:scale-[0.99]"
             >
-              <svg className="h-4.5 w-4.5 shrink-0" viewBox="0 0 24 24" aria-hidden="true">
+              <svg
+                className="h-4.5 w-4.5 shrink-0"
+                viewBox="0 0 24 24"
+                aria-hidden="true"
+              >
                 <path
                   d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"
                   fill="#4285F4"
@@ -821,9 +832,13 @@ export default function LoginPage({
               <button
                 type="button"
                 onClick={() => handleSocialSignIn("microsoft")}
-                className="flex h-11.5 w-full items-center justify-center gap-2.5 rounded-xl border border-slate-200 bg-white text-sm font-semibold text-slate-700 shadow-xs transition-all duration-200 hover:bg-slate-50 active:scale-[0.99] cursor-pointer"
+                className="flex h-11.5 w-full cursor-pointer items-center justify-center gap-2.5 rounded-xl border border-slate-200 bg-white text-sm font-semibold text-slate-700 shadow-xs transition-all duration-200 hover:bg-slate-50 active:scale-[0.99]"
               >
-                <svg className="h-4 w-4 shrink-0" viewBox="0 0 21 21" fill="none">
+                <svg
+                  className="h-4 w-4 shrink-0"
+                  viewBox="0 0 21 21"
+                  fill="none"
+                >
                   <rect x="1" y="1" width="9" height="9" fill="#F25022" />
                   <rect x="11" y="1" width="9" height="9" fill="#7FBA00" />
                   <rect x="1" y="11" width="9" height="9" fill="#00A4EF" />
@@ -838,7 +853,7 @@ export default function LoginPage({
                 onClick={() => {
                   router.push("/api/auth/sso-init");
                 }}
-                className="flex h-11.5 w-full items-center justify-center gap-2.5 rounded-xl border border-slate-200 bg-white text-sm font-semibold text-slate-700 shadow-xs transition-all duration-200 hover:bg-slate-50 active:scale-[0.99] cursor-pointer"
+                className="flex h-11.5 w-full cursor-pointer items-center justify-center gap-2.5 rounded-xl border border-slate-200 bg-white text-sm font-semibold text-slate-700 shadow-xs transition-all duration-200 hover:bg-slate-50 active:scale-[0.99]"
               >
                 <KeyRound className="h-4 w-4 text-slate-400" />
                 Continue with {ssoStatus.providerName}
@@ -852,7 +867,7 @@ export default function LoginPage({
           <button
             type="button"
             onClick={() => setShowTermsModal(true)}
-            className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-2 text-xs sm:text-sm font-semibold text-slate-700 shadow-xs transition-all duration-200 hover:bg-slate-50 active:scale-[0.98] cursor-pointer"
+            className="inline-flex h-11 cursor-pointer items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-2 text-xs font-semibold text-slate-700 shadow-xs transition-all duration-200 hover:bg-slate-50 active:scale-[0.98] sm:text-sm"
           >
             <ScrollText className="h-4 w-4 shrink-0 text-slate-400" />
             <span>Terms of Service</span>
@@ -861,11 +876,11 @@ export default function LoginPage({
             href={TELEGRAM_HELP_URL}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-sky-200 bg-sky-50/70 px-2 text-xs sm:text-sm font-semibold text-[#0088cc] shadow-xs transition-all duration-200 hover:bg-sky-100/80 active:scale-[0.98]"
+            className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-sky-200 bg-sky-50/70 px-2 text-xs font-semibold text-[#0088cc] shadow-xs transition-all duration-200 hover:bg-sky-100/80 active:scale-[0.98] sm:text-sm"
             title="Help and Contact on Telegram"
           >
             <svg className="h-4 w-4 shrink-0 fill-current" viewBox="0 0 24 24">
-              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69a.2.2 0 0 0-.05-.18c-.06-.05-.14-.03-.21-.02-.09.02-1.49.95-4.22 2.79-.4.27-.76.41-1.08.4-.36-.01-1.04-.2-1.55-.37-.63-.2-1.12-.31-1.08-.66.02-.18.27-.36.75-.55 2.92-1.27 4.86-2.11 5.83-2.52 2.77-1.16 3.35-1.36 3.73-1.36.08 0 .27.02.39.12.1.08.13.19.14.27-.01.06.01.24 0 .38z"/>
+              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69a.2.2 0 0 0-.05-.18c-.06-.05-.14-.03-.21-.02-.09.02-1.49.95-4.22 2.79-.4.27-.76.41-1.08.4-.36-.01-1.04-.2-1.55-.37-.63-.2-1.12-.31-1.08-.66.02-.18.27-.36.75-.55 2.92-1.27 4.86-2.11 5.83-2.52 2.77-1.16 3.35-1.36 3.73-1.36.08 0 .27.02.39.12.1.08.13.19.14.27-.01.06.01.24 0 .38z" />
             </svg>
             <span>Help and Contact</span>
           </a>
@@ -873,13 +888,14 @@ export default function LoginPage({
       </div>
 
       {/* ── Footer ── */}
-      <div className="relative z-10 pt-4 pb-1 text-center space-y-1">
+      <div className="relative z-10 space-y-1 pt-4 pb-1 text-center">
         <div className="flex items-center justify-center gap-1.5 text-xs font-medium text-slate-500">
           <Building2 className="h-3 w-3 shrink-0" />
           <span>© {new Date().getFullYear()} Metahara Sugar Factory</span>
         </div>
         <div className="text-[11px] text-slate-400">
-          Powered by <span className="font-semibold text-slate-700">Temesgen</span>
+          Powered by{" "}
+          <span className="font-semibold text-slate-700">Temesgen</span>
         </div>
       </div>
     </div>
@@ -887,7 +903,7 @@ export default function LoginPage({
 
   /* ─────────────────── DESKTOP view (≥ md) — UNCHANGED ─────────────────── */
   const desktopView = (
-    <div className="hidden md:flex login-page relative min-h-[100dvh] w-full flex-col justify-between items-center overflow-x-hidden overflow-y-auto px-6 font-sans pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] pl-[max(0.875rem,env(safe-area-inset-left))] pr-[max(0.875rem,env(safe-area-inset-right))] select-none">
+    <div className="login-page relative hidden min-h-[100dvh] w-full flex-col items-center justify-between overflow-x-hidden overflow-y-auto px-6 pt-[max(1rem,env(safe-area-inset-top))] pr-[max(0.875rem,env(safe-area-inset-right))] pb-[max(1rem,env(safe-area-inset-bottom))] pl-[max(0.875rem,env(safe-area-inset-left))] font-sans select-none md:flex">
       {/* ── Premium Blue Ambient Background ── */}
       <div aria-hidden className="pointer-events-none fixed inset-0">
         <div className="absolute inset-0 bg-gradient-to-br from-[#0293CA] via-[#0284c7] to-[#0369a1]" />
@@ -895,21 +911,20 @@ export default function LoginPage({
         <div className="absolute top-1/4 -right-1/4 h-[50%] w-[50%] rounded-full bg-[radial-gradient(circle,rgba(125,211,252,0.3)_0%,transparent_70%)] blur-[80px]" />
         <div className="absolute bottom-0 left-1/4 h-[40%] w-[60%] bg-[radial-gradient(ellipse,rgba(14,165,233,0.25)_0%,transparent_70%)] blur-[90px]" />
         <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(255,255,255,0.08)_0%,transparent_40%)]" />
-        <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(255,255,255,0.05)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.05)_1px,transparent_1px)] bg-[size:60px_60px] [mask-image:radial-gradient(ellipse_70%_60%_at_50%_0%,black_30%,transparent_100%)]" />
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(255,255,255,0.05)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.05)_1px,transparent_1px)] [mask-image:radial-gradient(ellipse_70%_60%_at_50%_0%,black_30%,transparent_100%)] bg-[size:60px_60px]" />
       </div>
 
       {/* ── Login Card (Compact, Responsive, Clean) ── */}
       <main className="login-card relative z-10 mx-auto my-auto w-full max-w-[460px] sm:max-w-[480px]">
-        <div className="login-card-inner relative w-full overflow-hidden rounded-2xl bg-white px-7 py-7 shadow-[0_20px_40px_-12px_rgba(2,44,80,0.22)] border border-white/40 transition-all">
-
+        <div className="login-card-inner relative w-full overflow-hidden rounded-2xl border border-white/40 bg-white px-7 py-7 shadow-[0_20px_40px_-12px_rgba(2,44,80,0.22)] transition-all">
           {/* ── MSF Logo ── */}
-          <div className="login-section flex flex-col items-center gap-2.5 text-center pt-1">
+          <div className="login-section flex flex-col items-center gap-2.5 pt-1 text-center">
             <Image
               src="/images/msflogo.jpg"
               alt="Metahara Sugar Factory"
               width={80}
               height={80}
-              className="h-20 w-20 rounded-full object-cover shadow-xs border border-slate-100"
+              className="h-20 w-20 rounded-full border border-slate-100 object-cover shadow-xs"
               priority
             />
             <LiveClock />
@@ -917,7 +932,7 @@ export default function LoginPage({
 
           {/* ── Heading (Bilingual Titles) ── */}
           <div className="login-section mt-1.5 text-center">
-            <h1 className="text-xl font-extrabold tracking-tight text-slate-900 leading-snug">
+            <h1 className="text-xl leading-snug font-extrabold tracking-tight text-slate-900">
               የመተሐራ ስኳር ፋብሪካ
             </h1>
             <p className="mt-0.5 text-sm font-semibold text-slate-600">
@@ -983,7 +998,7 @@ export default function LoginPage({
                   tabIndex={-1}
                   aria-label={showPassword ? "Hide password" : "Show password"}
                   onClick={() => setShowPassword((v) => !v)}
-                  className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-400 transition-colors hover:text-slate-600 hover:bg-slate-100 active:scale-95 cursor-pointer"
+                  className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 active:scale-95"
                 >
                   {showPassword ? (
                     <EyeOff className="h-4 w-4" />
@@ -996,7 +1011,7 @@ export default function LoginPage({
 
             {/* Options row */}
             <div className="flex items-center justify-between pt-1">
-              <label className="group flex items-center gap-2.5 py-1.5 cursor-pointer select-none">
+              <label className="group flex cursor-pointer items-center gap-2.5 py-1.5 select-none">
                 <input
                   type="checkbox"
                   checked={remember}
@@ -1010,9 +1025,7 @@ export default function LoginPage({
                       : "border-slate-300 bg-white group-hover:border-slate-400"
                   }`}
                 >
-                  {remember && (
-                    <Check className="h-3 w-3 stroke-[3]" />
-                  )}
+                  {remember && <Check className="h-3 w-3 stroke-[3]" />}
                 </span>
                 <span className="text-sm font-medium text-slate-600">
                   Remember me
@@ -1020,7 +1033,7 @@ export default function LoginPage({
               </label>
               <Link
                 href="/forgot-password"
-                className="text-sm font-semibold text-sky-600 hover:text-sky-700 transition-colors hover:underline hover:opacity-90 px-1 py-0.5 rounded"
+                className="rounded px-1 py-0.5 text-sm font-semibold text-sky-600 transition-colors hover:text-sky-700 hover:underline hover:opacity-90"
               >
                 Forgot password?
               </Link>
@@ -1030,7 +1043,7 @@ export default function LoginPage({
             {error && !isNetworkErrorMessage(error) && (
               <div
                 role="alert"
-                className="login-shake relative flex items-start gap-2.5 rounded-xl bg-red-50 pl-4 pr-3.5 py-3.5 text-sm text-red-700 border-l-4 border-red-500 shadow-sm overflow-hidden"
+                className="login-shake relative flex items-start gap-2.5 overflow-hidden rounded-xl border-l-4 border-red-500 bg-red-50 py-3.5 pr-3.5 pl-4 text-sm text-red-700 shadow-sm"
               >
                 <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-500" />
                 <span className="leading-snug font-medium">{error}</span>
@@ -1042,7 +1055,7 @@ export default function LoginPage({
               <div
                 role="status"
                 aria-live="polite"
-                className="relative flex items-start gap-2.5 rounded-xl bg-blue-50 pl-4 pr-3.5 py-3.5 text-sm text-blue-700 border-l-4 border-blue-500 shadow-sm overflow-hidden animate-in fade-in slide-in-from-top-2 duration-300"
+                className="animate-in fade-in slide-in-from-top-2 relative flex items-start gap-2.5 overflow-hidden rounded-xl border-l-4 border-blue-500 bg-blue-50 py-3.5 pr-3.5 pl-4 text-sm text-blue-700 shadow-sm duration-300"
               >
                 <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-blue-500" />
                 <span className="leading-snug font-medium">{devMessage}</span>
@@ -1059,7 +1072,7 @@ export default function LoginPage({
               type="submit"
               disabled={isLoading || !isOnline}
               title={!isOnline ? "You're offline" : undefined}
-              className="group relative flex h-11.5 w-full items-center justify-center rounded-xl bg-primary text-primary-foreground text-base font-semibold shadow-sm transition-all duration-200 hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
+              className="group bg-primary text-primary-foreground hover:bg-primary/90 focus-visible:ring-ring relative flex h-11.5 w-full cursor-pointer items-center justify-center rounded-xl text-base font-semibold shadow-sm transition-all duration-200 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
             >
               {isLoading ? (
                 <span className="flex items-center gap-2">
@@ -1079,7 +1092,7 @@ export default function LoginPage({
           <div className="login-section mt-5 space-y-3">
             <div className="relative flex items-center gap-3">
               <div className="h-px flex-1 bg-slate-200" />
-              <span className="text-[11px] font-medium uppercase tracking-wider text-slate-400">
+              <span className="text-[11px] font-medium tracking-wider text-slate-400 uppercase">
                 or continue with
               </span>
               <div className="h-px flex-1 bg-slate-200" />
@@ -1089,9 +1102,13 @@ export default function LoginPage({
               <button
                 type="button"
                 onClick={() => handleSocialSignIn("google")}
-                className="group flex h-12 w-full items-center justify-center gap-3 rounded-xl border border-slate-200 bg-white text-sm font-semibold text-slate-700 shadow-2xs transition-all duration-200 hover:border-slate-300 hover:bg-slate-50/90 active:scale-[0.99] cursor-pointer"
+                className="group flex h-12 w-full cursor-pointer items-center justify-center gap-3 rounded-xl border border-slate-200 bg-white text-sm font-semibold text-slate-700 shadow-2xs transition-all duration-200 hover:border-slate-300 hover:bg-slate-50/90 active:scale-[0.99]"
               >
-                <svg className="h-4.5 w-4.5 shrink-0" viewBox="0 0 24 24" aria-hidden="true">
+                <svg
+                  className="h-4.5 w-4.5 shrink-0"
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
+                >
                   <path
                     d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"
                     fill="#4285F4"
@@ -1115,7 +1132,7 @@ export default function LoginPage({
                 <button
                   type="button"
                   onClick={() => handleSocialSignIn("microsoft")}
-                  className="group flex h-12 w-full items-center justify-center gap-2.5 rounded-xl border border-slate-200 bg-white text-sm font-semibold text-slate-700 transition-all duration-200 hover:bg-slate-50 active:scale-[0.99] cursor-pointer"
+                  className="group flex h-12 w-full cursor-pointer items-center justify-center gap-2.5 rounded-xl border border-slate-200 bg-white text-sm font-semibold text-slate-700 transition-all duration-200 hover:bg-slate-50 active:scale-[0.99]"
                 >
                   <svg className="h-4 w-4" viewBox="0 0 21 21" fill="none">
                     <rect x="1" y="1" width="9" height="9" fill="#F25022" />
@@ -1132,7 +1149,7 @@ export default function LoginPage({
                   onClick={() => {
                     router.push("/api/auth/sso-init");
                   }}
-                  className="group flex h-12 w-full items-center justify-center gap-2.5 rounded-xl border border-slate-200 bg-white text-sm font-semibold text-slate-700 transition-all duration-200 hover:bg-slate-50 active:scale-[0.99] cursor-pointer"
+                  className="group flex h-12 w-full cursor-pointer items-center justify-center gap-2.5 rounded-xl border border-slate-200 bg-white text-sm font-semibold text-slate-700 transition-all duration-200 hover:bg-slate-50 active:scale-[0.99]"
                 >
                   <KeyRound className="h-4 w-4 text-slate-400" />
                   Continue with {ssoStatus.providerName}
@@ -1146,7 +1163,7 @@ export default function LoginPage({
             <button
               type="button"
               onClick={() => setShowTermsModal(true)}
-              className="inline-flex h-10 items-center justify-center gap-2 rounded-none bg-slate-100 text-xs font-semibold text-slate-700 transition-all duration-200 hover:bg-slate-200 hover:text-primary active:scale-[0.98] cursor-pointer"
+              className="hover:text-primary inline-flex h-10 cursor-pointer items-center justify-center gap-2 rounded-none bg-slate-100 text-xs font-semibold text-slate-700 transition-all duration-200 hover:bg-slate-200 active:scale-[0.98]"
             >
               <ScrollText className="h-4 w-4 shrink-0 text-slate-400" />
               <span>Terms of Service</span>
@@ -1158,29 +1175,33 @@ export default function LoginPage({
               className="inline-flex h-10 items-center justify-center gap-2 rounded-none bg-sky-100 text-xs font-semibold text-[#0088cc] transition-all duration-200 hover:bg-sky-200 active:scale-[0.98]"
               title="Help and Contact on Telegram"
             >
-              <svg className="h-4 w-4 shrink-0 fill-current" viewBox="0 0 24 24">
-                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69a.2.2 0 0 0-.05-.18c-.06-.05-.14-.03-.21-.02-.09.02-1.49.95-4.22 2.79-.4.27-.76.41-1.08.4-.36-.01-1.04-.2-1.55-.37-.63-.2-1.12-.31-1.08-.66.02-.18.27-.36.75-.55 2.92-1.27 4.86-2.11 5.83-2.52 2.77-1.16 3.35-1.36 3.73-1.36.08 0 .27.02.39.12.1.08.13.19.14.27-.01.06.01.24 0 .38z"/>
+              <svg
+                className="h-4 w-4 shrink-0 fill-current"
+                viewBox="0 0 24 24"
+              >
+                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69a.2.2 0 0 0-.05-.18c-.06-.05-.14-.03-.21-.02-.09.02-1.49.95-4.22 2.79-.4.27-.76.41-1.08.4-.36-.01-1.04-.2-1.55-.37-.63-.2-1.12-.31-1.08-.66.02-.18.27-.36.75-.55 2.92-1.27 4.86-2.11 5.83-2.52 2.77-1.16 3.35-1.36 3.73-1.36.08 0 .27.02.39.12.1.08.13.19.14.27-.01.06.01.24 0 .38z" />
               </svg>
               <span>Help and Contact</span>
             </a>
           </div>
 
           {/* ── Footer ── */}
-          <div className="login-section mt-5 pt-3.5 border-t border-slate-100 text-center space-y-1">
+          <div className="login-section mt-5 space-y-1 border-t border-slate-100 pt-3.5 text-center">
             <div className="flex items-center justify-center gap-1.5 text-xs font-medium text-slate-500">
               <Building2 className="h-3 w-3 shrink-0 text-slate-400" />
               <span>© {new Date().getFullYear()} Metahara Sugar Factory</span>
             </div>
             <div className="text-[11px] text-slate-400">
-              Powered by <span className="font-semibold text-slate-600">Temesgen</span>
+              Powered by{" "}
+              <span className="font-semibold text-slate-600">Temesgen</span>
             </div>
           </div>
         </div>
       </main>
 
       {/* ── Bottom Safe-Area Spacer ── */}
-      <footer className="relative z-10 w-full max-w-[480px] text-center py-1">
-        <p className="text-[11px] text-white/80 tracking-wide font-medium">
+      <footer className="relative z-10 w-full max-w-[480px] py-1 text-center">
+        <p className="text-[11px] font-medium tracking-wide text-white/80">
           HomeDesk Enterprise Platform • v0.7.0
         </p>
       </footer>

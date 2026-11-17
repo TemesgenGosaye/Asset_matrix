@@ -1,6 +1,7 @@
 "use strict";
 
 const retryButton = document.getElementById("retryButton");
+const retryLabel = document.getElementById("retryLabel");
 const retryNote = document.getElementById("retryNote");
 const countdown = document.getElementById("countdown");
 const targetHost = document.getElementById("targetHost");
@@ -21,7 +22,7 @@ function startCountdown(seconds) {
       clearInterval(countdownTimer);
       countdownTimer = null;
       if (countdown) countdown.textContent = "0";
-      if (retryNote) retryNote.textContent = "Retrying now\u2026";
+      if (retryNote) retryNote.textContent = "Reconnecting now\u2026";
       return;
     }
     if (countdown) countdown.textContent = String(secondsRemaining);
@@ -32,9 +33,10 @@ async function initialise() {
   try {
     const info = await window.desktop.getAppInfo();
 
-    const targets = [info && info.appUrl, ...((info && info.fallbackUrls) || [])].filter(
-      Boolean,
-    );
+    const targets = [
+      info && info.appUrl,
+      ...((info && info.fallbackUrls) || []),
+    ].filter(Boolean);
 
     if (targets.length) {
       targetHost.textContent = targets
@@ -65,14 +67,16 @@ async function initialise() {
 
 retryButton.addEventListener("click", () => {
   retryButton.disabled = true;
-  retryButton.textContent = "Retrying\u2026";
-  if (retryNote) retryNote.textContent = "Attempting to reconnect to the portal\u2026";
+  if (retryLabel) retryLabel.textContent = "Reconnecting\u2026";
+  if (retryNote)
+    retryNote.textContent = "Attempting to reconnect to the portal\u2026";
   if (countdownTimer) clearInterval(countdownTimer);
 
   Promise.resolve(window.desktop.retry()).catch(() => {
     retryButton.disabled = false;
-    retryButton.textContent = "Retry Connection";
-    if (retryNote) retryNote.textContent = "Could not start a retry. Please try again.";
+    if (retryLabel) retryLabel.textContent = "Reconnect now";
+    if (retryNote)
+      retryNote.textContent = "Could not start a retry. Please try again.";
   });
 });
 

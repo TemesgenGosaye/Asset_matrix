@@ -25,7 +25,6 @@ const AssistantLauncher = dynamic(() => import("./ai/AssistantLauncher"), {
 const PUBLIC_ROUTES = [
   "/login",
   "/register",
-  "/setup",
   "/forgot-password",
   "/reset-password",
   "/mfa-verify",

@@ -45,8 +45,20 @@ describe("normalizeMinMax", () => {
 describe("computeMCDAScores", () => {
   it("scores a cohort within [0,1], highest service years first", () => {
     const candidates = [
-      { candidateId: "a", serviceYears: 10, maritalStatus: "married", disabilityStatus: "Yes", gender: "female" },
-      { candidateId: "b", serviceYears: 1, maritalStatus: "single", disabilityStatus: "No", gender: "male" },
+      {
+        candidateId: "a",
+        serviceYears: 10,
+        maritalStatus: "married",
+        disabilityStatus: "Yes",
+        gender: "female",
+      },
+      {
+        candidateId: "b",
+        serviceYears: 1,
+        maritalStatus: "single",
+        disabilityStatus: "No",
+        gender: "male",
+      },
     ];
     const scores = computeMCDAScores(candidates);
     const a = scores.find((s) => s.candidateId === "a")!;
@@ -58,8 +70,20 @@ describe("computeMCDAScores", () => {
 
   it("produces a weighted sum of the normalized components", () => {
     const results = computeMCDAScores([
-      { candidateId: "c", serviceYears: 5, maritalStatus: "married", disabilityStatus: "Yes", gender: "female" },
-      { candidateId: "d", serviceYears: 0, maritalStatus: "single", disabilityStatus: "No", gender: "male" },
+      {
+        candidateId: "c",
+        serviceYears: 5,
+        maritalStatus: "married",
+        disabilityStatus: "Yes",
+        gender: "female",
+      },
+      {
+        candidateId: "d",
+        serviceYears: 0,
+        maritalStatus: "single",
+        disabilityStatus: "No",
+        gender: "male",
+      },
     ]);
     const c = results.find((r) => r.candidateId === "c")!;
     // service yrs (1.0, normalized) · 0.4 + marital (1.0) · 0.25 +
@@ -69,17 +93,27 @@ describe("computeMCDAScores", () => {
 
   it("ties sisters candidates with identical attributes", () => {
     const results = computeMCDAScores([
-      { candidateId: "x", serviceYears: 4, maritalStatus: "married", disabilityStatus: "Yes", gender: "female" },
-      { candidateId: "y", serviceYears: 4, maritalStatus: "married", disabilityStatus: "Yes", gender: "female" },
+      {
+        candidateId: "x",
+        serviceYears: 4,
+        maritalStatus: "married",
+        disabilityStatus: "Yes",
+        gender: "female",
+      },
+      {
+        candidateId: "y",
+        serviceYears: 4,
+        maritalStatus: "married",
+        disabilityStatus: "Yes",
+        gender: "female",
+      },
     ]);
     expect(results[0].score).toEqual(results[1].score);
   });
 });
 
 describe("tie-breaking", () => {
-  const entry = (
-    over: Partial<RankableEntry>,
-  ): RankableEntry => ({
+  const entry = (over: Partial<RankableEntry>): RankableEntry => ({
     candidateId: over.candidateId ?? "id",
     score: over.score ?? 0.5,
     serviceYears: over.serviceYears ?? 5,
@@ -94,8 +128,16 @@ describe("tie-breaking", () => {
   });
 
   it("breaks equal-score-and-service ties by earlier hire date", () => {
-    const a = entry({ candidateId: "a", serviceYears: 5, hireDate: "2018-05-01" });
-    const b = entry({ candidateId: "b", serviceYears: 5, hireDate: "2020-05-01" });
+    const a = entry({
+      candidateId: "a",
+      serviceYears: 5,
+      hireDate: "2018-05-01",
+    });
+    const b = entry({
+      candidateId: "b",
+      serviceYears: 5,
+      hireDate: "2020-05-01",
+    });
     expect(compareCandidates(a, b)).toBeLessThan(0);
   });
 
@@ -122,13 +164,27 @@ describe("rankCandidates", () => {
 
   it("assigns 1-based ranks in comparator order", () => {
     const entries: RankableEntry[] = [
-      { candidateId: "a", score: 0.9, serviceYears: 3, hireDate: null, employeeNumber: "E001" },
-      { candidateId: "b", score: 0.3, serviceYears: 1, hireDate: null, employeeNumber: "E002" },
+      {
+        candidateId: "a",
+        score: 0.9,
+        serviceYears: 3,
+        hireDate: null,
+        employeeNumber: "E001",
+      },
+      {
+        candidateId: "b",
+        score: 0.3,
+        serviceYears: 1,
+        hireDate: null,
+        employeeNumber: "E002",
+      },
     ];
-    expect(rankCandidates(entries).map((e) => [e.candidateId, e.rank])).toEqual([
-      ["a", 1],
-      ["b", 2],
-    ]);
+    expect(rankCandidates(entries).map((e) => [e.candidateId, e.rank])).toEqual(
+      [
+        ["a", 1],
+        ["b", 2],
+      ],
+    );
   });
 
   it("uses scoresEqual for near-equal score ties", () => {
@@ -147,6 +203,8 @@ describe("calculateServiceYears", () => {
   it("computes whole years from a valid date", () => {
     const twoYearsAgo = new Date();
     twoYearsAgo.setFullYear(twoYearsAgo.getFullYear() - 2);
-    expect(calculateServiceYears(twoYearsAgo.toISOString())).toBeGreaterThanOrEqual(1);
+    expect(
+      calculateServiceYears(twoYearsAgo.toISOString()),
+    ).toBeGreaterThanOrEqual(1);
   });
 });

@@ -1,29 +1,42 @@
-/* ─── Design Tokens ──────────────────────────────────────────── */
+/* ==========================================================================
+   Msf HomeDesk - Splash Screen
+   Premium, dependency-free brand experience.
+   ========================================================================== */
+
 :root {
-  color-scheme: light;
+  color-scheme: dark;
 
-  --brand:        #006699;
-  --brand-dark:   #005580;
-  --brand-light:  #e6f3f8;
-  --brand-mid:    #cce8f2;
-
-  --gray-100: #f3f4f6;
-  --gray-200: #e5e7eb;
-  --gray-400: #9ca3af;
-  --gray-500: #6b7280;
-  --gray-900: #111827;
+  --navy-950: #050b18;
+  --navy-900: #081428;
+  --navy-800: #0e2143;
+  --brand: #38bdf8;
+  --brand-strong: #0ea5e9;
+  --brand-deep: #0369a1;
+  --text: #f8fafc;
+  --text-muted: #94a3b8;
+  --line: rgba(148, 163, 184, 0.18);
 }
 
-* { box-sizing: border-box; }
+* {
+  box-sizing: border-box;
+}
 
-html, body {
+html,
+body {
   margin: 0;
   width: 100%;
   height: 100%;
   background: transparent;
   overflow: hidden;
-  font-family: "Segoe UI Variable Text", "Segoe UI", Roboto, Arial, sans-serif;
+  font-family:
+    "Segoe UI Variable Display",
+    "Segoe UI",
+    -apple-system,
+    Roboto,
+    Arial,
+    sans-serif;
   user-select: none;
+  -webkit-font-smoothing: antialiased;
 }
 
 body {
@@ -32,116 +45,256 @@ body {
   padding: 10px;
 }
 
-/* ─── Splash card ─────────────────────────────────────────────── */
+/* --------------------------------------------------------------------------
+   Stage
+   -------------------------------------------------------------------------- */
 .splash {
   position: relative;
+  isolation: isolate;
   width: 100%;
   height: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 30px 34px 22px;
-  text-align: center;
-  border: 1px solid var(--gray-200);
-  border-radius: 16px;
-  background: #ffffff;
-  box-shadow:
-    0 4px 24px rgba(0, 0, 0, 0.08),
-    0 1px 4px rgba(0, 0, 0, 0.05);
   overflow: hidden;
+  border: 1px solid rgba(56, 189, 248, 0.2);
+  border-radius: 20px;
+  background:
+    radial-gradient(120% 120% at 50% 0%, #0f2a52 0%, transparent 55%),
+    linear-gradient(160deg, var(--navy-900) 0%, var(--navy-950) 100%);
+  box-shadow:
+    0 24px 60px -18px rgba(2, 8, 23, 0.85),
+    0 0 0 1px rgba(2, 8, 23, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 
-/* Top accent stripe inside splash */
-.splash::before {
-  content: "";
+/* Soft moving aurora behind the content */
+.aurora {
   position: absolute;
-  top: 0; left: 0; right: 0;
-  height: 3px;
-  background: linear-gradient(90deg, var(--brand), #38bdf8);
-  border-radius: 16px 16px 0 0;
+  inset: -40%;
+  z-index: -1;
+  background:
+    radial-gradient(
+      38% 38% at 30% 25%,
+      rgba(56, 189, 248, 0.28),
+      transparent 70%
+    ),
+    radial-gradient(
+      34% 34% at 75% 70%,
+      rgba(14, 165, 233, 0.22),
+      transparent 70%
+    );
+  filter: blur(10px);
+  animation: drift 12s ease-in-out infinite alternate;
 }
 
-/* ─── App icon ────────────────────────────────────────────────── */
+.grid {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background-image:
+    linear-gradient(rgba(148, 163, 184, 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(148, 163, 184, 0.06) 1px, transparent 1px);
+  background-size: 26px 26px;
+  mask-image: radial-gradient(circle at 50% 45%, #000 0%, transparent 78%);
+  -webkit-mask-image: radial-gradient(
+    circle at 50% 45%,
+    #000 0%,
+    transparent 78%
+  );
+  opacity: 0.7;
+}
+
+@keyframes drift {
+  from {
+    transform: translate3d(-4%, -2%, 0) scale(1);
+  }
+  to {
+    transform: translate3d(4%, 3%, 0) scale(1.08);
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Content
+   -------------------------------------------------------------------------- */
+.content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 8px 28px 0;
+  text-align: center;
+  animation: rise 620ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Brand mark with orbit ring */
 .brand-mark {
   position: relative;
   display: grid;
   place-items: center;
-  width: 88px;
-  height: 88px;
-  margin-bottom: 18px;
-  border: 1px solid var(--brand-mid);
-  border-radius: 20px;
-  background: var(--brand-light);
-  box-shadow: 0 4px 14px rgba(0, 102, 153, 0.15);
+  width: 96px;
+  height: 96px;
+  margin-bottom: 16px;
+}
+
+.brand-mark::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 26px;
+  background: radial-gradient(
+    circle at 50% 40%,
+    rgba(56, 189, 248, 0.32),
+    transparent 68%
+  );
+  filter: blur(12px);
 }
 
 .brand-mark img {
-  width: 68px;
-  height: 68px;
+  position: relative;
+  z-index: 2;
+  width: 72px;
+  height: 72px;
   object-fit: contain;
-  border-radius: 14px;
+  border-radius: 18px;
+  box-shadow: 0 10px 24px -8px rgba(2, 132, 199, 0.75);
 }
 
-/* ─── Title ───────────────────────────────────────────────────── */
-h1 {
-  margin: 0;
-  color: var(--gray-900);
-  font-size: 16px;
-  font-weight: 800;
-  letter-spacing: -0.01em;
+.ring {
+  position: absolute;
+  inset: 2px;
+  z-index: 1;
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  border-radius: 24px;
+  animation: breathe 3.4s ease-in-out infinite;
 }
 
-.company {
-  margin: 5px 0 24px;
-  color: var(--gray-400);
-  font-size: 11.5px;
-  letter-spacing: 0.08em;
+@keyframes breathe {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.55;
+  }
+  50% {
+    transform: scale(1.06);
+    opacity: 1;
+  }
+}
+
+.eyebrow {
+  margin: 0 0 6px;
+  color: var(--brand);
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.22em;
   text-transform: uppercase;
 }
 
-/* ─── Progress bar ────────────────────────────────────────────── */
-.loader {
-  width: 180px;
-  height: 3px;
+h1 {
+  margin: 0;
+  color: var(--text);
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  text-shadow: 0 2px 18px rgba(56, 189, 248, 0.25);
+}
+
+.tagline {
+  margin: 6px 0 22px;
+  color: var(--text-muted);
+  font-size: 11.5px;
+  letter-spacing: 0.02em;
+}
+
+/* --------------------------------------------------------------------------
+   Progress
+   -------------------------------------------------------------------------- */
+.progress {
+  position: relative;
+  width: 190px;
+  height: 4px;
   overflow: hidden;
   border-radius: 999px;
-  background: var(--gray-200);
+  background: rgba(148, 163, 184, 0.16);
+  box-shadow: inset 0 1px 2px rgba(2, 8, 23, 0.6);
 }
 
-.loader span {
-  display: block;
-  width: 40%;
-  height: 100%;
+.progress span {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 38%;
   border-radius: inherit;
-  background: linear-gradient(90deg, var(--brand), #38bdf8);
-  animation: loading 1.35s cubic-bezier(0.65, 0, 0.35, 1) infinite;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--brand-strong),
+    var(--brand),
+    transparent
+  );
+  animation: shimmer 1.4s cubic-bezier(0.65, 0, 0.35, 1) infinite;
 }
 
-@keyframes loading {
-  0%   { transform: translateX(-110%); }
-  100% { transform: translateX(360%); }
+@keyframes shimmer {
+  0% {
+    transform: translateX(-120%);
+  }
+  100% {
+    transform: translateX(360%);
+  }
 }
 
-/* ─── Status text ─────────────────────────────────────────────── */
 .status {
   margin: 12px 0 0;
-  color: var(--gray-400);
-  font-size: 11px;
-  letter-spacing: 0.01em;
+  color: var(--text-muted);
+  font-size: 10.5px;
+  letter-spacing: 0.04em;
 }
 
-/* ─── Footer ──────────────────────────────────────────────────── */
-footer {
+/* --------------------------------------------------------------------------
+   Footer
+   -------------------------------------------------------------------------- */
+.splash-footer {
   position: absolute;
   right: 0;
-  bottom: 14px;
+  bottom: 12px;
   left: 0;
-  color: var(--gray-400);
-  font-size: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: rgba(148, 163, 184, 0.72);
+  font-size: 9px;
+  letter-spacing: 0.03em;
 }
 
-footer span {
-  margin: 0 4px;
-  color: var(--gray-500);
+.badge {
+  padding: 2px 7px;
+  border: 1px solid rgba(56, 189, 248, 0.32);
+  border-radius: 999px;
+  color: var(--brand);
+  background: rgba(56, 189, 248, 0.08);
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .aurora,
+  .ring,
+  .progress span {
+    animation: none;
+  }
 }

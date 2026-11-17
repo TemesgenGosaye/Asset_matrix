@@ -35,13 +35,22 @@ if (-not $dbUp) {
 }
 
 # ─── Application ─────────────────────────────────────────────────────────────
+# A single slow probe is not an outage. This host's Node event loop routinely
+# stalls for 15-22s under load (see next.config.mjs), so retry with a generous
+# timeout before killing a process that is merely busy.
 $appUp = $false
-try {
-  $resp = Invoke-WebRequest -Uri 'http://127.0.0.1:3000/api/health/live' -UseBasicParsing -TimeoutSec 10
-  if ($resp.StatusCode -eq 200) { $appUp = $true }
-} catch {}
+$probeAttempts = 3
+$probeTimeoutSec = 30
+for ($attempt = 0; $attempt -lt $probeAttempts -and -not $appUp; $attempt++) {
+  try {
+    $resp = Invoke-WebRequest -Uri 'http://127.0.0.1:3000/api/health/live' -UseBasicParsing -TimeoutSec $probeTimeoutSec
+    if ($resp.StatusCode -eq 200) { $appUp = $true }
+  } catch {}
+  if (-not $appUp -and $attempt -lt ($probeAttempts - 1)) { Start-Sleep -Seconds 3 }
+}
 
 if ($appUp) { exit 0 }
+Write-WatchdogLog "liveness probe failed $probeAttempts times (${probeTimeoutSec}s timeout each)"
 
 # The task can be "running" while the process behind it is a zombie: the port
 # stays bound by an orphaned node process that no longer serves requests, and a

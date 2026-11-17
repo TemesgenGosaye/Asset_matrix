@@ -47,6 +47,7 @@ import {
   FileSpreadsheet,
   FileText,
   Loader2,
+  Upload,
 } from "lucide-react";
 import { notify } from "@/lib/feedback/notify";
 import {
@@ -57,6 +58,7 @@ import {
 import HouseholdFormModal from "./HouseholdFormModal";
 import HouseholdStatusModal from "./HouseholdStatusModal";
 import { HouseholdStatusBadge } from "./house-status";
+import HouseholdImportWizard from "@/app/import/ui/HouseholdImportWizard";
 
 interface LocationItem {
   locationid: string;
@@ -184,6 +186,7 @@ export default function HouseholdRegisterClient({
   const [deletingHousehold, setDeletingHousehold] =
     useState<HouseholdItem | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
 
   // Refresh data from server
   const refreshData = useCallback(async () => {
@@ -290,10 +293,20 @@ export default function HouseholdRegisterClient({
 
   const exportColumns = useMemo<BrandedTableColumn<HouseholdItem>[]>(
     () => [
-      { header: "SR No.", align: "right", width: 0.5, value: (_r, i) => String(i + 1) },
+      {
+        header: "SR No.",
+        align: "right",
+        width: 0.5,
+        value: (_r, i) => String(i + 1),
+      },
       { header: "HID", width: 1.2, value: (r) => r.hid },
       { header: "House No.", width: 1.0, value: (r) => r.houseNumber },
-      { header: "Type", align: "center", width: 0.9, value: (r) => r.houseType },
+      {
+        header: "Type",
+        align: "center",
+        width: 0.9,
+        value: (r) => r.houseType,
+      },
       {
         header: "Category",
         align: "center",
@@ -323,10 +336,30 @@ export default function HouseholdRegisterClient({
         width: 1.0,
         value: (r) => (assignedSet.has(r.id) ? "Occupied" : "Unassigned"),
       },
-      { header: "Beds", align: "right", width: 0.6, value: (r) => String(r.bedCount) },
-      { header: "Chairs", align: "right", width: 0.6, value: (r) => String(r.chairsCount) },
-      { header: "Lockers", align: "right", width: 0.6, value: (r) => String(r.lockerCount) },
-      { header: "Tables", align: "right", width: 0.6, value: (r) => String(r.tablesCount) },
+      {
+        header: "Beds",
+        align: "right",
+        width: 0.6,
+        value: (r) => String(r.bedCount),
+      },
+      {
+        header: "Chairs",
+        align: "right",
+        width: 0.6,
+        value: (r) => String(r.chairsCount),
+      },
+      {
+        header: "Lockers",
+        align: "right",
+        width: 0.6,
+        value: (r) => String(r.lockerCount),
+      },
+      {
+        header: "Tables",
+        align: "right",
+        width: 0.6,
+        value: (r) => String(r.tablesCount),
+      },
       { header: "Damage", width: 1.8, value: (r) => householdDamageSummary(r) },
     ],
     [assignedSet],
@@ -787,7 +820,7 @@ export default function HouseholdRegisterClient({
       </div>
 
       {/* ─── Search & Filters Bar ─── */}
-      <div className="bg-card flex items-center gap-3 rounded-xl border p-3 shadow-sm overflow-x-auto">
+      <div className="bg-card flex items-center gap-3 overflow-x-auto rounded-xl border p-3 shadow-sm">
         <div className="flex shrink-0 items-center gap-2">
           <div className="relative w-64 sm:w-80">
             <Search className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />
@@ -816,15 +849,16 @@ export default function HouseholdRegisterClient({
               </button>
             ) : null}
           </div>
-          <Button size="sm" className="h-9 shrink-0 px-4" onClick={submitSearch}>
+          <Button
+            size="sm"
+            className="h-9 shrink-0 px-4"
+            onClick={submitSearch}
+          >
             Search
           </Button>
         </div>
 
-        <div
-          className="bg-border h-6 w-px shrink-0"
-          aria-hidden
-        />
+        <div className="bg-border h-6 w-px shrink-0" aria-hidden />
 
         <div className="flex flex-nowrap items-center gap-2">
           {/* House Type Filter */}
@@ -951,7 +985,6 @@ export default function HouseholdRegisterClient({
             Register House
           </Button>
 
-          {/* Export */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
@@ -959,7 +992,7 @@ export default function HouseholdRegisterClient({
                 size="icon"
                 className="h-9 w-9 shrink-0"
                 disabled={exporting}
-                aria-label="Export options"
+                aria-label="More options"
               >
                 {exporting ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -968,7 +1001,13 @@ export default function HouseholdRegisterClient({
                 )}
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-44">
+            <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuLabel>Actions</DropdownMenuLabel>
+              <DropdownMenuItem onClick={() => setImportOpen(true)}>
+                <Upload className="h-4 w-4" />
+                Import houses
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
               <DropdownMenuLabel>Export</DropdownMenuLabel>
               <DropdownMenuItem
                 disabled={exporting}
@@ -1123,6 +1162,24 @@ export default function HouseholdRegisterClient({
               {deleteLoading ? "Deleting..." : "Delete House"}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={importOpen} onOpenChange={setImportOpen}>
+        <DialogContent className="max-h-[90vh] max-w-5xl overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Import House Register</DialogTitle>
+            <DialogDescription>
+              Use the existing house register import workflow to validate and
+              upload records.
+            </DialogDescription>
+          </DialogHeader>
+          <HouseholdImportWizard
+            onComplete={() => {
+              setImportOpen(false);
+              void refreshData();
+            }}
+          />
         </DialogContent>
       </Dialog>
     </div>

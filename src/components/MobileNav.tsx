@@ -88,7 +88,9 @@ export default React.memo(function MobileNav({
         if (!item.children?.length) return;
         const active =
           isActivePath(pathname, item.href, item.exact) ||
-          item.children.some((child) => isActivePath(pathname, child.href, child.exact));
+          item.children.some((child) =>
+            isActivePath(pathname, child.href, child.exact),
+          );
         if (active) activeGroups.add(item.key);
       });
     });
@@ -105,6 +107,15 @@ export default React.memo(function MobileNav({
     if (!item.labelKey) return item.label;
     const translated = t(item.labelKey);
     return translated === item.labelKey ? item.label : translated;
+  }
+
+  /** Short label for the bottom tab bar (falls back to full label). */
+  function barLabel(item: {
+    label: string;
+    labelKey?: string;
+    shortLabel?: string;
+  }): string {
+    return item.shortLabel ?? label(item);
   }
 
   function renderSheetLeaf(item: NavRegistryItem) {
@@ -134,7 +145,9 @@ export default React.memo(function MobileNav({
     const open = expanded.has(item.key);
     const active =
       isActivePath(pathname, item.href, item.exact) ||
-      item.children.some((child) => isActivePath(pathname, child.href, child.exact));
+      item.children.some((child) =>
+        isActivePath(pathname, child.href, child.exact),
+      );
     return (
       <Collapsible
         key={item.key}
@@ -159,7 +172,10 @@ export default React.memo(function MobileNav({
           <Icon className="h-5 w-5 shrink-0" />
           <span className="flex-1 truncate text-left">{label(item)}</span>
           <ChevronDown
-            className={cn("h-4 w-4 shrink-0 transition-transform", !open && "-rotate-90")}
+            className={cn(
+              "h-4 w-4 shrink-0 transition-transform",
+              !open && "-rotate-90",
+            )}
           />
         </CollapsibleTrigger>
         <CollapsibleContent className="mt-0.5 space-y-0.5">
@@ -190,7 +206,7 @@ export default React.memo(function MobileNav({
               )}
             >
               <Icon className={cn("h-5 w-5", active && "text-primary")} />
-              <span>{label(item)}</span>
+              <span>{barLabel(item)}</span>
             </Link>
           );
         })}

@@ -11,6 +11,10 @@
     <link rel="stylesheet" href="about.css" />
   </head>
   <body>
+    <div class="backdrop" aria-hidden="true">
+      <span class="orb"></span>
+    </div>
+
     <main class="about">
       <header class="hero">
         <div class="brand-mark">
@@ -42,12 +46,16 @@
           <dt>Platform</dt>
           <dd>Windows Desktop</dd>
         </div>
+        <div>
+          <dt>License</dt>
+          <dd>Proprietary &middot; Internal use</dd>
+        </div>
       </dl>
 
       <aside class="thanks" aria-label="A note from the developer">
         <p>
-          Thank you for using Msf HomeDesk. Wishing you a productive
-          and smooth experience.
+          Thank you for using Msf HomeDesk. Wishing you a productive and smooth
+          experience.
         </p>
         <p class="signature">
           &mdash; Temesgen G., IT Department<br />
@@ -61,6 +69,7 @@
       </footer>
 
       <div class="actions">
+        <button id="licenseButton" type="button" class="ghost">License</button>
         <button id="closeButton" type="button">Close</button>
       </div>
     </main>

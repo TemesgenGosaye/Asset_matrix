@@ -148,8 +148,8 @@ export default function ReleaseWorkflowDialog({
   const [step, setStep] = useState<1 | 2 | 3>(initialStep);
   const [branch, setBranch] = useState<ReleaseBranch | null>(null);
   const [note, setNote] = useState("");
-  const [effectiveDate, setEffectiveDate] = useState<string>(
-    () => new Date().toISOString().slice(0, 10),
+  const [effectiveDate, setEffectiveDate] = useState<string>(() =>
+    new Date().toISOString().slice(0, 10),
   );
 
   const [houses, setHouses] = useState<PickerHouse[]>([]);
@@ -275,9 +275,10 @@ export default function ReleaseWorkflowDialog({
           {step === 1 && (
             <div className="space-y-4">
               <p className="text-muted-foreground text-sm">
-                Choose the release reason and effective date. Clicking submit will
-                place the house <strong>Under Inspection</strong> and create an
-                inspection record. Final release occurs once inspection is completed.
+                Choose the release reason and effective date. Clicking submit
+                will place the house <strong>Under Inspection</strong> and
+                create an inspection record. Final release occurs once
+                inspection is completed.
               </p>
               <div className="space-y-2">
                 {RELEASE_BRANCH_OPTIONS.map((opt) => {
@@ -375,9 +376,8 @@ export default function ReleaseWorkflowDialog({
               {displayCategory ? (
                 <div className="space-y-2">
                   <Label className="text-muted-foreground text-xs font-medium">
-                    Available{" "}
-                    <HouseCategoryBadge category={displayCategory} /> houses,
-                    matching grade {employee.jobGrade}
+                    Available <HouseCategoryBadge category={displayCategory} />{" "}
+                    houses, matching grade {employee.jobGrade}
                   </Label>
                   {housesError ? (
                     <div className="bg-muted/20 flex flex-col items-center gap-2 rounded-lg border border-dashed px-6 py-8 text-center">
@@ -407,8 +407,9 @@ export default function ReleaseWorkflowDialog({
                   )}
                 </div>
               ) : (
-                <div className="bg-muted/20 rounded-lg border border-dashed p-6 text-center text-xs text-muted-foreground">
-                  No compatible house category configured for grade {employee.jobGrade}.
+                <div className="bg-muted/20 text-muted-foreground rounded-lg border border-dashed p-6 text-center text-xs">
+                  No compatible house category configured for grade{" "}
+                  {employee.jobGrade}.
                 </div>
               )}
 
@@ -417,8 +418,11 @@ export default function ReleaseWorkflowDialog({
                   <span className="text-primary font-semibold">
                     Chosen replacement house:
                   </span>{" "}
-                  {selectedTargetHouse.houseNumber} ({selectedTargetHouse.hid}) ·{" "}
-                  <HouseCategoryBadge category={selectedTargetHouse.houseType} />{" "}
+                  {selectedTargetHouse.houseNumber} ({selectedTargetHouse.hid})
+                  ·{" "}
+                  <HouseCategoryBadge
+                    category={selectedTargetHouse.houseType}
+                  />{" "}
                   · {selectedTargetHouse.rgType}
                   {selectedTargetHouse.locationName
                     ? ` · ${selectedTargetHouse.locationName}`
@@ -450,9 +454,10 @@ export default function ReleaseWorkflowDialog({
                   </span>
                 </div>
                 <p className="text-muted-foreground mt-2 text-xs">
-                  Submitting will set the house to <strong>UNDER_INSPECTION</strong> and
-                  create a pending inspection. The occupant stays on Allocated Houses
-                  until inspection is completed and release is confirmed.
+                  Submitting will set the house to{" "}
+                  <strong>UNDER_INSPECTION</strong> and create a pending
+                  inspection. The occupant stays on Allocated Houses until
+                  inspection is completed and release is confirmed.
                 </p>
               </div>
 
@@ -461,7 +466,9 @@ export default function ReleaseWorkflowDialog({
                   <div className="text-muted-foreground text-[11px] font-semibold">
                     Effective date
                   </div>
-                  <p className="mt-1 font-semibold">{effectiveDate || "Today"}</p>
+                  <p className="mt-1 font-semibold">
+                    {effectiveDate || "Today"}
+                  </p>
                 </div>
                 <div className="bg-muted/40 rounded-lg border p-3">
                   <div className="text-muted-foreground text-[11px] font-semibold">
@@ -495,18 +502,30 @@ export default function ReleaseWorkflowDialog({
                     <strong>
                       {execResult?.houseNumber ?? currentHouseNumber ?? "—"}
                     </strong>{" "}
-                    is now set to <strong>UNDER_INSPECTION</strong>. An inspection
-                    record with status <strong>PENDING</strong> has been registered.
+                    is now set to <strong>UNDER_INSPECTION</strong>. An
+                    inspection record with status <strong>PENDING</strong> has
+                    been registered.
                   </p>
                 </div>
               </div>
 
-              <div className="bg-muted/40 space-y-2 rounded-lg border p-4 text-xs text-muted-foreground">
-                <p className="font-semibold text-foreground text-sm">Next steps:</p>
+              <div className="bg-muted/40 text-muted-foreground space-y-2 rounded-lg border p-4 text-xs">
+                <p className="text-foreground text-sm font-semibold">
+                  Next steps:
+                </p>
                 <ol className="list-inside list-decimal space-y-1">
-                  <li>The facility inspector will conduct the handback inspection on the Inspections page.</li>
-                  <li>Completing the handback inspection atomically finalises the release and returns the house to stock.</li>
-                  <li>The archived record will be available under Terminated Houses.</li>
+                  <li>
+                    The facility inspector will conduct the handback inspection
+                    on the Inspections page.
+                  </li>
+                  <li>
+                    Completing the handback inspection atomically finalises the
+                    release and returns the house to stock.
+                  </li>
+                  <li>
+                    The archived record will be available under Terminated
+                    Houses.
+                  </li>
                 </ol>
               </div>
             </div>
@@ -553,8 +572,7 @@ export default function ReleaseWorkflowDialog({
               <Button
                 onClick={() => void submitReleaseRequest()}
                 disabled={
-                  submitting ||
-                  (branch === "TRANSFER" && !targetChoice)
+                  submitting || (branch === "TRANSFER" && !targetChoice)
                 }
                 className="gap-1.5"
               >

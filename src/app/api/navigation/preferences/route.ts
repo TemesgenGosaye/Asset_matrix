@@ -32,7 +32,10 @@ function invalidKeysResponse(
   field: string,
   keys: string[],
 ): NextResponse {
-  return NextResponse.json({ error: message, code, [field]: keys }, { status: 422 });
+  return NextResponse.json(
+    { error: message, code, [field]: keys },
+    { status: 422 },
+  );
 }
 
 /** GET /api/navigation/preferences — the caller's resolved navigation state. */
@@ -93,14 +96,22 @@ export async function PUT(request: NextRequest) {
       organizationId: user.organizationId,
     });
 
-    await setUserHiddenKeys(userId, user.organizationId ?? null, data.hiddenKeys);
+    await setUserHiddenKeys(
+      userId,
+      user.organizationId ?? null,
+      data.hiddenKeys,
+    );
 
     await createAuditLog({
       userId,
       action: AUDIT_ACTIONS.UPDATE,
       entity: AUDIT_ENTITIES.NAVIGATION_PREFERENCE,
       entityId: userId,
-      details: { scope: "user", before: before.userHiddenKeys, after: data.hiddenKeys },
+      details: {
+        scope: "user",
+        before: before.userHiddenKeys,
+        after: data.hiddenKeys,
+      },
     });
 
     const state = await getNavigationState({

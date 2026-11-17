@@ -55,7 +55,9 @@ function makeSheet(
   };
 }
 
-function house(overrides: Partial<ExistingHouseholdLite> = {}): ExistingHouseholdLite {
+function house(
+  overrides: Partial<ExistingHouseholdLite> = {},
+): ExistingHouseholdLite {
   return {
     id: "h-" + (overrides.houseNumber ?? "A1"),
     hid: "106-90-000",
@@ -82,9 +84,7 @@ function house(overrides: Partial<ExistingHouseholdLite> = {}): ExistingHousehol
   };
 }
 
-const row = (
-  cells: string[],
-): string[] => cells;
+const row = (cells: string[]): string[] => cells;
 
 describe("household-import: auto column mapping", () => {
   it("maps the exact template headers to the correct fields", () => {
@@ -109,7 +109,14 @@ describe("household-import: auto column mapping", () => {
   });
 
   it("accepts common aliases (guest house, rg, house no)", () => {
-    const headers = ["Row No", "House No", "Category", "Unit Type", "RG", "HID"];
+    const headers = [
+      "Row No",
+      "House No",
+      "Category",
+      "Unit Type",
+      "RG",
+      "HID",
+    ];
     const m = autoMapHouseholdColumns(headers);
     expect(m.srNo).toBe(0);
     expect(m.houseNumber).toBe(1);
@@ -145,11 +152,54 @@ describe("household-import: import mode parsing", () => {
 });
 
 describe("household-import: analyze & classify workbook", () => {
-  const NEW_SA1 = row(["1", "SA1", "Staff", "A", "Regular", "", "Block B", "Active", "2", "0", "0", "0", "No", "No", "No", "No", "No", "No", ""]);
+  const NEW_SA1 = row([
+    "1",
+    "SA1",
+    "Staff",
+    "A",
+    "Regular",
+    "",
+    "Block B",
+    "Active",
+    "2",
+    "0",
+    "0",
+    "0",
+    "No",
+    "No",
+    "No",
+    "No",
+    "No",
+    "No",
+    "",
+  ]);
 
   it("classifies brand-new houses in add mode", async () => {
     vi.mocked(parseWorkbook).mockResolvedValueOnce([
-      makeSheet([NEW_SA1, row(["2", "B2", "B", "", "Guest", "", "", "", "", "", "", "", "No", "No", "No", "No", "No", "No", ""])]),
+      makeSheet([
+        NEW_SA1,
+        row([
+          "2",
+          "B2",
+          "B",
+          "",
+          "Guest",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "No",
+          "No",
+          "No",
+          "No",
+          "No",
+          "No",
+          "",
+        ]),
+      ]),
     ]);
 
     const analysis = await analyzeHouseholdWorkbook(
@@ -171,7 +221,29 @@ describe("household-import: analyze & classify workbook", () => {
 
   it("marks existing houses as 'existing' (skipped) in add mode", async () => {
     vi.mocked(parseWorkbook).mockResolvedValueOnce([
-      makeSheet([row(["1", "A1", "A", "", "Guest", "", "Main Block", "Active", "1", "0", "0", "0", "No", "No", "No", "No", "No", "No", ""])]),
+      makeSheet([
+        row([
+          "1",
+          "A1",
+          "A",
+          "",
+          "Guest",
+          "",
+          "Main Block",
+          "Active",
+          "1",
+          "0",
+          "0",
+          "0",
+          "No",
+          "No",
+          "No",
+          "No",
+          "No",
+          "No",
+          "",
+        ]),
+      ]),
     ]);
 
     const existing = buildHouseholdLookups([house()]);
@@ -192,7 +264,29 @@ describe("household-import: analyze & classify workbook", () => {
 
   it("plans updates for changed existing houses in update mode", async () => {
     vi.mocked(parseWorkbook).mockResolvedValueOnce([
-      makeSheet([row(["1", "A1", "A", "", "Guest", "", "Block A", "Active", "4", "0", "0", "0", "No", "No", "No", "No", "No", "No", ""])]),
+      makeSheet([
+        row([
+          "1",
+          "A1",
+          "A",
+          "",
+          "Guest",
+          "",
+          "Block A",
+          "Active",
+          "4",
+          "0",
+          "0",
+          "0",
+          "No",
+          "No",
+          "No",
+          "No",
+          "No",
+          "No",
+          "",
+        ]),
+      ]),
     ]);
 
     const analysis = await analyzeHouseholdWorkbook(
@@ -212,7 +306,29 @@ describe("household-import: analyze & classify workbook", () => {
 
   it("skips existing houses with no changes in update mode", async () => {
     vi.mocked(parseWorkbook).mockResolvedValueOnce([
-      makeSheet([row(["1", "A1", "A", "", "Guest", "", "", "Active", "1", "0", "0", "0", "No", "No", "No", "No", "No", "No", ""])]),
+      makeSheet([
+        row([
+          "1",
+          "A1",
+          "A",
+          "",
+          "Guest",
+          "",
+          "",
+          "Active",
+          "1",
+          "0",
+          "0",
+          "0",
+          "No",
+          "No",
+          "No",
+          "No",
+          "No",
+          "No",
+          "",
+        ]),
+      ]),
     ]);
 
     const analysis = await analyzeHouseholdWorkbook(
@@ -233,7 +349,29 @@ describe("household-import: analyze & classify workbook", () => {
 
   it("reports not_found houses in update mode", async () => {
     vi.mocked(parseWorkbook).mockResolvedValueOnce([
-      makeSheet([row(["1", "D9", "D", "", "Regular", "", "", "Active", "", "", "", "", "No", "No", "No", "No", "No", "No", ""])]),
+      makeSheet([
+        row([
+          "1",
+          "D9",
+          "D",
+          "",
+          "Regular",
+          "",
+          "",
+          "Active",
+          "",
+          "",
+          "",
+          "",
+          "No",
+          "No",
+          "No",
+          "No",
+          "No",
+          "No",
+          "",
+        ]),
+      ]),
     ]);
 
     const analysis = await analyzeHouseholdWorkbook(
@@ -252,11 +390,111 @@ describe("household-import: analyze & classify workbook", () => {
   it("rejects invalid rows with friendly messages", async () => {
     vi.mocked(parseWorkbook).mockResolvedValueOnce([
       makeSheet([
-        row(["1", "F1", "A", "", "Regular", "", "", "Active", "", "", "", "", "No", "No", "No", "No", "No", "No", ""]), // bad family
-        row(["2", "B1", "X", "", "Regular", "", "", "Active", "", "", "", "", "No", "No", "No", "No", "No", "No", ""]), // bad house type
-        row(["3", "SA3", "Staff", "", "Regular", "", "", "Active", "", "", "", "", "No", "No", "No", "No", "No", "No", ""]), // staff without category
-        row(["4", "C1", "C", "", "Regular", "", "", "Inactive", "", "", "", "", "No", "No", "No", "No", "No", "No", ""]), // inactive without damage
-        row(["5", "SA4", "Staff", "C", "Regular", "", "", "Active", "-2", "", "", "", "No", "No", "No", "No", "No", "No", ""]), // negative count
+        row([
+          "1",
+          "F1",
+          "A",
+          "",
+          "Regular",
+          "",
+          "",
+          "Active",
+          "",
+          "",
+          "",
+          "",
+          "No",
+          "No",
+          "No",
+          "No",
+          "No",
+          "No",
+          "",
+        ]), // bad family
+        row([
+          "2",
+          "B1",
+          "X",
+          "",
+          "Regular",
+          "",
+          "",
+          "Active",
+          "",
+          "",
+          "",
+          "",
+          "No",
+          "No",
+          "No",
+          "No",
+          "No",
+          "No",
+          "",
+        ]), // bad house type
+        row([
+          "3",
+          "SA3",
+          "Staff",
+          "",
+          "Regular",
+          "",
+          "",
+          "Active",
+          "",
+          "",
+          "",
+          "",
+          "No",
+          "No",
+          "No",
+          "No",
+          "No",
+          "No",
+          "",
+        ]), // staff without category
+        row([
+          "4",
+          "C1",
+          "C",
+          "",
+          "Regular",
+          "",
+          "",
+          "Inactive",
+          "",
+          "",
+          "",
+          "",
+          "No",
+          "No",
+          "No",
+          "No",
+          "No",
+          "No",
+          "",
+        ]), // inactive without damage
+        row([
+          "5",
+          "SA4",
+          "Staff",
+          "C",
+          "Regular",
+          "",
+          "",
+          "Active",
+          "-2",
+          "",
+          "",
+          "",
+          "No",
+          "No",
+          "No",
+          "No",
+          "No",
+          "No",
+          "",
+        ]), // negative count
       ]),
     ]);
 
@@ -286,7 +524,27 @@ describe("household-import: analyze & classify workbook", () => {
     vi.mocked(parseWorkbook).mockResolvedValueOnce([
       makeSheet([
         NEW_SA1,
-        row(["2", "SA1", "Staff", "A", "Regular", "", "", "Active", "", "", "", "", "No", "No", "No", "No", "No", "No", ""]),
+        row([
+          "2",
+          "SA1",
+          "Staff",
+          "A",
+          "Regular",
+          "",
+          "",
+          "Active",
+          "",
+          "",
+          "",
+          "",
+          "No",
+          "No",
+          "No",
+          "No",
+          "No",
+          "No",
+          "",
+        ]),
       ]),
     ]);
 
@@ -307,7 +565,27 @@ describe("household-import: analyze & classify workbook", () => {
   it("flags a provided HID already assigned to another house as a conflict", async () => {
     vi.mocked(parseWorkbook).mockResolvedValueOnce([
       makeSheet([
-        row(["1", "A3", "A", "", "Guest", "106-90-050", "", "Active", "", "", "", "", "No", "No", "No", "No", "No", "No", ""]),
+        row([
+          "1",
+          "A3",
+          "A",
+          "",
+          "Guest",
+          "106-90-050",
+          "",
+          "Active",
+          "",
+          "",
+          "",
+          "",
+          "No",
+          "No",
+          "No",
+          "No",
+          "No",
+          "No",
+          "",
+        ]),
       ]),
     ]);
 
@@ -332,7 +610,27 @@ describe("household-import: analyze & classify workbook", () => {
   it("rejects deactivating an allocated house (queue owns that state)", async () => {
     vi.mocked(parseWorkbook).mockResolvedValueOnce([
       makeSheet([
-        row(["1", "A1", "A", "", "Guest", "", "", "Inactive", "", "", "", "", "No", "No", "No", "No", "Yes", "No", "needs repairs"]),
+        row([
+          "1",
+          "A1",
+          "A",
+          "",
+          "Guest",
+          "",
+          "",
+          "Inactive",
+          "",
+          "",
+          "",
+          "",
+          "No",
+          "No",
+          "No",
+          "No",
+          "Yes",
+          "No",
+          "needs repairs",
+        ]),
       ]),
     ]);
 
@@ -354,7 +652,27 @@ describe("household-import: analyze & classify workbook", () => {
   it("rejects activating a house with an open handback inspection", async () => {
     vi.mocked(parseWorkbook).mockResolvedValueOnce([
       makeSheet([
-        row(["1", "A1", "A", "", "Guest", "", "", "Active", "", "", "", "", "No", "No", "No", "No", "No", "No", ""]),
+        row([
+          "1",
+          "A1",
+          "A",
+          "",
+          "Guest",
+          "",
+          "",
+          "Active",
+          "",
+          "",
+          "",
+          "",
+          "No",
+          "No",
+          "No",
+          "No",
+          "No",
+          "No",
+          "",
+        ]),
       ]),
     ]);
 
@@ -376,7 +694,27 @@ describe("household-import: analyze & classify workbook", () => {
   it("accepts an Inactive house when a damage item is marked", async () => {
     vi.mocked(parseWorkbook).mockResolvedValueOnce([
       makeSheet([
-        row(["1", "C1", "C", "", "Regular", "", "", "Inactive", "", "", "", "", "No", "No", "No", "Yes", "No", "No", "roof leak"]),
+        row([
+          "1",
+          "C1",
+          "C",
+          "",
+          "Regular",
+          "",
+          "",
+          "Inactive",
+          "",
+          "",
+          "",
+          "",
+          "No",
+          "No",
+          "No",
+          "Yes",
+          "No",
+          "No",
+          "roof leak",
+        ]),
       ]),
     ]);
 

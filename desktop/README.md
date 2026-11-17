@@ -9,16 +9,18 @@ House Administration Portal. It permanently opens
 
 ## Features
 
-- Branded splash, offline error screen, and About dialog
+- Premium branded splash, offline recovery screen, About dialog, and
+  End User License Agreement viewer
 - Automatic and manual reconnect when the portal is unavailable
 - Single-instance application: a second launch focuses the existing window
 - Remembers window position, size, and maximized state
 - External links open in the default browser; unknown origins are blocked
 - Context isolation, sandboxed renderer, no Node.js in the renderer,
   restricted preload bridge, and strict CSP on all local UI pages
-- Professional NSIS installer with per-user/all-users install modes,
-  install-location selection, shortcut options, and a complete uninstaller
-- Multi-size Windows icon generated from one source PNG
+- Professional NSIS installer with branded header/sidebar artwork,
+  per-user/all-users install modes, installation summary, install-location
+  selection, shortcut options, and a complete uninstaller
+- Multi-size Windows icon and installer artwork generated from one source PNG
 
 ## Requirements
 
@@ -65,7 +67,7 @@ npm run build
 Build output is written to `desktop/dist/`:
 
 ```text
-MSF-House-Administration-Portal-Setup-<version>.exe
+Msf-HomeDesk-Setup-<version>.exe
 ```
 
 The version comes from `desktop/package.json`.
@@ -82,16 +84,20 @@ public/images/house_exe-admin_icon_house.png
 64, 128, and 256 px images, plus the PNG used by the local UI. The ICO is used
 for the executable, window/taskbar, installer, uninstaller, and shortcuts.
 
+`npm run installer-assets` generates the branded NSIS header and sidebar
+bitmaps (`build/installerHeader.bmp` and `build/installerSidebar.bmp`) from the
+same source image. The `build` and `pack` scripts run it automatically.
+
 ## Installer
 
 The NSIS installer uses an assisted wizard:
 
 1. Welcome / publisher information
-2. License
+2. End User License Agreement
 3. Install for all users or current user
 4. Install location
-5. Desktop and Start Menu shortcut options
-6. Install
+5. Installation summary and shortcut options
+6. Install, with progress
 7. Finish, with a launch checkbox
 
 The uninstaller is registered in **Apps & features** with the application icon,
@@ -128,7 +134,7 @@ certificate files or passwords.
 
 1. Update `version` in `desktop/package.json`.
 2. Update the changelog/release notes.
-3. Run `npm run icons`.
+3. Run `npm run icons` and `npm run installer-assets`.
 4. Run `npm run pack` and smoke-test the unpacked build.
 5. Test the offline error screen with the portal server stopped.
 6. Run `npm run build`.

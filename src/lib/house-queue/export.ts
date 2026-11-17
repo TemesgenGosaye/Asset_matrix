@@ -58,9 +58,27 @@ interface ExportColumnDef {
 }
 
 const COLUMNS: ExportColumnDef[] = [
-  { key: "srNo", header: "#", align: "right", width: 0.5, value: (r) => String(r.srNo) },
-  { key: "employee", header: "Employee", align: "left", width: 2.6, value: (r) => fullName(r) },
-  { key: "empId", header: "Emp ID", align: "left", width: 1.5, value: (r) => r.employeeNumber },
+  {
+    key: "srNo",
+    header: "#",
+    align: "right",
+    width: 0.5,
+    value: (r) => String(r.srNo),
+  },
+  {
+    key: "employee",
+    header: "Employee",
+    align: "left",
+    width: 2.6,
+    value: (r) => fullName(r),
+  },
+  {
+    key: "empId",
+    header: "Emp ID",
+    align: "left",
+    width: 1.5,
+    value: (r) => r.employeeNumber,
+  },
   {
     key: "grade",
     header: "Grade",
@@ -68,7 +86,13 @@ const COLUMNS: ExportColumnDef[] = [
     width: 0.8,
     value: (r) => (r.jobGrade != null ? String(r.jobGrade) : "—"),
   },
-  { key: "gender", header: "Gender", align: "center", width: 0.9, value: (r) => r.gender ?? "—" },
+  {
+    key: "gender",
+    header: "Gender",
+    align: "center",
+    width: 0.9,
+    value: (r) => r.gender ?? "—",
+  },
   {
     key: "service",
     header: "Service",
@@ -104,7 +128,8 @@ const COLUMNS: ExportColumnDef[] = [
     width: 1.0,
     value: (r: HouseQueueRow, w: McdaWeights) => {
       if (!r.mcdComponents) return "—";
-      const weighted = (r.mcdComponents[criterion.key] ?? 0) * (w[criterion.key] ?? 0);
+      const weighted =
+        (r.mcdComponents[criterion.key] ?? 0) * (w[criterion.key] ?? 0);
       return fmtScore(weighted);
     },
   })),
@@ -238,7 +263,10 @@ function loadLogoDataUrl(): Promise<string | null> {
 // Excel (ExcelJS)
 // ---------------------------------------------------------------------------
 
-async function buildExcel(group: GradeGroup, weights: McdaWeights): Promise<Blob> {
+async function buildExcel(
+  group: GradeGroup,
+  weights: McdaWeights,
+): Promise<Blob> {
   const ExcelJS = await import("exceljs");
   const workbook = new ExcelJS.Workbook();
   workbook.creator = BRAND.factoryEn;
@@ -256,7 +284,10 @@ async function buildExcel(group: GradeGroup, weights: McdaWeights): Promise<Blob
     views: [{ state: "frozen", ySplit: 4 }],
   });
 
-  sheet.columns = COLUMNS.map((c) => ({ key: c.key, width: Math.max(c.width * 7.5, 8) }));
+  sheet.columns = COLUMNS.map((c) => ({
+    key: c.key,
+    width: Math.max(c.width * 7.5, 8),
+  }));
 
   const lastCol = colLetter(COLUMNS.length);
   const argb = toArgb(bandHex(group.category));
@@ -303,7 +334,11 @@ async function buildExcel(group: GradeGroup, weights: McdaWeights): Promise<Blob
     cell.value = c.header;
     cell.font = { bold: true, size: 10, color: { argb: "FFFFFFFF" } };
     cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb } };
-    cell.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
+    cell.alignment = {
+      horizontal: "center",
+      vertical: "middle",
+      wrapText: true,
+    };
     cell.border = { top: thin(), left: thin(), bottom: thin(), right: thin() };
   });
   headerRow.height = 28;
@@ -316,9 +351,18 @@ async function buildExcel(group: GradeGroup, weights: McdaWeights): Promise<Blob
       cell.value = c.value(row, weights);
       cell.font = { size: 10, bold: c.key === "score" };
       cell.alignment = { horizontal: c.align, vertical: "middle" };
-      cell.border = { top: thin(), left: thin(), bottom: thin(), right: thin() };
+      cell.border = {
+        top: thin(),
+        left: thin(),
+        bottom: thin(),
+        right: thin(),
+      };
       if (idx % 2 === 1) {
-        cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF8FAFC" } };
+        cell.fill = {
+          type: "pattern",
+          pattern: "solid",
+          fgColor: { argb: "FFF8FAFC" },
+        };
       }
     });
   });
@@ -348,7 +392,10 @@ async function buildExcel(group: GradeGroup, weights: McdaWeights): Promise<Blob
 // PDF (jsPDF)
 // ---------------------------------------------------------------------------
 
-async function buildPdf(group: GradeGroup, weights: McdaWeights): Promise<Blob> {
+async function buildPdf(
+  group: GradeGroup,
+  weights: McdaWeights,
+): Promise<Blob> {
   const { jsPDF } = await import("jspdf");
   const doc = new jsPDF({ orientation: "landscape", unit: "pt", format: "a4" });
 
@@ -389,9 +436,14 @@ async function buildPdf(group: GradeGroup, weights: McdaWeights): Promise<Blob> 
     doc.text(`${BRAND.portalEn}  ·  ${bandLabel(group)}`, textX, top + 29);
 
     doc.setFontSize(8.5);
-    doc.text(`Generated ${new Date().toLocaleString()}`, pageW - margin, top + 14, {
-      align: "right",
-    });
+    doc.text(
+      `Generated ${new Date().toLocaleString()}`,
+      pageW - margin,
+      top + 14,
+      {
+        align: "right",
+      },
+    );
     doc.text(metaLine(group), pageW - margin, top + 29, { align: "right" });
 
     const ruleY = top + 52;
@@ -411,14 +463,23 @@ async function buildPdf(group: GradeGroup, weights: McdaWeights): Promise<Blob> 
     let x = margin;
     COLUMNS.forEach((c, i) => {
       const w = colWidths[i];
-      const tx = c.align === "center" ? x + w / 2 : c.align === "right" ? x + w - 3 : x + 3;
+      const tx =
+        c.align === "center"
+          ? x + w / 2
+          : c.align === "right"
+            ? x + w - 3
+            : x + 3;
       doc.text(clip(c.header, w - 6), tx, top + 1, { align: c.align });
       x += w;
     });
     return top + 13;
   };
 
-  const drawDataRow = (values: string[], top: number, striped: boolean): number => {
+  const drawDataRow = (
+    values: string[],
+    top: number,
+    striped: boolean,
+  ): number => {
     if (striped) {
       doc.setFillColor(248, 250, 252);
       doc.rect(margin, top - 11, contentW, rowH, "F");
@@ -429,7 +490,12 @@ async function buildPdf(group: GradeGroup, weights: McdaWeights): Promise<Blob> 
     let x = margin;
     COLUMNS.forEach((c, i) => {
       const w = colWidths[i];
-      const tx = c.align === "center" ? x + w / 2 : c.align === "right" ? x + w - 3 : x + 3;
+      const tx =
+        c.align === "center"
+          ? x + w / 2
+          : c.align === "right"
+            ? x + w - 3
+            : x + 3;
       doc.text(clip(values[i], w - 6), tx, top + 1, { align: c.align });
       x += w;
     });
@@ -494,7 +560,9 @@ export async function exportHouseQueueGroup({
   format,
 }: ExportHouseQueueGroupParams): Promise<void> {
   const blob =
-    format === "excel" ? await buildExcel(group, weights) : await buildPdf(group, weights);
+    format === "excel"
+      ? await buildExcel(group, weights)
+      : await buildPdf(group, weights);
   const ext = format === "excel" ? "xlsx" : "pdf";
   const date = new Date().toISOString().slice(0, 10);
   downloadBlob(blob, `house-queue-${bandSlug(group)}-${date}.${ext}`);

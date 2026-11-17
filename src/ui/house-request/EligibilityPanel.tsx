@@ -16,7 +16,13 @@ import {
 import type { HouseRequestVerifyResult } from "@/lib/house-requests/types";
 import { cn } from "@/lib/utils";
 
-function Requirement({ met, children }: { met: boolean; children: React.ReactNode }) {
+function Requirement({
+  met,
+  children,
+}: {
+  met: boolean;
+  children: React.ReactNode;
+}) {
   return (
     <li className="flex items-center gap-2.5">
       <span
@@ -49,14 +55,18 @@ function nextSteps(verify: HouseRequestVerifyResult): string[] {
   const steps: string[] = [];
   const active = verify.employee.employmentStatus.toLowerCase() === "active";
   if (!active) {
-    steps.push("Set the employee's employment status to Active on the Employee Register.");
+    steps.push(
+      "Set the employee's employment status to Active on the Employee Register.",
+    );
   }
   if (verify.employee.jobGrade == null) {
     steps.push(
       "Add this employee's real job grade on the Employee Register — house eligibility and House Queue ranking are calculated from it.",
     );
   } else if (!verify.isEligible) {
-    steps.push("Review the job grade or the published eligibility bands with HR.");
+    steps.push(
+      "Review the job grade or the published eligibility bands with HR.",
+    );
   }
   if (verify.alreadyHasActiveAllocation) {
     steps.push("Release the house they currently hold, or process a transfer.");
@@ -89,7 +99,10 @@ export default function EligibilityPanel({
     >
       <div className="border-border/60 bg-secondary flex items-center justify-between gap-3 border-b px-5 py-3.5">
         <div className="flex items-center gap-2">
-          <ClipboardCheck className="text-muted-foreground h-4 w-4" aria-hidden />
+          <ClipboardCheck
+            className="text-muted-foreground h-4 w-4"
+            aria-hidden
+          />
           <h2 className="text-foreground text-sm font-bold tracking-tight">
             Eligibility
           </h2>
@@ -151,7 +164,9 @@ export default function EligibilityPanel({
 
         <ul className="mt-5 space-y-2.5">
           <Requirement met={active}>Employment is active</Requirement>
-          <Requirement met={verify.isEligible}>Job grade maps to a house band</Requirement>
+          <Requirement met={verify.isEligible}>
+            Job grade maps to a house band
+          </Requirement>
           <Requirement met={!verify.alreadyHasActiveAllocation}>
             No allocated house is held
           </Requirement>
@@ -165,7 +180,9 @@ export default function EligibilityPanel({
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-2">
                 <Gauge className="text-muted-foreground h-4 w-4" aria-hidden />
-                <p className="text-foreground text-xs font-bold">Queue position</p>
+                <p className="text-foreground text-xs font-bold">
+                  Queue position
+                </p>
               </div>
               <span className="text-muted-foreground text-[10px] font-semibold tracking-wide uppercase">
                 Type {queue.category ?? verify.eligibleHouseType ?? "—"}
@@ -218,7 +235,10 @@ export default function EligibilityPanel({
                   key={step}
                   className="text-muted-foreground flex gap-2 text-xs leading-relaxed"
                 >
-                  <Ban className="text-warning-foreground mt-0.5 h-3 w-3 shrink-0" aria-hidden />
+                  <Ban
+                    className="text-warning-foreground mt-0.5 h-3 w-3 shrink-0"
+                    aria-hidden
+                  />
                   <span>{step}</span>
                 </li>
               ))}
@@ -227,8 +247,8 @@ export default function EligibilityPanel({
         ) : null}
 
         <p className="text-muted-foreground border-border/60 mt-5 border-t pt-4 text-[10px] leading-relaxed">
-          <span className="text-foreground font-semibold">Published bands</span> ·{" "}
-          {verify.eligibilityLegend}
+          <span className="text-foreground font-semibold">Published bands</span>{" "}
+          · {verify.eligibilityLegend}
         </p>
       </div>
     </section>

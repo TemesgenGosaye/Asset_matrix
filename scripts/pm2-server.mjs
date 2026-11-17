@@ -19,6 +19,7 @@
  */
 import { spawn } from "node:child_process";
 import { copyFileSync, existsSync } from "node:fs";
+import http from "node:http";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
@@ -27,16 +28,23 @@ const STANDALONE = path.join(ROOT, ".next", "standalone");
 const SERVER = path.join(STANDALONE, "server.js");
 
 function copyTree(source, destination) {
-  if (!existsSync(source)) return;
-  const child = spawn(
-    "robocopy",
-    [source, destination, "/E", "/NFL", "/NDL", "/NJH", "/NJS", "/NP", "/R:1", "/W:1"],
-    { cwd: ROOT, windowsHide: true },
-  );
-  child.on("close", (code) => {
-    if (code !== null && code > 7) {
-      console.error(`robocopy ${source} -> ${destination} failed with code ${code}`);
-    }
+  return new Promise((resolve) => {
+    if (!existsSync(source)) return resolve();
+    const child = spawn(
+      "robocopy",
+      [source, destination, "/E", "/NFL", "/NDL", "/NJH", "/NJS", "/NP", "/R:1", "/W:1"],
+      { cwd: ROOT, windowsHide: true },
+    );
+    child.on("error", (error) => {
+      console.error(`robocopy ${source} -> ${destination} failed: ${error.message}`);
+      resolve();
+    });
+    child.on("close", (code) => {
+      if (code !== null && code > 7) {
+        console.error(`robocopy ${source} -> ${destination} failed with code ${code}`);
+      }
+      resolve();
+    });
   });
 }
 
@@ -47,7 +55,39 @@ function copyEnv() {
   copyFileSync(source, destination);
 }
 
+function isAlreadyServing(port, timeoutMs = 5000) {
+  return new Promise((resolve) => {
+    const request = http.get(
+      {
+        host: "127.0.0.1",
+        port,
+        path: "/api/health/live",
+        timeout: timeoutMs,
+      },
+      (response) => {
+        response.resume();
+        resolve(response.statusCode === 200);
+      },
+    );
+    request.on("timeout", () => {
+      request.destroy();
+      resolve(false);
+    });
+    request.on("error", () => resolve(false));
+  });
+}
+
 async function main() {
+  process.env.HOSTNAME = process.env.HOSTNAME || "0.0.0.0";
+  process.env.PORT = process.env.PORT || "3000";
+
+  if (await isAlreadyServing(Number(process.env.PORT))) {
+    console.log(
+      `Another portal instance is already serving on :${process.env.PORT}; not starting a second copy.`,
+    );
+    return;
+  }
+
   if (!existsSync(SERVER)) {
     console.error(
       `${SERVER} is missing. Run "npm run build" before starting the production server.`,
@@ -55,12 +95,11 @@ async function main() {
     process.exit(1);
   }
 
-  copyTree(path.join(ROOT, ".next", "static"), path.join(STANDALONE, ".next", "static"));
-  copyTree(path.join(ROOT, "public"), path.join(STANDALONE, "public"));
+  await Promise.all([
+    copyTree(path.join(ROOT, ".next", "static"), path.join(STANDALONE, ".next", "static")),
+    copyTree(path.join(ROOT, "public"), path.join(STANDALONE, "public")),
+  ]);
   copyEnv();
-
-  process.env.HOSTNAME = process.env.HOSTNAME || "0.0.0.0";
-  process.env.PORT = process.env.PORT || "3000";
 
   await import(pathToFileURL(SERVER).href);
 

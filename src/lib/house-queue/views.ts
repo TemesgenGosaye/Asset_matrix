@@ -447,8 +447,7 @@ export async function listAllocatedHouses(
               : null,
             branch: r.terminationReason ?? null,
             reason: r.reason ?? null,
-            effectiveDate:
-              r.effectiveDate?.toISOString().slice(0, 10) ?? null,
+            effectiveDate: r.effectiveDate?.toISOString().slice(0, 10) ?? null,
             transferHouseholdId: r.transferHouseholdId ?? null,
           }
         : null,

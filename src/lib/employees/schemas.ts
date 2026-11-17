@@ -107,7 +107,10 @@ export const maritalStatusSchema = z
 export const disabilityStatusSchema = z
   .string()
   .trim()
-  .max(DISABILITY_MAX, `Disability must be ${DISABILITY_MAX} characters or fewer`)
+  .max(
+    DISABILITY_MAX,
+    `Disability must be ${DISABILITY_MAX} characters or fewer`,
+  )
   .nullable()
   .optional()
   .transform((v) => {

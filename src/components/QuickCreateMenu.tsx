@@ -64,16 +64,18 @@ const CREATE_GROUPS: {
 }[] = [
   {
     label: "Requests",
-    items: [
-      { href: "/house-request", label: "House Request", icon: Home },
-    ],
+    items: [{ href: "/house-request", label: "House Request", icon: Home }],
   },
   {
     label: "Asset estate",
     items: [
       { href: "/assets/create", label: "New Asset", icon: Boxes },
       { href: "/accessories/create", label: "New Accessory", icon: Puzzle },
-      { href: "/consumables/create", label: "New Consumable", icon: ClipboardList },
+      {
+        href: "/consumables/create",
+        label: "New Consumable",
+        icon: ClipboardList,
+      },
       { href: "/licences/create", label: "New Licence", icon: BadgeCheck },
     ],
   },

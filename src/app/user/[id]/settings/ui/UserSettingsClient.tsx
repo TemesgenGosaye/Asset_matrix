@@ -133,7 +133,10 @@ export default function UserSettingsClient({
       }
       notify.success("Settings saved");
     } catch (err) {
-      notify.error({ title: "Failed to save", description: (err as Error).message });
+      notify.error({
+        title: "Failed to save",
+        description: (err as Error).message,
+      });
     } finally {
       setSaving(false);
     }
@@ -305,7 +308,8 @@ export default function UserSettingsClient({
               Navigation Preferences
             </h2>
             <p className="text-muted-foreground text-sm">
-              Customize which menu items appear in your sidebar, top bar, and mobile navigation.
+              Customize which menu items appear in your sidebar, top bar, and
+              mobile navigation.
             </p>
           </div>
           <Button

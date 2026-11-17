@@ -85,7 +85,10 @@ describe("PUT /api/navigation/organization", () => {
   it("is blocked in demo mode", async () => {
     const { NextResponse } = await import("next/server");
     vi.mocked(requireNotDemoMode).mockReturnValueOnce(
-      NextResponse.json({ error: "This action is disabled in demo mode" }, { status: 403 }),
+      NextResponse.json(
+        { error: "This action is disabled in demo mode" },
+        { status: 403 },
+      ),
     );
     const req = createMockRequest(
       "http://localhost:3000/api/navigation/organization",

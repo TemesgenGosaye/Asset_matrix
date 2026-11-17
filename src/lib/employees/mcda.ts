@@ -127,7 +127,10 @@ export async function computeEmployeeMcdaScores(
   for (const [category, cohort] of byCategory) {
     const candidates: RankCohortCandidate[] = cohort.map((row) => ({
       candidateId: row.id,
-      serviceYears: resolveServiceYears(row.serviceYears, row.profile?.hireDate),
+      serviceYears: resolveServiceYears(
+        row.serviceYears,
+        row.profile?.hireDate,
+      ),
       maritalStatus: row.maritalStatus,
       disabilityStatus: row.disabilityStatus,
       gender: row.gender,

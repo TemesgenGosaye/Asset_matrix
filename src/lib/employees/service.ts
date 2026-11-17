@@ -810,11 +810,7 @@ async function findRowsWithForeignReferences(
     }
   });
 
-  if (
-    departmentIds.size === 0 &&
-    managerIds.size === 0 &&
-    userIds.size === 0
-  ) {
+  if (departmentIds.size === 0 && managerIds.size === 0 && userIds.size === 0) {
     return invalid;
   }
 

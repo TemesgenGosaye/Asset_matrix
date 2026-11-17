@@ -1,10 +1,5 @@
-import { Metadata } from "next";
-import SetupForm from "./SetupForm";
-
-export const metadata: Metadata = {
-  title: "Asset Tracker - Setup",
-};
+import { redirect } from "next/navigation";
 
 export default function SetupPage() {
-  return <SetupForm />;
+  redirect("/login");
 }

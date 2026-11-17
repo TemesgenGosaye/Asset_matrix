@@ -59,9 +59,7 @@ export async function POST(req: NextRequest) {
         await notifyOrgAdmins(orgId, {
           type: isReassign ? "house_reassigned" : "house_allocated",
           category: "house",
-          title: isReassign
-            ? "House allocation reassigned"
-            : "House allocated",
+          title: isReassign ? "House allocation reassigned" : "House allocated",
           body: `House ${result.houseNumber ? `${result.houseNumber} ` : ""}was ${
             isReassign ? "reassigned to" : "allocated to"
           } employee ${result.employeeId}.`,
@@ -91,7 +89,10 @@ export async function POST(req: NextRequest) {
           decidedBy: requesterId,
         });
         await notifyOrgAdmins(orgId, {
-          type: data.mode === "skip" ? "house_queue_skipped" : "house_queue_deferred",
+          type:
+            data.mode === "skip"
+              ? "house_queue_skipped"
+              : "house_queue_deferred",
           category: "house",
           title:
             data.mode === "skip"

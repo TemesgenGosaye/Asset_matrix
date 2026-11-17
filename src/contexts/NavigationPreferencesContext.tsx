@@ -215,7 +215,9 @@ export function NavigationPreferencesProvider({
             "Failed to save the organization default",
         );
       }
-      setOrgHiddenKeys(normalize((body as { hiddenKeys?: string[] }).hiddenKeys ?? working));
+      setOrgHiddenKeys(
+        normalize((body as { hiddenKeys?: string[] }).hiddenKeys ?? working),
+      );
       notify.success("Saved as the organization default");
       return true;
     } catch (error) {

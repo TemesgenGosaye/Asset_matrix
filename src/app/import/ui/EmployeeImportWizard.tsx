@@ -623,26 +623,43 @@ export default function EmployeeImportWizard({
                       return (
                         <tr
                           key={`row-${row.rowNumber}`}
-                          className="border-b last:border-0 opacity-50 bg-muted/20"
+                          className="bg-muted/20 border-b opacity-50 last:border-0"
                         >
                           <td className="text-muted-foreground px-2 py-1.5 tabular-nums">
                             {row.rowNumber}
                           </td>
-                          <td className="px-2 py-1.5 font-mono text-muted-foreground italic">
+                          <td className="text-muted-foreground px-2 py-1.5 font-mono italic">
                             (empty)
                           </td>
-                          <td className="px-2 py-1.5 text-muted-foreground">—</td>
-                          <td className="px-2 py-1.5 text-muted-foreground">—</td>
-                          <td className="px-2 py-1.5 text-muted-foreground">—</td>
-                          <td className="px-2 py-1.5 text-muted-foreground">—</td>
-                          <td className="px-2 py-1.5 text-muted-foreground">—</td>
-                          <td className="px-2 py-1.5 text-muted-foreground">—</td>
-                          <td className="px-2 py-1.5 text-muted-foreground">—</td>
-                          <td className="px-2 py-1.5 text-xs text-muted-foreground">
+                          <td className="text-muted-foreground px-2 py-1.5">
+                            —
+                          </td>
+                          <td className="text-muted-foreground px-2 py-1.5">
+                            —
+                          </td>
+                          <td className="text-muted-foreground px-2 py-1.5">
+                            —
+                          </td>
+                          <td className="text-muted-foreground px-2 py-1.5">
+                            —
+                          </td>
+                          <td className="text-muted-foreground px-2 py-1.5">
+                            —
+                          </td>
+                          <td className="text-muted-foreground px-2 py-1.5">
+                            —
+                          </td>
+                          <td className="text-muted-foreground px-2 py-1.5">
+                            —
+                          </td>
+                          <td className="text-muted-foreground px-2 py-1.5 text-xs">
                             Ignored empty Emp ID row
                           </td>
                           <td className="px-2 py-1.5">
-                            <Badge variant="outline" className="text-muted-foreground border-dashed">
+                            <Badge
+                              variant="outline"
+                              className="text-muted-foreground border-dashed"
+                            >
                               Ignored
                             </Badge>
                           </td>
@@ -691,16 +708,19 @@ export default function EmployeeImportWizard({
                         <td className="px-2 py-1.5 font-semibold text-blue-600 dark:text-blue-400">
                           {scoreDisplay}
                         </td>
-                        <td className="px-2 py-1.5 max-w-xs">
+                        <td className="max-w-xs px-2 py-1.5">
                           {rec ? (
                             <div className="flex flex-col gap-0.5 text-[11px]">
-                              <span className="font-medium text-foreground">
+                              <span className="text-foreground font-medium">
                                 {rec.houseQueueEligible
                                   ? `House: Band ${rec.houseQueueBand}`
                                   : "House: Ineligible (no grade)"}
                               </span>
                               {rec.tips.length > 0 && (
-                                <span className="text-muted-foreground truncate" title={rec.tips.join(" | ")}>
+                                <span
+                                  className="text-muted-foreground truncate"
+                                  title={rec.tips.join(" | ")}
+                                >
                                   {rec.tips[0]}
                                 </span>
                               )}

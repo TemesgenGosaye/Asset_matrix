@@ -24,7 +24,10 @@ export default function QuickActions({
         House Request
         <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
       </Link>
-      <QuickCreateMenu label="Create" className="bg-primary text-primary-foreground hover:bg-primary/90" />
+      <QuickCreateMenu
+        label="Create"
+        className="bg-primary text-primary-foreground hover:bg-primary/90"
+      />
     </div>
   );
 }

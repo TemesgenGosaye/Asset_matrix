@@ -118,7 +118,9 @@ function Detail({
 }
 
 function Absent() {
-  return <span className="text-muted-foreground/70 font-normal">Not recorded</span>;
+  return (
+    <span className="text-muted-foreground/70 font-normal">Not recorded</span>
+  );
 }
 
 function Section({
@@ -159,7 +161,10 @@ export interface EmployeeDossierProps {
   onReset: () => void;
 }
 
-export default function EmployeeDossier({ verify, onReset }: EmployeeDossierProps) {
+export default function EmployeeDossier({
+  verify,
+  onReset,
+}: EmployeeDossierProps) {
   const employee = verify.employee;
   const active = employee.employmentStatus.toLowerCase() === "active";
   const house = verify.allocation;
@@ -170,7 +175,7 @@ export default function EmployeeDossier({ verify, onReset }: EmployeeDossierProp
       aria-label="Employee dossier"
       className="border-border/70 bg-card overflow-hidden rounded-3xl border shadow-[var(--shadow-md)]"
     >
-      <div className="from-secondary via-card to-card relative overflow-hidden border-b border-border/60 bg-gradient-to-br px-5 py-6 sm:px-7">
+      <div className="from-secondary via-card to-card border-border/60 relative overflow-hidden border-b bg-gradient-to-br px-5 py-6 sm:px-7">
         <div
           aria-hidden
           className="bg-brass-500/10 absolute -top-24 -right-16 h-56 w-56 rounded-full blur-3xl"
@@ -263,7 +268,9 @@ export default function EmployeeDossier({ verify, onReset }: EmployeeDossierProp
         <div className="border-warning/40 bg-warning/10 text-warning-foreground m-5 flex items-start gap-3 rounded-2xl border px-4 py-3 text-sm sm:mx-6">
           <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
           <p>
-            <strong className="font-semibold">{MISSING_JOB_GRADE_LABEL}.</strong>{" "}
+            <strong className="font-semibold">
+              {MISSING_JOB_GRADE_LABEL}.
+            </strong>{" "}
             {MISSING_JOB_GRADE_NOTICE}
           </p>
         </div>

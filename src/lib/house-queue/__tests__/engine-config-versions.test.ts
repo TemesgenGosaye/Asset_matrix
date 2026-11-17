@@ -49,7 +49,8 @@ const { store, prismaMock } = vi.hoisted(() => {
     for (const [key, value] of Object.entries(where)) {
       if (value === undefined) continue;
       if (key === "id" && row.id !== value) return false;
-      if (key === "organizationId" && row.organizationId !== value) return false;
+      if (key === "organizationId" && row.organizationId !== value)
+        return false;
       if (key === "status" && row.status !== value) return false;
       if (key === "versionNumber" && row.versionNumber !== value) return false;
     }
@@ -60,8 +61,10 @@ const { store, prismaMock } = vi.hoisted(() => {
     findFirst: vi.fn(async ({ where = {}, orderBy }: any = {}) => {
       const found = rows.filter((r) => matches(r, where));
       if (found.length === 0) return null;
-      const sorted = [...found].sort(
-        (a, b) => (orderBy?.versionNumber === "desc" ? b.versionNumber - a.versionNumber : 0),
+      const sorted = [...found].sort((a, b) =>
+        orderBy?.versionNumber === "desc"
+          ? b.versionNumber - a.versionNumber
+          : 0,
       );
       return { ...sorted[0] };
     }),

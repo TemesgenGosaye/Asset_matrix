@@ -206,6 +206,40 @@
     .splash-logo { animation: none; }
     .splash-dot { animation: dotPulse 3s ease-in-out infinite; }
   }
+
+  /* ═══════════════════════════════════════════════════════════════════
+     Bottom Navigation Bar
+     ═══════════════════════════════════════════════════════════════════ */
+  .bottom-nav {
+    position: fixed; bottom: 0; left: 0; right: 0;
+    height: 60px;
+    background: var(--bg);
+    border-top: 1px solid var(--line);
+    display: flex; align-items: stretch;
+    padding-bottom: env(safe-area-inset-bottom);
+    z-index: 200;
+    box-shadow: 0 -1px 12px rgba(0,0,0,.07);
+  }
+  .nav-item {
+    flex: 1; display: flex; flex-direction: column; align-items: center;
+    justify-content: center; gap: 3px;
+    color: var(--muted); text-decoration: none;
+    font-size: 10px; font-weight: 700; letter-spacing: .02em;
+    padding: 6px 2px; border: 0; background: none; cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    transition: color .15s;
+    position: relative;
+  }
+  .nav-item svg { width: 22px; height: 22px; flex-shrink: 0; }
+  .nav-item:active { color: var(--brand); }
+  .nav-item.disabled { opacity: .4; pointer-events: none; }
+  .nav-item .nav-badge {
+    position: absolute; top: 6px; right: calc(50% - 18px);
+    min-width: 7px; height: 7px; border-radius: 50%;
+    background: var(--bad);
+  }
+  /* Pad stage so content is never hidden behind the bar */
+  .stage { padding-bottom: 76px; }
 </style>
 </head>
 <body>
@@ -275,6 +309,66 @@
 </main>
 
 <footer>© 2026 Metahara Sugar Factory • Powered by Temesgen</footer>
+
+<!-- ═══════════════════════════════════════════════════════════════════
+     Bottom Navigation Bar — visible during connection check phase
+     ═══════════════════════════════════════════════════════════════════ -->
+<nav class="bottom-nav" aria-label="Quick navigation" id="bottomNav">
+
+  <!-- Request -->
+  <button class="nav-item disabled" id="navRequest" onclick="goTo('/house-request')" aria-label="Request">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+      <polyline points="14 2 14 8 20 8"/>
+      <line x1="12" y1="18" x2="12" y2="12"/>
+      <line x1="9" y1="15" x2="15" y2="15"/>
+    </svg>
+    <span>Request</span>
+  </button>
+
+  <!-- Queue -->
+  <button class="nav-item disabled" id="navQueue" onclick="goTo('/house-queue')" aria-label="Queue">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <line x1="8" y1="6" x2="21" y2="6"/>
+      <line x1="8" y1="12" x2="21" y2="12"/>
+      <line x1="8" y1="18" x2="21" y2="18"/>
+      <line x1="3" y1="6" x2="3.01" y2="6"/>
+      <line x1="3" y1="12" x2="3.01" y2="12"/>
+      <line x1="3" y1="18" x2="3.01" y2="18"/>
+    </svg>
+    <span>Queue</span>
+  </button>
+
+  <!-- Active (Allocated) -->
+  <button class="nav-item disabled" id="navActive" onclick="goTo('/houses/allocated')" aria-label="Active">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+      <polyline points="9 22 9 12 15 12 15 22"/>
+    </svg>
+    <span>Active</span>
+  </button>
+
+  <!-- Ended (Terminated) -->
+  <button class="nav-item disabled" id="navEnded" onclick="goTo('/houses/terminated')" aria-label="Ended">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <polyline points="21 8 21 21 3 21 3 8"/>
+      <rect x="1" y="3" width="22" height="5"/>
+      <line x1="10" y1="12" x2="14" y2="12"/>
+    </svg>
+    <span>Ended</span>
+  </button>
+
+  <!-- More -->
+  <button class="nav-item disabled" id="navMore" onclick="goTo('/dashboard')" aria-label="More">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <circle cx="12" cy="5" r="1" fill="currentColor"/>
+      <circle cx="12" cy="12" r="1" fill="currentColor"/>
+      <circle cx="12" cy="19" r="1" fill="currentColor"/>
+    </svg>
+    <span>More</span>
+  </button>
+
+</nav>
 
 <script>
 (function () {
@@ -360,7 +454,9 @@
            "Your device is not connected. Check Wi-Fi or mobile data.",
            "ኢንተርኔት የለም። Wi-Fi ወይም የሞባይል ዳታ ያብሩ።");
       tips("<strong>What to try</strong><ul><li>Turn on Wi-Fi or mobile data</li><li>Turn off airplane mode</li><li>Move to a place with better signal</li></ul>");
-      busy(false); checking = false; scheduleRetry();
+      el.next.textContent = "Waiting for network…";
+      busy(false); checking = false;
+      // Do NOT schedule a timer — the 'online' event will trigger check() automatically.
       return;
     }
 
@@ -371,6 +467,7 @@
       paint(["ok", "ok", "ok", "ok", "ok"]);
       copy("Connected", "Opening the portal…", "ተገናኝቷል። ፖርታሉ በመከፈት ላይ ነው።");
       attempt = 0;
+      setNavEnabled(true);
       setTimeout(function () { window.location.replace(SERVER_URL); }, 350);
     }).catch(function () {
       paint(["ok", "ok", "ok", "bad", "bad"]);
@@ -378,6 +475,7 @@
            "Your internet works, but the server is not responding. It may be restarting or under maintenance.",
            "ኢንተርኔት አለ፤ ሰርቨሩ ግን አልመለሰም። ሰርቨሩ እስኪነሳ ይጠብቁ።");
       tips("<strong>What to try</strong><ul><li>Wait a minute. This page retries on its own</li><li>If it continues, contact IT support</li></ul>");
+      setNavEnabled(false);
       busy(false); checking = false; scheduleRetry();
     });
   }
@@ -388,6 +486,30 @@
   document.addEventListener("visibilitychange", function () {
     if (!document.hidden && !checking && splashShown) { attempt = 0; check(); }
   });
+
+  // ── Bottom nav bar helpers ──────────────────────────────────────────
+  var navItems = document.querySelectorAll(".nav-item");
+
+  /** Enable/disable all nav bar items based on connectivity. */
+  function setNavEnabled(on) {
+    navItems.forEach(function (btn) {
+      if (on) btn.classList.remove("disabled");
+      else btn.classList.add("disabled");
+    });
+  }
+
+  /**
+   * Navigate to a path on the server.
+   * Only works when the device is online; otherwise nudges the user.
+   */
+  function goTo(path) {
+    if (navigator.onLine !== false) {
+      window.location.replace(SERVER_URL + path);
+    } else {
+      copy("No network", "Turn on Wi-Fi or mobile data first.", "ኢንተርኔት የለም። Wi-Fi ወይም ሞባይል ዳታ ያብሩ።");
+      busy(false);
+    }
+  }
 
   // Don't auto-check on load - wait for splash to finish
 })();

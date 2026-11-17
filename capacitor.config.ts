@@ -21,15 +21,12 @@ import type { CapacitorConfig } from "@capacitor/cli";
  *     (10.0.2.2 is the host loopback as seen from the Android emulator.)
  */
 const serverUrl =
-  process.env.CAPACITOR_SERVER_URL ?? "https://house.taild2df63.ts.net";
+  process.env.CAPACITOR_SERVER_URL ?? "https://msf-homedesk.vercel.app";
 
 /**
- * The APK always boots on the sign-in screen — never the site root (which can
- * redirect to /setup) and never the first-run wizard. `app=1` marks the
- * navigation as native so the login page skips the setup detour even before
- * the Capacitor bridge is injected.
+ * The APK always boots on the sign-in screen (/login).
  */
-const loginUrl = `${serverUrl.replace(/\/+$/, "").replace(/\/login.*$/, "")}/login?app=1`;
+const loginUrl = `${serverUrl.replace(/\/+$/, "").replace(/\/login.*$/, "")}/login`;
 
 const config: CapacitorConfig = {
   appId: "com.company.assettracker",
@@ -43,7 +40,13 @@ const config: CapacitorConfig = {
     androidScheme: "https",
     cleartext: false,
     errorPath: "offline.html",
-    allowNavigation: ["house.taild2df63.ts.net", "*.ts.net", "*.tailscale.net"],
+    allowNavigation: [
+      "msf-homedesk.vercel.app",
+      "*.vercel.app",
+      "house.taild2df63.ts.net",
+      "*.ts.net",
+      "*.tailscale.net",
+    ],
   },
   android: {
     allowMixedContent: false,

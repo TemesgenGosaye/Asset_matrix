@@ -36,14 +36,14 @@ export default function NotFound() {
         <button
           type="button"
           onClick={() => router.back()}
-          className="inline-flex h-12 flex-1 cursor-pointer items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white text-sm font-semibold text-slate-700 shadow-sm transition-all duration-200 hover:bg-slate-50 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          className="focus-visible:ring-ring inline-flex h-12 flex-1 cursor-pointer items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white text-sm font-semibold text-slate-700 shadow-sm transition-all duration-200 hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none active:scale-[0.98]"
         >
           <ArrowLeft className="h-4 w-4" />
           Go back
         </button>
         <Link
           href="/dashboard"
-          className="inline-flex h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-primary text-sm font-semibold text-primary-foreground shadow-md shadow-primary/25 transition-all duration-200 hover:bg-primary/90 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          className="bg-primary text-primary-foreground shadow-primary/25 hover:bg-primary/90 focus-visible:ring-ring inline-flex h-12 flex-1 items-center justify-center gap-2 rounded-xl text-sm font-semibold shadow-md transition-all duration-200 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none active:scale-[0.98]"
         >
           <LayoutDashboard className="h-4 w-4" />
           Dashboard

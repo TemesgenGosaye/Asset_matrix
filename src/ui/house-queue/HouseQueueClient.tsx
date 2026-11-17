@@ -830,8 +830,8 @@ export default function HouseQueueClient({
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="space-y-1">
             <h1 className="text-2xl font-bold tracking-tight">
-            House Queue: የቤት ወረፋ
-          </h1>
+              House Queue: የቤት ወረፋ
+            </h1>
             <div className="from-brass-400 mt-1 h-0.5 w-16 rounded bg-gradient-to-r to-transparent" />
           </div>
           <div className="flex shrink-0 items-center gap-2 self-start sm:self-start">
@@ -993,7 +993,7 @@ export default function HouseQueueClient({
       )}
 
       {/* ─── Filters toolbar ─── */}
-      <div className="bg-card flex items-center gap-3 rounded-xl border p-3 shadow-sm overflow-x-auto">
+      <div className="bg-card flex items-center gap-3 overflow-x-auto rounded-xl border p-3 shadow-sm">
         <div className="flex shrink-0 items-center gap-2">
           <div className="relative w-64 sm:w-80">
             <Search className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />
@@ -1201,7 +1201,8 @@ export default function HouseQueueClient({
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                       <DropdownMenuLabel>
-                        Export {group.category ? `${group.category} band` : "ungraded"}
+                        Export{" "}
+                        {group.category ? `${group.category} band` : "ungraded"}
                       </DropdownMenuLabel>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem

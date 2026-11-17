@@ -12,10 +12,11 @@
   "main": "main.js",
   "scripts": {
     "icons": "node scripts/generate-icons.mjs",
+    "installer-assets": "node scripts/generate-installer-assets.mjs",
     "dev": "npm run icons && electron .",
     "start": "electron .",
-    "pack": "npm run icons && electron-builder --win --dir",
-    "build": "npm run icons && electron-builder --win nsis --publish never",
+    "pack": "npm run icons && npm run installer-assets && electron-builder --win --dir",
+    "build": "npm run icons && npm run installer-assets && electron-builder --win nsis --publish never",
     "dist": "npm run build"
   },
   "dependencies": {

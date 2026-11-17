@@ -34,7 +34,9 @@ beforeEach(() => {
 
 describe("sanitizeHiddenKeys", () => {
   it("keeps known, non-locked keys", () => {
-    expect(sanitizeHiddenKeys(["overview.assets"])).toEqual(["overview.assets"]);
+    expect(sanitizeHiddenKeys(["overview.assets"])).toEqual([
+      "overview.assets",
+    ]);
   });
 
   it("drops keys the registry no longer knows (stale rows)", () => {
@@ -50,15 +52,15 @@ describe("sanitizeHiddenKeys", () => {
   });
 
   it("drops non-string entries", () => {
-    expect(sanitizeHiddenKeys([42, null, { key: "x" }, "overview.assets"])).toEqual(
-      ["overview.assets"],
-    );
+    expect(
+      sanitizeHiddenKeys([42, null, { key: "x" }, "overview.assets"]),
+    ).toEqual(["overview.assets"]);
   });
 
   it("de-duplicates repeated keys", () => {
-    expect(
-      sanitizeHiddenKeys(["overview.assets", "overview.assets"]),
-    ).toEqual(["overview.assets"]);
+    expect(sanitizeHiddenKeys(["overview.assets", "overview.assets"])).toEqual([
+      "overview.assets",
+    ]);
   });
 });
 
@@ -78,9 +80,9 @@ describe("findUnknownKeys", () => {
 
 describe("findLockedKeys", () => {
   it("returns only the locked keys", () => {
-    expect(
-      findLockedKeys(["overview.assets", "overview.dashboard"]),
-    ).toEqual(["overview.dashboard"]);
+    expect(findLockedKeys(["overview.assets", "overview.dashboard"])).toEqual([
+      "overview.dashboard",
+    ]);
   });
 
   it("returns an empty array when no key is locked", () => {

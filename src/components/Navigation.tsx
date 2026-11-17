@@ -350,11 +350,14 @@ const Navigation = React.memo(function Navigation() {
     <nav className="app-chrome border-b shadow-sm">
       <div className="flex h-16 items-center px-4 md:px-6">
         <div className="flex flex-1 items-center gap-4">
-          <Link href="/dashboard" className="flex items-center gap-2.5 transition-opacity hover:opacity-90">
-            <span className="text-base font-bold tracking-tight text-slate-900 dark:text-white md:text-lg">
+          <Link
+            href="/dashboard"
+            className="flex items-center gap-2.5 transition-opacity hover:opacity-90"
+          >
+            <span className="text-base font-bold tracking-tight text-slate-900 md:text-lg dark:text-white">
               የመተሐራ ስኳር ፋብሪካ
             </span>
-            <span className="hidden text-sm font-semibold tracking-wide text-[#006699] dark:text-[#38bdf8] sm:inline md:text-base">
+            <span className="hidden text-sm font-semibold tracking-wide text-[#006699] sm:inline md:text-base dark:text-[#38bdf8]">
               የንብረትና የቤት አስተዳደር ፖርታል
             </span>
           </Link>

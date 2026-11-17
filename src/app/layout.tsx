@@ -71,17 +71,16 @@ export const metadata = {
     statusBarStyle: "default",
     title: "MSF Asset and House Portal",
   },
-  // The browser-tab (web title) image is the MSF logo, served from
-  // public/icons/msf-logo.png. src/app/icon.png + apple-icon.png + favicon.ico
-  // remain generated from public/images/msflogo.jpg by
-  // scripts/generate-brand-icons.mjs as fallbacks.
+  // Brand icons are served from public/icons (stable, cacheable files) rather
+  // than the unhashed /icon.png, /apple-icon.png and /favicon.ico routes, which
+  // Next regenerates and revalidates on every request.
   icons: {
     icon: [
-      { url: "/icons/msf-logo.png", sizes: "256x256", type: "image/png" },
-      { url: "/icon.png", sizes: "512x512", type: "image/png" },
-      { url: "/favicon.ico", sizes: "48x48 32x32 16x16" },
+      { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icons/icon-512.png", sizes: "512x512", type: "image/png" },
     ],
-    apple: "/apple-icon.png",
+    shortcut: "/icons/icon-192.png",
+    apple: "/icons/apple-touch-icon.png",
   },
 };
 

@@ -199,7 +199,10 @@ const Sidebar = React.memo(function Sidebar({
                       setCollapsed(false);
                       setExpanded((prev) => new Set(prev).add(item.key));
                       if (typeof window !== "undefined") {
-                        window.localStorage.setItem("sidebar:collapsed", "false");
+                        window.localStorage.setItem(
+                          "sidebar:collapsed",
+                          "false",
+                        );
                         document.cookie =
                           "sidebar_collapsed=false; path=/; max-age=31536000";
                       }
@@ -372,9 +375,7 @@ const Sidebar = React.memo(function Sidebar({
       {!collapsed && (
         <div className="text-chrome-muted space-y-0.5 pb-2 text-center text-[10px]">
           <p>v{process.env.NEXT_PUBLIC_APP_VERSION || "dev"}</p>
-          <p className="text-[9px] font-medium opacity-75">
-            Powered by Mark
-          </p>
+          <p className="text-[9px] font-medium opacity-75">Powered by Mark</p>
         </div>
       )}
     </aside>

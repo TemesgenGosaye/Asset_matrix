@@ -70,7 +70,12 @@ export function BrandLockup({
 
   const content = text ? (
     <span className="flex min-w-0 flex-col leading-tight">
-      <span className={cn("truncate font-semibold tracking-tight text-slate-900 dark:text-white", dims.factory)}>
+      <span
+        className={cn(
+          "truncate font-semibold tracking-tight text-slate-900 dark:text-white",
+          dims.factory,
+        )}
+      >
         {subtitle || "Workspace"}
       </span>
     </span>

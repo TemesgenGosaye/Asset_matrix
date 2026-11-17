@@ -272,7 +272,9 @@
            "Your device is not connected. Check Wi-Fi or mobile data.",
            "ኢንተርኔት የለም። Wi-Fi ወይም የሞባይል ዳታ ያብሩ።");
       tips("<strong>What to try</strong><ul><li>Turn on Wi-Fi or mobile data</li><li>Turn off airplane mode</li><li>Move to a place with better signal</li></ul>");
-      busy(false); checking = false; scheduleRetry();
+      el.next.textContent = "Waiting for network…";
+      busy(false); checking = false;
+      // Do NOT schedule a timer — the 'online' event will trigger check() automatically.
       return;
     }
 

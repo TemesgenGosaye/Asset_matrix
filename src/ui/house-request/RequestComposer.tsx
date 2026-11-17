@@ -74,8 +74,9 @@ export default function RequestComposer({
         </th>
         <td colSpan={3} className="evr-value-cell">
           <p className="text-[11px] leading-relaxed text-[var(--evr-muted-text)]">
-            Explain the housing need in at least {REMARKS_MIN_LENGTH} characters.
-            This is stored with the request and shown to the allocator.
+            Explain the housing need in at least {REMARKS_MIN_LENGTH}{" "}
+            characters. This is stored with the request and shown to the
+            allocator.
           </p>
 
           <Textarea
@@ -90,7 +91,8 @@ export default function RequestComposer({
             aria-describedby="house-request-reason-help"
             className={cn(
               "mt-2 min-h-32 w-full resize-y rounded-sm border-[var(--evr-border)] bg-white px-3 py-2 text-[12.5px] leading-relaxed text-[var(--evr-value-text)] shadow-none focus-visible:ring-1 focus-visible:ring-[var(--evr-navy)]",
-              (tooLong || serverErrors.length > 0) && "border-[var(--evr-fail)]/60",
+              (tooLong || serverErrors.length > 0) &&
+                "border-[var(--evr-fail)]/60",
             )}
           />
 

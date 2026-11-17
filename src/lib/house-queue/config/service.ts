@@ -498,7 +498,9 @@ export async function saveDraft(
       select: VERSION_SELECT,
     });
     if (!activeRow) {
-      throw new Error("Active engine configuration is missing for organization");
+      throw new Error(
+        "Active engine configuration is missing for organization",
+      );
     }
     const existingRow = await tx.engineConfigVersion.findFirst({
       where: { organizationId: input.organizationId, status: "draft" },

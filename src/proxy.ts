@@ -56,6 +56,11 @@ export async function proxy(req: NextRequest) {
     );
   }
 
+  // Redirect any legacy /setup navigation immediately to /login
+  if (pathname === "/setup" || pathname.startsWith("/setup/")) {
+    return withHeaders(NextResponse.redirect(new URL("/login", req.url)));
+  }
+
   // Public routes that don't require authentication
   const publicRoutes = [
     // `/` stays here so the redirect in `app/page.tsx` can actually run — the
@@ -63,7 +68,6 @@ export async function proxy(req: NextRequest) {
     "/",
     "/login",
     "/register",
-    "/setup",
     "/forgot-password",
     "/reset-password",
     "/offline",

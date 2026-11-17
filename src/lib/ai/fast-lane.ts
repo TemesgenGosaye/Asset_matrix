@@ -14,13 +14,7 @@
 
 import prisma from "@/lib/prisma";
 import type { Prisma } from "@prisma/client";
-import {
-  CACHE_DOMAIN,
-  CACHE_TTL,
-  cacheKey,
-  cached,
-  peekCache,
-} from "./cache";
+import { CACHE_DOMAIN, CACHE_TTL, cacheKey, cached, peekCache } from "./cache";
 import type { CardStat, CardTable, FastCard, FastCardResult } from "./card";
 import { ASSISTANT_BRAND, QUICK_ACTIONS } from "./brand";
 import { routeIntent, type RoutedIntent } from "./intent";
@@ -49,7 +43,9 @@ export interface HousingOverview {
   vacantRate: number;
 }
 
-async function loadHousingOverview(organizationId: string): Promise<HousingOverview> {
+async function loadHousingOverview(
+  organizationId: string,
+): Promise<HousingOverview> {
   // Two group-bys in parallel: register status/occupancy counters, and the
   // per-house-type matrix. Both hit the (organizationId) index.
   const [statusRows, typeRows] = await Promise.all([
@@ -89,11 +85,19 @@ async function loadHousingOverview(organizationId: string): Promise<HousingOverv
     maintenance: 0,
   };
 
-  const matrix = new Map<string, { occupied: number; vacant: number; maintenance: number }>();
+  const matrix = new Map<
+    string,
+    { occupied: number; vacant: number; maintenance: number }
+  >();
   for (const row of typeRows) {
-    const bucket = matrix.get(row.houseType) ?? { occupied: 0, vacant: 0, maintenance: 0 };
+    const bucket = matrix.get(row.houseType) ?? {
+      occupied: 0,
+      vacant: 0,
+      maintenance: 0,
+    };
     if (row.occupancyStatus === "Occupied") bucket.occupied += row._count.id;
-    else if (row.occupancyStatus === "Maintenance") bucket.maintenance += row._count.id;
+    else if (row.occupancyStatus === "Maintenance")
+      bucket.maintenance += row._count.id;
     else bucket.vacant += row._count.id;
     matrix.set(row.houseType, bucket);
   }
@@ -110,8 +114,10 @@ async function loadHousingOverview(organizationId: string): Promise<HousingOverv
   return {
     ...base,
     byType,
-    occupancyRate: base.total > 0 ? Math.round((base.occupied / base.total) * 100) : 0,
-    vacantRate: base.total > 0 ? Math.round((base.vacant / base.total) * 100) : 0,
+    occupancyRate:
+      base.total > 0 ? Math.round((base.occupied / base.total) * 100) : 0,
+    vacantRate:
+      base.total > 0 ? Math.round((base.vacant / base.total) * 100) : 0,
   };
 }
 
@@ -119,8 +125,10 @@ const HOUSING_OVERVIEW_KEY = (organizationId: string) =>
   cacheKey(organizationId, CACHE_DOMAIN.housing, "overview");
 
 function getHousingOverview(organizationId: string): Promise<HousingOverview> {
-  return cached(HOUSING_OVERVIEW_KEY(organizationId), CACHE_TTL.aggregates, () =>
-    loadHousingOverview(organizationId),
+  return cached(
+    HOUSING_OVERVIEW_KEY(organizationId),
+    CACHE_TTL.aggregates,
+    () => loadHousingOverview(organizationId),
   );
 }
 
@@ -156,7 +164,9 @@ async function loadAssetOverview(organizationId: string) {
   const categories = await prisma.assetCategoryType.findMany({
     where: {
       assetcategorytypeid: {
-        in: byCategory.map((r) => r.assetcategorytypeid).filter(Boolean) as string[],
+        in: byCategory
+          .map((r) => r.assetcategorytypeid)
+          .filter(Boolean) as string[],
       },
     },
     select: { assetcategorytypeid: true, assetcategorytypename: true },
@@ -171,7 +181,9 @@ async function loadAssetOverview(organizationId: string) {
     warrantySoon,
     byCategory: byCategory
       .map((r) => ({
-        category: (r.assetcategorytypeid && nameById.get(r.assetcategorytypeid)) || "Uncategorised",
+        category:
+          (r.assetcategorytypeid && nameById.get(r.assetcategorytypeid)) ||
+          "Uncategorised",
         count: r._count.assetid,
         value: Number(r._sum.purchaseprice ?? 0),
       }))
@@ -271,7 +283,10 @@ async function loadTicketSummary(organizationId: string, limit: number) {
 
   return {
     byStatus: byStatus.map((s) => ({ status: s.status, count: s._count.id })),
-    byPriority: byPriority.map((p) => ({ priority: p.priority, count: p._count.id })),
+    byPriority: byPriority.map((p) => ({
+      priority: p.priority,
+      count: p._count.id,
+    })),
     recent,
   };
 }
@@ -388,7 +403,12 @@ async function resolveHousingCounts(
   if (registerStatus === "Inactive") {
     const rows = await prisma.household.findMany({
       where: { organizationId, status: "Inactive" },
-      select: { houseNumber: true, hid: true, houseType: true, occupancyStatus: true },
+      select: {
+        houseNumber: true,
+        hid: true,
+        houseType: true,
+        occupancyStatus: true,
+      },
       orderBy: { houseNumber: "asc" },
       take: limit,
     });
@@ -413,18 +433,32 @@ async function resolveHousingCounts(
       table: rows.length
         ? {
             columns: ["House", "HID", "Type", "Occupancy"],
-            rows: rows.map((h) => [h.houseNumber, h.hid, h.houseType, h.occupancyStatus]),
+            rows: rows.map((h) => [
+              h.houseNumber,
+              h.hid,
+              h.houseType,
+              h.occupancyStatus,
+            ]),
           }
         : undefined,
       actions: [{ label: "Open house register", href: "/houses" }],
-      footnote: overview.inactive > limit ? `Showing first ${limit} of ${overview.inactive}.` : undefined,
+      footnote:
+        overview.inactive > limit
+          ? `Showing first ${limit} of ${overview.inactive}.`
+          : undefined,
     };
   }
 
   if (registerStatus === null) {
     const rows = await prisma.household.findMany({
       where: { organizationId },
-      select: { houseNumber: true, hid: true, houseType: true, occupancyStatus: true, status: true },
+      select: {
+        houseNumber: true,
+        hid: true,
+        houseType: true,
+        occupancyStatus: true,
+        status: true,
+      },
       orderBy: { houseNumber: "asc" },
       take: limit,
     });
@@ -434,10 +468,26 @@ async function resolveHousingCounts(
       summary: `Occupancy rate is ${overview.occupancyRate}%. ${overview.vacant} vacant and ready for allocation.`,
       stats: [
         { label: "Total", value: formatNumber(overview.total) },
-        { label: "Occupied", value: formatNumber(overview.occupied), tone: "positive" },
-        { label: "Vacant", value: formatNumber(overview.vacant), tone: "neutral" },
-        { label: "Maintenance", value: formatNumber(overview.maintenance), tone: "caution" },
-        { label: "Inactive", value: formatNumber(overview.inactive), tone: "caution" },
+        {
+          label: "Occupied",
+          value: formatNumber(overview.occupied),
+          tone: "positive",
+        },
+        {
+          label: "Vacant",
+          value: formatNumber(overview.vacant),
+          tone: "neutral",
+        },
+        {
+          label: "Maintenance",
+          value: formatNumber(overview.maintenance),
+          tone: "caution",
+        },
+        {
+          label: "Inactive",
+          value: formatNumber(overview.inactive),
+          tone: "caution",
+        },
       ],
       table: rows.length
         ? {
@@ -452,7 +502,10 @@ async function resolveHousingCounts(
           }
         : undefined,
       actions: [{ label: "Open house register", href: "/houses" }],
-      footnote: overview.total > limit ? `Showing first ${limit} of ${overview.total}.` : undefined,
+      footnote:
+        overview.total > limit
+          ? `Showing first ${limit} of ${overview.total}.`
+          : undefined,
     };
   }
 
@@ -461,11 +514,27 @@ async function resolveHousingCounts(
     title: `${formatNumber(overview.active)} active ${overview.active === 1 ? "house" : "houses"}`,
     summary: `${formatNumber(overview.vacant)} vacant, ${formatNumber(overview.occupied)} occupied, ${formatNumber(overview.maintenance)} under maintenance.`,
     stats: [
-      { label: "Active", value: formatNumber(overview.active), tone: "positive" },
-      { label: "Vacant", value: formatNumber(overview.vacant), tone: "neutral" },
+      {
+        label: "Active",
+        value: formatNumber(overview.active),
+        tone: "positive",
+      },
+      {
+        label: "Vacant",
+        value: formatNumber(overview.vacant),
+        tone: "neutral",
+      },
       { label: "Occupied", value: formatNumber(overview.occupied) },
-      { label: "Maintenance", value: formatNumber(overview.maintenance), tone: "caution" },
-      { label: "Inactive", value: formatNumber(overview.inactive), tone: "caution" },
+      {
+        label: "Maintenance",
+        value: formatNumber(overview.maintenance),
+        tone: "caution",
+      },
+      {
+        label: "Inactive",
+        value: formatNumber(overview.inactive),
+        tone: "caution",
+      },
     ],
     table: overview.byType.length
       ? {
@@ -483,7 +552,8 @@ async function resolveHousingCounts(
       { label: "Vacant houses", href: "/houses/vacant" },
       { label: "Allocated houses", href: "/houses/allocated" },
     ],
-    footnote: "Active = enabled in the register and eligible for allocation. Inactive houses are excluded.",
+    footnote:
+      "Active = enabled in the register and eligible for allocation. Inactive houses are excluded.",
   };
 }
 
@@ -583,14 +653,28 @@ async function resolveHousingRegisterStatus(
       ? "Active houses are the allocation pool. Inactive houses are held back for repair or deregistration."
       : "Inactive houses are excluded from the allocation pool and the queue engine.",
     stats: [
-      { label: "Active", value: formatNumber(overview.active), tone: "positive" },
-      { label: "Inactive", value: formatNumber(overview.inactive), tone: "caution" },
+      {
+        label: "Active",
+        value: formatNumber(overview.active),
+        tone: "positive",
+      },
+      {
+        label: "Inactive",
+        value: formatNumber(overview.inactive),
+        tone: "caution",
+      },
       { label: "Total", value: formatNumber(overview.total) },
     ],
     table: byType.length
       ? {
           columns: ["House type", "Total", "Vacant", "Occupied", "Maintenance"],
-          rows: byType.map((t) => [t.type, t.total, t.vacant, t.occupied, t.maintenance]),
+          rows: byType.map((t) => [
+            t.type,
+            t.total,
+            t.vacant,
+            t.occupied,
+            t.maintenance,
+          ]),
         }
       : undefined,
     actions: [{ label: "Open house register", href: "/houses" }],
@@ -610,14 +694,29 @@ async function resolveHousingBreakdown(
     title: `Occupancy ${overview.occupancyRate}% of ${formatNumber(overview.total)} houses`,
     summary: `${formatNumber(overview.occupied)} occupied · ${formatNumber(overview.vacant)} vacant (${overview.vacantRate}%) · ${formatNumber(overview.maintenance)} under maintenance`,
     stats: [
-      { label: "Occupied", value: formatNumber(overview.occupied), tone: "positive" },
+      {
+        label: "Occupied",
+        value: formatNumber(overview.occupied),
+        tone: "positive",
+      },
       { label: "Vacant", value: formatNumber(overview.vacant) },
-      { label: "Maintenance", value: formatNumber(overview.maintenance), tone: "caution" },
+      {
+        label: "Maintenance",
+        value: formatNumber(overview.maintenance),
+        tone: "caution",
+      },
       { label: "Occupancy rate", value: `${overview.occupancyRate}%` },
     ],
     table: overview.byType.length
       ? {
-          columns: ["House type", "Total", "Occupied", "Vacant", "Maintenance", "Occupied %"],
+          columns: [
+            "House type",
+            "Total",
+            "Occupied",
+            "Vacant",
+            "Maintenance",
+            "Occupied %",
+          ],
           rows: overview.byType.map((t) => [
             t.type,
             t.total,
@@ -635,7 +734,8 @@ async function resolveHousingBreakdown(
       { label: "Allocated houses", href: "/houses/allocated" },
       { label: "House register", href: "/houses" },
     ],
-    footnote: "Occupancy rate is occupied ÷ total in the register, including houses under maintenance.",
+    footnote:
+      "Occupancy rate is occupied ÷ total in the register, including houses under maintenance.",
   };
 }
 
@@ -734,27 +834,33 @@ async function resolveOccupantOf(
       ? `${tenant.profile?.jobTitle ?? "Employee"} · Grade ${tenant.jobGrade ?? "—"}${tenant.department?.name ? ` · ${tenant.department.name}` : ""}${allocation?.decidedAt ? ` · allocated ${allocation.decidedAt.toISOString().slice(0, 10)}` : ""}`
       : "No live allocation is recorded against this house, so it stays in the available pool.",
     stats,
-    table: tableFromRows(["Item", "Count"], [
-      ["Beds", household.bedCount],
-      ["Chairs", household.chairsCount],
-      ["Lockers", household.lockerCount],
-      ["Tables", household.tablesCount],
-    ]),
+    table: tableFromRows(
+      ["Item", "Count"],
+      [
+        ["Beds", household.bedCount],
+        ["Chairs", household.chairsCount],
+        ["Lockers", household.lockerCount],
+        ["Tables", household.tablesCount],
+      ],
+    ),
     actions: [
       { label: "Allocated houses", href: "/houses/allocated" },
       { label: "House queue", href: "/house-queue" },
     ],
-    footnote: [
-      history.length > 0
-        ? `Last decisions: ${history.map((h) => h.status).join(" → ")}.`
-        : null,
-      household.damageNotes ? `Damage on file: ${household.damageNotes}` : null,
-      allocation?.inspection
-        ? `Inspection: ${allocation.inspection.resolvedTo ? `resolved to ${allocation.inspection.resolvedTo}` : "pending hold"}.`
-        : null,
-    ]
-      .filter(Boolean)
-      .join(" ") || undefined,
+    footnote:
+      [
+        history.length > 0
+          ? `Last decisions: ${history.map((h) => h.status).join(" → ")}.`
+          : null,
+        household.damageNotes
+          ? `Damage on file: ${household.damageNotes}`
+          : null,
+        allocation?.inspection
+          ? `Inspection: ${allocation.inspection.resolvedTo ? `resolved to ${allocation.inspection.resolvedTo}` : "pending hold"}.`
+          : null,
+      ]
+        .filter(Boolean)
+        .join(" ") || undefined,
   };
 }
 
@@ -770,11 +876,22 @@ async function resolveQueueSize(organizationId: string): Promise<FastCard> {
     title: `${formatNumber(summary.readyCount)} ${summary.readyCount === 1 ? "employee is" : "employees are"} ready for allocation`,
     summary: `${formatNumber(summary.eligibleCount)} eligible of ${formatNumber(summary.totalEmployees)} active employees · ${formatNumber(summary.noHouseCount)} blocked for want of a suitable house`,
     stats: [
-      { label: "Ready now", value: formatNumber(summary.readyCount), tone: "positive" },
-      { label: "Waiting on a house", value: formatNumber(summary.noHouseCount), tone: "caution" },
+      {
+        label: "Ready now",
+        value: formatNumber(summary.readyCount),
+        tone: "positive",
+      },
+      {
+        label: "Waiting on a house",
+        value: formatNumber(summary.noHouseCount),
+        tone: "caution",
+      },
       { label: "Eligible", value: formatNumber(summary.eligibleCount) },
       { label: "Not eligible", value: formatNumber(summary.notEligibleCount) },
-      { label: "Already allocated", value: formatNumber(summary.allocatedCount) },
+      {
+        label: "Already allocated",
+        value: formatNumber(summary.allocatedCount),
+      },
       { label: "Houses available", value: formatNumber(available) },
     ],
     table: availability.some((a) => a.totalActive > 0)
@@ -820,22 +937,40 @@ async function resolveQueueByGrade(
       : "This grade has no mapped house category, so its members are not eligible for allocation.",
     stats: [
       { label: "Total", value: formatNumber(rows.length) },
-      { label: "Ready", value: formatNumber(statusCount("ready_for_allocation")), tone: "positive" },
-      { label: "No house available", value: formatNumber(statusCount("no_house_available")), tone: "caution" },
+      {
+        label: "Ready",
+        value: formatNumber(statusCount("ready_for_allocation")),
+        tone: "positive",
+      },
+      {
+        label: "No house available",
+        value: formatNumber(statusCount("no_house_available")),
+        tone: "caution",
+      },
       { label: "Allocated", value: formatNumber(statusCount("allocated")) },
     ],
     table: rows.length
       ? {
-          columns: ["Rank", "Employee", "No.", "Service yrs", "MCDA", "Recommended house", "Status"],
-          rows: rows.slice(0, 25).map((r) => [
-            r.priorityRank ?? "—",
-            `${r.firstname} ${r.lastname}`.trim(),
-            r.employeeNumber,
-            r.serviceYears,
-            r.mcdScore !== null ? r.mcdScore.toFixed(2) : "—",
-            r.recommendedHouseNumber ?? "—",
-            r.queueStatus,
-          ]),
+          columns: [
+            "Rank",
+            "Employee",
+            "No.",
+            "Service yrs",
+            "MCDA",
+            "Recommended house",
+            "Status",
+          ],
+          rows: rows
+            .slice(0, 25)
+            .map((r) => [
+              r.priorityRank ?? "—",
+              `${r.firstname} ${r.lastname}`.trim(),
+              r.employeeNumber,
+              r.serviceYears,
+              r.mcdScore !== null ? r.mcdScore.toFixed(2) : "—",
+              r.recommendedHouseNumber ?? "—",
+              r.queueStatus,
+            ]),
         }
       : undefined,
     actions: [{ label: "Open house queue", href: "/house-queue" }],
@@ -858,13 +993,17 @@ async function resolveQueuePosition(
         .filter((r) => r.queueStatus === "ready_for_allocation")
         .slice(0, Math.max(1, Math.min(limit, 10)));
 
-  const pool = position ? rows : queue.rows.filter((r) => r.queueStatus === "ready_for_allocation");
+  const pool = position
+    ? rows
+    : queue.rows.filter((r) => r.queueStatus === "ready_for_allocation");
   const available = queue.availability.reduce((sum, a) => sum + a.available, 0);
 
   if (rows.length === 0) {
     return {
       intent: "queue.position",
-      title: position ? `No candidate at position ${position}` : "Nobody is ready for allocation right now",
+      title: position
+        ? `No candidate at position ${position}`
+        : "Nobody is ready for allocation right now",
       summary: `There are ${queue.summary.eligibleCount} eligible employees, but none currently has a house recommended. ${available} houses are available in total.`,
       stats: [
         { label: "Eligible", value: formatNumber(queue.summary.eligibleCount) },
@@ -889,7 +1028,16 @@ async function resolveQueuePosition(
       { label: "Houses available", value: formatNumber(available) },
     ],
     table: tableFromRows(
-      ["Rank", "Employee", "No.", "Grade", "Service yrs", "MCDA", "Recommended house", "Status"],
+      [
+        "Rank",
+        "Employee",
+        "No.",
+        "Grade",
+        "Service yrs",
+        "MCDA",
+        "Recommended house",
+        "Status",
+      ],
       rows.map((r) => [
         r.priorityRank ?? "—",
         `${r.firstname} ${r.lastname}`.trim(),
@@ -904,7 +1052,8 @@ async function resolveQueuePosition(
       ]),
     ),
     actions: [{ label: "Open house queue", href: "/house-queue" }],
-    footnote: "Ranks are recomputed live against the current engine configuration.",
+    footnote:
+      "Ranks are recomputed live against the current engine configuration.",
   };
 }
 
@@ -931,7 +1080,11 @@ async function resolveAssetCounts(
     summary: `${formatNumber(overview.warrantySoon)} warranties expire within 60 days · ${formatCurrency(overview.totalValue)} total purchase value`,
     stats: [
       { label: "Assets", value: formatNumber(overview.total) },
-      { label: "Warranty ≤ 60 days", value: formatNumber(overview.warrantySoon), tone: "caution" },
+      {
+        label: "Warranty ≤ 60 days",
+        value: formatNumber(overview.warrantySoon),
+        tone: "caution",
+      },
       { label: "Purchase value", value: formatCurrency(overview.totalValue) },
     ],
     table: overview.byCategory.length
@@ -957,9 +1110,14 @@ async function resolveAssetEstateValue(
   return {
     intent: "assets.estateValue",
     title: `${formatNumber(overview.total)} assets worth ${formatCurrency(overview.totalValue)}`,
-    summary: "Total recorded purchase value across the registered asset estate.",
+    summary:
+      "Total recorded purchase value across the registered asset estate.",
     stats: [
-      { label: "Total value", value: formatCurrency(overview.totalValue), tone: "positive" },
+      {
+        label: "Total value",
+        value: formatCurrency(overview.totalValue),
+        tone: "positive",
+      },
       { label: "Assets", value: formatNumber(overview.total) },
       {
         label: "Average per asset",
@@ -1023,19 +1181,36 @@ async function resolveExpiringWarranties(
         ? `No warranties expire in the next ${days} days`
         : `${formatNumber(assets.length)} ${assets.length === 1 ? "warranty expires" : "warranties expire"} within ${days} days`,
     stats: [
-      { label: `Expiring ≤ ${days}d`, value: formatNumber(assets.length), tone: "caution" },
-      { label: "Already expired", value: formatNumber(expired), tone: "critical" },
+      {
+        label: `Expiring ≤ ${days}d`,
+        value: formatNumber(assets.length),
+        tone: "caution",
+      },
+      {
+        label: "Already expired",
+        value: formatNumber(expired),
+        tone: "critical",
+      },
     ],
     table: assets.length
       ? {
-          columns: ["Asset tag", "Name", "Model", "Manufacturer", "Department", "Expires"],
+          columns: [
+            "Asset tag",
+            "Name",
+            "Model",
+            "Manufacturer",
+            "Department",
+            "Expires",
+          ],
           rows: assets.map((a) => [
             a.assettag,
             a.assetname,
             a.model?.modelname ?? "—",
             a.manufacturer?.manufacturername ?? "—",
             a.department?.name ?? "Unassigned",
-            a.warrantyExpires ? a.warrantyExpires.toISOString().slice(0, 10) : "—",
+            a.warrantyExpires
+              ? a.warrantyExpires.toISOString().slice(0, 10)
+              : "—",
           ]),
         }
       : undefined,
@@ -1081,9 +1256,7 @@ async function resolveStockAlerts(
     }),
   ]);
 
-  const lowStock = consumables.filter(
-    (c) => c.quantity <= c.minQuantity,
-  );
+  const lowStock = consumables.filter((c) => c.quantity <= c.minQuantity);
 
   const strained = licences
     .map((l) => {
@@ -1091,7 +1264,9 @@ async function resolveStockAlerts(
       const free = Math.max(0, l.seatCount - used);
       return {
         id: l.licenceid,
-        software: l.licenceCategoryType?.licencecategorytypename ?? "Uncategorised licence",
+        software:
+          l.licenceCategoryType?.licencecategorytypename ??
+          "Uncategorised licence",
         seats: l.seatCount,
         used,
         free,
@@ -1103,20 +1278,24 @@ async function resolveStockAlerts(
     .filter((l) => l.free <= Math.max(1, Math.floor(l.seats * 0.1)));
 
   const rows: (string | number | null)[][] = [
-    ...lowStock.slice(0, limit).map((c) => [
-      "Consumable",
-      c.consumablename,
-      c.quantity,
-      c.minQuantity,
-      c.consumableCategoryType?.consumablecategorytypename ?? "Uncategorised",
-    ]),
-    ...strained.slice(0, limit).map((l) => [
-      "Licence",
-      l.software,
-      `${l.free} free / ${l.seats}`,
-      "≤ 10% free",
-      l.expires ?? "Perpetual",
-    ]),
+    ...lowStock
+      .slice(0, limit)
+      .map((c) => [
+        "Consumable",
+        c.consumablename,
+        c.quantity,
+        c.minQuantity,
+        c.consumableCategoryType?.consumablecategorytypename ?? "Uncategorised",
+      ]),
+    ...strained
+      .slice(0, limit)
+      .map((l) => [
+        "Licence",
+        l.software,
+        `${l.free} free / ${l.seats}`,
+        "≤ 10% free",
+        l.expires ?? "Perpetual",
+      ]),
   ];
 
   const total = lowStock.length + strained.length;
@@ -1132,12 +1311,26 @@ async function resolveStockAlerts(
         ? "Every consumable is above its reorder threshold and no licence is seat-constrained."
         : `${lowStock.length} consumable${lowStock.length === 1 ? "" : "s"} at or below the reorder threshold · ${strained.length} licence${strained.length === 1 ? "" : "s"} nearly out of seats`,
     stats: [
-      { label: "Low stock", value: formatNumber(lowStock.length), tone: "caution" },
-      { label: "Seats strained", value: formatNumber(strained.length), tone: "caution" },
+      {
+        label: "Low stock",
+        value: formatNumber(lowStock.length),
+        tone: "caution",
+      },
+      {
+        label: "Seats strained",
+        value: formatNumber(strained.length),
+        tone: "caution",
+      },
     ],
     table: rows.length
       ? {
-          columns: ["Type", "Item", "On hand", "Threshold", "Category / expiry"],
+          columns: [
+            "Type",
+            "Item",
+            "On hand",
+            "Threshold",
+            "Category / expiry",
+          ],
           rows,
           rowTones: rows.map((_, i) =>
             i < lowStock.length ? "caution" : "neutral",
@@ -1145,7 +1338,8 @@ async function resolveStockAlerts(
         }
       : undefined,
     actions: [{ label: "Open inventory", href: "/consumables" }],
-    footnote: "A consumable is low when on-hand quantity is at or below its minimum threshold.",
+    footnote:
+      "A consumable is low when on-hand quantity is at or below its minimum threshold.",
   };
 }
 
@@ -1160,7 +1354,9 @@ async function resolveInspectionSummary(
   };
 
   const [pending, total, rows] = await Promise.all([
-    prisma.houseInspection.count({ where: { organizationId, resolvedTo: null } }),
+    prisma.houseInspection.count({
+      where: { organizationId, resolvedTo: null },
+    }),
     prisma.houseInspection.count({ where }),
     prisma.houseInspection.findMany({
       where,
@@ -1208,19 +1404,32 @@ async function resolveInspectionSummary(
       ? "A house stays out of the allocation pool until its inspection resolves to Active or Under Maintenance."
       : `${pending} still unresolved, ${total - pending} resolved.`,
     stats: [
-      { label: "Pending hold", value: formatNumber(pending), tone: pending > 0 ? "caution" : "positive" },
+      {
+        label: "Pending hold",
+        value: formatNumber(pending),
+        tone: pending > 0 ? "caution" : "positive",
+      },
       { label: "Total inspections", value: formatNumber(total) },
     ],
     table: rows.length
       ? {
-          columns: ["House", "Type", "Vacated by", "Scheduled", "Damages", "Status"],
+          columns: [
+            "House",
+            "Type",
+            "Vacated by",
+            "Scheduled",
+            "Damages",
+            "Status",
+          ],
           rows: rows.map((r) => [
             r.household.houseNumber,
             r.household.houseType,
             r.allocation?.employee
               ? `${r.allocation.employee.firstname} ${r.allocation.employee.lastname}`.trim()
               : "—",
-            r.scheduledDate ? r.scheduledDate.toISOString().slice(0, 10) : "Unscheduled",
+            r.scheduledDate
+              ? r.scheduledDate.toISOString().slice(0, 10)
+              : "Unscheduled",
             describe(r),
             r.resolvedTo ? `Resolved → ${r.resolvedTo}` : "Pending",
           ]),
@@ -1228,7 +1437,8 @@ async function resolveInspectionSummary(
         }
       : undefined,
     actions: [{ label: "Open inspections", href: "/houses/inspections" }],
-    footnote: "Damage items come from the handback checklist captured at the worklist.",
+    footnote:
+      "Damage items come from the handback checklist captured at the worklist.",
   };
 }
 
@@ -1248,11 +1458,17 @@ async function resolveTicketSummary(
     summary:
       open === 0
         ? "Nothing is outstanding — every ticket is resolved or closed."
-        : `Prioritised: ${summary.byPriority
-            .map((p) => `${p.count} ${p.priority}`)
-            .join(" · ") || "no priority set"}.`,
+        : `Prioritised: ${
+            summary.byPriority
+              .map((p) => `${p.count} ${p.priority}`)
+              .join(" · ") || "no priority set"
+          }.`,
     stats: [
-      { label: "Open", value: formatNumber(open), tone: open > 0 ? "caution" : "positive" },
+      {
+        label: "Open",
+        value: formatNumber(open),
+        tone: open > 0 ? "caution" : "positive",
+      },
       { label: "Total", value: formatNumber(total) },
       ...summary.byStatus.slice(0, 3).map((s) => ({
         label: s.status,
@@ -1272,7 +1488,9 @@ async function resolveTicketSummary(
             t.createdAt.toISOString().slice(0, 10),
           ]),
           rowTones: summary.recent.map((t) =>
-            t.priority === "critical" || t.priority === "high" ? "caution" : "neutral",
+            t.priority === "critical" || t.priority === "high"
+              ? "caution"
+              : "neutral",
           ),
         }
       : undefined,
@@ -1306,7 +1524,8 @@ async function resolveEmployeeCounts(
         }
       : undefined,
     actions: [{ label: "Open employees", href: "/employees" }],
-    footnote: "Eligibility bands map job grade to a house category in the queue engine configuration.",
+    footnote:
+      "Eligibility bands map job grade to a house category in the queue engine configuration.",
   };
 }
 
@@ -1339,7 +1558,11 @@ const PRIMARY_AGGREGATE: Record<
   "assets.estateValue": (org) => cacheKey(org, CACHE_DOMAIN.assets, "overview"),
   "employees.counts": (org) => cacheKey(org, CACHE_DOMAIN.people, "counts"),
   "tickets.summary": (org, p) =>
-    cacheKey(org, CACHE_DOMAIN.tickets, `summary:${Math.min((p.limit as number) ?? 8, 8)}`),
+    cacheKey(
+      org,
+      CACHE_DOMAIN.tickets,
+      `summary:${Math.min((p.limit as number) ?? 8, 8)}`,
+    ),
 };
 
 /**
@@ -1415,7 +1638,10 @@ export async function tryFastLane(
       );
       break;
     case "assets.counts":
-      card = await resolveAssetCounts(organizationId, (p.limit as number) ?? 10);
+      card = await resolveAssetCounts(
+        organizationId,
+        (p.limit as number) ?? 10,
+      );
       break;
     case "assets.estateValue":
       card = await resolveAssetEstateValue(organizationId);
@@ -1428,7 +1654,10 @@ export async function tryFastLane(
       );
       break;
     case "assets.stockAlerts":
-      card = await resolveStockAlerts(organizationId, (p.limit as number) ?? 10);
+      card = await resolveStockAlerts(
+        organizationId,
+        (p.limit as number) ?? 10,
+      );
       break;
     case "inspections.summary":
       card = await resolveInspectionSummary(
@@ -1438,7 +1667,10 @@ export async function tryFastLane(
       );
       break;
     case "tickets.summary":
-      card = await resolveTicketSummary(organizationId, (p.limit as number) ?? 8);
+      card = await resolveTicketSummary(
+        organizationId,
+        (p.limit as number) ?? 8,
+      );
       break;
     case "employees.counts":
       card = await resolveEmployeeCounts(organizationId);

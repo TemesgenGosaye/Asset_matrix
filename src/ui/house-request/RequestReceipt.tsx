@@ -39,7 +39,8 @@ export default function RequestReceipt({
         </h2>
         <p className="text-muted-foreground mx-auto mt-2 max-w-xl text-sm leading-relaxed text-pretty">
           The request was recorded and will be ranked inside the Type{" "}
-          {confirmation.houseCategory ?? "—"} band on the next queue calculation.
+          {confirmation.houseCategory ?? "—"} band on the next queue
+          calculation.
         </p>
       </div>
 

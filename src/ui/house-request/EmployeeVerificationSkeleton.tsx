@@ -25,13 +25,19 @@ export default function EmployeeVerificationSkeleton({
         aria-label={`Reading live from the Employee Register for ${employeeNumber ?? ""}`}
       >
         {/* Prominent live verification spinner */}
-        <div className="flex flex-col items-center justify-center py-6 px-4 mb-4 rounded-lg border border-[#1e3a5f]/20 bg-[#e8eef6]/50 text-center">
-          <Loader2 className="h-7 w-7 animate-spin text-[#1e3a5f]" aria-hidden="true" />
-          <p className="mt-2 text-xs font-bold text-[#1e3a5f] tracking-wide uppercase">
+        <div className="mb-4 flex flex-col items-center justify-center rounded-lg border border-[#1e3a5f]/20 bg-[#e8eef6]/50 px-4 py-6 text-center">
+          <Loader2
+            className="h-7 w-7 animate-spin text-[#1e3a5f]"
+            aria-hidden="true"
+          />
+          <p className="mt-2 text-xs font-bold tracking-wide text-[#1e3a5f] uppercase">
             Reading live from the Employee Register...
           </p>
-          <p className="text-[11px] text-muted-foreground mt-0.5">
-            Verifying {employeeNumber ? `Employee ID: HR-${employeeNumber}` : "Employee Record"}
+          <p className="text-muted-foreground mt-0.5 text-[11px]">
+            Verifying{" "}
+            {employeeNumber
+              ? `Employee ID: HR-${employeeNumber}`
+              : "Employee Record"}
           </p>
         </div>
 
@@ -47,13 +53,17 @@ export default function EmployeeVerificationSkeleton({
             <tr>
               <td colSpan={2} className="evr-header-cell evr-header-left">
                 <div className="evr-org-title">Metahara Sugar Factory</div>
-                <div className="evr-doc-subtitle">Employee Verification Result</div>
+                <div className="evr-doc-subtitle">
+                  Employee Verification Result
+                </div>
               </td>
               <td colSpan={2} className="evr-header-cell evr-header-right">
                 <div className="evr-ref-no">
                   Ref <strong>HR-{employeeNumber || "..."}</strong>
                 </div>
-                <div className="evr-print-meta">Reading live from the Employee Register...</div>
+                <div className="evr-print-meta">
+                  Reading live from the Employee Register...
+                </div>
               </td>
             </tr>
 
@@ -64,27 +74,51 @@ export default function EmployeeVerificationSkeleton({
               </th>
             </tr>
             <tr>
-              <th scope="row" className="evr-label-cell">Full name</th>
-              <td className="evr-value-cell"><span className="motion-safe:animate-pulse">Loading record...</span></td>
-              <th scope="row" className="evr-label-cell">Employee ID</th>
+              <th scope="row" className="evr-label-cell">
+                Full name
+              </th>
+              <td className="evr-value-cell">
+                <span className="motion-safe:animate-pulse">
+                  Loading record...
+                </span>
+              </td>
+              <th scope="row" className="evr-label-cell">
+                Employee ID
+              </th>
               <td className="evr-value-cell">{employeeNumber || "—"}</td>
             </tr>
             <tr>
-              <th scope="row" className="evr-label-cell">Verification</th>
-              <td className="evr-value-cell"><span className="motion-safe:animate-pulse">Verifying...</span></td>
-              <th scope="row" className="evr-label-cell">Eligibility</th>
-              <td className="evr-value-cell"><span className="motion-safe:animate-pulse">Evaluating...</span></td>
+              <th scope="row" className="evr-label-cell">
+                Verification
+              </th>
+              <td className="evr-value-cell">
+                <span className="motion-safe:animate-pulse">Verifying...</span>
+              </td>
+              <th scope="row" className="evr-label-cell">
+                Eligibility
+              </th>
+              <td className="evr-value-cell">
+                <span className="motion-safe:animate-pulse">Evaluating...</span>
+              </td>
             </tr>
             <tr>
-              <th scope="row" className="evr-label-cell">Service</th>
+              <th scope="row" className="evr-label-cell">
+                Service
+              </th>
               <td className="evr-value-cell">—</td>
-              <th scope="row" className="evr-label-cell">Job grade</th>
+              <th scope="row" className="evr-label-cell">
+                Job grade
+              </th>
               <td className="evr-value-cell">—</td>
             </tr>
             <tr>
-              <th scope="row" className="evr-label-cell">Marital status</th>
+              <th scope="row" className="evr-label-cell">
+                Marital status
+              </th>
               <td className="evr-value-cell">—</td>
-              <th scope="row" className="evr-label-cell">Disability</th>
+              <th scope="row" className="evr-label-cell">
+                Disability
+              </th>
               <td className="evr-value-cell">—</td>
             </tr>
 
@@ -95,21 +129,33 @@ export default function EmployeeVerificationSkeleton({
               </th>
             </tr>
             <tr>
-              <th scope="row" className="evr-label-cell">Department</th>
+              <th scope="row" className="evr-label-cell">
+                Department
+              </th>
               <td className="evr-value-cell">—</td>
-              <th scope="row" className="evr-label-cell">Job title</th>
-              <td className="evr-value-cell">—</td>
-            </tr>
-            <tr>
-              <th scope="row" className="evr-label-cell">Type</th>
-              <td className="evr-value-cell">—</td>
-              <th scope="row" className="evr-label-cell">Status</th>
+              <th scope="row" className="evr-label-cell">
+                Job title
+              </th>
               <td className="evr-value-cell">—</td>
             </tr>
             <tr>
-              <th scope="row" className="evr-label-cell">Hire date</th>
+              <th scope="row" className="evr-label-cell">
+                Type
+              </th>
               <td className="evr-value-cell">—</td>
-              <th scope="row" className="evr-label-cell">Service years</th>
+              <th scope="row" className="evr-label-cell">
+                Status
+              </th>
+              <td className="evr-value-cell">—</td>
+            </tr>
+            <tr>
+              <th scope="row" className="evr-label-cell">
+                Hire date
+              </th>
+              <td className="evr-value-cell">—</td>
+              <th scope="row" className="evr-label-cell">
+                Service years
+              </th>
               <td className="evr-value-cell">—</td>
             </tr>
 
@@ -120,21 +166,33 @@ export default function EmployeeVerificationSkeleton({
               </th>
             </tr>
             <tr>
-              <th scope="row" className="evr-label-cell">Gender</th>
+              <th scope="row" className="evr-label-cell">
+                Gender
+              </th>
               <td className="evr-value-cell">—</td>
-              <th scope="row" className="evr-label-cell">Marital status</th>
-              <td className="evr-value-cell">—</td>
-            </tr>
-            <tr>
-              <th scope="row" className="evr-label-cell">Family size</th>
-              <td className="evr-value-cell">—</td>
-              <th scope="row" className="evr-label-cell">Accessibility</th>
+              <th scope="row" className="evr-label-cell">
+                Marital status
+              </th>
               <td className="evr-value-cell">—</td>
             </tr>
             <tr>
-              <th scope="row" className="evr-label-cell">Phone</th>
+              <th scope="row" className="evr-label-cell">
+                Family size
+              </th>
               <td className="evr-value-cell">—</td>
-              <th scope="row" className="evr-label-cell">National ID</th>
+              <th scope="row" className="evr-label-cell">
+                Accessibility
+              </th>
+              <td className="evr-value-cell">—</td>
+            </tr>
+            <tr>
+              <th scope="row" className="evr-label-cell">
+                Phone
+              </th>
+              <td className="evr-value-cell">—</td>
+              <th scope="row" className="evr-label-cell">
+                National ID
+              </th>
               <td className="evr-value-cell">—</td>
             </tr>
 
@@ -145,21 +203,33 @@ export default function EmployeeVerificationSkeleton({
               </th>
             </tr>
             <tr>
-              <th scope="row" className="evr-label-cell">Request status</th>
+              <th scope="row" className="evr-label-cell">
+                Request status
+              </th>
               <td className="evr-value-cell">—</td>
-              <th scope="row" className="evr-label-cell">Queue position</th>
-              <td className="evr-value-cell">—</td>
-            </tr>
-            <tr>
-              <th scope="row" className="evr-label-cell">Reason on file</th>
-              <td className="evr-value-cell">—</td>
-              <th scope="row" className="evr-label-cell">MCDA score</th>
+              <th scope="row" className="evr-label-cell">
+                Queue position
+              </th>
               <td className="evr-value-cell">—</td>
             </tr>
             <tr>
-              <th scope="row" className="evr-label-cell">House band</th>
+              <th scope="row" className="evr-label-cell">
+                Reason on file
+              </th>
               <td className="evr-value-cell">—</td>
-              <th scope="row" className="evr-label-cell">Job grade</th>
+              <th scope="row" className="evr-label-cell">
+                MCDA score
+              </th>
+              <td className="evr-value-cell">—</td>
+            </tr>
+            <tr>
+              <th scope="row" className="evr-label-cell">
+                House band
+              </th>
+              <td className="evr-value-cell">—</td>
+              <th scope="row" className="evr-label-cell">
+                Job grade
+              </th>
               <td className="evr-value-cell">—</td>
             </tr>
 
@@ -178,26 +248,43 @@ export default function EmployeeVerificationSkeleton({
               </th>
             </tr>
             <tr>
-              <td colSpan={3} className="evr-value-cell">Employment is active</td>
-              <td className="evr-value-cell" style={{ textAlign: "right" }}>...</td>
+              <td colSpan={3} className="evr-value-cell">
+                Employment is active
+              </td>
+              <td className="evr-value-cell" style={{ textAlign: "right" }}>
+                ...
+              </td>
             </tr>
             <tr>
-              <td colSpan={3} className="evr-value-cell">Job grade maps to a house band</td>
-              <td className="evr-value-cell" style={{ textAlign: "right" }}>...</td>
+              <td colSpan={3} className="evr-value-cell">
+                Job grade maps to a house band
+              </td>
+              <td className="evr-value-cell" style={{ textAlign: "right" }}>
+                ...
+              </td>
             </tr>
             <tr>
-              <td colSpan={3} className="evr-value-cell">No allocated house is held</td>
-              <td className="evr-value-cell" style={{ textAlign: "right" }}>...</td>
+              <td colSpan={3} className="evr-value-cell">
+                No allocated house is held
+              </td>
+              <td className="evr-value-cell" style={{ textAlign: "right" }}>
+                ...
+              </td>
             </tr>
             <tr>
-              <td colSpan={3} className="evr-value-cell">No request is already open</td>
-              <td className="evr-value-cell" style={{ textAlign: "right" }}>...</td>
+              <td colSpan={3} className="evr-value-cell">
+                No request is already open
+              </td>
+              <td className="evr-value-cell" style={{ textAlign: "right" }}>
+                ...
+              </td>
             </tr>
 
             {/* Footer row */}
             <tr>
               <td colSpan={4} className="evr-footer-cell">
-                Metahara Sugar Factory · Computer-generated verification result, valid with authorized signature
+                Metahara Sugar Factory · Computer-generated verification result,
+                valid with authorized signature
               </td>
             </tr>
           </tbody>

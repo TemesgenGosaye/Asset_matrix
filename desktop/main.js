@@ -69,8 +69,10 @@ const FOOTER_CSS = `
 let mainWindow = null;
 let splashWindow = null;
 let aboutWindow = null;
+let licenseWindow = null;
 let stateStore = null;
 let retryTimer = null;
+let splashCreatedAt = 0;
 let splashShownAt = 0;
 let loadingApp = false;
 let showingError = false;
@@ -104,9 +106,12 @@ function log(...parts) {
     if (!logStream) {
       const dir = path.join(app.getPath("userData"), "logs");
       fs.mkdirSync(dir, { recursive: true });
-      logStream = fs.createWriteStream(path.join(dir, "house-admin-desktop.log"), {
-        flags: "a",
-      });
+      logStream = fs.createWriteStream(
+        path.join(dir, "house-admin-desktop.log"),
+        {
+          flags: "a",
+        },
+      );
     }
     logStream.write(`${new Date().toISOString()} ${line}\n`);
   } catch {
@@ -151,7 +156,9 @@ function isTrustedLocalFrame(event) {
 
 function openExternalUrl(value) {
   if (!isHttpUrl(value)) return;
-  shell.openExternal(value).catch((error) => log("Could not open external URL:", error));
+  shell
+    .openExternal(value)
+    .catch((error) => log("Could not open external URL:", error));
 }
 
 function appInfo() {
@@ -193,7 +200,8 @@ function closeSplash() {
 
   const splash = splashWindow;
   splashWindow = null;
-  const elapsed = splashShownAt ? Date.now() - splashShownAt : 1200;
+  const startedAt = splashShownAt || splashCreatedAt;
+  const elapsed = startedAt ? Date.now() - startedAt : 1200;
   const delay = Math.max(0, 900 - elapsed);
 
   setTimeout(() => {
@@ -214,6 +222,7 @@ function revealMainWindow() {
 }
 
 function createSplashWindow() {
+  splashCreatedAt = Date.now();
   splashWindow = new BrowserWindow({
     width: 420,
     height: 320,
@@ -240,7 +249,11 @@ function createSplashWindow() {
 
   splashWindow.setMenuBarVisibility(false);
   splashWindow.loadFile(path.join(UI_DIR, "splash.html")).catch((error) => {
-    log("Could not load splash screen:", error);
+    // The splash is frequently closed before load completes when the portal
+    // is cached and responds immediately. That is not a real failure.
+    if (splashWindow && !splashWindow.isDestroyed()) {
+      log("Could not load splash screen:", error);
+    }
   });
 
   splashWindow.once("ready-to-show", () => {
@@ -268,7 +281,9 @@ function showError(description) {
 
   loadingApp = false;
   showingError = true;
-  lastErrorDescription = String(description || "The portal server did not respond.");
+  lastErrorDescription = String(
+    description || "The portal server did not respond.",
+  );
   log("Showing connection error:", lastErrorDescription);
   startRetryTimer();
 
@@ -305,7 +320,11 @@ function beginPortalAttempt() {
   log("Connecting to", target);
 
   mainWindow.loadURL(target).catch((error) => {
-    log("Load rejected:", target, error && error.message ? error.message : error);
+    log(
+      "Load rejected:",
+      target,
+      error && error.message ? error.message : error,
+    );
   });
 }
 
@@ -316,7 +335,10 @@ function beginPortalAttempt() {
 function advancePortalAttempt(reason) {
   if (portalAttemptIndex < PORTAL_URLS.length - 1) {
     portalAttemptIndex += 1;
-    log("Address unavailable, falling back to", PORTAL_URLS[portalAttemptIndex]);
+    log(
+      "Address unavailable, falling back to",
+      PORTAL_URLS[portalAttemptIndex],
+    );
     beginPortalAttempt();
     return;
   }
@@ -349,7 +371,9 @@ function attachNavigationGuards(window) {
   contents.setWindowOpenHandler(({ url }) => {
     if (isAppUrl(url)) {
       if (mainWindow && !mainWindow.isDestroyed()) {
-        mainWindow.loadURL(url).catch((error) => log("Could not open internal URL:", error));
+        mainWindow
+          .loadURL(url)
+          .catch((error) => log("Could not open internal URL:", error));
       }
     } else if (isHttpUrl(url)) {
       openExternalUrl(url);
@@ -360,6 +384,7 @@ function attachNavigationGuards(window) {
   const guardNavigation = (event, url) => {
     if (window === mainWindow && isAppUrl(url)) return;
     if (window === aboutWindow && url.startsWith("file://")) return;
+    if (window === licenseWindow && url.startsWith("file://")) return;
     if (window === splashWindow && url.startsWith("file://")) return;
 
     event.preventDefault();
@@ -440,9 +465,12 @@ function createMainWindow() {
     if (isAppUrl(url)) injectFooterCss();
   });
 
-  mainWindow.webContents.on("did-navigate-in-page", (_event, url, isMainFrame) => {
-    if (isMainFrame && isAppUrl(url)) injectFooterCss();
-  });
+  mainWindow.webContents.on(
+    "did-navigate-in-page",
+    (_event, url, isMainFrame) => {
+      if (isMainFrame && isAppUrl(url)) injectFooterCss();
+    },
+  );
 
   mainWindow.webContents.on("page-title-updated", (event) => {
     event.preventDefault();
@@ -451,7 +479,8 @@ function createMainWindow() {
 
   mainWindow.webContents.on("before-input-event", (event, input) => {
     const key = String(input.key || "").toLowerCase();
-    const ctrlOrCmd = process.platform === "darwin" ? input.meta : input.control;
+    const ctrlOrCmd =
+      process.platform === "darwin" ? input.meta : input.control;
 
     if (input.key === "F5" || (ctrlOrCmd && key === "r" && !input.shift)) {
       event.preventDefault();
@@ -543,6 +572,58 @@ function showAboutWindow() {
 
   aboutWindow.on("closed", () => {
     aboutWindow = null;
+    if (licenseWindow && !licenseWindow.isDestroyed()) licenseWindow.close();
+  });
+}
+
+function showLicenseWindow() {
+  if (licenseWindow && !licenseWindow.isDestroyed()) {
+    if (licenseWindow.isMinimized()) licenseWindow.restore();
+    licenseWindow.show();
+    licenseWindow.focus();
+    return;
+  }
+
+  licenseWindow = new BrowserWindow({
+    width: 780,
+    height: 720,
+    minWidth: 560,
+    minHeight: 480,
+    resizable: true,
+    minimizable: true,
+    maximizable: true,
+    fullscreenable: false,
+    parent: aboutWindow || mainWindow || undefined,
+    modal: false,
+    show: false,
+    backgroundColor: "#050b18",
+    title: `End User License Agreement - ${CONFIG.APP_NAME}`,
+    icon: ICON_ICO,
+    webPreferences: {
+      preload: path.join(__dirname, "preload.js"),
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: true,
+      spellcheck: false,
+      devTools: false,
+    },
+  });
+
+  licenseWindow.setMenuBarVisibility(false);
+  attachNavigationGuards(licenseWindow);
+
+  licenseWindow.loadFile(path.join(UI_DIR, "license.html")).catch((error) => {
+    log("Could not load License window:", error);
+  });
+
+  licenseWindow.once("ready-to-show", () => {
+    if (!licenseWindow) return;
+    licenseWindow.show();
+    licenseWindow.focus();
+  });
+
+  licenseWindow.on("closed", () => {
+    licenseWindow = null;
   });
 }
 
@@ -553,11 +634,12 @@ function configureSessionSecurity() {
     permission === "clipboard-sanitized-write";
 
   defaultSession.setPermissionRequestHandler(
-    (_webContents, permission, callback) => callback(isAllowedPermission(permission)),
+    (_webContents, permission, callback) =>
+      callback(isAllowedPermission(permission)),
   );
 
-  defaultSession.setPermissionCheckHandler(
-    (_webContents, permission) => isAllowedPermission(permission),
+  defaultSession.setPermissionCheckHandler((_webContents, permission) =>
+    isAllowedPermission(permission),
   );
 }
 
@@ -702,14 +784,32 @@ ipcMain.handle("app:close-about", (event) => {
   return false;
 });
 
+ipcMain.handle("app:open-license", (event) => {
+  if (!isTrustedLocalFrame(event)) return false;
+  showLicenseWindow();
+  return true;
+});
+
+ipcMain.handle("app:close-license", (event) => {
+  if (!isTrustedLocalFrame(event)) return false;
+  if (licenseWindow && event.sender === licenseWindow.webContents) {
+    licenseWindow.close();
+    return true;
+  }
+  return false;
+});
+
 app.on("web-contents-created", (_event, contents) => {
   contents.on("will-attach-webview", (event) => event.preventDefault());
 });
 
-app.on("certificate-error", (event, _webContents, _url, _error, _certificate, callback) => {
-  event.preventDefault();
-  callback(false);
-});
+app.on(
+  "certificate-error",
+  (event, _webContents, _url, _error, _certificate, callback) => {
+    event.preventDefault();
+    callback(false);
+  },
+);
 
 if (!app.requestSingleInstanceLock()) {
   app.quit();

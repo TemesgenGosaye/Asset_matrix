@@ -843,7 +843,8 @@ export async function executeRelease(
     targetHouseholdId,
   } = params;
 
-  const chosenTransferHouseId = transferHouseholdId ?? targetHouseholdId ?? null;
+  const chosenTransferHouseId =
+    transferHouseholdId ?? targetHouseholdId ?? null;
   if (branch === "TRANSFER" && !chosenTransferHouseId) {
     throw new BadRequestError(
       "A TRANSFER is a Reassign, not a release. Use the transfer surface for house moves.",
@@ -888,7 +889,9 @@ export async function executeRelease(
       select: { id: true, status: true, houseNumber: true },
     });
     if (!transferHouse) {
-      throw new NotFoundError("Replacement house not found in this organization.");
+      throw new NotFoundError(
+        "Replacement house not found in this organization.",
+      );
     }
     if (transferHouse.status !== "Active") {
       throw new ConflictError(
@@ -946,7 +949,8 @@ export async function executeRelease(
         decidedAt: initiatedAt,
         terminationReason: branch,
         effectiveDate: effectiveDate ? new Date(effectiveDate) : null,
-        transferHouseholdId: branch === "TRANSFER" ? chosenTransferHouseId : null,
+        transferHouseholdId:
+          branch === "TRANSFER" ? chosenTransferHouseId : null,
       },
     });
     if (updated.count === 0) {
@@ -990,7 +994,8 @@ export async function executeRelease(
         branch,
         reason: reason ?? null,
         effectiveDate: effectiveDate ?? null,
-        transferHouseholdId: branch === "TRANSFER" ? chosenTransferHouseId : null,
+        transferHouseholdId:
+          branch === "TRANSFER" ? chosenTransferHouseId : null,
         employeeNumber: employee.employeeNumber,
         employeeName: `${employee.firstname} ${employee.lastname}`.trim(),
         jobGrade: employee.jobGrade,
@@ -1198,7 +1203,11 @@ export async function completeInspection(
   await prisma.$transaction(async (tx) => {
     // 1. Mark inspection completed
     const cas = await tx.houseInspection.updateMany({
-      where: { id: inspectionId, resolvedTo: null, status: { not: "COMPLETED" } },
+      where: {
+        id: inspectionId,
+        resolvedTo: null,
+        status: { not: "COMPLETED" },
+      },
       data: {
         checklistWindow: checklist.window,
         checklistDoor: checklist.door,
@@ -1490,7 +1499,9 @@ export async function cancelReleaseRequest(
       : null;
 
   if (!allocation) {
-    throw new NotFoundError("Allocation record not found in this organization.");
+    throw new NotFoundError(
+      "Allocation record not found in this organization.",
+    );
   }
 
   if (!isReleasePending(allocation.status)) {
@@ -1503,7 +1514,10 @@ export async function cancelReleaseRequest(
     where: { allocationId: allocation.id, organizationId },
   });
 
-  if (inspection && (inspection.status === "COMPLETED" || inspection.resolvedTo)) {
+  if (
+    inspection &&
+    (inspection.status === "COMPLETED" || inspection.resolvedTo)
+  ) {
     throw new ConflictError(
       "Cannot cancel release request: the inspection has already been completed.",
     );
@@ -1625,7 +1639,9 @@ export async function finalizeRelease(
       : null;
 
   if (!allocation) {
-    throw new NotFoundError("Allocation record not found in this organization.");
+    throw new NotFoundError(
+      "Allocation record not found in this organization.",
+    );
   }
 
   if (
@@ -1645,7 +1661,11 @@ export async function finalizeRelease(
     where: { allocationId: allocation.id, organizationId },
   });
 
-  if (!inspection || inspection.status !== "COMPLETED" || !inspection.resolvedTo) {
+  if (
+    !inspection ||
+    inspection.status !== "COMPLETED" ||
+    !inspection.resolvedTo
+  ) {
     throw new BadRequestError(
       "Cannot release house: inspection has not been completed yet.",
     );
@@ -1722,7 +1742,8 @@ export async function finalizeRelease(
           damageWall: inspection.checklistWall,
           damageElectricity: inspection.checklistElectricity,
           damageNotes:
-            inspection.conditionNote ?? "Damage recorded during handback inspection",
+            inspection.conditionNote ??
+            "Damage recorded during handback inspection",
         },
       });
     }

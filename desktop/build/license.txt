@@ -1,31 +1,144 @@
-MSF HOMEDESK
-Windows Desktop Application
+================================================================================
+                     MSF HOMEDESK - END USER LICENSE AGREEMENT
+================================================================================
 
-Publisher: Temesgen G. | Metahara Sugar Factory - IT Department
-Copyright (c) 2026 Metahara Sugar Factory. All rights reserved.
+Product    : Msf HomeDesk ("Software")
+Version    : 1.0.0
+Publisher  : Metahara Sugar Factory - IT Department
+Developer  : Temesgen G.
+Copyright  : (c) 2026 Metahara Sugar Factory. All rights reserved.
+Effective  : 1 January 2026
 
-Msf HomeDesk is a secure desktop application for the House Administration
-Portal at https://house.taild2df63.ts.net. It is intended for use by
-Metahara Sugar Factory staff.
+--------------------------------------------------------------------------------
+IMPORTANT - READ CAREFULLY
+--------------------------------------------------------------------------------
 
-MIT License
+This is a proprietary software license. This End User License Agreement
+("Agreement") is a legal agreement between you (an authorised employee or
+contractor of Metahara Sugar Factory) and Metahara Sugar Factory ("Company")
+for the Msf HomeDesk desktop application.
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+By clicking "I accept the agreement", installing, or using the Software, you
+agree to be bound by the terms of this Agreement. If you do not agree, do not
+install or use the Software.
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+--------------------------------------------------------------------------------
+1. DEFINITIONS
+--------------------------------------------------------------------------------
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+"Software" means the Msf HomeDesk desktop application, including its installer,
+user interface, documentation, and any updates or supplements.
+"User" means an authorised employee or contractor granted access to the
+Software by the Company.
+"Portal" means the Company's House Administration Portal located at
+https://house.taild2df63.ts.net.
 
-Developed by Temesgen G. | IT Department, Metahara Sugar Factory
+--------------------------------------------------------------------------------
+2. LICENSE GRANT
+--------------------------------------------------------------------------------
+
+Subject to compliance with this Agreement, the Company grants the User a
+limited, non-exclusive, non-transferable, revocable license to install and use
+one copy of the Software on a Company-managed Windows device for the sole
+purpose of accessing the Portal.
+
+This license is granted for internal business use only. No ownership rights are
+transferred.
+
+--------------------------------------------------------------------------------
+3. RESTRICTIONS
+--------------------------------------------------------------------------------
+
+The User shall not, and shall not permit any third party to:
+
+  (a) copy, modify, adapt, translate, or create derivative works of the
+      Software;
+  (b) reverse engineer, decompile, disassemble, or attempt to derive the
+      source code of the Software;
+  (c) rent, lease, lend, sell, sublicense, or otherwise transfer the Software;
+  (d) remove, alter, or obscure any proprietary notices, labels, or marks;
+  (e) use the Software for any unlawful purpose or in violation of Company
+      policy;
+  (f) circumvent or disable any security, authentication, or access-control
+      feature of the Software or the Portal.
+
+--------------------------------------------------------------------------------
+4. OWNERSHIP
+--------------------------------------------------------------------------------
+
+The Software is licensed, not sold. The Company and its licensors retain all
+right, title, and interest in and to the Software, including all intellectual
+property rights. All rights not expressly granted in this Agreement are
+reserved by the Company.
+
+--------------------------------------------------------------------------------
+5. DATA AND PRIVACY
+--------------------------------------------------------------------------------
+
+Msf HomeDesk is a client for the Company's internal Portal. The Software stores
+only local configuration, window state, and diagnostic logs on the User's
+device. Portal data is governed by the Company's internal data protection and
+acceptable-use policies. Diagnostic logs may be accessed by IT support for
+troubleshooting and support purposes.
+
+--------------------------------------------------------------------------------
+6. UPDATES AND SUPPORT
+--------------------------------------------------------------------------------
+
+The Company may provide updates, patches, or new versions at its sole
+discretion. Updates may be installed automatically. Support for the Software is
+provided by the IT Department during normal business hours.
+
+--------------------------------------------------------------------------------
+7. TERM AND TERMINATION
+--------------------------------------------------------------------------------
+
+This Agreement is effective until terminated. The license terminates
+automatically if the User breaches any term of this Agreement or upon
+separation from the Company. Upon termination, the User must cease all use of
+the Software and remove it from the device.
+
+--------------------------------------------------------------------------------
+8. DISCLAIMER OF WARRANTY
+--------------------------------------------------------------------------------
+
+THE SOFTWARE IS PROVIDED "AS IS" AND "AS AVAILABLE", WITHOUT WARRANTY OF ANY
+KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND NON-INFRINGEMENT. THE
+COMPANY DOES NOT WARRANT THAT THE SOFTWARE WILL BE UNINTERRUPTED, ERROR-FREE,
+OR SECURE.
+
+--------------------------------------------------------------------------------
+9. LIMITATION OF LIABILITY
+--------------------------------------------------------------------------------
+
+TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE COMPANY SHALL NOT BE LIABLE FOR ANY
+INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, OR PUNITIVE DAMAGES, OR ANY LOSS
+OF DATA, PROFITS, OR BUSINESS OPPORTUNITY, ARISING OUT OF OR RELATED TO THE USE
+OF THE SOFTWARE.
+
+--------------------------------------------------------------------------------
+10. GOVERNING LAW
+--------------------------------------------------------------------------------
+
+This Agreement shall be governed by the laws of the Federal Democratic Republic
+of Ethiopia, without regard to conflict-of-law principles. Any dispute shall be
+subject to the exclusive jurisdiction of the competent courts of Ethiopia.
+
+--------------------------------------------------------------------------------
+11. CONTACT
+--------------------------------------------------------------------------------
+
+Questions regarding this Agreement should be directed to:
+
+  IT Department
+  Metahara Sugar Factory
+  Email: it@metaharasugar.com
+
+================================================================================
+By installing or using Msf HomeDesk, you acknowledge that you have read,
+understood, and agree to be bound by this Agreement.
+
+(c) 2026 Metahara Sugar Factory. All rights reserved.
+Msf HomeDesk - Developed by Temesgen G.
+================================================================================

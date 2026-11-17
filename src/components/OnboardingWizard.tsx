@@ -97,7 +97,7 @@ export default function OnboardingWizard() {
         <DialogFooter className="flex-row items-center justify-center sm:justify-center">
           <Button
             onClick={completeOnboarding}
-            className="w-full sm:w-auto cursor-pointer"
+            className="w-full cursor-pointer sm:w-auto"
           >
             Get Started
           </Button>

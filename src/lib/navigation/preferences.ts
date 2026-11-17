@@ -11,11 +11,7 @@
  */
 
 import prisma from "@/lib/prisma";
-import {
-  getAllNavKeys,
-  getLockedNavKeys,
-  resolveHiddenKeys,
-} from "./registry";
+import { getAllNavKeys, getLockedNavKeys, resolveHiddenKeys } from "./registry";
 
 export interface NavigationState {
   /** Effective hidden keys applied to the sidebar for this user. */
@@ -81,7 +77,9 @@ function readOrgHiddenKeys(settings: unknown): string[] | null {
 }
 
 /** The caller's stored hidden keys, or null when they have never saved. */
-export async function getUserHiddenKeys(userId: string): Promise<string[] | null> {
+export async function getUserHiddenKeys(
+  userId: string,
+): Promise<string[] | null> {
   const row = await prisma.navigationPreference.findUnique({
     where: { userId },
     select: { hiddenKeys: true },
@@ -119,7 +117,9 @@ export async function setOrgHiddenKeys(
   });
 
   const current =
-    org?.settings && typeof org.settings === "object" && !Array.isArray(org.settings)
+    org?.settings &&
+    typeof org.settings === "object" &&
+    !Array.isArray(org.settings)
       ? (org.settings as Record<string, unknown>)
       : {};
 
@@ -175,7 +175,10 @@ export async function getNavigationState(input: {
 
   return {
     hiddenKeys: Array.from(
-      resolveHiddenKeys({ userHidden: userHiddenKeys, orgHidden: orgHiddenKeys }),
+      resolveHiddenKeys({
+        userHidden: userHiddenKeys,
+        orgHidden: orgHiddenKeys,
+      }),
     ),
     userHiddenKeys,
     orgHiddenKeys: orgHiddenKeys ?? [],

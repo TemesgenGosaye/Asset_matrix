@@ -198,7 +198,11 @@ async function buildExcel<T>(
     cell.value = c.header;
     cell.font = { bold: true, size: 10, color: { argb: "FFFFFFFF" } };
     cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb } };
-    cell.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
+    cell.alignment = {
+      horizontal: "center",
+      vertical: "middle",
+      wrapText: true,
+    };
     cell.border = { top: thin(), left: thin(), bottom: thin(), right: thin() };
   });
   headerRow.height = 28;
@@ -211,7 +215,12 @@ async function buildExcel<T>(
       cell.value = c.value(row, idx);
       cell.font = { size: 10 };
       cell.alignment = { horizontal: c.align ?? "left", vertical: "middle" };
-      cell.border = { top: thin(), left: thin(), bottom: thin(), right: thin() };
+      cell.border = {
+        top: thin(),
+        left: thin(),
+        bottom: thin(),
+        right: thin(),
+      };
       if (idx % 2 === 1) {
         cell.fill = {
           type: "pattern",
@@ -315,7 +324,8 @@ async function buildPdf<T>(
     columns.forEach((c, i) => {
       const w = colWidths[i];
       const align = c.align ?? "left";
-      const tx = align === "center" ? x + w / 2 : align === "right" ? x + w - 3 : x + 3;
+      const tx =
+        align === "center" ? x + w / 2 : align === "right" ? x + w - 3 : x + 3;
       doc.text(clip(c.header, w - 6), tx, top + 1, { align });
       x += w;
     });
@@ -338,7 +348,8 @@ async function buildPdf<T>(
     columns.forEach((c, i) => {
       const w = colWidths[i];
       const align = c.align ?? "left";
-      const tx = align === "center" ? x + w / 2 : align === "right" ? x + w - 3 : x + 3;
+      const tx =
+        align === "center" ? x + w / 2 : align === "right" ? x + w - 3 : x + 3;
       doc.text(clip(values[i], w - 6), tx, top + 1, { align });
       x += w;
     });

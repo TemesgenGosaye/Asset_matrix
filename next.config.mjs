@@ -44,6 +44,7 @@ function allowedDevOrigins() {
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   // "standalone" is for PM2 self-hosted only. Vercel manages its own output format.
+  output: process.env.VERCEL ? undefined : "standalone",
 
 
 
@@ -143,6 +144,18 @@ const nextConfig = {
         // Apply to all routes
         source: "/(.*)",
         headers: securityHeaders,
+      },
+      {
+        // Brand icons rarely change, so let browsers keep them instead of
+        // re-requesting them on every page load (and surfacing proxy 502s when
+        // the server is recycling).
+        source: "/icons/:path*",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, max-age=86400, stale-while-revalidate=604800",
+          },
+        ],
       },
     ];
   },

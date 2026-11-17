@@ -699,7 +699,7 @@ export default function RentersTable({
             <span className="text-muted-foreground text-[11px] font-semibold tracking-wider uppercase">
               Total Collected
             </span>
-            <span className="bg-brass-500/10 text-brass-600 ring-brass-500/30 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ring-1 dark:text-brass-300">
+            <span className="bg-brass-500/10 text-brass-600 ring-brass-500/30 dark:text-brass-300 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ring-1">
               <Banknote className="h-4 w-4" />
             </span>
           </div>
@@ -719,7 +719,7 @@ export default function RentersTable({
             <span
               className={
                 hasOutstanding
-                  ? "bg-amber-500/10 text-amber-600 ring-amber-500/20 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ring-1 dark:text-amber-400"
+                  ? "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-amber-500/10 text-amber-600 ring-1 ring-amber-500/20 dark:text-amber-400"
                   : "bg-muted text-muted-foreground ring-border flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ring-1"
               }
             >
@@ -772,7 +772,7 @@ export default function RentersTable({
       ) : null}
 
       {/* ---- Toolbar ---- */}
-      <div className="border-border bg-card flex items-center gap-3 rounded-xl border p-3 shadow-sm overflow-x-auto">
+      <div className="border-border bg-card flex items-center gap-3 overflow-x-auto rounded-xl border p-3 shadow-sm">
         <div className="flex shrink-0 items-center gap-2">
           <div className="relative w-64 sm:w-80">
             <Search className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />
@@ -810,10 +810,7 @@ export default function RentersTable({
           </Button>
         </div>
 
-        <div
-          className="bg-border h-6 w-px shrink-0"
-          aria-hidden
-        />
+        <div className="bg-border h-6 w-px shrink-0" aria-hidden />
 
         {/* Filters + row actions follow the search box on one straight row:
             every control is h-9 and evenly spaced, aligned with the Search
@@ -851,13 +848,13 @@ export default function RentersTable({
             </SelectTrigger>
             <SelectContent>
               <SelectItem value={ALL}>Any status</SelectItem>
-              {RENT_DISPLAY_STATUS_OPTIONS.filter((o) => o.value !== "Overdue").map(
-                (o) => (
-                  <SelectItem key={o.value} value={o.value}>
-                    {o.label}
-                  </SelectItem>
-                )
-              )}
+              {RENT_DISPLAY_STATUS_OPTIONS.filter(
+                (o) => o.value !== "Overdue",
+              ).map((o) => (
+                <SelectItem key={o.value} value={o.value}>
+                  {o.label}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
 

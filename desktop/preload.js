@@ -14,6 +14,8 @@ if (window.location.protocol === "file:") {
     getAppInfo: () => ipcRenderer.invoke("app:info"),
     retry: () => ipcRenderer.invoke("app:retry"),
     closeAbout: () => ipcRenderer.invoke("app:close-about"),
+    openLicense: () => ipcRenderer.invoke("app:open-license"),
+    closeLicense: () => ipcRenderer.invoke("app:close-license"),
   });
 }
 

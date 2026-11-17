@@ -309,7 +309,9 @@ export function EmployeeDetailModal({
               <Field label="Employment Type">
                 {labelOrDash(EMPLOYMENT_TYPE_LABELS, employee.employmentType)}
               </Field>
-              <Field label="Service Years">{employee.serviceYears ?? "—"}</Field>
+              <Field label="Service Years">
+                {employee.serviceYears ?? "—"}
+              </Field>
               <Field label="Hire Date">{formatDate(employee.hireDate)}</Field>
               <Field label="Family Size">{employee.familySize ?? "—"}</Field>
               <Field label="Reporting Manager">

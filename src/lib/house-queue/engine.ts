@@ -414,7 +414,8 @@ export async function computeHouseQueue(
       // Allocated employees keep their persisted house as the recommendation
       // and are excluded from the live pool (the house is in allocatedHouseIds).
       if (
-        (persistedStatus === "allocated" || isReleasePending(persistedStatus)) &&
+        (persistedStatus === "allocated" ||
+          isReleasePending(persistedStatus)) &&
         allocation.householdId
       ) {
         const house = householdById.get(allocation.householdId);

@@ -55,14 +55,14 @@ export default function Error({ error, reset }: ErrorPageProps) {
         <button
           type="button"
           onClick={reset}
-          className="inline-flex h-12 flex-1 cursor-pointer items-center justify-center gap-2 rounded-xl bg-primary text-sm font-semibold text-primary-foreground shadow-md shadow-primary/25 transition-all duration-200 hover:bg-primary/90 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          className="bg-primary text-primary-foreground shadow-primary/25 hover:bg-primary/90 focus-visible:ring-ring inline-flex h-12 flex-1 cursor-pointer items-center justify-center gap-2 rounded-xl text-sm font-semibold shadow-md transition-all duration-200 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none active:scale-[0.98]"
         >
           <RefreshCw className="h-4 w-4" />
           Try again
         </button>
         <Link
           href="/dashboard"
-          className="inline-flex h-12 flex-1 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white text-sm font-semibold text-slate-700 shadow-sm transition-all duration-200 hover:bg-slate-50 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          className="focus-visible:ring-ring inline-flex h-12 flex-1 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white text-sm font-semibold text-slate-700 shadow-sm transition-all duration-200 hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none active:scale-[0.98]"
         >
           <LayoutDashboard className="h-4 w-4" />
           Dashboard
@@ -73,7 +73,7 @@ export default function Error({ error, reset }: ErrorPageProps) {
         href={SUPPORT_URL}
         target="_blank"
         rel="noopener noreferrer"
-        className="mt-7 inline-flex items-center gap-1.5 text-[13px] font-semibold text-slate-500 transition-colors hover:text-primary"
+        className="hover:text-primary mt-7 inline-flex items-center gap-1.5 text-[13px] font-semibold text-slate-500 transition-colors"
       >
         <Send className="h-3.5 w-3.5" />
         Report this to support

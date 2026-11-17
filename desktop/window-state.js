@@ -26,12 +26,14 @@ class WindowStateStore {
       return {
         x: Number.isFinite(parsed.x) ? parsed.x : undefined,
         y: Number.isFinite(parsed.y) ? parsed.y : undefined,
-        width: Number.isFinite(parsed.width) && parsed.width >= 640
-          ? parsed.width
-          : fallback.width,
-        height: Number.isFinite(parsed.height) && parsed.height >= 480
-          ? parsed.height
-          : fallback.height,
+        width:
+          Number.isFinite(parsed.width) && parsed.width >= 640
+            ? parsed.width
+            : fallback.width,
+        height:
+          Number.isFinite(parsed.height) && parsed.height >= 480
+            ? parsed.height
+            : fallback.height,
         isMaximized: parsed.isMaximized === true,
       };
     } catch {

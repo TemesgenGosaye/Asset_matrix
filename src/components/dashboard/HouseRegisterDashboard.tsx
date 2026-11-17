@@ -77,7 +77,7 @@ export default function HouseRegisterDashboard({
       </div>
 
       {totalHouses === 0 ? (
-        <div className="flex flex-col items-center gap-2.5 px-6 pb-8 pt-2 text-center">
+        <div className="flex flex-col items-center gap-2.5 px-6 pt-2 pb-8 text-center">
           <span className="bg-muted text-muted-foreground flex h-11 w-11 items-center justify-center rounded-full">
             <Inbox className="text-muted-foreground/70 h-5 w-5" />
           </span>
@@ -100,10 +100,14 @@ export default function HouseRegisterDashboard({
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
             {categories.map((entry) => {
               const label = CATEGORY_LABELS[entry.category] ?? entry.category;
-              const name = CATEGORY_NAMES[entry.category] ?? `Category ${label}`;
+              const name =
+                CATEGORY_NAMES[entry.category] ?? `Category ${label}`;
               const occupiedPct = tilePercent(entry.occupied, entry.total);
               const vacantPct = tilePercent(entry.vacant, entry.total);
-              const maintenancePct = tilePercent(entry.maintenance, entry.total);
+              const maintenancePct = tilePercent(
+                entry.maintenance,
+                entry.total,
+              );
 
               return (
                 <Link
@@ -159,7 +163,9 @@ export default function HouseRegisterDashboard({
                   <div className="text-muted-foreground mt-2 flex items-center justify-between text-[10px] tabular-nums">
                     <span title="Occupied">{entry.occupied} occ</span>
                     <span title="Vacant">{entry.vacant} vac</span>
-                    <span title="Under maintenance">{entry.maintenance} mnt</span>
+                    <span title="Under maintenance">
+                      {entry.maintenance} mnt
+                    </span>
                   </div>
                 </Link>
               );
@@ -174,7 +180,10 @@ export default function HouseRegisterDashboard({
               </span>
             </span>
             <span className="flex items-center gap-1.5">
-              <span className="h-2 w-2 rounded-full bg-emerald-500" aria-hidden />
+              <span
+                className="h-2 w-2 rounded-full bg-emerald-500"
+                aria-hidden
+              />
               <span className="text-muted-foreground">
                 Occupied{" "}
                 <span className="text-foreground font-semibold tabular-nums">

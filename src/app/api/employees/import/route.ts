@@ -51,14 +51,9 @@ import {
 function isSupportedSpreadsheetMime(type: string): boolean {
   const value = type.trim().toLowerCase();
   if (value.length === 0) return true;
-  return [
-    "excel",
-    "spreadsheet",
-    "csv",
-    "octet-stream",
-    "plain",
-    "zip",
-  ].some((token) => value.includes(token));
+  return ["excel", "spreadsheet", "csv", "octet-stream", "plain", "zip"].some(
+    (token) => value.includes(token),
+  );
 }
 
 /**
@@ -359,10 +354,7 @@ export async function PUT(req: NextRequest) {
 
       // Duplicate policy: an Emp ID that already exists is rejected, never
       // overwritten. The unique index is the final backstop.
-      if (
-        employeeNumber &&
-        existingNumbers.has(employeeNumber.toLowerCase())
-      ) {
+      if (employeeNumber && existingNumbers.has(employeeNumber.toLowerCase())) {
         failures.push({
           index,
           employeeNumber,

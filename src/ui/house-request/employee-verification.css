@@ -23,7 +23,13 @@
   background-color: var(--evr-page-bg);
   width: 100%;
   padding: 10px 0 24px 0;
-  font-family: Inter, system-ui, -apple-system, "Segoe UI", Arial, sans-serif;
+  font-family:
+    Inter,
+    system-ui,
+    -apple-system,
+    "Segoe UI",
+    Arial,
+    sans-serif;
 }
 
 /* Print action bar above the sheet */
@@ -72,13 +78,27 @@
   min-width: 560px;
   border-collapse: collapse;
   table-layout: fixed;
-  font-family: Inter, system-ui, -apple-system, "Segoe UI", Arial, sans-serif;
+  font-family:
+    Inter,
+    system-ui,
+    -apple-system,
+    "Segoe UI",
+    Arial,
+    sans-serif;
 }
 
-.evr-table col:nth-child(1) { width: 21%; }
-.evr-table col:nth-child(2) { width: 29%; }
-.evr-table col:nth-child(3) { width: 21%; }
-.evr-table col:nth-child(4) { width: 29%; }
+.evr-table col:nth-child(1) {
+  width: 21%;
+}
+.evr-table col:nth-child(2) {
+  width: 29%;
+}
+.evr-table col:nth-child(3) {
+  width: 21%;
+}
+.evr-table col:nth-child(4) {
+  width: 29%;
+}
 
 /* Header row (no borders except 2px navy line below) */
 .evr-header-cell {

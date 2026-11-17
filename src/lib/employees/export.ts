@@ -8,11 +8,7 @@
  */
 
 import type { ExportColumn } from "@/lib/export";
-import {
-  GENDER_LABELS,
-  MARITAL_STATUS_LABELS,
-  labelOrDash,
-} from "./constants";
+import { GENDER_LABELS, MARITAL_STATUS_LABELS, labelOrDash } from "./constants";
 import type { EmployeeDto } from "./queries";
 
 /**

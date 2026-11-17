@@ -47,9 +47,7 @@ export default async function PayRentPage() {
       />
 
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">
-          Pay Rent: ኪራይ ክፈል
-        </h1>
+        <h1 className="text-2xl font-bold tracking-tight">Pay Rent: ኪራይ ክፈል</h1>
         <p className="text-muted-foreground mt-1 text-sm">
           Manage people who rent houses, shops, groceries or other premises from
           the factory. The monthly schedule is generated automatically from each

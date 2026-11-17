@@ -249,7 +249,7 @@ function EmployeeImportFields({
           if (!rec) return "—";
           return (
             <span
-              className="inline-block max-w-[120px] truncate text-xs text-muted-foreground"
+              className="text-muted-foreground inline-block max-w-[120px] truncate text-xs"
               title={rec.tips.join(" | ")}
             >
               {rec.houseQueueEligible
@@ -261,7 +261,10 @@ function EmployeeImportFields({
         case "status":
           if (row.isIgnored) {
             return (
-              <Badge variant="outline" className="border-dashed text-muted-foreground">
+              <Badge
+                variant="outline"
+                className="text-muted-foreground border-dashed"
+              >
                 Ignored
               </Badge>
             );
@@ -338,7 +341,7 @@ function EmployeeImportFields({
 
       {phase === "preview" && preview ? (
         <div className="space-y-4">
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-sm">
+          <div className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">
             <div className="rounded-md border px-3 py-2">
               <div className="text-muted-foreground text-xs">Total rows</div>
               <div className="text-lg font-semibold">{preview.totalRows}</div>
@@ -350,7 +353,9 @@ function EmployeeImportFields({
               </div>
             </div>
             <div className="rounded-md border px-3 py-2">
-              <div className="text-muted-foreground text-xs">Ignored (Empty)</div>
+              <div className="text-muted-foreground text-xs">
+                Ignored (Empty)
+              </div>
               <div className="text-muted-foreground text-lg font-semibold">
                 {preview.ignoredRows ?? 0}
               </div>
@@ -416,8 +421,8 @@ function EmployeeImportFields({
             <div className="bg-primary/70 animate-import-progress absolute inset-y-0 left-0 w-1/3 rounded-full" />
           </div>
           <p className="text-muted-foreground text-sm">
-            Importing {queued.toLocaleString()} employee(s)… please do not
-            close this dialog.
+            Importing {queued.toLocaleString()} employee(s)… please do not close
+            this dialog.
           </p>
           <p className="text-muted-foreground text-xs">
             Every row is written in a single transaction. Nothing is reported as

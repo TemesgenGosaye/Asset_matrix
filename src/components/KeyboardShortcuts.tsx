@@ -25,7 +25,7 @@ const shortcuts = [
 
 function ShortcutKey({ children }: { children: string }) {
   return (
-    <kbd className="inline-flex h-6 min-w-6 items-center justify-center rounded border border-border bg-muted px-1.5 text-xs font-medium text-muted-foreground">
+    <kbd className="border-border bg-muted text-muted-foreground inline-flex h-6 min-w-6 items-center justify-center rounded border px-1.5 text-xs font-medium">
       {children}
     </kbd>
   );
@@ -50,7 +50,8 @@ export default function KeyboardShortcuts() {
       const el = document.activeElement;
       if (!el) return false;
       const tag = el.tagName.toLowerCase();
-      if (tag === "input" || tag === "textarea" || tag === "select") return true;
+      if (tag === "input" || tag === "textarea" || tag === "select")
+        return true;
       if ((el as HTMLElement).isContentEditable) return true;
       return false;
     }
@@ -60,7 +61,7 @@ export default function KeyboardShortcuts() {
       if ((e.metaKey || e.ctrlKey) && e.key === "k") {
         e.preventDefault();
         const searchInput = document.querySelector<HTMLElement>(
-          "[data-search-input]"
+          "[data-search-input]",
         );
         if (searchInput) {
           searchInput.focus();
@@ -145,14 +146,14 @@ export default function KeyboardShortcuts() {
               key={shortcut.description}
               className="flex items-center justify-between"
             >
-              <span className="text-sm text-foreground">
+              <span className="text-foreground text-sm">
                 {shortcut.description}
               </span>
               <div className="flex items-center gap-1">
                 {shortcut.keys.map((key, i) => (
                   <span key={key} className="flex items-center gap-1">
                     {i > 0 && (
-                      <span className="text-xs text-muted-foreground">
+                      <span className="text-muted-foreground text-xs">
                         then
                       </span>
                     )}
