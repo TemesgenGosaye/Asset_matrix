@@ -102,3 +102,9 @@ tsconfig.probe.json
 .pm2 
 .pm2 /
 .pm2*
+
+# Build artifacts & cache
+.cache/
+build-artifacts/
+*.apk
+

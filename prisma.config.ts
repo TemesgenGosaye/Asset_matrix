@@ -1,6 +1,7 @@
 import path from "node:path";
 import fs from "node:fs";
 import { defineConfig } from "prisma/config";
+import { resolveMigrationDatabaseUrl } from "./src/lib/database-url";
 
 // Load .env manually since Prisma CLI doesn't auto-load it
 function loadEnv() {
@@ -28,17 +29,6 @@ function loadEnv() {
 
 loadEnv();
 
-function resolveDatabaseUrl() {
-  return (
-    process.env.DATABASE_URL ||
-    process.env.POSTGRES_URL_NON_POOLING ||
-    process.env.DIRECT_URL ||
-    process.env.POSTGRES_PRISMA_URL ||
-    process.env.POSTGRES_URL ||
-    ""
-  );
-}
-
 export default defineConfig({
   schema: "prisma/schema.prisma",
   migrations: {
@@ -46,16 +36,9 @@ export default defineConfig({
     seed: "node prisma/seed.js",
   },
   datasource: {
-    // Prisma 7 removed `directUrl` from schema files entirely, so the CLI and
-    // the runtime share this one URL. For Neon this means:
-    //   - Use the DIRECT (non `-pooler`) host here, e.g.
-    //       postgresql://user:pass@ep-xxx.<region>.aws.neon.tech/db?sslmode=require
-    //   - Do NOT use the `-pooler` host: PgBouncer in transaction mode breaks
-    //     Prisma's prepared statements and interactive transactions.
-    //   - Connection volume is already bounded by src/lib/prisma.ts, which uses
-    //     a `pg.Pool` driver adapter capped at max=3 per serverless instance.
-    //   - The SSL handshake is handled in src/lib/prisma.ts, which enables
-    //     `ssl` for any `*.neon.tech` host.
-    url: resolveDatabaseUrl(),
+    // Migrations must use a direct connection. Neon's `-pooler` host runs
+    // PgBouncer in transaction mode, which breaks Prisma's prepared statements
+    // and interactive transaction migrations.
+    url: resolveMigrationDatabaseUrl(),
   },
 });

@@ -1,21 +1,11 @@
 import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import pg from "pg";
-
-function getDatabaseUrl() {
-  return (
-    process.env.DATABASE_URL ||
-    process.env.POSTGRES_URL_NON_POOLING ||
-    process.env.DIRECT_URL ||
-    process.env.POSTGRES_PRISMA_URL ||
-    process.env.POSTGRES_URL ||
-    ""
-  );
-}
+import { resolveDatabaseUrl } from "@/lib/database-url";
 
 // Determine SSL configuration based on environment
 // Managed providers (Neon, Supabase) terminate TLS and require it.
-const databaseUrl = getDatabaseUrl();
+const databaseUrl = resolveDatabaseUrl();
 const isCloudDatabase =
   process.env.DATABASE_SSL === "true" ||
   databaseUrl.includes("supabase") ||

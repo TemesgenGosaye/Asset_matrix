@@ -4,76 +4,59 @@
     <meta charset="utf-8" />
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; base-uri 'none'; form-action 'none'"
+      content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; base-uri 'none'; form-action 'none'"
     />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>About Msf HomeDesk</title>
     <link rel="stylesheet" href="about.css" />
   </head>
   <body>
-    <div class="backdrop" aria-hidden="true">
-      <span class="orb"></span>
-    </div>
-
     <main class="about">
       <header class="hero">
         <div class="brand-mark">
-          <img src="icon.png" alt="" width="80" height="80" />
+          <img src="icon.png" alt="MSF" width="64" height="64" />
         </div>
         <div class="title-block">
-          <p class="eyebrow">About this application</p>
+          <p class="company">METAHARA SUGAR FACTORY</p>
           <h1>Msf HomeDesk</h1>
-          <p class="version-pill">Version <span id="version">1.0.0</span></p>
+          <p class="version-pill">Production Build <span id="version">1.0.0</span></p>
         </div>
       </header>
 
-      <p class="company">Metahara Sugar Factory &middot; IT Department</p>
+      <section class="facts-card">
+        <div class="fact-row">
+          <span class="fact-label">Organization</span>
+          <span class="fact-val">Metahara Sugar Factory (MSF)</span>
+        </div>
+        <div class="fact-row">
+          <span class="fact-label">Department</span>
+          <span class="fact-val">IT &middot; Systems Engineering</span>
+        </div>
+        <div class="fact-row">
+          <span class="fact-label">Lead Developer</span>
+          <span class="fact-val">Temesgen G.</span>
+        </div>
+        <div class="fact-row">
+          <span class="fact-label">Cloud Target</span>
+          <span class="fact-val font-mono" id="appUrl">https://msf-homedesk.vercel.app</span>
+        </div>
+        <div class="fact-row">
+          <span class="fact-label">Workstation License</span>
+          <span class="fact-val status-active">Active Enterprise Edition</span>
+        </div>
+      </section>
 
-      <dl class="facts">
-        <div>
-          <dt>Developer</dt>
-          <dd>Temesgen G.</dd>
-        </div>
-        <div>
-          <dt>Portal address</dt>
-          <dd id="appUrl">https://house.taild2df63.ts.net</dd>
-        </div>
-        <div>
-          <dt>Runtime</dt>
-          <dd>Electron <span id="electronVersion">&mdash;</span></dd>
-        </div>
-        <div>
-          <dt>Platform</dt>
-          <dd>Windows Desktop</dd>
-        </div>
-        <div>
-          <dt>License</dt>
-          <dd>Proprietary &middot; Internal use</dd>
-        </div>
-      </dl>
-
-      <aside class="thanks" aria-label="A note from the developer">
-        <p>
-          Thank you for using Msf HomeDesk. Wishing you a productive and smooth
-          experience.
-        </p>
-        <p class="signature">
-          &mdash; Temesgen G., IT Department<br />
-          <span>Metahara Sugar Factory</span>
-        </p>
-      </aside>
-
-      <footer class="about-footer">
-        <p id="copyright">&copy; 2026 Metahara Sugar Factory. All rights reserved.</p>
-        <p>Powered by <strong>Temesgen G.</strong></p>
-      </footer>
-
-      <div class="actions">
-        <button id="licenseButton" type="button" class="ghost">License</button>
-        <button id="closeButton" type="button">Close</button>
+      <div class="action-buttons">
+        <button id="licenseBtn" class="btn btn-secondary">License &amp; Activation</button>
+        <button id="noticesBtn" class="btn btn-secondary">Legal Notices</button>
       </div>
+
+      <footer class="footer">
+        <p class="copyright">&copy; 2026 Metahara Sugar Factory. All rights reserved.</p>
+        <button id="close" class="btn btn-primary">Close</button>
+      </footer>
     </main>
 
-    <script src="about.js" defer></script>
+    <script src="about.js"></script>
   </body>
 </html>

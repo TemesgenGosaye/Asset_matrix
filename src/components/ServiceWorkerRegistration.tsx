@@ -1,8 +1,14 @@
 "use client";
 
 import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { signOut } from "@/lib/auth-client";
+import { notify } from "@/lib/feedback/notify";
+import { isNativeApp } from "@/lib/native-app";
 
 export default function ServiceWorkerRegistration() {
+  const router = useRouter();
+
   useEffect(() => {
     if (typeof window === "undefined") return;
 
@@ -25,12 +31,50 @@ export default function ServiceWorkerRegistration() {
       return;
     }
 
+    // The Capacitor shell loads the remote Vercel origin directly. A stale
+    // Service Worker or Cache Storage in the WebView can serve mismatched
+    // assets and produce a blank screen (while a normal browser profile works).
+    if (isNativeApp()) {
+      if ("serviceWorker" in navigator) {
+        navigator.serviceWorker
+          .getRegistrations()
+          .then((registrations) => {
+            for (const registration of registrations) {
+              registration.unregister();
+            }
+          })
+          .catch(() => undefined);
+      }
+      if ("caches" in window) {
+        caches
+          .keys()
+          .then((keys) => Promise.all(keys.map((key) => caches.delete(key))))
+          .catch(() => undefined);
+      }
+      return;
+    }
+
     if (!("serviceWorker" in navigator)) return;
+
+    let refreshing = false;
+    const handleControllerChange = () => {
+      if (refreshing) return;
+      refreshing = true;
+      router.refresh();
+    };
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data?.type !== "SESSION_EXPIRED") return;
+      void signOut().finally(() => router.replace("/login"));
+    };
+    navigator.serviceWorker.addEventListener(
+      "controllerchange",
+      handleControllerChange,
+    );
+    navigator.serviceWorker.addEventListener("message", handleMessage);
 
     navigator.serviceWorker
       .register("/sw.js")
       .then((registration) => {
-        // Check for updates on page load
         registration.update();
 
         registration.addEventListener("updatefound", () => {
@@ -42,10 +86,19 @@ export default function ServiceWorkerRegistration() {
               newWorker.state === "installed" &&
               navigator.serviceWorker.controller
             ) {
-              // New service worker available — you could show an update prompt here
-              console.log(
-                "New version of Asset Tracker available. Refresh to update."
-              );
+              notify.info({
+                title: "A new version is available",
+                description: "Update HomeDesk to get the latest improvements.",
+                dedupeKey: "home-desk-sw-update",
+                duration: 15_000,
+                action: {
+                  label: "Update now",
+                  onClick: () => {
+                    const waiting = registration.waiting ?? newWorker;
+                    waiting.postMessage({ type: "SKIP_WAITING" });
+                  },
+                },
+              });
             }
           });
         });
@@ -53,7 +106,15 @@ export default function ServiceWorkerRegistration() {
       .catch((error) => {
         console.error("Service worker registration failed:", error);
       });
-  }, []);
+
+    return () => {
+      navigator.serviceWorker.removeEventListener(
+        "controllerchange",
+        handleControllerChange,
+      );
+      navigator.serviceWorker.removeEventListener("message", handleMessage);
+    };
+  }, [router]);
 
   return null;
 }

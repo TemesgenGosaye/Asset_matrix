@@ -4,6 +4,9 @@ import { GeistSans } from "geist/font/sans";
 import { GeistMono } from "geist/font/mono";
 import SkipToContent from "../components/SkipToContent";
 import OfflineBanner from "../components/OfflineBanner";
+import NativeSessionSync from "../components/NativeSessionSync";
+import AppBootstrap from "../components/AppBootstrap";
+import { NetworkStatusProvider } from "../contexts/NetworkStatusContext";
 import PWAInstallPrompt from "../components/PWAInstallPrompt";
 import ServiceWorkerRegistration from "../components/ServiceWorkerRegistration";
 import AppShell from "../components/AppShell";
@@ -117,38 +120,43 @@ export default async function RootLayout({ children }) {
       className={`${GeistSans.variable} ${GeistMono.variable} antialiased`}
     >
       <body suppressHydrationWarning>
-        <SkipToContent />
-        <OfflineBanner />
-        <ServiceWorkerRegistration />
-        <Providers nonce={nonce}>
-          <UserPreferencesProvider>
-            {/*
-              Navigation visibility is seeded from the server so the sidebar's
-              first paint already matches the saved preference — there is no
-              window in which hidden links flash before the fetch resolves.
-            */}
-            <NavigationPreferencesProvider
-              initialHiddenKeys={chrome.hiddenKeys}
-              initialOrgHiddenKeys={chrome.orgHiddenKeys}
-            >
-              <AppShell
-                initialSidebarCollapsed={initialSidebarCollapsed}
-                initialPathname={pathname}
-                permissions={chrome.permissions}
-                isAdmin={chrome.isAdmin}
-              >
-                {children}
-              </AppShell>
-            </NavigationPreferencesProvider>
-            <PWAInstallPrompt />
-            {/*
-              The one feedback surface. Every `notify.*` call in the app renders
-              here, so weight, wording, deduplication and auto-dismiss are decided
-              once rather than at 674 call sites.
-            */}
-            <FeedbackProvider />
-          </UserPreferencesProvider>
-        </Providers>
+        <AppBootstrap>
+          <NetworkStatusProvider>
+            <SkipToContent />
+            <NativeSessionSync />
+            <OfflineBanner />
+            <ServiceWorkerRegistration />
+            <Providers nonce={nonce}>
+              <UserPreferencesProvider>
+                {/*
+                  Navigation visibility is seeded from the server so the sidebar's
+                  first paint already matches the saved preference — there is no
+                  window in which hidden links flash before the fetch resolves.
+                */}
+                <NavigationPreferencesProvider
+                  initialHiddenKeys={chrome.hiddenKeys}
+                  initialOrgHiddenKeys={chrome.orgHiddenKeys}
+                >
+                  <AppShell
+                    initialSidebarCollapsed={initialSidebarCollapsed}
+                    initialPathname={pathname}
+                    permissions={chrome.permissions}
+                    isAdmin={chrome.isAdmin}
+                  >
+                    {children}
+                  </AppShell>
+                </NavigationPreferencesProvider>
+                <PWAInstallPrompt />
+                {/*
+                  The one feedback surface. Every `notify.*` call in the app renders
+                  here, so weight, wording, deduplication and auto-dismiss are decided
+                  once rather than at 674 call sites.
+                */}
+                <FeedbackProvider />
+              </UserPreferencesProvider>
+            </Providers>
+          </NetworkStatusProvider>
+        </AppBootstrap>
       </body>
     </html>
   );

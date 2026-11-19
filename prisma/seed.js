@@ -9,7 +9,7 @@ const isCloudDatabase =
   process.env.DATABASE_URL?.includes("supabase") ||
   process.env.DATABASE_URL?.includes("pooler.supabase");
 
-const dbSchema = process.env.DB_SCHEMA || "assettool";
+const dbSchema = process.env.DB_SCHEMA || "public";
 
 const pool = new pg.Pool({
   connectionString: process.env.DATABASE_URL,

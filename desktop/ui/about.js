@@ -1,36 +1,32 @@
 "use strict";
 
-const version = document.getElementById("version");
-const appUrl = document.getElementById("appUrl");
-const electronVersion = document.getElementById("electronVersion");
-const copyright = document.getElementById("copyright");
-const closeButton = document.getElementById("closeButton");
-const licenseButton = document.getElementById("licenseButton");
+(function () {
+  const versionEl = document.getElementById("version");
+  const appUrlEl = document.getElementById("appUrl");
+  const closeBtn = document.getElementById("close");
+  const licenseBtn = document.getElementById("licenseBtn");
+  const noticesBtn = document.getElementById("noticesBtn");
 
-async function initialise() {
-  try {
-    const info = await window.desktop.getAppInfo();
-    if (!info) return;
+  closeBtn.addEventListener("click", () => {
+    window.desktop?.closeAbout();
+  });
 
-    if (info.version) version.textContent = info.version;
-    if (info.appUrl) appUrl.textContent = info.appUrl;
-    if (info.electron) electronVersion.textContent = info.electron;
-    if (info.copyright) copyright.textContent = info.copyright;
-  } catch {
-    /* Defaults in the markup remain usable. */
+  licenseBtn.addEventListener("click", () => {
+    window.desktop?.openSettings("license");
+  });
+
+  noticesBtn.addEventListener("click", () => {
+    window.desktop?.openSettings("notices");
+  });
+
+  if (window.desktop) {
+    window.desktop
+      .getAppInfo()
+      .then((info) => {
+        if (!info) return;
+        if (versionEl && info.version) versionEl.textContent = info.version;
+        if (appUrlEl && info.appUrl) appUrlEl.textContent = info.appUrl;
+      })
+      .catch(() => {});
   }
-}
-
-closeButton.addEventListener("click", () => {
-  window.desktop.closeAbout();
-});
-
-licenseButton.addEventListener("click", () => {
-  window.desktop.openLicense();
-});
-
-document.addEventListener("keydown", (event) => {
-  if (event.key === "Escape") window.desktop.closeAbout();
-});
-
-initialise();
+})();

@@ -1,310 +1,953 @@
 <!doctype html>
 <html lang="en">
-<head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<meta name="color-scheme" content="light dark" />
-<meta name="theme-color" content="#ffffff" />
-<title>HomeDesk • Connection</title>
-<style>
-  :root {
-    --bg: #ffffff;
-    --ink: #0f172a;
-    --muted: #475569;
-    --faint: #94a3b8;
-    --line: #e2e8f0;
-    --brand: #0284c7;
-    --brand-dark: #0369a1;
-    --ok: #16a34a;
-    --bad: #e11d48;
-    --wait: #0284c7;
-    --idle: #cbd5e1;
-    --surface: #f8fafc;
-  }
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --bg: #0b1220;
-      --ink: #f1f5f9;
-      --muted: #94a3b8;
-      --faint: #64748b;
-      --line: #1e293b;
-      --brand: #38bdf8;
-      --brand-dark: #7dd3fc;
-      --ok: #4ade80;
-      --bad: #fb7185;
-      --wait: #38bdf8;
-      --idle: #334155;
-      --surface: #111a2e;
-    }
-  }
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-  html, body { height: 100%; }
-  body {
-    background: var(--bg);
-    color: var(--ink);
-    font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans Ethiopic", Helvetica, Arial, sans-serif;
-    -webkit-font-smoothing: antialiased;
-    -webkit-user-select: none; user-select: none;
-    -webkit-tap-highlight-color: transparent;
-    min-height: 100dvh;
-    display: flex; flex-direction: column;
-    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
-  }
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+    <meta name="color-scheme" content="light" />
+    <meta name="theme-color" content="#ffffff" />
+    <meta
+      http-equiv="Cache-Control"
+      content="no-cache, no-store, must-revalidate"
+    />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self' data:; script-src 'self' 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self' https:; img-src 'self' data:; font-src 'none'; object-src 'none'"
+    />
+    <title>HomeDesk — Connection</title>
+    <style>
+      :root {
+        --bg: #ffffff;
+        --text: #0b1b2b;
+        --muted: #64748b;
+        --line: #e6ebf1;
+        --brand: #0a4f2c;
+        --accent: #0f766e;
+        --spinner: #0a4f2c;
+        --ok: #047857;
+        --warn: #b45309;
+        --bad: #be123c;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+      }
+      body {
+        color: var(--text);
+        background: var(--bg);
+        font-family:
+          Inter,
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          Roboto,
+          "Noto Sans Ethiopic",
+          Nyala,
+          sans-serif;
+        -webkit-font-smoothing: antialiased;
+        -webkit-tap-highlight-color: transparent;
+        user-select: none;
+        overflow: hidden;
+      }
+      [hidden] {
+        display: none !important;
+      }
+      .splash {
+        position: relative;
+        height: 100vh;
+        height: 100dvh;
+        display: grid;
+        grid-template-rows: 1fr auto 1fr;
+        align-items: center;
+        justify-items: center;
+        text-align: center;
+        padding: calc(env(safe-area-inset-top, 0px) + clamp(18px, 4vh, 38px))
+          clamp(16px, 6vw, 32px)
+          calc(env(safe-area-inset-bottom, 0px) + clamp(18px, 4vh, 34px));
+        transition:
+          opacity 280ms ease,
+          transform 280ms ease;
+      }
+      body.is-leaving .splash {
+        opacity: 0;
+        transform: scale(0.99);
+      }
+      .splash::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        background-image: radial-gradient(
+          color-mix(in srgb, var(--brand) 13%, transparent) 1px,
+          transparent 1.4px
+        );
+        background-size: 24px 24px;
+        -webkit-mask-image: radial-gradient(
+          ellipse 65% 38% at 50% 12%,
+          #000 0%,
+          transparent 76%
+        );
+        mask-image: radial-gradient(
+          ellipse 65% 38% at 50% 12%,
+          #000 0%,
+          transparent 76%
+        );
+        opacity: 0.6;
+      }
+      .brand,
+      .loader,
+      .footer {
+        position: relative;
+        z-index: 1;
+      }
+      .brand {
+        grid-row: 1;
+        align-self: start;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        animation: rise 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
+      }
+      .mark {
+        position: relative;
+        display: grid;
+        place-items: center;
+        margin-bottom: 12px;
+      }
+      .mark::before {
+        content: "";
+        position: absolute;
+        width: 190%;
+        height: 190%;
+        border-radius: 50%;
+        background: radial-gradient(
+          circle,
+          color-mix(in srgb, var(--brand) 20%, transparent) 0%,
+          transparent 62%
+        );
+        filter: blur(10px);
+        animation: breathe 4.5s ease-in-out infinite;
+      }
+      .mark svg {
+        position: relative;
+        width: clamp(62px, 20vw, 88px);
+        height: clamp(62px, 20vw, 88px);
+        filter: drop-shadow(
+          0 10px 22px color-mix(in srgb, var(--brand) 32%, transparent)
+        );
+        animation: float 5s ease-in-out infinite;
+      }
+      @keyframes breathe {
+        0%,
+        100% {
+          opacity: 0.55;
+          transform: scale(0.94);
+        }
+        50% {
+          opacity: 1;
+          transform: scale(1.06);
+        }
+      }
+      @keyframes float {
+        0%,
+        100% {
+          transform: translateY(0);
+        }
+        50% {
+          transform: translateY(-5px);
+        }
+      }
+      .welcome {
+        margin: 0;
+        font-size: 0.68rem;
+        font-weight: 700;
+        letter-spacing: 0.28em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+      .name {
+        margin: 6px 0 0;
+        font-size: clamp(1.9rem, 9vw, 2.6rem);
+        font-weight: 800;
+        letter-spacing: -0.04em;
+        line-height: 1.05;
+      }
+      .name .home {
+        color: #0b2a43;
+      }
+      .name .desk {
+        color: var(--brand);
+      }
+      .org {
+        margin: 9px 0 0;
+        font-size: 0.78rem;
+        font-weight: 550;
+        letter-spacing: 0.06em;
+        color: var(--muted);
+      }
+      .org::before,
+      .org::after {
+        content: "";
+        display: inline-block;
+        width: 20px;
+        height: 1px;
+        vertical-align: middle;
+        background: var(--line);
+        margin: 0 9px;
+      }
+      .loader {
+        grid-row: 2;
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        animation: rise 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.18s both;
+      }
+      .icon {
+        width: 64px;
+        height: 64px;
+        border-radius: 50%;
+        flex: none;
+        display: grid;
+        place-items: center;
+        border: 2px solid currentColor;
+        color: var(--brand);
+        box-shadow: 0 0 0 9px color-mix(in srgb, var(--brand) 7%, transparent);
+      }
+      .icon[data-tone="ok"] {
+        color: var(--ok);
+      }
+      .icon[data-tone="warn"] {
+        color: var(--warn);
+      }
+      .icon[data-tone="bad"] {
+        color: var(--bad);
+      }
+      .icon svg {
+        width: 48%;
+        height: 48%;
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 1.8;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+      .icon.spin svg {
+        animation: spin 1s linear infinite;
+      }
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+      .state-title {
+        margin: 18px 0 0;
+        font-size: clamp(1rem, 4.5vw, 1.25rem);
+        font-weight: 750;
+        letter-spacing: -0.02em;
+      }
+      .detail {
+        margin: 8px 0 0;
+        max-width: 320px;
+        font-size: clamp(0.78rem, 3.3vw, 0.9rem);
+        color: var(--text);
+        opacity: 0.88;
+      }
+      .am {
+        margin: 5px 0 0;
+        font-size: 0.78rem;
+        color: var(--muted);
+        line-height: 1.5;
+      }
+      .bar {
+        width: min(180px, 52vw);
+        height: 3px;
+        margin-top: 18px;
+        border-radius: 3px;
+        background: var(--line);
+        overflow: hidden;
+      }
+      .bar i {
+        display: block;
+        height: 100%;
+        width: 0;
+        background: linear-gradient(90deg, var(--accent), var(--spinner));
+        transition: width 0.4s ease;
+      }
+      .checks {
+        width: min(320px, 82vw);
+        text-align: left;
+        list-style: none;
+        margin: 18px 0 0;
+        padding: 0;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        overflow: hidden;
+      }
+      .checks li {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 9px 12px;
+        font-size: 0.8rem;
+      }
+      .checks li + li {
+        border-top: 1px solid var(--line);
+      }
+      .checks small {
+        margin-left: auto;
+        color: var(--muted);
+        font-size: 0.72rem;
+        text-align: right;
+      }
+      .dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: #9ca3af;
+        flex: none;
+      }
+      li[data-s="ok"] .dot {
+        background: var(--ok);
+      }
+      li[data-s="bad"] .dot {
+        background: var(--bad);
+      }
+      li[data-s="wait"] .dot {
+        background: var(--brand);
+        animation: pulse 1s ease-in-out infinite;
+      }
+      @keyframes pulse {
+        50% {
+          opacity: 0.3;
+        }
+      }
+      .actions {
+        display: flex;
+        gap: 10px;
+        margin-top: 18px;
+        width: min(320px, 82vw);
+      }
+      button,
+      a {
+        font: inherit;
+      }
+      .btn {
+        flex: 1 1 auto;
+        min-height: 42px;
+        padding: 0 16px;
+        border-radius: 10px;
+        border: 1px solid var(--text);
+        background: #fff;
+        color: var(--text);
+        font-weight: 650;
+        font-size: 0.86rem;
+        cursor: pointer;
+      }
+      .btn.primary {
+        background: var(--brand);
+        border-color: var(--brand);
+        color: #fff;
+      }
+      .btn:disabled {
+        opacity: 0.55;
+        cursor: default;
+      }
+      .btn:focus-visible,
+      .foot a:focus-visible {
+        outline: 3px solid color-mix(in srgb, var(--brand) 35%, transparent);
+        outline-offset: 2px;
+      }
+      .next {
+        margin: 10px 0 0;
+        min-height: 1.2em;
+        font-size: 0.76rem;
+        color: var(--muted);
+      }
+      .footer {
+        grid-row: 3;
+        align-self: end;
+        font-size: 0.72rem;
+        letter-spacing: 0.04em;
+        color: var(--muted);
+        line-height: 1.5;
+      }
+      .footer p {
+        margin: 0;
+      }
+      .footer .powered {
+        margin-top: 4px;
+        font-weight: 700;
+        color: var(--brand);
+      }
+      .footer a {
+        color: var(--text);
+        font-weight: 600;
+        text-decoration: none;
+      }
+      .footer a:hover {
+        text-decoration: underline;
+      }
+      @keyframes rise {
+        from {
+          opacity: 0;
+          transform: translateY(12px);
+        }
+        to {
+          opacity: 1;
+          transform: none;
+        }
+      }
+      @media (max-height: 760px) {
+        .checks {
+          margin-top: 12px;
+        }
+        .checks li {
+          padding: 7px 10px;
+        }
+        .actions {
+          margin-top: 12px;
+        }
+      }
+      @media (max-height: 620px) {
+        .mark svg {
+          width: 52px;
+          height: 52px;
+        }
+        .name {
+          font-size: 1.7rem;
+        }
+        .org {
+          display: none;
+        }
+        .state-title {
+          margin-top: 10px;
+        }
+        .bar {
+          margin-top: 12px;
+        }
+        .checks {
+          display: none;
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        *,
+        *::before,
+        *::after {
+          animation: none !important;
+          transition: none !important;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="splash">
+      <div class="brand">
+        <div class="mark" aria-hidden="true">
+          <svg viewBox="0 0 64 64">
+            <defs>
+              <linearGradient id="houseGrad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0" style="stop-color: var(--brand)" />
+                <stop offset="1" style="stop-color: var(--accent)" />
+              </linearGradient>
+            </defs>
+            <path
+              d="M6 32 32 9l26 23"
+              fill="none"
+              stroke="var(--brand)"
+              stroke-width="6"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+            <path
+              d="M14 33 32 17.5 50 33v19a4 4 0 0 1-4 4H18a4 4 0 0 1-4-4z"
+              fill="url(#houseGrad)"
+            />
+            <rect
+              x="26"
+              y="38"
+              width="12"
+              height="18"
+              rx="3"
+              fill="var(--bg)"
+            />
+          </svg>
+        </div>
+        <p class="welcome">Welcome to</p>
+        <h1 class="name" aria-label="HomeDesk">
+          <span class="home">Home</span><span class="desk">Desk</span>
+        </h1>
+        <p class="org">Metahara Sugar Factory</p>
+      </div>
 
-  .stage {
-    flex: 1; width: 100%; max-width: 400px; margin: 0 auto;
-    padding: 2.5rem 1.5rem 1rem;
-    display: flex; flex-direction: column; justify-content: center;
-  }
+      <section class="loader">
+        <div class="icon" id="icon" data-tone="brand"></div>
+        <h2 class="state-title" id="title" role="status" aria-live="polite">
+          Checking connection
+        </h2>
+        <p class="detail" id="detail"></p>
+        <p class="am" id="am"></p>
 
-  /* Connection path: the one memorable element */
-  .path {
-    display: grid; grid-template-columns: auto 1fr auto 1fr auto; align-items: center;
-    gap: .5rem; margin-bottom: 2rem;
-  }
-  .node { display: flex; flex-direction: column; align-items: center; gap: .5rem; width: 64px; }
-  .node .dot {
-    width: 44px; height: 44px; border-radius: 50%;
-    display: grid; place-items: center;
-    border: 2px solid var(--idle); color: var(--idle);
-    background: var(--bg);
-    transition: border-color .3s, color .3s, background .3s;
-  }
-  .node svg { width: 22px; height: 22px; }
-  .node .name { font-size: .7rem; font-weight: 600; color: var(--muted); text-align: center; line-height: 1.25; }
-  .link { height: 2px; background: var(--idle); border-radius: 2px; position: relative; overflow: hidden; transition: background .3s; margin-bottom: 1.4rem; }
-  .node[data-s="ok"] .dot   { border-color: var(--ok);   color: var(--ok); }
-  .node[data-s="bad"] .dot  { border-color: var(--bad);  color: var(--bad); background: color-mix(in srgb, var(--bad) 10%, var(--bg)); }
-  .node[data-s="wait"] .dot { border-color: var(--wait); color: var(--wait); }
-  .link[data-s="ok"]  { background: var(--ok); }
-  .link[data-s="bad"] { background: repeating-linear-gradient(90deg, var(--bad) 0 4px, transparent 4px 9px); }
-  .link[data-s="wait"]::after {
-    content: ""; position: absolute; inset: 0; width: 40%;
-    background: var(--wait); animation: sweep 1s ease-in-out infinite;
-  }
-  @keyframes sweep { from { transform: translateX(-100%); } to { transform: translateX(260%); } }
+        <div class="bar" aria-hidden="true"><i id="bar"></i></div>
 
-  h1 { font-size: 1.3rem; font-weight: 800; letter-spacing: -.02em; line-height: 1.25; text-align: center; }
-  .detail { margin-top: .5rem; font-size: .95rem; color: var(--muted); line-height: 1.5; text-align: center; }
-  .am { margin-top: .75rem; font-size: .85rem; color: var(--faint); line-height: 1.65; text-align: center; }
+        <ul class="checks">
+          <li id="cNet" data-s="idle">
+            <span class="dot"></span>Device network<small id="netLabel"
+              >—</small
+            >
+          </li>
+          <li id="cWeb" data-s="idle">
+            <span class="dot"></span>Internet<small id="webLabel">—</small>
+          </li>
+          <li id="cApp" data-s="idle">
+            <span class="dot"></span>Portal<small id="appLabel">—</small>
+          </li>
+        </ul>
 
-  .btn {
-    margin-top: 1.75rem; width: 100%; min-height: 50px;
-    display: inline-flex; align-items: center; justify-content: center; gap: .5rem;
-    font: 600 .95rem/1 inherit; font-family: inherit;
-    color: #fff; background: var(--brand); border: 0; border-radius: 12px; cursor: pointer;
-    transition: background .15s, transform .15s;
-  }
-  @media (prefers-color-scheme: dark) { .btn { color: #082f49; } }
-  .btn:hover { background: var(--brand-dark); }
-  .btn:active { transform: scale(.98); }
-  .btn:disabled { opacity: .6; cursor: default; transform: none; }
-  .btn svg { width: 18px; height: 18px; }
-  .btn.busy svg { animation: spin 1s linear infinite; }
-  @keyframes spin { to { transform: rotate(360deg); } }
-  .btn:focus-visible, .help:focus-visible { outline: 3px solid var(--brand); outline-offset: 3px; }
+        <div class="actions">
+          <button class="btn primary" id="retry" type="button">
+            Try again
+          </button>
+          <button class="btn" id="force" type="button" hidden>
+            Open anyway
+          </button>
+        </div>
+        <p class="next" id="next" aria-live="polite"></p>
+      </section>
 
-  .next { margin-top: .9rem; font-size: .78rem; color: var(--faint); text-align: center; min-height: 1.1em; font-variant-numeric: tabular-nums; }
+      <footer class="footer">
+        <p>
+          © 2026 Metahara Sugar Factory · IT Department ·
+          <a
+            href="https://t.me/Thefluxor"
+            target="_blank"
+            rel="noopener noreferrer"
+            >Support</a
+          >
+        </p>
+        <p class="powered">Powered By Temesgen G.</p>
+      </footer>
+    </main>
 
-  .tips {
-    margin-top: 1.75rem; padding: 1rem 1.1rem; background: var(--surface);
-    border: 1px solid var(--line); border-radius: 12px;
-    font-size: .82rem; color: var(--muted); line-height: 1.55;
-  }
-  .tips[hidden] { display: none; }
-  .tips strong { color: var(--ink); font-weight: 650; }
-  .tips ul { margin-top: .4rem; padding-left: 1.1rem; }
-  .tips li + li { margin-top: .25rem; }
+    <script src="config.js"></script>
+    <script>
+      (function () {
+        "use strict";
 
-  .help {
-    margin: 1.5rem auto 0; display: inline-flex; align-items: center; gap: .4rem;
-    font-size: .82rem; font-weight: 600; color: var(--brand); text-decoration: none;
-  }
-  .help:hover { text-decoration: underline; }
-  .help svg { width: 15px; height: 15px; fill: currentColor; }
+        var CONFIG = window.HOMEDESK_CONFIG || {};
+        var ORIGIN = CONFIG.serverOrigin || "https://msf-homedesk.vercel.app";
+        var CFG = {
+          origin: ORIGIN,
+          health: CONFIG.healthPath || "/api/mobile/health",
+          live: CONFIG.livePath || "/api/health/live",
+          start: CONFIG.startPath || "/?app=1",
+          internetProbe: "https://www.gstatic.com/generate_204",
+          timeout: 5000,
+          backoff: [2, 3, 5, 10],
+          poll: 2000,
+          navMs: 280,
+        };
 
-  /* Still stuck divider */
-  .divider {
-    margin-top: 1.5rem; position: relative; text-align: center;
-  }
-  .divider::before {
-    content: ""; position: absolute; top: 50%; left: 0; right: 0;
-    height: 1px; background: var(--line);
-  }
-  .divider span {
-    position: relative; display: inline-block;
-    padding: 0 0.75rem; background: var(--bg);
-    font-size: 0.75rem; font-weight: 600; text-transform: uppercase;
-    letter-spacing: 0.05em; color: var(--faint);
-  }
+        var splashHidden = false;
 
-  .support-btn {
-    margin-top: 1rem; width: 100%; min-height: 50px;
-    display: inline-flex; align-items: center; justify-content: center; gap: .5rem;
-    font: 600 .95rem/1 inherit; font-family: inherit;
-    color: var(--brand); background: var(--surface);
-    border: 1.5px solid var(--line); border-radius: 12px; cursor: pointer;
-    text-decoration: none; transition: background .15s, border-color .15s, transform .15s;
-  }
-  .support-btn:hover { background: rgba(2, 132, 199, 0.05); border-color: var(--brand); }
-  .support-btn:active { transform: scale(.98); }
-  .support-btn svg { width: 18px; height: 18px; fill: currentColor; }
+        function hideNativeSplash() {
+          if (splashHidden) {
+            return;
+          }
+          try {
+            var capacitor = window.Capacitor;
+            var splash =
+              capacitor && capacitor.Plugins && capacitor.Plugins.SplashScreen;
+            if (splash && typeof splash.hide === "function") {
+              splash.hide();
+              splashHidden = true;
+            }
+          } catch (error) {}
+        }
 
-  footer { padding: 1rem 1.5rem 1.25rem; text-align: center; font-size: .72rem; color: var(--faint); }
+        var ICON = {
+          spin: '<svg viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 9 9"/></svg>',
+          ok: '<svg viewBox="0 0 24 24"><path d="m5 13 4 4L19 7"/></svg>',
+          off: '<svg viewBox="0 0 24 24"><path d="M12 20h.01"/><path d="M8.5 16.43a5 5 0 0 1 7 0"/><path d="M5 12.86a10 10 0 0 1 5.17-2.69"/><path d="M19 12.86a10 10 0 0 0-2-1.52"/><path d="M2 8.82a15 15 0 0 1 4.18-2.64"/><path d="M22 8.82A15 15 0 0 0 10.71 5.06"/><path d="m2 2 20 20"/></svg>',
+          warn: '<svg viewBox="0 0 24 24"><path d="M12 8v5m0 4h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>',
+        };
 
-  @media (prefers-reduced-motion: reduce) {
-    *, *::before, *::after { animation-duration: .001ms !important; transition-duration: .001ms !important; }
-    .link[data-s="wait"]::after { width: 100%; opacity: .5; }
-  }
-</style>
-</head>
-<body>
-<main class="stage">
+        var STATES = {
+          checking: {
+            title: "Checking connection",
+            detail: "Verifying that the portal is reachable.",
+            am: "ግንኙነቱን በማረጋገጥ ላይ…",
+            icon: ICON.spin,
+            tone: "brand",
+            spin: true,
+            pct: 30,
+            net: "ok",
+            web: "wait",
+            app: "idle",
+            busy: true,
+          },
+          offline: {
+            title: "You’re offline",
+            detail:
+              "Turn on Wi-Fi or mobile data. HomeDesk reconnects automatically.",
+            am: "ኢንተርኔት የለም። Wi-Fi ወይም የሞባይል ዳታ ያብሩ።",
+            icon: ICON.off,
+            tone: "bad",
+            pct: 10,
+            net: "bad",
+            web: "idle",
+            app: "idle",
+            force: false,
+          },
+          nointernet: {
+            title: "No internet access",
+            detail:
+              "Your device is connected to a network, but the internet is not reachable.",
+            am: "ከኔትወርክ ጋር ተገናኝተዋል፤ ኢንተርኔት ግን አይሰራም።",
+            icon: ICON.off,
+            tone: "bad",
+            pct: 35,
+            net: "ok",
+            web: "bad",
+            app: "idle",
+            retry: true,
+          },
+          down: {
+            title: "Portal unavailable",
+            detail:
+              "The internet works, but the portal is not responding. It may be under maintenance.",
+            am: "ፖርታሉ ለጊዜው አልተገኘም። በራስ-ሰር እንደገና ይሞክራል።",
+            icon: ICON.warn,
+            tone: "warn",
+            pct: 60,
+            net: "ok",
+            web: "ok",
+            app: "bad",
+            retry: true,
+            force: true,
+          },
+          starting: {
+            title: "Portal is starting",
+            detail:
+              "The portal is reachable but not ready yet. Retrying automatically.",
+            am: "ፖርታሉ እየተዘጋጀ ነው። ትንሽ ይጠብቁ።",
+            icon: ICON.warn,
+            tone: "warn",
+            pct: 80,
+            net: "ok",
+            web: "ok",
+            app: "wait",
+            retry: true,
+            force: true,
+          },
+          ready: {
+            title: "Connected",
+            detail: "Opening the portal…",
+            am: "ተገናኝቷል። ወደ ፖርታሉ በመግባት ላይ…",
+            icon: ICON.ok,
+            tone: "ok",
+            pct: 100,
+            net: "ok",
+            web: "ok",
+            app: "ok",
+            busy: true,
+          },
+        };
 
-  <div class="path" aria-hidden="true">
-    <div class="node" id="nDevice" data-s="wait">
-      <div class="dot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18h2"/></svg></div>
-      <span class="name">Your device</span>
-    </div>
-    <div class="link" id="l1" data-s="wait"></div>
-    <div class="node" id="nNet" data-s="idle">
-      <div class="dot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9.5"/><path d="M2.5 12h19M12 2.5c2.8 3 2.8 16 0 19M12 2.5c-2.8 3-2.8 16 0 19"/></svg></div>
-      <span class="name">Internet</span>
-    </div>
-    <div class="link" id="l2" data-s="idle"></div>
-    <div class="node" id="nSrv" data-s="idle">
-      <div class="dot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="7" rx="2"/><rect x="3" y="14" width="18" height="7" rx="2"/><path d="M7 6.5h.01M7 17.5h.01"/></svg></div>
-      <span class="name">MSF server</span>
-    </div>
-  </div>
+        var $ = function (id) {
+          return document.getElementById(id);
+        };
 
-  <h1 id="title" role="status" aria-live="polite">Checking connection…</h1>
-  <p id="detail" class="detail">Please wait a moment.</p>
-  <p id="am" class="am">ግንኙነቱን በማረጋገጥ ላይ ነው። እባክዎ ትንሽ ይጠብቁ።</p>
+        var el = {
+          icon: $("icon"),
+          title: $("title"),
+          detail: $("detail"),
+          am: $("am"),
+          bar: $("bar"),
+          cNet: $("cNet"),
+          cWeb: $("cWeb"),
+          cApp: $("cApp"),
+          netLabel: $("netLabel"),
+          webLabel: $("webLabel"),
+          appLabel: $("appLabel"),
+          retry: $("retry"),
+          force: $("force"),
+          next: $("next"),
+        };
 
-  <button id="retry" class="btn" type="button">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>
-    <span id="retryLabel">Try again</span>
-  </button>
-  <p id="next" class="next"></p>
+        var attempt = 0;
+        var retryTimer = null;
+        var runId = 0;
+        var opening = false;
+        var lastConnected = null;
 
-  <div id="tips" class="tips" hidden></div>
+        function typeLabel(t) {
+          if (t === "wifi") return "Wi-Fi";
+          if (t === "cellular") return "Mobile data";
+          if (t === "ethernet") return "Ethernet";
+          if (t === "none") return "No connection";
+          return "Connected";
+        }
 
-  <!-- Still stuck divider -->
-  <div class="divider">
-    <span>Still Stuck?</span>
-  </div>
+        function browserNet() {
+          var online = navigator.onLine !== false;
+          var c =
+            navigator.connection ||
+            navigator.mozConnection ||
+            navigator.webkitConnection;
+          var t = online ? (c && c.type) || "unknown" : "none";
+          return {
+            connected: online,
+            label: online ? typeLabel(t) : "No connection",
+          };
+        }
 
-  <!-- Contact Support Button -->
-  <a class="support-btn" href="https://t.me/Thefluxor" target="_blank" rel="noopener noreferrer">
-    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69a.2.2 0 0 0-.05-.18c-.06-.05-.14-.03-.21-.02-.09.02-1.49.95-4.22 2.79-.4.27-.76.41-1.08.4-.36-.01-1.04-.2-1.55-.37-.63-.2-1.12-.31-1.08-.66.02-.18.27-.36.75-.55 2.92-1.27 4.86-2.11 5.83-2.52 2.77-1.16 3.35-1.36 3.73-1.36.08 0 .27.02.39.12.1.08.13.19.14.27-.01.06.01.24 0 .38z"/></svg>
-    <span>Contact Support</span>
-  </a>
-</main>
+        function getNetwork() {
+          var native = window.HomeDeskNative;
+          if (native) {
+            try {
+              var t = native.getType();
+              var ok = !!native.isConnected() && t !== "none";
+              return Promise.resolve({
+                connected: ok,
+                label: ok ? typeLabel(t) : "No connection",
+              });
+            } catch (error) {}
+          }
+          var cap = window.Capacitor;
+          var plugin = cap && cap.Plugins && cap.Plugins.Network;
+          if (plugin && typeof plugin.getStatus === "function") {
+            return plugin.getStatus().then(
+              function (s) {
+                return {
+                  connected: !!s.connected,
+                  label: s.connected
+                    ? typeLabel(s.connectionType)
+                    : "No connection",
+                };
+              },
+              function () {
+                return browserNet();
+              },
+            );
+          }
+          return Promise.resolve(browserNet());
+        }
 
-<footer>© 2026 Metahara Sugar Factory • Powered by Temesgen</footer>
+        function fetchT(url, opts) {
+          var ctrl =
+            typeof AbortController === "function"
+              ? new AbortController()
+              : null;
+          var options = { cache: "no-store" };
+          for (var k in opts) {
+            if (Object.prototype.hasOwnProperty.call(opts, k))
+              options[k] = opts[k];
+          }
+          if (ctrl) options.signal = ctrl.signal;
+          var timer;
+          var timeout = new Promise(function (_, reject) {
+            timer = setTimeout(function () {
+              if (ctrl) ctrl.abort();
+              reject(new Error("timeout"));
+            }, CFG.timeout);
+          });
+          return Promise.race([fetch(url, options), timeout]).then(
+            function (r) {
+              clearTimeout(timer);
+              return r;
+            },
+            function (e) {
+              clearTimeout(timer);
+              throw e;
+            },
+          );
+        }
 
-<script>
-(function () {
-  var SERVER_URL = "https://house.taild2df63.ts.net";
-  var TIMEOUT_MS = 7000;
-  var BACKOFF = [6, 10, 15, 30]; // seconds between automatic retries
+        function probePortal() {
+          var stamp = "?_=" + Date.now();
+          return fetchT(CFG.origin + CFG.health + stamp, {
+            mode: "cors",
+            credentials: "omit",
+            headers: { Accept: "application/json" },
+          }).then(
+            function (res) {
+              return res
+                .json()
+                .catch(function () {
+                  return null;
+                })
+                .then(function (body) {
+                  return res.ok && (!body || body.status !== "degraded")
+                    ? "ready"
+                    : "starting";
+                });
+            },
+            function () {
+              return fetchT(CFG.origin + CFG.live + stamp, {
+                mode: "no-cors",
+                credentials: "omit",
+              }).then(
+                function () {
+                  return "ready";
+                },
+                function () {
+                  return fetchT(CFG.internetProbe + stamp, {
+                    mode: "no-cors",
+                    credentials: "omit",
+                  }).then(
+                    function () {
+                      return "down";
+                    },
+                    function () {
+                      return "nointernet";
+                    },
+                  );
+                },
+              );
+            },
+          );
+        }
 
-  var $ = function (id) { return document.getElementById(id); };
-  var el = {
-    nDevice: $("nDevice"), nNet: $("nNet"), nSrv: $("nSrv"),
-    l1: $("l1"), l2: $("l2"),
-    title: $("title"), detail: $("detail"), am: $("am"),
-    retry: $("retry"), label: $("retryLabel"), next: $("next"), tips: $("tips")
-  };
+        function setCheck(node, value) {
+          node.setAttribute("data-s", value);
+        }
 
-  var attempt = 0, timer = null, checking = false;
+        function render(name, netLabel) {
+          var s = STATES[name];
+          el.title.textContent = s.title;
+          el.detail.textContent = s.detail;
+          el.am.textContent = s.am;
+          el.icon.innerHTML = s.icon;
+          el.icon.setAttribute("data-tone", s.tone);
+          el.icon.classList.toggle("spin", !!s.spin);
+          el.bar.style.width = s.pct + "%";
+          setCheck(el.cNet, s.net);
+          setCheck(el.cWeb, s.web);
+          setCheck(el.cApp, s.app);
+          if (netLabel) el.netLabel.textContent = netLabel;
+          el.webLabel.textContent = {
+            ok: "Reachable",
+            bad: "Not reachable",
+            wait: "Checking…",
+            idle: "—",
+          }[s.web];
+          el.appLabel.textContent = {
+            ok: "Ready",
+            bad: "Not responding",
+            wait: "Starting…",
+            idle: "—",
+          }[s.app];
+          el.retry.disabled = !!s.busy;
+          el.retry.textContent = s.busy ? "Checking…" : "Try again";
+          el.retry.hidden = name === "ready";
+          el.force.hidden = !s.force;
+        }
 
-  function set(node, s) { node.setAttribute("data-s", s); }
-  function paint(s) { // s = [device, link1, net, link2, server]
-    set(el.nDevice, s[0]); set(el.l1, s[1]); set(el.nNet, s[2]); set(el.l2, s[3]); set(el.nSrv, s[4]);
-  }
-  function copy(title, detail, am) {
-    el.title.textContent = title; el.detail.textContent = detail; el.am.textContent = am;
-  }
-  function tips(html) { el.tips.hidden = !html; el.tips.innerHTML = html || ""; }
-  function busy(on) {
-    el.retry.disabled = on;
-    el.retry.classList.toggle("busy", on);
-    el.label.textContent = on ? "Checking…" : "Try again";
-  }
+        function clearRetry() {
+          if (retryTimer) {
+            clearInterval(retryTimer);
+            retryTimer = null;
+          }
+        }
 
-  function clearTimer() { if (timer) { clearInterval(timer); timer = null; } }
-  function scheduleRetry() {
-    clearTimer();
-    var left = BACKOFF[Math.min(attempt, BACKOFF.length - 1)];
-    attempt++;
-    el.next.textContent = "Trying again in " + left + "s";
-    timer = setInterval(function () {
-      left--;
-      if (left <= 0) { clearTimer(); check(); return; }
-      el.next.textContent = "Trying again in " + left + "s";
-    }, 1000);
-  }
+        function scheduleRetry() {
+          clearRetry();
+          var left = CFG.backoff[Math.min(attempt, CFG.backoff.length - 1)];
+          attempt++;
+          el.next.textContent = "Retrying in " + left + "s";
+          retryTimer = setInterval(function () {
+            left--;
+            if (left <= 0) {
+              clearRetry();
+              check();
+              return;
+            }
+            el.next.textContent = "Retrying in " + left + "s";
+          }, 1000);
+        }
 
-  function probe() {
-    // Resolves only if the server answers; rejects on timeout or network failure.
-    var ctrl = typeof AbortController === "function" ? new AbortController() : null;
-    var t = setTimeout(function () { if (ctrl) ctrl.abort(); }, TIMEOUT_MS);
-    var url = SERVER_URL + "/?_=" + Date.now();
-    return Promise.race([
-      fetch(url, { mode: "no-cors", cache: "no-store", signal: ctrl ? ctrl.signal : undefined }),
-      new Promise(function (_, rej) { setTimeout(function () { rej(new Error("timeout")); }, TIMEOUT_MS + 500); })
-    ]).then(function (r) { clearTimeout(t); return r; }, function (e) { clearTimeout(t); throw e; });
-  }
+        function openPortal() {
+          if (opening) return;
+          opening = true;
+          document.body.classList.add("is-leaving");
+          setTimeout(function () {
+            window.location.replace(CFG.origin + CFG.start);
+          }, CFG.navMs);
+        }
 
-  function check() {
-    if (checking) return;
-    checking = true;
-    clearTimer();
-    el.next.textContent = "";
-    busy(true);
-    tips("");
+        function check(reset) {
+          if (opening) return;
+          if (reset) attempt = 0;
+          var id = ++runId;
+          clearRetry();
+          el.next.textContent = "";
 
-    if (navigator.onLine === false) {
-      paint(["bad", "bad", "idle", "idle", "idle"]);
-      copy("No internet connection",
-           "Your device is not connected. Check Wi-Fi or mobile data.",
-           "ኢንተርኔት የለም። Wi-Fi ወይም የሞባይል ዳታ ያብሩ።");
-      tips("<strong>What to try</strong><ul><li>Turn on Wi-Fi or mobile data</li><li>Turn off airplane mode</li><li>Move to a place with better signal</li></ul>");
-      el.next.textContent = "Waiting for network…";
-      busy(false); checking = false;
-      // Do NOT schedule a timer — the 'online' event will trigger check() automatically.
-      return;
-    }
+          getNetwork().then(function (net) {
+            if (id !== runId || opening) return;
+            lastConnected = net.connected;
+            if (!net.connected) {
+              render("offline", net.label);
+              el.next.textContent = "Waiting for a network…";
+              return;
+            }
+            render("checking", net.label);
+            probePortal().then(function (result) {
+              if (id !== runId || opening) return;
+              render(result, net.label);
+              if (result === "ready") {
+                setTimeout(openPortal, 400);
+                return;
+              }
+              scheduleRetry();
+            });
+          });
+        }
 
-    paint(["ok", "wait", "wait", "idle", "idle"]);
-    copy("Connecting to the portal…", "Reaching the MSF server.", "ከሰርቨሩ ጋር በመገናኘት ላይ ነው።");
+        function watch() {
+          setInterval(function () {
+            if (opening) return;
+            getNetwork().then(function (net) {
+              if (lastConnected !== null && net.connected !== lastConnected)
+                check(true);
+            });
+          }, CFG.poll);
+        }
 
-    probe().then(function () {
-      paint(["ok", "ok", "ok", "ok", "ok"]);
-      copy("Connected", "Opening the portal…", "ተገናኝቷል። ፖርታሉ በመከፈት ላይ ነው።");
-      attempt = 0;
-      setTimeout(function () { window.location.replace(SERVER_URL); }, 350);
-    }).catch(function () {
-      paint(["ok", "ok", "ok", "bad", "bad"]);
-      copy("Can’t reach the MSF server",
-           "Your internet works, but the server is not responding. It may be restarting or under maintenance.",
-           "ኢንተርኔት አለ፤ ሰርቨሩ ግን አልመለሰም። ሰርቨሩ እስኪነሳ ይጠብቁ።");
-      tips("<strong>What to try</strong><ul><li>Wait a minute. This page retries on its own</li><li>If it continues, contact IT support</li></ul>");
-      busy(false); checking = false; scheduleRetry();
-    });
-  }
+        window.__homedeskRecheck = function () {
+          check(true);
+        };
+        el.retry.addEventListener("click", function () {
+          check(true);
+        });
+        el.force.addEventListener("click", openPortal);
+        window.addEventListener("online", function () {
+          check(true);
+        });
+        window.addEventListener("offline", function () {
+          check(true);
+        });
+        document.addEventListener("visibilitychange", function () {
+          if (!document.hidden) check(true);
+        });
 
-  el.retry.addEventListener("click", function () { attempt = 0; check(); });
-  window.addEventListener("online", function () { attempt = 0; check(); });
-  window.addEventListener("offline", function () { attempt = 0; checking = false; check(); });
-  document.addEventListener("visibilitychange", function () {
-    if (!document.hidden && !checking) { attempt = 0; check(); }
-  });
+        requestAnimationFrame(function () {
+          requestAnimationFrame(function () {
+            hideNativeSplash();
+            setTimeout(hideNativeSplash, 1200);
+          });
+        });
 
-  check();
-})();
-</script>
-</body>
+        render("checking");
+        watch();
+        check(true);
+      })();
+    </script>
+  </body>
 </html>

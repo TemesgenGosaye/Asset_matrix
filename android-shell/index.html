@@ -1,518 +1,610 @@
 <!doctype html>
 <html lang="en">
-<head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<meta name="color-scheme" content="light dark" />
-<meta name="theme-color" content="#ffffff" />
-<title>HomeDesk • Connection</title>
-<style>
-  :root {
-    --bg: #ffffff;
-    --ink: #0f172a;
-    --muted: #475569;
-    --faint: #94a3b8;
-    --line: #e2e8f0;
-    --brand: #0284c7;
-    --brand-dark: #0369a1;
-    --ok: #16a34a;
-    --bad: #e11d48;
-    --wait: #0284c7;
-    --idle: #cbd5e1;
-    --surface: #f8fafc;
-  }
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --bg: #0b1220;
-      --ink: #f1f5f9;
-      --muted: #94a3b8;
-      --faint: #64748b;
-      --line: #1e293b;
-      --brand: #38bdf8;
-      --brand-dark: #7dd3fc;
-      --ok: #4ade80;
-      --bad: #fb7185;
-      --wait: #38bdf8;
-      --idle: #334155;
-      --surface: #111a2e;
-    }
-  }
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-  html, body { height: 100%; }
-  body {
-    background: var(--bg);
-    color: var(--ink);
-    font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans Ethiopic", Helvetica, Arial, sans-serif;
-    -webkit-font-smoothing: antialiased;
-    -webkit-user-select: none; user-select: none;
-    -webkit-tap-highlight-color: transparent;
-    min-height: 100dvh;
-    display: flex; flex-direction: column;
-    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
-  }
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+    <meta name="color-scheme" content="light" />
+    <meta name="theme-color" content="#ffffff" />
+    <meta
+      http-equiv="Cache-Control"
+      content="no-cache, no-store, must-revalidate"
+    />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self' data:; script-src 'self' 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self' https:; img-src 'self' data:; font-src 'none'; object-src 'none'"
+    />
+    <title>HomeDesk</title>
+    <style>
+      :root {
+        --bg: #ffffff;
+        --text: #0b1b2b;
+        --muted: #64748b;
+        --line: #e6ebf1;
+        --brand: #0a4f2c;
+        --accent: #0f766e;
+        --spinner: #0a4f2c;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+      }
+      body {
+        color: var(--text);
+        background: var(--bg);
+        font-family:
+          Inter,
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          Roboto,
+          "Noto Sans Ethiopic",
+          Nyala,
+          sans-serif;
+        -webkit-font-smoothing: antialiased;
+        -webkit-tap-highlight-color: transparent;
+        user-select: none;
+        overflow: hidden;
+      }
+      .splash {
+        position: relative;
+        height: 100vh;
+        height: 100dvh;
+        display: grid;
+        grid-template-rows: 1fr auto 1fr;
+        align-items: center;
+        justify-items: center;
+        text-align: center;
+        padding: calc(env(safe-area-inset-top, 0px) + clamp(18px, 4vh, 38px))
+          clamp(16px, 6vw, 32px)
+          calc(env(safe-area-inset-bottom, 0px) + clamp(18px, 4vh, 34px));
+        transition:
+          opacity 280ms ease,
+          transform 280ms ease;
+      }
+      body.is-leaving .splash {
+        opacity: 0;
+        transform: scale(0.99);
+      }
+      .splash::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        background-image: radial-gradient(
+          color-mix(in srgb, var(--brand) 13%, transparent) 1px,
+          transparent 1.4px
+        );
+        background-size: 24px 24px;
+        -webkit-mask-image: radial-gradient(
+          ellipse 65% 38% at 50% 12%,
+          #000 0%,
+          transparent 76%
+        );
+        mask-image: radial-gradient(
+          ellipse 65% 38% at 50% 12%,
+          #000 0%,
+          transparent 76%
+        );
+        opacity: 0.6;
+      }
+      .brand,
+      .loader,
+      .footer {
+        position: relative;
+        z-index: 1;
+      }
+      .brand {
+        grid-row: 1;
+        align-self: start;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        animation: rise 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
+      }
+      .mark {
+        position: relative;
+        display: grid;
+        place-items: center;
+        margin-bottom: 12px;
+      }
+      .mark::before {
+        content: "";
+        position: absolute;
+        width: 190%;
+        height: 190%;
+        border-radius: 50%;
+        background: radial-gradient(
+          circle,
+          color-mix(in srgb, var(--brand) 20%, transparent) 0%,
+          transparent 62%
+        );
+        filter: blur(10px);
+        animation: breathe 4.5s ease-in-out infinite;
+      }
+      .mark svg {
+        position: relative;
+        width: clamp(62px, 20vw, 88px);
+        height: clamp(62px, 20vw, 88px);
+        filter: drop-shadow(
+          0 10px 22px color-mix(in srgb, var(--brand) 32%, transparent)
+        );
+        animation: float 5s ease-in-out infinite;
+      }
+      @keyframes breathe {
+        0%,
+        100% {
+          opacity: 0.55;
+          transform: scale(0.94);
+        }
+        50% {
+          opacity: 1;
+          transform: scale(1.06);
+        }
+      }
+      @keyframes float {
+        0%,
+        100% {
+          transform: translateY(0);
+        }
+        50% {
+          transform: translateY(-5px);
+        }
+      }
+      .welcome {
+        margin: 0;
+        font-size: 0.68rem;
+        font-weight: 700;
+        letter-spacing: 0.28em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+      .name {
+        margin: 6px 0 0;
+        font-size: clamp(1.9rem, 9vw, 2.6rem);
+        font-weight: 800;
+        letter-spacing: -0.04em;
+        line-height: 1.05;
+      }
+      .name .home {
+        color: #0b2a43;
+      }
+      .name .desk {
+        color: var(--brand);
+      }
+      .org {
+        margin: 9px 0 0;
+        font-size: 0.78rem;
+        font-weight: 550;
+        letter-spacing: 0.06em;
+        color: var(--muted);
+      }
+      .org::before,
+      .org::after {
+        content: "";
+        display: inline-block;
+        width: 20px;
+        height: 1px;
+        vertical-align: middle;
+        background: var(--line);
+        margin: 0 9px;
+      }
+      .loader {
+        grid-row: 2;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        animation: rise 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.18s both;
+      }
+      .spinner {
+        --size: 48px;
+        position: relative;
+        width: var(--size);
+        height: var(--size);
+      }
+      .spinner span {
+        position: absolute;
+        top: 0;
+        left: 50%;
+        width: 11%;
+        height: 27%;
+        margin-left: -5.5%;
+        border-radius: 9999px;
+        background: var(--spinner);
+        transform-origin: 50% calc(var(--size) / 2);
+        animation: fade 1s linear infinite;
+      }
+      .spinner span:nth-child(1) {
+        transform: rotate(0deg);
+        animation-delay: -1s;
+      }
+      .spinner span:nth-child(2) {
+        transform: rotate(30deg);
+        animation-delay: -0.9167s;
+      }
+      .spinner span:nth-child(3) {
+        transform: rotate(60deg);
+        animation-delay: -0.8333s;
+      }
+      .spinner span:nth-child(4) {
+        transform: rotate(90deg);
+        animation-delay: -0.75s;
+      }
+      .spinner span:nth-child(5) {
+        transform: rotate(120deg);
+        animation-delay: -0.6667s;
+      }
+      .spinner span:nth-child(6) {
+        transform: rotate(150deg);
+        animation-delay: -0.5833s;
+      }
+      .spinner span:nth-child(7) {
+        transform: rotate(180deg);
+        animation-delay: -0.5s;
+      }
+      .spinner span:nth-child(8) {
+        transform: rotate(210deg);
+        animation-delay: -0.4167s;
+      }
+      .spinner span:nth-child(9) {
+        transform: rotate(240deg);
+        animation-delay: -0.3333s;
+      }
+      .spinner span:nth-child(10) {
+        transform: rotate(270deg);
+        animation-delay: -0.25s;
+      }
+      .spinner span:nth-child(11) {
+        transform: rotate(300deg);
+        animation-delay: -0.1667s;
+      }
+      .spinner span:nth-child(12) {
+        transform: rotate(330deg);
+        animation-delay: -0.0833s;
+      }
+      @keyframes fade {
+        from {
+          opacity: 1;
+        }
+        to {
+          opacity: 0.08;
+        }
+      }
+      .status {
+        margin: 20px 0 0;
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: var(--text);
+        opacity: 0.88;
+      }
+      .status::after {
+        content: "";
+        animation: dots 1.4s steps(4, end) infinite;
+      }
+      @keyframes dots {
+        0% {
+          content: "";
+        }
+        25% {
+          content: ".";
+        }
+        50% {
+          content: "..";
+        }
+        75%,
+        100% {
+          content: "...";
+        }
+      }
+      .bar {
+        width: min(180px, 52vw);
+        height: 3px;
+        margin-top: 18px;
+        border-radius: 3px;
+        background: var(--line);
+        overflow: hidden;
+      }
+      .bar::after {
+        content: "";
+        display: block;
+        width: 45%;
+        height: 100%;
+        border-radius: 3px;
+        background: linear-gradient(
+          90deg,
+          transparent,
+          var(--accent),
+          var(--spinner),
+          transparent
+        );
+        animation: slide 1.5s cubic-bezier(0.5, 0, 0.5, 1) infinite;
+      }
+      @keyframes slide {
+        from {
+          transform: translateX(-110%);
+        }
+        to {
+          transform: translateX(240%);
+        }
+      }
+      .footer {
+        grid-row: 3;
+        align-self: end;
+        font-size: 0.72rem;
+        letter-spacing: 0.04em;
+        color: var(--muted);
+        line-height: 1.5;
+      }
+      .footer p {
+        margin: 0;
+      }
+      .footer .powered {
+        margin-top: 4px;
+        font-weight: 700;
+        color: var(--brand);
+      }
+      @keyframes rise {
+        from {
+          opacity: 0;
+          transform: translateY(12px);
+        }
+        to {
+          opacity: 1;
+          transform: none;
+        }
+      }
+      @media (max-height: 560px) {
+        .mark svg {
+          width: 52px;
+          height: 52px;
+        }
+        .name {
+          font-size: 1.7rem;
+        }
+        .org {
+          display: none;
+        }
+        .status {
+          margin-top: 12px;
+        }
+        .bar {
+          margin-top: 12px;
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        *,
+        *::before,
+        *::after {
+          animation: none !important;
+          transition: none !important;
+        }
+        .spinner span {
+          opacity: 0.6;
+        }
+        .spinner span:nth-child(1) {
+          opacity: 1;
+        }
+        .status::after {
+          content: "...";
+        }
+        .bar::after {
+          transform: translateX(60%);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="splash">
+      <div class="brand">
+        <div class="mark" aria-hidden="true">
+          <svg viewBox="0 0 64 64">
+            <defs>
+              <linearGradient id="houseGrad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0" style="stop-color: var(--brand)" />
+                <stop offset="1" style="stop-color: var(--accent)" />
+              </linearGradient>
+            </defs>
+            <path
+              d="M6 32 32 9l26 23"
+              fill="none"
+              stroke="var(--brand)"
+              stroke-width="6"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+            <path
+              d="M14 33 32 17.5 50 33v19a4 4 0 0 1-4 4H18a4 4 0 0 1-4-4z"
+              fill="url(#houseGrad)"
+            />
+            <rect
+              x="26"
+              y="38"
+              width="12"
+              height="18"
+              rx="3"
+              fill="var(--bg)"
+            />
+          </svg>
+        </div>
+        <p class="welcome">Welcome to</p>
+        <h1 class="name" aria-label="HomeDesk">
+          <span class="home">Home</span><span class="desk">Desk</span>
+        </h1>
+        <p class="org">Metahara Sugar Factory</p>
+      </div>
 
-  .stage {
-    flex: 1; width: 100%; max-width: 400px; margin: 0 auto;
-    padding: 2.5rem 1.5rem 1rem;
-    display: flex; flex-direction: column; justify-content: center;
-  }
+      <div class="loader">
+        <div class="spinner" role="status" aria-label="Loading">
+          <span></span><span></span><span></span><span></span> <span></span
+          ><span></span><span></span><span></span> <span></span><span></span
+          ><span></span><span></span>
+        </div>
+        <p class="status">HomeDesk is loading</p>
+        <div class="bar" aria-hidden="true"></div>
+      </div>
 
-  /* Connection path: the one memorable element */
-  .path {
-    display: grid; grid-template-columns: auto 1fr auto 1fr auto; align-items: center;
-    gap: .5rem; margin-bottom: 2rem;
-  }
-  .node { display: flex; flex-direction: column; align-items: center; gap: .5rem; width: 64px; }
-  .node .dot {
-    width: 44px; height: 44px; border-radius: 50%;
-    display: grid; place-items: center;
-    border: 2px solid var(--idle); color: var(--idle);
-    background: var(--bg);
-    transition: border-color .3s, color .3s, background .3s;
-  }
-  .node svg { width: 22px; height: 22px; }
-  .node .name { font-size: .7rem; font-weight: 600; color: var(--muted); text-align: center; line-height: 1.25; }
-  .link { height: 2px; background: var(--idle); border-radius: 2px; position: relative; overflow: hidden; transition: background .3s; margin-bottom: 1.4rem; }
-  .node[data-s="ok"] .dot   { border-color: var(--ok);   color: var(--ok); }
-  .node[data-s="bad"] .dot  { border-color: var(--bad);  color: var(--bad); background: color-mix(in srgb, var(--bad) 10%, var(--bg)); }
-  .node[data-s="wait"] .dot { border-color: var(--wait); color: var(--wait); }
-  .link[data-s="ok"]  { background: var(--ok); }
-  .link[data-s="bad"] { background: repeating-linear-gradient(90deg, var(--bad) 0 4px, transparent 4px 9px); }
-  .link[data-s="wait"]::after {
-    content: ""; position: absolute; inset: 0; width: 40%;
-    background: var(--wait); animation: sweep 1s ease-in-out infinite;
-  }
-  @keyframes sweep { from { transform: translateX(-100%); } to { transform: translateX(260%); } }
+      <footer class="footer">
+        <p>© 2026 Metahara Sugar Factory</p>
+        <p class="powered">Powered By Temesgen G.</p>
+      </footer>
+    </main>
 
-  h1 { font-size: 1.3rem; font-weight: 800; letter-spacing: -.02em; line-height: 1.25; text-align: center; }
-  .detail { margin-top: .5rem; font-size: .95rem; color: var(--muted); line-height: 1.5; text-align: center; }
-  .am { margin-top: .75rem; font-size: .85rem; color: var(--faint); line-height: 1.65; text-align: center; }
+    <script src="config.js"></script>
+    <script>
+      (function () {
+        "use strict";
 
-  .btn {
-    margin-top: 1.75rem; width: 100%; min-height: 50px;
-    display: inline-flex; align-items: center; justify-content: center; gap: .5rem;
-    font: 600 .95rem/1 inherit; font-family: inherit;
-    color: #fff; background: var(--brand); border: 0; border-radius: 12px; cursor: pointer;
-    transition: background .15s, transform .15s;
-  }
-  @media (prefers-color-scheme: dark) { .btn { color: #082f49; } }
-  .btn:hover { background: var(--brand-dark); }
-  .btn:active { transform: scale(.98); }
-  .btn:disabled { opacity: .6; cursor: default; transform: none; }
-  .btn svg { width: 18px; height: 18px; }
-  .btn.busy svg { animation: spin 1s linear infinite; }
-  @keyframes spin { to { transform: rotate(360deg); } }
-  .btn:focus-visible, .help:focus-visible { outline: 3px solid var(--brand); outline-offset: 3px; }
+        var CONFIG = window.HOMEDESK_CONFIG || {};
+        var ORIGIN = CONFIG.serverOrigin || "https://msf-homedesk.vercel.app";
+        var HEALTH = ORIGIN + (CONFIG.healthPath || "/api/mobile/health");
+        var LIVE = ORIGIN + (CONFIG.livePath || "/api/health/live");
+        var START =
+          CONFIG.startupUrl || ORIGIN + (CONFIG.startPath || "/?app=1");
+        var TIMEOUT = 5000;
+        var RETRY_MS = [1500, 2500, 4000];
+        var NAV_MS = 280;
+        var OFFLINE_SPIN_MS = 1000;
 
-  .next { margin-top: .9rem; font-size: .78rem; color: var(--faint); text-align: center; min-height: 1.1em; font-variant-numeric: tabular-nums; }
+        var attempt = 0;
+        var navigating = false;
 
-  .tips {
-    margin-top: 1.75rem; padding: 1rem 1.1rem; background: var(--surface);
-    border: 1px solid var(--line); border-radius: 12px;
-    font-size: .82rem; color: var(--muted); line-height: 1.55;
-  }
-  .tips[hidden] { display: none; }
-  .tips strong { color: var(--ink); font-weight: 650; }
-  .tips ul { margin-top: .4rem; padding-left: 1.1rem; }
-  .tips li + li { margin-top: .25rem; }
+        function request(url, options) {
+          var ctrl =
+            typeof AbortController === "function"
+              ? new AbortController()
+              : null;
+          var timer = setTimeout(function () {
+            if (ctrl) ctrl.abort();
+          }, TIMEOUT);
+          var opts = Object.assign(
+            { cache: "no-store", credentials: "omit" },
+            options,
+          );
+          if (ctrl) opts.signal = ctrl.signal;
+          return fetch(url, opts).finally(function () {
+            clearTimeout(timer);
+          });
+        }
 
-  .help {
-    margin: 1.5rem auto 0; display: inline-flex; align-items: center; gap: .4rem;
-    font-size: .82rem; font-weight: 600; color: var(--brand); text-decoration: none;
-  }
-  .help:hover { text-decoration: underline; }
-  .help svg { width: 15px; height: 15px; fill: currentColor; }
+        function connected() {
+          var native = window.HomeDeskNative;
+          if (native && typeof native.isConnected === "function") {
+            return Promise.resolve(!!native.isConnected());
+          }
+          var cap = window.Capacitor;
+          var plugin = cap && cap.Plugins && cap.Plugins.Network;
+          if (plugin && typeof plugin.getStatus === "function") {
+            return plugin
+              .getStatus()
+              .then(function (status) {
+                return !!status.connected;
+              })
+              .catch(function () {
+                return navigator.onLine !== false;
+              });
+          }
+          return Promise.resolve(navigator.onLine !== false);
+        }
 
-  footer { padding: 1rem 1.5rem 1.25rem; text-align: center; font-size: .72rem; color: var(--faint); }
+        function probe() {
+          return request(HEALTH + "?_=" + Date.now(), {
+            mode: "cors",
+            headers: { Accept: "application/json" },
+          })
+            .then(function (res) {
+              return res
+                .json()
+                .catch(function () {
+                  return null;
+                })
+                .then(function (body) {
+                  return res.ok && (!body || body.status !== "degraded");
+                });
+            })
+            .catch(function () {
+              return request(LIVE + "?_=" + Date.now(), { mode: "no-cors" })
+                .then(function () {
+                  return true;
+                })
+                .catch(function () {
+                  return false;
+                });
+            });
+        }
 
-  @media (prefers-reduced-motion: reduce) {
-    *, *::before, *::after { animation-duration: .001ms !important; transition-duration: .001ms !important; }
-    .link[data-s="wait"]::after { width: 100%; opacity: .5; }
-  }
+        function navigate(url, delay) {
+          if (navigating) return;
+          navigating = true;
+          setTimeout(function () {
+            document.body.classList.add("is-leaving");
+            setTimeout(function () {
+              window.location.replace(url);
+            }, NAV_MS);
+          }, delay || 0);
+        }
 
-  /* ═══════════════════════════════════════════════════════════════════
-     Splash Overlay - Shows on first launch with MSF branding
-     ═══════════════════════════════════════════════════════════════════ */
-  .splash-overlay {
-    position: fixed; inset: 0; z-index: 9999;
-    background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
-    display: flex; flex-direction: column; align-items: center; justify-content: center;
-    opacity: 1; transition: opacity 0.6s ease-out;
-    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
-  }
-  @media (prefers-color-scheme: dark) {
-    .splash-overlay { background: linear-gradient(135deg, #0c4a6e 0%, #075985 100%); }
-  }
-  .splash-overlay.fade-out { opacity: 0; pointer-events: none; }
+        function openPortal() {
+          navigate(START);
+        }
 
-  .splash-content {
-    display: flex; flex-direction: column; align-items: center; gap: 1.5rem;
-    animation: splashFadeIn 0.8s cubic-bezier(0.16, 1, 0.3, 1) both;
-  }
+        function showOffline() {
+          navigate("offline.html", OFFLINE_SPIN_MS);
+        }
 
-  .splash-logo {
-    width: 96px; height: 96px; border-radius: 22px;
-    background: rgba(255, 255, 255, 0.15); backdrop-filter: blur(20px);
-    border: 2px solid rgba(255, 255, 255, 0.3);
-    display: grid; place-items: center;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-    animation: logoFloat 3s ease-in-out infinite;
-  }
-  .splash-logo svg {
-    width: 56px; height: 56px;
-    color: #ffffff; filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.2));
-  }
+        function check() {
+          if (navigating) return;
+          probe().then(function (ready) {
+            if (navigating) return;
+            if (ready) {
+              openPortal();
+              return;
+            }
+            connected().then(function (online) {
+              if (navigating) return;
+              if (!online) {
+                showOffline();
+                return;
+              }
+              var wait = RETRY_MS[Math.min(attempt++, RETRY_MS.length - 1)];
+              setTimeout(check, wait);
+            });
+          });
+        }
 
-  .splash-branding { text-align: center; }
-  .splash-branding h1 {
-    font-size: 2rem; font-weight: 900; letter-spacing: -0.03em;
-    color: #ffffff; text-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-    margin-bottom: 0.25rem;
-  }
-  .splash-branding p {
-    font-size: 0.95rem; font-weight: 600; letter-spacing: 0.02em;
-    color: rgba(255, 255, 255, 0.85); text-transform: uppercase;
-  }
-  .splash-branding .am-text {
-    font-size: 0.85rem; font-weight: 500;
-    color: rgba(255, 255, 255, 0.7); margin-top: 0.5rem;
-  }
+        window.addEventListener("online", function () {
+          attempt = 0;
+          if (!navigating) check();
+        });
+        document.addEventListener("visibilitychange", function () {
+          if (!document.hidden && !navigating) check();
+        });
+        window.__homedeskRecheck = function () {
+          attempt = 0;
+          if (!navigating) check();
+        };
 
-  .splash-loader {
-    margin-top: 1rem; display: flex; gap: 0.5rem;
-  }
-  .splash-dot {
-    width: 10px; height: 10px; border-radius: 50%;
-    background: rgba(255, 255, 255, 0.6);
-    animation: dotPulse 1.4s ease-in-out infinite;
-  }
-  .splash-dot:nth-child(2) { animation-delay: 0.2s; }
-  .splash-dot:nth-child(3) { animation-delay: 0.4s; }
+        requestAnimationFrame(function () {
+          requestAnimationFrame(function () {
+            var c = window.Capacitor;
+            var s = c && c.Plugins && c.Plugins.SplashScreen;
+            if (s && typeof s.hide === "function") s.hide();
+          });
+        });
 
-  @keyframes splashFadeIn {
-    from { opacity: 0; transform: translateY(20px); }
-    to { opacity: 1; transform: translateY(0); }
-  }
-  @keyframes logoFloat {
-    0%, 100% { transform: translateY(0px); }
-    50% { transform: translateY(-8px); }
-  }
-  @keyframes dotPulse {
-    0%, 100% { opacity: 0.3; transform: scale(0.8); }
-    50% { opacity: 1; transform: scale(1.2); }
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .splash-logo { animation: none; }
-    .splash-dot { animation: dotPulse 3s ease-in-out infinite; }
-  }
-
-  /* ═══════════════════════════════════════════════════════════════════
-     Bottom Navigation Bar
-     ═══════════════════════════════════════════════════════════════════ */
-  .bottom-nav {
-    position: fixed; bottom: 0; left: 0; right: 0;
-    height: 60px;
-    background: var(--bg);
-    border-top: 1px solid var(--line);
-    display: flex; align-items: stretch;
-    padding-bottom: env(safe-area-inset-bottom);
-    z-index: 200;
-    box-shadow: 0 -1px 12px rgba(0,0,0,.07);
-  }
-  .nav-item {
-    flex: 1; display: flex; flex-direction: column; align-items: center;
-    justify-content: center; gap: 3px;
-    color: var(--muted); text-decoration: none;
-    font-size: 10px; font-weight: 700; letter-spacing: .02em;
-    padding: 6px 2px; border: 0; background: none; cursor: pointer;
-    -webkit-tap-highlight-color: transparent;
-    transition: color .15s;
-    position: relative;
-  }
-  .nav-item svg { width: 22px; height: 22px; flex-shrink: 0; }
-  .nav-item:active { color: var(--brand); }
-  .nav-item.disabled { opacity: .4; pointer-events: none; }
-  .nav-item .nav-badge {
-    position: absolute; top: 6px; right: calc(50% - 18px);
-    min-width: 7px; height: 7px; border-radius: 50%;
-    background: var(--bad);
-  }
-  /* Pad stage so content is never hidden behind the bar */
-  .stage { padding-bottom: 76px; }
-</style>
-</head>
-<body>
-
-<!-- ═══════════════════════════════════════════════════════════════════
-     Splash Overlay - MSF Branding shown on first launch
-     ═══════════════════════════════════════════════════════════════════ -->
-<div id="splashOverlay" class="splash-overlay">
-  <div class="splash-content">
-    <div class="splash-logo">
-      <!-- MSF Building/Server Icon -->
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
-        <polyline points="9 22 9 12 15 12 15 22"/>
-      </svg>
-    </div>
-    
-    <div class="splash-branding">
-      <h1>HomeDesk</h1>
-      <p>Metahara Sugar Factory</p>
-      <p class="am-text">መተሐራ ስኳር ፋብሪካ</p>
-    </div>
-    
-    <div class="splash-loader">
-      <div class="splash-dot"></div>
-      <div class="splash-dot"></div>
-      <div class="splash-dot"></div>
-    </div>
-  </div>
-</div>
-
-<main class="stage">
-
-  <div class="path" aria-hidden="true">
-    <div class="node" id="nDevice" data-s="wait">
-      <div class="dot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18h2"/></svg></div>
-      <span class="name">Your device</span>
-    </div>
-    <div class="link" id="l1" data-s="wait"></div>
-    <div class="node" id="nNet" data-s="idle">
-      <div class="dot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9.5"/><path d="M2.5 12h19M12 2.5c2.8 3 2.8 16 0 19M12 2.5c-2.8 3-2.8 16 0 19"/></svg></div>
-      <span class="name">Internet</span>
-    </div>
-    <div class="link" id="l2" data-s="idle"></div>
-    <div class="node" id="nSrv" data-s="idle">
-      <div class="dot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="7" rx="2"/><rect x="3" y="14" width="18" height="7" rx="2"/><path d="M7 6.5h.01M7 17.5h.01"/></svg></div>
-      <span class="name">MSF server</span>
-    </div>
-  </div>
-
-  <h1 id="title" role="status" aria-live="polite">Checking connection…</h1>
-  <p id="detail" class="detail">Please wait a moment.</p>
-  <p id="am" class="am">ግንኙነቱን በማረጋገጥ ላይ ነው። እባክዎ ትንሽ ይጠብቁ።</p>
-
-  <button id="retry" class="btn" type="button">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>
-    <span id="retryLabel">Try again</span>
-  </button>
-  <p id="next" class="next"></p>
-
-  <div id="tips" class="tips" hidden></div>
-
-  <a class="help" href="https://t.me/Thefluxor" target="_blank" rel="noopener noreferrer">
-    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69a.2.2 0 0 0-.05-.18c-.06-.05-.14-.03-.21-.02-.09.02-1.49.95-4.22 2.79-.4.27-.76.41-1.08.4-.36-.01-1.04-.2-1.55-.37-.63-.2-1.12-.31-1.08-.66.02-.18.27-.36.75-.55 2.92-1.27 4.86-2.11 5.83-2.52 2.77-1.16 3.35-1.36 3.73-1.36.08 0 .27.02.39.12.1.08.13.19.14.27-.01.06.01.24 0 .38z"/></svg>
-    <span>Contact support</span>
-  </a>
-</main>
-
-<footer>© 2026 Metahara Sugar Factory • Powered by Temesgen</footer>
-
-<!-- ═══════════════════════════════════════════════════════════════════
-     Bottom Navigation Bar — visible during connection check phase
-     ═══════════════════════════════════════════════════════════════════ -->
-<nav class="bottom-nav" aria-label="Quick navigation" id="bottomNav">
-
-  <!-- Request -->
-  <button class="nav-item disabled" id="navRequest" onclick="goTo('/house-request')" aria-label="Request">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-      <polyline points="14 2 14 8 20 8"/>
-      <line x1="12" y1="18" x2="12" y2="12"/>
-      <line x1="9" y1="15" x2="15" y2="15"/>
-    </svg>
-    <span>Request</span>
-  </button>
-
-  <!-- Queue -->
-  <button class="nav-item disabled" id="navQueue" onclick="goTo('/house-queue')" aria-label="Queue">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-      <line x1="8" y1="6" x2="21" y2="6"/>
-      <line x1="8" y1="12" x2="21" y2="12"/>
-      <line x1="8" y1="18" x2="21" y2="18"/>
-      <line x1="3" y1="6" x2="3.01" y2="6"/>
-      <line x1="3" y1="12" x2="3.01" y2="12"/>
-      <line x1="3" y1="18" x2="3.01" y2="18"/>
-    </svg>
-    <span>Queue</span>
-  </button>
-
-  <!-- Active (Allocated) -->
-  <button class="nav-item disabled" id="navActive" onclick="goTo('/houses/allocated')" aria-label="Active">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-      <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
-      <polyline points="9 22 9 12 15 12 15 22"/>
-    </svg>
-    <span>Active</span>
-  </button>
-
-  <!-- Ended (Terminated) -->
-  <button class="nav-item disabled" id="navEnded" onclick="goTo('/houses/terminated')" aria-label="Ended">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-      <polyline points="21 8 21 21 3 21 3 8"/>
-      <rect x="1" y="3" width="22" height="5"/>
-      <line x1="10" y1="12" x2="14" y2="12"/>
-    </svg>
-    <span>Ended</span>
-  </button>
-
-  <!-- More -->
-  <button class="nav-item disabled" id="navMore" onclick="goTo('/dashboard')" aria-label="More">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-      <circle cx="12" cy="5" r="1" fill="currentColor"/>
-      <circle cx="12" cy="12" r="1" fill="currentColor"/>
-      <circle cx="12" cy="19" r="1" fill="currentColor"/>
-    </svg>
-    <span>More</span>
-  </button>
-
-</nav>
-
-<script>
-(function () {
-  var SERVER_URL = "https://house.taild2df63.ts.net";
-  var TIMEOUT_MS = 7000;
-  var BACKOFF = [6, 10, 15, 30]; // seconds between automatic retries
-  var SPLASH_DURATION = 2500; // Show splash for 2.5 seconds
-
-  var $ = function (id) { return document.getElementById(id); };
-  var el = {
-    splash: $("splashOverlay"),
-    nDevice: $("nDevice"), nNet: $("nNet"), nSrv: $("nSrv"),
-    l1: $("l1"), l2: $("l2"),
-    title: $("title"), detail: $("detail"), am: $("am"),
-    retry: $("retry"), label: $("retryLabel"), next: $("next"), tips: $("tips")
-  };
-
-  var attempt = 0, timer = null, checking = false, splashShown = false;
-
-  // Hide splash after duration and start connection check
-  function hideSplash() {
-    if (splashShown) return;
-    splashShown = true;
-    el.splash.classList.add("fade-out");
-    setTimeout(function() {
-      el.splash.style.display = "none";
-      check(); // Start connection check after splash
-    }, 600); // Wait for fade animation
-  }
-
-  // Show splash on page load
-  setTimeout(hideSplash, SPLASH_DURATION);
-
-  function set(node, s) { node.setAttribute("data-s", s); }
-  function paint(s) { // s = [device, link1, net, link2, server]
-    set(el.nDevice, s[0]); set(el.l1, s[1]); set(el.nNet, s[2]); set(el.l2, s[3]); set(el.nSrv, s[4]);
-  }
-  function copy(title, detail, am) {
-    el.title.textContent = title; el.detail.textContent = detail; el.am.textContent = am;
-  }
-  function tips(html) { el.tips.hidden = !html; el.tips.innerHTML = html || ""; }
-  function busy(on) {
-    el.retry.disabled = on;
-    el.retry.classList.toggle("busy", on);
-    el.label.textContent = on ? "Checking…" : "Try again";
-  }
-
-  function clearTimer() { if (timer) { clearInterval(timer); timer = null; } }
-  function scheduleRetry() {
-    clearTimer();
-    var left = BACKOFF[Math.min(attempt, BACKOFF.length - 1)];
-    attempt++;
-    el.next.textContent = "Trying again in " + left + "s";
-    timer = setInterval(function () {
-      left--;
-      if (left <= 0) { clearTimer(); check(); return; }
-      el.next.textContent = "Trying again in " + left + "s";
-    }, 1000);
-  }
-
-  function probe() {
-    // Resolves only if the server answers; rejects on timeout or network failure.
-    var ctrl = typeof AbortController === "function" ? new AbortController() : null;
-    var t = setTimeout(function () { if (ctrl) ctrl.abort(); }, TIMEOUT_MS);
-    var url = SERVER_URL + "/?_=" + Date.now();
-    return Promise.race([
-      fetch(url, { mode: "no-cors", cache: "no-store", signal: ctrl ? ctrl.signal : undefined }),
-      new Promise(function (_, rej) { setTimeout(function () { rej(new Error("timeout")); }, TIMEOUT_MS + 500); })
-    ]).then(function (r) { clearTimeout(t); return r; }, function (e) { clearTimeout(t); throw e; });
-  }
-
-  function check() {
-    if (checking) return;
-    checking = true;
-    clearTimer();
-    el.next.textContent = "";
-    busy(true);
-    tips("");
-
-    if (navigator.onLine === false) {
-      paint(["bad", "bad", "idle", "idle", "idle"]);
-      copy("No internet connection",
-           "Your device is not connected. Check Wi-Fi or mobile data.",
-           "ኢንተርኔት የለም። Wi-Fi ወይም የሞባይል ዳታ ያብሩ።");
-      tips("<strong>What to try</strong><ul><li>Turn on Wi-Fi or mobile data</li><li>Turn off airplane mode</li><li>Move to a place with better signal</li></ul>");
-      el.next.textContent = "Waiting for network…";
-      busy(false); checking = false;
-      // Do NOT schedule a timer — the 'online' event will trigger check() automatically.
-      return;
-    }
-
-    paint(["ok", "wait", "wait", "idle", "idle"]);
-    copy("Connecting to the portal…", "Reaching the MSF server.", "ከሰርቨሩ ጋር በመገናኘት ላይ ነው።");
-
-    probe().then(function () {
-      paint(["ok", "ok", "ok", "ok", "ok"]);
-      copy("Connected", "Opening the portal…", "ተገናኝቷል። ፖርታሉ በመከፈት ላይ ነው።");
-      attempt = 0;
-      setNavEnabled(true);
-      setTimeout(function () { window.location.replace(SERVER_URL); }, 350);
-    }).catch(function () {
-      paint(["ok", "ok", "ok", "bad", "bad"]);
-      copy("Can’t reach the MSF server",
-           "Your internet works, but the server is not responding. It may be restarting or under maintenance.",
-           "ኢንተርኔት አለ፤ ሰርቨሩ ግን አልመለሰም። ሰርቨሩ እስኪነሳ ይጠብቁ።");
-      tips("<strong>What to try</strong><ul><li>Wait a minute. This page retries on its own</li><li>If it continues, contact IT support</li></ul>");
-      setNavEnabled(false);
-      busy(false); checking = false; scheduleRetry();
-    });
-  }
-
-  el.retry.addEventListener("click", function () { attempt = 0; check(); });
-  window.addEventListener("online", function () { attempt = 0; check(); });
-  window.addEventListener("offline", function () { attempt = 0; checking = false; check(); });
-  document.addEventListener("visibilitychange", function () {
-    if (!document.hidden && !checking && splashShown) { attempt = 0; check(); }
-  });
-
-  // ── Bottom nav bar helpers ──────────────────────────────────────────
-  var navItems = document.querySelectorAll(".nav-item");
-
-  /** Enable/disable all nav bar items based on connectivity. */
-  function setNavEnabled(on) {
-    navItems.forEach(function (btn) {
-      if (on) btn.classList.remove("disabled");
-      else btn.classList.add("disabled");
-    });
-  }
-
-  /**
-   * Navigate to a path on the server.
-   * Only works when the device is online; otherwise nudges the user.
-   */
-  function goTo(path) {
-    if (navigator.onLine !== false) {
-      window.location.replace(SERVER_URL + path);
-    } else {
-      copy("No network", "Turn on Wi-Fi or mobile data first.", "ኢንተርኔት የለም። Wi-Fi ወይም ሞባይል ዳታ ያብሩ።");
-      busy(false);
-    }
-  }
-
-  // Don't auto-check on load - wait for splash to finish
-})();
-</script>
-</body>
+        connected().then(function (online) {
+          if (!online) {
+            showOffline();
+            return;
+          }
+          check();
+        });
+      })();
+    </script>
+  </body>
 </html>

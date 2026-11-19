@@ -71,6 +71,7 @@ export async function replayQueue(): Promise<ReplayResult> {
         method: mutation.method,
         headers: mutation.headers,
         body: mutation.body,
+        signal: AbortSignal.timeout(15_000),
       });
 
       if (res.ok || res.status < 500) {

@@ -26,7 +26,7 @@ import { invalidateAssistantCache } from "@/lib/ai/cache";
 // Schema-qualified table name — ensures raw queries work regardless of
 // the connection's search_path setting.
 // ---------------------------------------------------------------------------
-const S = process.env.DB_SCHEMA || "assettool";
+const S = process.env.DB_SCHEMA || "public";
 if (!/^[a-zA-Z0-9_]+$/.test(S)) {
   throw new Error(
     `Invalid DB_SCHEMA: "${S}". Only alphanumeric and underscores allowed.`,

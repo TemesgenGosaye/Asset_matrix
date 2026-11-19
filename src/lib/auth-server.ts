@@ -34,6 +34,48 @@ import {
 const oauthString = (value: unknown): string =>
   typeof value === "string" ? value : "";
 
+function toOrigin(value: string | undefined): string | undefined {
+  if (!value?.trim()) return undefined;
+  try {
+    return new URL(value.trim()).origin;
+  } catch {
+    return undefined;
+  }
+}
+
+function resolveAuthBaseUrl(): string | undefined {
+  return (
+    toOrigin(process.env.BETTER_AUTH_URL) ??
+    toOrigin(
+      process.env.VERCEL_PROJECT_PRODUCTION_URL
+        ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+        : undefined,
+    ) ??
+    toOrigin(process.env.NEXT_PUBLIC_APP_URL) ??
+    toOrigin(
+      process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : undefined,
+    )
+  );
+}
+
+function resolveTrustedOrigins(baseURL: string | undefined): string[] {
+  const origins = new Set<string>();
+  for (const origin of (process.env.BETTER_AUTH_TRUSTED_ORIGINS ?? "").split(
+    ",",
+  )) {
+    const value = origin.trim();
+    if (value) origins.add(value);
+  }
+  if (baseURL) origins.add(baseURL);
+  if (process.env.VERCEL_PROJECT_PRODUCTION_URL) {
+    origins.add(`https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`);
+  }
+  if (process.env.VERCEL_URL) origins.add(`https://${process.env.VERCEL_URL}`);
+  return [...origins];
+}
+
+const authBaseUrl = resolveAuthBaseUrl();
+
 /**
  * BetterAuth-specific Prisma client extension.
  *
@@ -110,12 +152,10 @@ const authPrisma = (
 
 export const auth = betterAuth({
   appName: "AssetTracker",
-  baseURL: process.env.BETTER_AUTH_URL,
+  baseURL: authBaseUrl,
   basePath: "/api/auth",
   secret: process.env.BETTER_AUTH_SECRET,
-  trustedOrigins: process.env.BETTER_AUTH_TRUSTED_ORIGINS
-    ? process.env.BETTER_AUTH_TRUSTED_ORIGINS.split(",").map((o) => o.trim())
-    : [],
+  trustedOrigins: resolveTrustedOrigins(authBaseUrl),
 
   database: prismaAdapter(authPrisma, { provider: "postgresql" }),
 
@@ -347,23 +387,30 @@ export const auth = betterAuth({
       if (ctx.path !== "/sign-in/email") return;
 
       const body = ctx.body as
-        | { email?: string; password?: string }
-        | undefined;
+        { email?: string; password?: string } | undefined;
       if (!body?.email) return;
       const rawIdentifier = body.email.trim();
 
       // If the identifier doesn't look like an email, try to resolve it to an email.
       // Username comparison is case-insensitive so login works regardless of typing case.
-      if (!rawIdentifier.includes('@')) {
+      if (!rawIdentifier.includes("@")) {
         const user = await prisma.user.findFirst({
           where: { username: { equals: rawIdentifier, mode: "insensitive" } },
           select: { email: true },
         });
         if (user?.email) {
           body.email = user.email;
-          console.log('[Auth Hook] Resolved username to email:', rawIdentifier, '->', user.email);
+          console.log(
+            "[Auth Hook] Resolved username to email:",
+            rawIdentifier,
+            "->",
+            user.email,
+          );
         } else {
-          console.log('[Auth Hook] User not found for username:', rawIdentifier);
+          console.log(
+            "[Auth Hook] User not found for username:",
+            rawIdentifier,
+          );
         }
       }
 
@@ -405,7 +452,7 @@ export const auth = betterAuth({
 
       // Look up user by email OR username (case-insensitive — BetterAuth lowercases
       // the sign-in email, so mixed-case identifiers must still match)
-      console.log('[Auth Hook] Looking up user for identifier:', rawIdentifier);
+      console.log("[Auth Hook] Looking up user for identifier:", rawIdentifier);
       const user = await prisma.user.findFirst({
         where: {
           OR: [
@@ -421,7 +468,10 @@ export const auth = betterAuth({
           isActive: true,
         },
       });
-      console.log('[Auth Hook] User lookup result:', user ? `Found: ${user.username} (${user.email})` : 'Not found');
+      console.log(
+        "[Auth Hook] User lookup result:",
+        user ? `Found: ${user.username} (${user.email})` : "Not found",
+      );
 
       // Use canonical email for lockout tracking (consistent key)
       const lockoutKey = user?.email ?? rawIdentifier;

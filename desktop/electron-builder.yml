@@ -11,6 +11,7 @@ files:
   - preload.js
   - app.config.js
   - window-state.js
+  - license-manager.js
   - ui/**/*
   - package.json
 
@@ -22,6 +23,9 @@ removePackageScripts: true
 win:
   target:
     - target: nsis
+      arch:
+        - x64
+    - target: portable
       arch:
         - x64
   icon: build/icon.ico
@@ -41,7 +45,7 @@ nsis:
   shortcutName: Msf HomeDesk
   menuCategory: Metahara Sugar Factory
   runAfterFinish: true
-  deleteAppDataOnUninstall: true
+  deleteAppDataOnUninstall: false
   differentialPackage: true
   displayLanguageSelector: false
   uninstallDisplayName: ${productName}

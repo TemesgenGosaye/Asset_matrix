@@ -107,6 +107,7 @@ const nextConfig = {
     // Opting out trades a slower cold start for a dev server that stays
     // responsive; production builds are unaffected.
     turbopackFileSystemCacheForDev: false,
+    useOffline: true,
   },
 
   async headers() {

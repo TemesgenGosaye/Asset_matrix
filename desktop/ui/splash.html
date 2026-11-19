@@ -4,36 +4,33 @@
     <meta charset="utf-8" />
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'none'; style-src 'self'; img-src 'self'; base-uri 'none'; form-action 'none'"
+      content="default-src 'none'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; base-uri 'none'; form-action 'none'"
     />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Starting Msf HomeDesk</title>
     <link rel="stylesheet" href="splash.css" />
   </head>
   <body>
-    <main class="splash" role="status" aria-live="polite">
-      <div class="aurora" aria-hidden="true"></div>
-      <div class="grid" aria-hidden="true"></div>
-
+    <main class="splash" role="status" aria-live="polite" aria-label="Loading Msf HomeDesk">
       <section class="content">
-        <div class="brand-mark">
-          <span class="ring" aria-hidden="true"></span>
-          <img src="icon.png" alt="" width="72" height="72" />
+        <div class="spinner" aria-hidden="true">
+          <i></i><i></i><i></i><i></i><i></i><i></i>
+          <i></i><i></i><i></i><i></i><i></i><i></i>
         </div>
 
-        <p class="eyebrow">Metahara Sugar Factory</p>
-        <h1>Msf HomeDesk</h1>
-        <p class="tagline">House Administration Portal</p>
+        <p class="company">METAHARA SUGAR FACTORY</p>
+        <h1 class="title">Msf HomeDesk</h1>
+        <p class="subtitle">House Administration </p>
 
-        <div class="progress" aria-hidden="true">
-          <span></span>
+        <div class="progress-bar" aria-hidden="true">
+          <div class="progress-fill"></div>
         </div>
-        <p class="status">Establishing secure connection&hellip;</p>
+        <p class="status">Connecting to secure cloud portal&hellip;</p>
       </section>
 
       <footer class="splash-footer">
-        <span class="badge">SECURE&nbsp;&middot;&nbsp;SIGNED</span>
-        <span>Powered by Temesgen G. &middot; IT Department</span>
+    
+        <span class="meta">IT Department &middot; v1.0.0</span>
       </footer>
     </main>
   </body>

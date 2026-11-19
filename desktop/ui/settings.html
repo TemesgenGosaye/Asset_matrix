@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; style-src 'self' 'unsafe-inline'; script-src 'self'; img-src 'self' data:; base-uri 'none'; form-action 'none'"
+    />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Settings &amp; License &ndash; Msf HomeDesk</title>
+    <link rel="stylesheet" href="settings.css" />
+  </head>
+  <body>
+    <div class="window-shell">
+      <header class="header">
+        <div class="header-brand">
+          <img src="icon.png" alt="MSF" width="28" height="28" />
+          <div>
+            <h1 class="header-title">Settings &amp; Workstation Governance</h1>
+            <p class="header-subtitle">Metahara Sugar Factory &middot; Msf HomeDesk</p>
+          </div>
+        </div>
+        <button id="closeBtn" class="close-btn" aria-label="Close">&times;</button>
+      </header>
+
+      <nav class="tabs" role="tablist">
+        <button class="tab-btn active" data-tab="general" role="tab" aria-selected="true">General</button>
+        <button class="tab-btn" data-tab="license" role="tab" aria-selected="false">License &amp; Activation</button>
+        <button class="tab-btn" data-tab="notices" role="tab" aria-selected="false">Legal Notices</button>
+      </nav>
+
+      <main class="tab-content">
+        <!-- General Tab -->
+        <section id="tab-general" class="tab-pane active">
+          <div class="card">
+            <h2 class="card-title">System &amp; Startup</h2>
+            <div class="setting-row">
+              <div class="setting-desc">
+                <span class="setting-label">Launch on Windows Startup</span>
+                <span class="setting-sub">Automatically start HomeDesk in the background when logging into Windows.</span>
+              </div>
+              <label class="switch">
+                <input type="checkbox" id="startupToggle" />
+                <span class="slider"></span>
+              </label>
+            </div>
+          </div>
+
+          <div class="card">
+            <h2 class="card-title">Network &amp; Cloud Target</h2>
+            <div class="setting-row">
+              <div class="setting-desc">
+                <span class="setting-label">Primary Portal Target</span>
+                <span class="setting-sub" id="portalUrlDisplay">https://msf-homedesk.vercel.app</span>
+              </div>
+              <span class="status-pill status-pill-online">Online / Secure</span>
+            </div>
+          </div>
+
+          <div class="card">
+            <h2 class="card-title">Storage &amp; Maintenance</h2>
+            <div class="setting-row">
+              <div class="setting-desc">
+                <span class="setting-label">Clear Application Cache</span>
+                <span class="setting-sub">Purge offline assets, temporary browser cache, and service worker buffers.</span>
+              </div>
+              <button id="clearCacheBtn" class="btn btn-secondary">Clear Cache</button>
+            </div>
+            <div class="setting-row">
+              <div class="setting-desc">
+                <span class="setting-label">Software Updates</span>
+                <span class="setting-sub" id="versionDisplay">Checking version...</span>
+              </div>
+              <button id="checkUpdateBtn" class="btn btn-primary">Check Updates</button>
+            </div>
+          </div>
+        </section>
+
+        <!-- License & Activation Tab -->
+        <section id="tab-license" class="tab-pane">
+          <div class="card">
+            <div class="license-status-header">
+              <div>
+                <span class="status-tag" id="licenseStatusTag">ACTIVATED</span>
+                <h2 class="card-title" id="licenseTierDisplay" style="margin-top: 6px;">Enterprise Workstation Edition</h2>
+                <p class="setting-sub" id="licenseeDisplay">Licensed to: Metahara Sugar Factory</p>
+              </div>
+              <div class="seal">
+                <span class="seal-icon">&#10003;</span>
+                <span class="seal-text">VERIFIED</span>
+              </div>
+            </div>
+
+            <div class="info-grid">
+              <div class="info-cell">
+                <span class="info-label">Workstation Machine ID</span>
+                <div class="code-box">
+                  <span id="machineIdDisplay">MSF-0000-0000-0000-0000</span>
+                  <button id="copyMachineIdBtn" class="copy-btn">Copy</button>
+                </div>
+              </div>
+              <div class="info-cell">
+                <span class="info-label">License Key</span>
+                <span class="info-val font-mono" id="licenseKeyDisplay">MSF-PROD-2026-ENTERPRISE-VALID</span>
+              </div>
+              <div class="info-cell">
+                <span class="info-label">Activation Validity</span>
+                <span class="info-val" id="licenseExpiryDisplay">Perpetual Enterprise Authorization</span>
+              </div>
+            </div>
+
+            <div class="features-box">
+              <span class="info-label">Enabled Capabilities</span>
+              <ul class="features-list" id="featuresList">
+                <li>House &amp; Asset Allocation Engine</li>
+                <li>Single Sign-On &amp; Multi-Factor Authentication</li>
+                <li>Direct PostgreSQL Cloud Synchronization</li>
+                <li>Automated Report Generation &amp; XLSX/PDF Export</li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="card">
+            <h2 class="card-title">Activate or Change Product Key</h2>
+            <p class="setting-sub" style="margin-bottom: 12px;">Enter an authorized enterprise terminal license key issued by the MSF IT Department.</p>
+            <div class="input-group">
+              <input type="text" id="licenseKeyInput" placeholder="MSF-XXXX-XXXX-XXXX-XXXX" />
+              <button id="activateKeyBtn" class="btn btn-primary">Activate</button>
+            </div>
+            <p id="activationMsg" class="activation-msg"></p>
+          </div>
+        </section>
+
+        <!-- Legal Notices Tab -->
+        <section id="tab-notices" class="tab-pane">
+          <div class="card">
+            <h2 class="card-title">Open Source Software &amp; Third-Party Notices</h2>
+            <p class="setting-sub" style="margin-bottom: 14px;">Msf HomeDesk includes third-party software components licensed under permissive open-source licenses.</p>
+            <div class="notices-table-wrap">
+              <table class="notices-table">
+                <thead>
+                  <tr>
+                    <th>Component</th>
+                    <th>License</th>
+                    <th>Copyright &amp; Source</th>
+                  </tr>
+                </thead>
+                <tbody id="noticesTableBody">
+                  <!-- Injected via JavaScript -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <footer class="footer">
+        <span class="footer-copy">&copy; 2026 Metahara Sugar Factory. Developed by Temesgen G.</span>
+        <button id="doneBtn" class="btn btn-primary">Done</button>
+      </footer>
+    </div>
+
+    <script src="settings.js"></script>
+  </body>
+</html>

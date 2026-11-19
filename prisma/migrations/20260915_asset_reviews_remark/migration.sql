@@ -1,3 +1,0 @@
--- AlterTable
-ALTER TABLE "asset" ADD COLUMN IF NOT EXISTS "reviewsDate" DATE;
-ALTER TABLE "asset" ADD COLUMN IF NOT EXISTS "remark" TEXT;

@@ -1,5 +1,5 @@
-const CACHE_NAME = 'asset-tracker-v4';
-const RSC_CACHE_NAME = 'asset-tracker-v4-rsc';
+const CACHE_NAME = 'asset-tracker-v5';
+const RSC_CACHE_NAME = 'asset-tracker-v5-rsc';
 const OFFLINE_URL = '/offline';
 
 // Last-resort document, rendered only when a navigation fails AND neither the
@@ -72,6 +72,7 @@ const OFFLINE_FALLBACK_RESPONSE = () =>
 // so precaching it would store a redirect response rather than a document.
 // /login is the one page every visitor must reach offline.
 const PRECACHE_URLS = [
+  '/dashboard',
   '/login',
   '/offline',
   '/manifest.json',
@@ -91,7 +92,7 @@ async function precache() {
         if (!response.ok) return;
         // When a session already exists /login redirects to /dashboard. Do not
         // cache that document under the /login key.
-        if (url === '/login' && new URL(response.url).pathname !== '/login') return;
+        if ((url === '/login' || url === '/dashboard') && new URL(response.url).pathname !== url) return;
         await cache.put(url, response.clone());
       } catch {
         // Ignore: the page will be cached on the next successful visit.
@@ -103,7 +104,14 @@ async function precache() {
 // Install event - pre-cache static assets
 self.addEventListener('install', (event) => {
   event.waitUntil(precache());
-  self.skipWaiting();
+});
+
+// A waiting worker activates only when the user accepts the in-app update
+// prompt. Keeping activation explicit avoids swapping code mid-interaction.
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
 });
 
 // Activate event - clean old caches
@@ -140,6 +148,47 @@ async function storeInQueue(entry) {
     tx.objectStore(IDB_STORE).put(entry, entry.id);
     tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error);
+  });
+}
+
+async function cacheNavigationResponse(request, response, url) {
+  if (!response.ok) return;
+  const finalUrl = new URL(response.url || request.url);
+  const finalPath = finalUrl.pathname;
+  if (finalPath === '/login' && url.pathname !== '/login') return;
+  if (url.pathname === '/' && finalPath === '/login') return;
+  const cache = await caches.open(CACHE_NAME);
+  await cache.put(finalPath, response.clone());
+}
+
+async function getCachedDocument(request, url) {
+  const cache = await caches.open(CACHE_NAME);
+  const cached = await cache.match(url.pathname, { ignoreSearch: true });
+  if (cached) return cached;
+  const byRequest = await cache.match(request, { ignoreSearch: true });
+  if (byRequest) return byRequest;
+  if (url.pathname === '/' || url.searchParams.get('app') === '1') {
+    return cache.match('/dashboard', { ignoreSearch: true });
+  }
+  return null;
+}
+
+async function offlineDocument(request, url) {
+  const cached = await getCachedDocument(request, url);
+  if (cached) return cached;
+
+  const offlinePage = await caches.match(OFFLINE_URL, { ignoreSearch: true });
+  if (offlinePage) return offlinePage;
+
+  const login = await caches.match('/login', { ignoreSearch: true });
+  return login || OFFLINE_FALLBACK_RESPONSE();
+}
+
+function notifySessionExpired() {
+  self.clients.matchAll({ type: 'window' }).then((clients) => {
+    clients.forEach((client) =>
+      client.postMessage({ type: 'SESSION_EXPIRED' })
+    );
   });
 }
 
@@ -206,44 +255,49 @@ self.addEventListener('fetch', (event) => {
   // Skip non-GET requests that aren't API calls
   if (request.method !== 'GET') return;
 
-  // Skip API requests and auth
-  if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/api/auth')) return;
+  if (url.pathname === '/api/health/live') return;
 
-  // For navigation requests (HTML pages) - network first
-  if (request.mode === 'navigate') {
+  if (url.pathname.startsWith('/api/')) {
     event.respondWith(
       fetch(request)
         .then((response) => {
-          if (response.ok) {
-            const clone = response.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
+          if (response.status === 401 || response.status === 403) {
+            notifySessionExpired();
           }
           return response;
         })
-        .catch(() => {
-          return caches.match(request, { ignoreSearch: true }).then(async (cached) => {
-            if (cached) return cached;
+        .catch(
+          () =>
+            new Response(
+              JSON.stringify({ error: 'You are offline. Reconnect and try again.' }),
+              { status: 503, headers: { 'Content-Type': 'application/json' } }
+            )
+        )
+    );
+    return;
+  }
 
-            // The native shell boots on /login?app=1. When offline, serve the
-            // cached sign-in document (which owns the offline UI) rather than
-            // the generic offline stub.
-            if (url.searchParams.get('app') === '1') {
-              const login = await caches.match('/login', { ignoreSearch: true });
-              if (login) return login;
+  if (request.mode === 'navigate') {
+    event.respondWith(
+      (async () => {
+        const cached = await getCachedDocument(request, url);
+        const revalidate = fetch(request)
+          .then(async (response) => {
+            if (response.status === 401 || response.status === 403) {
+              notifySessionExpired();
             }
+            if (response.ok) await cacheNavigationResponse(request, response, url);
+            return response;
+          })
+          .catch(() => null);
 
-            const offlinePage = await caches.match(OFFLINE_URL, { ignoreSearch: true });
-            if (offlinePage) return offlinePage;
+        if (cached) {
+          event.waitUntil(revalidate);
+          return cached;
+        }
 
-            // `/` is not precached and never will be — it is a redirect to
-            // /login (or /dashboard with a session), so a cached copy would be
-            // a redirect response rather than a document. /login IS precached,
-            // so an offline visitor lands on the real sign-in screen instead of
-            // the generic offline stub.
-            const shell = await caches.match(PRECACHE_URLS[0], { ignoreSearch: true });
-            return shell || OFFLINE_FALLBACK_RESPONSE();
-          });
-        })
+        return (await revalidate) || (await offlineDocument(request, url));
+      })()
     );
     return;
   }

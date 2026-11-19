@@ -4,83 +4,66 @@
     <meta charset="utf-8" />
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; base-uri 'none'; form-action 'none'"
+      content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; base-uri 'none'; form-action 'none'"
     />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Connection interrupted - Msf HomeDesk</title>
+    <title>Connection Interrupted &ndash; Msf HomeDesk</title>
     <link rel="stylesheet" href="error.css" />
   </head>
   <body>
-    <div class="backdrop" aria-hidden="true">
-      <span class="orb orb-a"></span>
-      <span class="orb orb-b"></span>
-      <span class="grid"></span>
-    </div>
-
-    <main class="shell">
-      <header class="brand">
-        <div class="brand-mark">
-          <img src="icon.png" alt="" width="40" height="40" />
+    <main class="error-shell">
+      <header class="header">
+        <div class="brand">
+          <img src="icon.png" alt="MSF" width="36" height="36" />
+          <div>
+            <h1 class="brand-title">Msf HomeDesk</h1>
+            <p class="brand-sub">Metahara Sugar Factory &middot; IT Department</p>
+          </div>
         </div>
-        <div class="brand-copy">
-          <p class="product">Msf HomeDesk</p>
-          <p class="company">Metahara Sugar Factory &middot; IT Department</p>
-        </div>
-        <span class="secure-badge">
-          <span class="dot" aria-hidden="true"></span>
-          Secure session
+        <span class="offline-pill">
+          <span class="pulse-dot"></span> Offline
         </span>
       </header>
 
-      <section class="hero" aria-labelledby="error-title">
-        <p class="eyebrow"><span class="pulse" aria-hidden="true"></span> Connection interrupted</p>
-        <h1 id="error-title">
-          We cannot reach
-          <span id="targetHost">house.taild2df63.ts.net</span>
-        </h1>
-        <p class="lede">
-          Msf HomeDesk is still running. Reconnect as soon as the portal or your
-          network is back online &mdash; your work is safe.
-        </p>
-        <p class="detail" id="errorDetail" hidden></p>
-      </section>
-
-      <section class="card" aria-labelledby="steps-title">
-        <div class="card-head">
-          <span class="card-icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M12 3v3m0 12v3M5.6 5.6l2.1 2.1m8.6 8.6 2.1 2.1M3 12h3m12 0h3M5.6 18.4l2.1-2.1m8.6-8.6 2.1-2.1" />
-            </svg>
-          </span>
-          <h2 id="steps-title">Quick checks</h2>
-        </div>
-        <ul>
-          <li>Confirm the portal server is powered on and reachable on the factory network.</li>
-          <li>Check your network cable or Wi-Fi connection.</li>
-          <li>Make sure a firewall or proxy is not blocking the portal address.</li>
-          <li>Wait for the automatic retry, or reconnect now.</li>
-        </ul>
-      </section>
-
-      <section class="actions">
-        <button id="retryButton" type="button">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M20 11a8 8 0 1 0-2.3 5.7" />
-            <path d="M20 4v7h-7" />
+      <div class="content-box">
+        <div class="warning-icon-wrap">
+          <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="12" y1="8" x2="12" y2="12"></line>
+            <line x1="12" y1="16" x2="12.01" y2="16"></line>
           </svg>
-          <span id="retryLabel">Reconnect now</span>
-        </button>
-        <p class="retry-note" id="retryNote">
-          Automatic retry in <span id="countdown">15</span> seconds
-        </p>
-      </section>
+        </div>
 
-      <footer class="page-footer">
-        <span>Powered by <strong>Temesgen G.</strong></span>
-        <span class="version" id="version"></span>
+        <h2 class="error-heading">Connection to Portal Interrupted</h2>
+        <p class="error-msg">
+          Unable to establish a live connection to <strong id="targetHost">msf-homedesk.vercel.app</strong>.
+          The application will automatically reconnect as soon as network service is restored.
+        </p>
+
+        <p class="error-detail-box" id="errorDetail" hidden></p>
+
+        <div class="troubleshoot-card">
+          <h3 class="troubleshoot-title">Troubleshooting Checklist:</h3>
+          <ul class="troubleshoot-list">
+            <li>Verify your Wi-Fi or Ethernet cable is securely connected.</li>
+            <li>Ensure factory proxy or DNS settings are functioning normally.</li>
+            <li>Press <strong>Try Again</strong> below or use <kbd>F5</kbd> / <kbd>Ctrl+R</kbd> to retry immediately.</li>
+          </ul>
+        </div>
+
+        <div class="actions">
+          <button id="retry" class="btn btn-primary">Try Again Now</button>
+          <button id="settingsBtn" class="btn btn-secondary">Settings &amp; License</button>
+          <span class="countdown" id="countdown">Auto-retrying in 12s&hellip;</span>
+        </div>
+      </div>
+
+      <footer class="footer">
+        <span>Powered by Temesgen G. &middot; IT Department &middot; v1.0.0</span>
+        <button id="about" class="about-link">About</button>
       </footer>
     </main>
 
-    <script src="error.js" defer></script>
+    <script src="error.js"></script>
   </body>
 </html>

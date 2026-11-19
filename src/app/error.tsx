@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import Link from "next/link";
 import { AlertTriangle, RefreshCw, LayoutDashboard, Send } from "lucide-react";
 import * as Sentry from "@sentry/nextjs";
+import { useNetworkStatus } from "@/contexts/NetworkStatusContext";
 
 interface ErrorPageProps {
   error: Error & { digest?: string };
@@ -22,10 +23,18 @@ const SUPPORT_URL = "https://t.me/Thefluxor";
  * raw stack ever reaching the screen.
  */
 export default function Error({ error, reset }: ErrorPageProps) {
+  const { state, isOnline, networkLabel, message, recheck } =
+    useNetworkStatus();
+
   useEffect(() => {
     Sentry.captureException(error);
     console.error("Application error:", error);
   }, [error]);
+
+  const retry = () => {
+    recheck();
+    reset();
+  };
 
   return (
     <div className="flex min-h-[100dvh] w-full flex-col items-center justify-center bg-slate-50 px-6 py-12 text-center">
@@ -41,8 +50,13 @@ export default function Error({ error, reset }: ErrorPageProps) {
         Something went wrong
       </h1>
       <p className="mt-3 max-w-md text-sm leading-relaxed text-slate-500">
-        We couldn&rsquo;t complete that request. Our team has been notified and
-        is looking into it. Please try again in a moment.
+        {state === "server_error"
+          ? "MSF HomeDesk is temporarily unavailable. Your team has been notified; please try again in a moment."
+          : state === "timeout"
+            ? `The connection is taking too long (${networkLabel}). Please try again.`
+            : state === "offline"
+              ? `Your connection is unavailable (${networkLabel}). Reconnect and try again.`
+              : message}
       </p>
 
       {error.digest && (
@@ -54,7 +68,7 @@ export default function Error({ error, reset }: ErrorPageProps) {
       <div className="mt-8 flex w-full max-w-sm flex-col gap-2.5 sm:flex-row sm:justify-center">
         <button
           type="button"
-          onClick={reset}
+          onClick={retry}
           className="bg-primary text-primary-foreground shadow-primary/25 hover:bg-primary/90 focus-visible:ring-ring inline-flex h-12 flex-1 cursor-pointer items-center justify-center gap-2 rounded-xl text-sm font-semibold shadow-md transition-all duration-200 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none active:scale-[0.98]"
         >
           <RefreshCw className="h-4 w-4" />

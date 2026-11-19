@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { logger } from "@/lib/logger";
 
-const S = process.env.DB_SCHEMA || "assettool";
+const S = process.env.DB_SCHEMA || "public";
 if (!/^[a-zA-Z0-9_]+$/.test(S)) {
   throw new Error(
     `Invalid DB_SCHEMA: "${S}". Only alphanumeric and underscores allowed.`,

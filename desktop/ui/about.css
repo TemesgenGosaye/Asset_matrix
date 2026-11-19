@@ -1,354 +1,183 @@
 /* ==========================================================================
-   Msf HomeDesk - About Window
-   Premium product identity panel.
+   Msf HomeDesk - Clean White Enterprise About Screen
    ========================================================================== */
 
 :root {
-  color-scheme: dark;
-
-  --navy-950: #050b18;
-  --navy-900: #081428;
-  --brand: #38bdf8;
-  --brand-strong: #0ea5e9;
-  --text: #f1f5f9;
-  --text-soft: #cbd5e1;
-  --text-muted: #94a3b8;
-  --line: rgba(148, 163, 184, 0.16);
-  --line-strong: rgba(148, 163, 184, 0.28);
+  --bg: #ffffff;
+  --surface: #f8fafc;
+  --surface-hover: #f1f5f9;
+  --border: #e2e8f0;
+  --text-main: #0f172a;
+  --text-muted: #475569;
+  --text-faint: #94a3b8;
+  --brand: #0284c7;
+  --brand-dark: #0369a1;
+  --brand-light: #e0f2fe;
+  --success: #16a34a;
+  --success-bg: #dcfce7;
 }
 
 * {
   box-sizing: border-box;
+  margin: 0;
+  padding: 0;
 }
 
 html,
 body {
-  min-height: 100%;
-}
-
-body {
-  position: relative;
-  margin: 0;
-  color: var(--text);
-  background: var(--navy-950);
+  width: 100%;
+  height: 100%;
+  background: var(--bg);
+  color: var(--text-main);
   font-family:
-    "Segoe UI Variable Text",
-    "Segoe UI",
-    -apple-system,
-    Roboto,
-    Arial,
-    sans-serif;
+    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue",
+    Arial, sans-serif;
+  user-select: none;
   -webkit-font-smoothing: antialiased;
-  overflow-x: hidden;
-  overflow-y: auto;
 }
 
-/* --------------------------------------------------------------------------
-   Backdrop
-   -------------------------------------------------------------------------- */
-.backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 0;
-  overflow: hidden;
-  pointer-events: none;
-  background:
-    radial-gradient(120% 90% at 50% 0%, #0c2142 0%, transparent 55%),
-    linear-gradient(180deg, var(--navy-900) 0%, var(--navy-950) 100%);
-}
-
-.orb {
-  position: absolute;
-  top: -140px;
-  left: 50%;
-  width: 420px;
-  height: 420px;
-  transform: translateX(-50%);
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(14, 165, 233, 0.4), transparent 70%);
-  filter: blur(60px);
-  opacity: 0.7;
-}
-
-/* --------------------------------------------------------------------------
-   Layout
-   -------------------------------------------------------------------------- */
 .about {
-  position: relative;
-  z-index: 1;
-  width: min(100% - 40px, 430px);
-  margin: 0 auto;
-  padding: 30px 0 24px;
-  animation: rise 520ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  width: 100%;
+  height: 100%;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  background: #ffffff;
 }
 
-@keyframes rise {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-/* --------------------------------------------------------------------------
-   Hero
-   -------------------------------------------------------------------------- */
 .hero {
   display: flex;
   align-items: center;
-  gap: 18px;
+  gap: 16px;
+  margin-bottom: 20px;
 }
 
 .brand-mark {
-  position: relative;
-  display: grid;
-  place-items: center;
-  flex: 0 0 auto;
-  width: 88px;
-  height: 88px;
-  border: 1px solid var(--line-strong);
-  border-radius: 22px;
-  background: rgba(15, 42, 82, 0.55);
-  box-shadow:
-    0 10px 28px -14px rgba(2, 132, 199, 0.8),
-    inset 0 1px 0 rgba(255, 255, 255, 0.06);
-}
-
-.brand-mark::after {
-  content: "";
-  position: absolute;
-  inset: -1px;
-  border-radius: inherit;
-  border: 1px solid rgba(56, 189, 248, 0.28);
-  mask-image: linear-gradient(180deg, #000, transparent 70%);
-  -webkit-mask-image: linear-gradient(180deg, #000, transparent 70%);
+  width: 64px;
+  height: 64px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+  overflow: hidden;
+  background: #ffffff;
 }
 
 .brand-mark img {
-  width: 70px;
-  height: 70px;
-  object-fit: contain;
-  border-radius: 16px;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
-.title-block {
-  min-width: 0;
-}
-
-.eyebrow {
-  margin: 0 0 5px;
-  color: var(--brand);
-  font-size: 9px;
+.company {
+  font-size: 10px;
   font-weight: 700;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--brand);
 }
 
-h1 {
-  margin: 0;
-  color: var(--text);
-  font-size: 22px;
-  font-weight: 800;
-  line-height: 1.15;
-  letter-spacing: -0.02em;
+.title-block h1 {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-main);
+  letter-spacing: -0.01em;
+  margin: 2px 0 4px;
 }
 
 .version-pill {
-  display: inline-block;
-  margin: 9px 0 0;
-  padding: 3px 10px;
-  border: 1px solid rgba(56, 189, 248, 0.28);
-  border-radius: 999px;
-  color: var(--brand);
-  background: rgba(56, 189, 248, 0.08);
-  font-size: 9.5px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-}
-
-.version-pill span {
-  font-variant-numeric: tabular-nums;
-}
-
-/* --------------------------------------------------------------------------
-   Company tagline
-   -------------------------------------------------------------------------- */
-.company {
-  margin: 20px 0 0;
-  padding-bottom: 16px;
-  border-bottom: 1px solid var(--line);
-  color: var(--text-muted);
-  font-size: 10px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-}
-
-/* --------------------------------------------------------------------------
-   Facts
-   -------------------------------------------------------------------------- */
-.facts {
-  margin: 14px 0 0;
-}
-
-.facts div {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 18px;
-  padding: 8px 0;
-  border-bottom: 1px solid rgba(148, 163, 184, 0.08);
-}
-
-.facts div:last-child {
-  border-bottom: none;
-}
-
-.facts dt {
-  color: var(--text-muted);
-  font-size: 10.5px;
-}
-
-.facts dd {
-  margin: 0;
-  color: var(--text-soft);
   font-size: 11px;
-  font-weight: 600;
-  text-align: right;
-  overflow-wrap: anywhere;
-}
-
-/* --------------------------------------------------------------------------
-   Thanks card
-   -------------------------------------------------------------------------- */
-.thanks {
-  position: relative;
-  margin-top: 18px;
-  padding: 16px 18px;
-  border: 1px solid rgba(56, 189, 248, 0.2);
-  border-radius: 14px;
-  background:
-    linear-gradient(140deg, rgba(14, 165, 233, 0.12), rgba(14, 165, 233, 0.03)),
-    rgba(13, 26, 48, 0.6);
-  overflow: hidden;
-}
-
-.thanks::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 3px;
-  height: 100%;
-  background: linear-gradient(180deg, var(--brand), var(--brand-strong));
-}
-
-.thanks p {
-  margin: 0;
-  color: var(--text-soft);
-  font-size: 11px;
-  line-height: 1.7;
-}
-
-.thanks .signature {
-  margin-top: 10px;
-  color: var(--brand);
-  font-size: 10.5px;
-  font-weight: 600;
-  line-height: 1.55;
-}
-
-.thanks .signature span {
   color: var(--text-muted);
-  font-size: 9.5px;
-  font-weight: 400;
+  font-weight: 500;
 }
 
-/* --------------------------------------------------------------------------
-   Footer meta
-   -------------------------------------------------------------------------- */
-.about-footer {
-  margin-top: 18px;
-  padding-top: 14px;
-  border-top: 1px solid var(--line);
-}
-
-.about-footer p {
-  margin: 0;
-  color: var(--text-muted);
-  font-size: 9.5px;
-  line-height: 1.7;
-}
-
-.about-footer p + p {
-  margin-top: 3px;
-}
-
-.about-footer strong {
-  color: var(--text-soft);
-  font-weight: 600;
-}
-
-/* --------------------------------------------------------------------------
-   Actions
-   -------------------------------------------------------------------------- */
-.actions {
+.facts-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 16px;
   display: flex;
-  justify-content: flex-end;
+  flex-direction: column;
   gap: 10px;
-  margin-top: 18px;
 }
 
-button {
-  appearance: none;
-  padding: 9px 22px;
-  border: 1px solid rgba(56, 189, 248, 0.5);
-  border-radius: 9px;
-  color: #04121f;
-  background: linear-gradient(180deg, #7dd3fc 0%, var(--brand) 100%);
-  font: inherit;
-  font-size: 11.5px;
-  font-weight: 700;
-  letter-spacing: 0.01em;
+.fact-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+}
+
+.fact-label {
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.fact-val {
+  color: var(--text-main);
+  font-weight: 600;
+}
+
+.font-mono {
+  font-family: Consolas, Monaco, monospace;
+  font-size: 11px;
+}
+
+.status-active {
+  color: var(--success);
+  background: var(--success-bg);
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 10px;
+  margin: 16px 0;
+}
+
+.action-buttons button {
+  flex: 1;
+}
+
+.btn {
+  padding: 8px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 6px;
   cursor: pointer;
-  box-shadow:
-    0 8px 18px -10px rgba(56, 189, 248, 0.8),
-    inset 0 1px 0 rgba(255, 255, 255, 0.5);
-  transition:
-    transform 150ms ease,
-    filter 150ms ease;
+  border: 1px solid transparent;
+  transition: all 0.15s ease;
 }
 
-button:hover {
-  transform: translateY(-1px);
-  filter: brightness(1.05);
+.btn-primary {
+  background: var(--brand);
+  color: #ffffff;
 }
 
-button:active {
-  transform: translateY(0);
+.btn-primary:hover {
+  background: var(--brand-dark);
 }
 
-button:focus-visible {
-  outline: 2px solid var(--brand);
-  outline-offset: 3px;
+.btn-secondary {
+  background: #ffffff;
+  border-color: var(--border);
+  color: var(--text-main);
 }
 
-button.ghost {
-  border-color: var(--line-strong);
-  color: var(--text-soft);
-  background: rgba(15, 23, 42, 0.6);
-  box-shadow: none;
+.btn-secondary:hover {
+  background: var(--surface-hover);
 }
 
-button.ghost:hover {
-  border-color: rgba(56, 189, 248, 0.4);
-  color: var(--brand);
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-top: 1px solid var(--border);
+  padding-top: 14px;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .about {
-    animation: none;
-  }
+.copyright {
+  font-size: 11px;
+  color: var(--text-faint);
 }

@@ -71,10 +71,10 @@ export default function PWAInstallPrompt() {
   if (!showBanner) return null;
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-50 border-t bg-background p-4 shadow-lg">
+    <div className="bg-background fixed right-0 bottom-0 left-0 z-50 border-t p-4 shadow-lg">
       <div className="mx-auto flex max-w-screen-xl items-center justify-between gap-4">
-        <p className="text-sm text-muted-foreground">
-          Install Asset Tracker for a better experience
+        <p className="text-muted-foreground text-sm">
+          Install HomeDesk for a better experience
         </p>
         <div className="flex items-center gap-2">
           <Button variant="ghost" size="sm" onClick={handleDismiss}>

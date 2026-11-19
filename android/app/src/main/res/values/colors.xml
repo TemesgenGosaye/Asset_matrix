@@ -1,14 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="launch_background">#F8FAFC</color>
-    <color name="launch_surface">#FFFFFF</color>
-    <color name="launch_border">#E2E8F0</color>
-    <color name="launch_primary">#0284C7</color>
-    <color name="launch_primary_dark">#0369A1</color>
-    <color name="launch_text">#0F172A</color>
-    <color name="launch_muted">#64748B</color>
-    <color name="launch_ok">#16A34A</color>
-    <color name="launch_bad">#E11D48</color>
-    <color name="launch_wait">#D97706</color>
-    <color name="launch_nav">#0F172A</color>
+    <color name="colorPrimary">#FFFFFF</color>
+    <color name="colorPrimaryDark">#FFFFFF</color>
+    <color name="colorAccent">#0A4F2C</color>
+    <color name="windowBackground">#FFFFFF</color>
 </resources>

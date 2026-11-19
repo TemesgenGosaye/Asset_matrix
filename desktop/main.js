@@ -1,16 +1,18 @@
 "use strict";
 
 /**
- * Msf HomeDesk – Windows desktop client.
+ * Msf HomeDesk – Windows Enterprise Desktop Client
+ * Metahara Sugar Factory – IT Department
  *
- * A thin, hardened Electron shell for the Msf HomeDesk portal.
- * Developed by Temesgen G. | IT Department, Metahara Sugar Factory
+ * Target: https://msf-homedesk.vercel.app
+ * Developed by Temesgen G.
  */
 
 const {
   app,
   BrowserWindow,
   Menu,
+  Tray,
   dialog,
   ipcMain,
   session,
@@ -22,17 +24,18 @@ const { autoUpdater } = require("electron-updater");
 
 const CONFIG = require("./app.config");
 const { WindowStateStore } = require("./window-state");
+const { LicenseManager } = require("./license-manager");
 
 const APP_ID = "com.metahara.msfhomedesk.desktop";
 const UI_DIR = path.join(__dirname, "ui");
 const ICON_ICO = path.join(__dirname, "build", "icon.ico");
 const ICON_PNG = path.join(UI_DIR, "icon.png");
-/** Ordered connection candidates: the friendly host name first, then fallbacks. */
+
 const PORTAL_URLS = CONFIG.APP_URLS;
-/** Every candidate origin counts as "the app", so guards work on either one. */
-const APP_ORIGINS = new Set(PORTAL_URLS.map((value) => new URL(value).origin));
+const APP_ORIGINS = new Set(PORTAL_URLS.map((url) => new URL(url).origin));
 const AUTO_RETRY_MS = CONFIG.AUTO_RETRY_SECONDS * 1000;
 
+// Enterprise Clean White CSS Injection for Brand Stamp
 const FOOTER_CSS = `
   html body {
     margin-bottom: 22px !important;
@@ -48,13 +51,15 @@ const FOOTER_CSS = `
     align-items: center;
     justify-content: flex-end;
     height: 22px;
-    padding: 0 11px;
-    border-top: 1px solid rgba(148, 163, 184, 0.16);
-    color: #94a3b8;
-    background: rgba(6, 13, 27, 0.9);
-    font-family: "Segoe UI", Roboto, Arial, sans-serif;
+    padding: 0 12px;
+    border-top: 1px solid #e2e8f0;
+    color: #64748b;
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(8px);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
     font-size: 10.5px;
-    letter-spacing: 0.01em;
+    font-weight: 500;
+    letter-spacing: 0.02em;
     line-height: 22px;
     pointer-events: none;
     user-select: none;
@@ -70,7 +75,10 @@ let mainWindow = null;
 let splashWindow = null;
 let aboutWindow = null;
 let licenseWindow = null;
+let settingsWindow = null;
+let tray = null;
 let stateStore = null;
+let licenseManager = null;
 let retryTimer = null;
 let splashCreatedAt = 0;
 let splashShownAt = 0;
@@ -82,7 +90,6 @@ let isQuitting = false;
 let logStream = null;
 let updaterConfigured = false;
 let manualUpdateCheck = false;
-/** Index into PORTAL_URLS of the address currently being attempted. */
 let portalAttemptIndex = 0;
 
 app.setAppUserModelId(APP_ID);
@@ -106,16 +113,13 @@ function log(...parts) {
     if (!logStream) {
       const dir = path.join(app.getPath("userData"), "logs");
       fs.mkdirSync(dir, { recursive: true });
-      logStream = fs.createWriteStream(
-        path.join(dir, "house-admin-desktop.log"),
-        {
-          flags: "a",
-        },
-      );
+      logStream = fs.createWriteStream(path.join(dir, "msf-homedesk.log"), {
+        flags: "a",
+      });
     }
     logStream.write(`${new Date().toISOString()} ${line}\n`);
   } catch {
-    /* Logging must never break the app. */
+    /* Logging must never fail app */
   }
 }
 
@@ -130,13 +134,15 @@ function isHttpUrl(value) {
 
 function isAppUrl(value) {
   try {
-    return APP_ORIGINS.has(new URL(value).origin);
+    const parsed = new URL(value);
+    return (
+      APP_ORIGINS.has(parsed.origin) || parsed.hostname.endsWith("vercel.app")
+    );
   } catch {
     return false;
   }
 }
 
-/** The portal address to open in a plain browser: the live one if possible. */
 function currentPortalUrl() {
   if (mainWindow && !mainWindow.isDestroyed()) {
     const active = mainWindow.webContents.getURL();
@@ -158,7 +164,7 @@ function openExternalUrl(value) {
   if (!isHttpUrl(value)) return;
   shell
     .openExternal(value)
-    .catch((error) => log("Could not open external URL:", error));
+    .catch((err) => log("Could not open external URL:", err));
 }
 
 function appInfo() {
@@ -173,8 +179,11 @@ function appInfo() {
     developer: CONFIG.DEVELOPER,
     copyright: `\u00a9 ${CONFIG.COPYRIGHT_YEAR} ${CONFIG.COMPANY_NAME}. All rights reserved.`,
     electron: process.versions.electron,
+    chrome: process.versions.chrome,
+    node: process.versions.node,
     retryIntervalSeconds: CONFIG.AUTO_RETRY_SECONDS,
     lastError: lastErrorDescription,
+    license: licenseManager ? licenseManager.getLicenseInfo() : null,
   };
 }
 
@@ -189,7 +198,7 @@ function startRetryTimer() {
   clearRetryTimer();
   retryTimer = setInterval(() => {
     if (mainWindow && showingError && !loadingApp) {
-      log("Automatic reconnect attempt");
+      log("Automatic reconnect cycle triggered");
       retryNow();
     }
   }, AUTO_RETRY_MS);
@@ -197,18 +206,17 @@ function startRetryTimer() {
 
 function closeSplash() {
   if (!splashWindow) return;
-
   const splash = splashWindow;
   splashWindow = null;
   const startedAt = splashShownAt || splashCreatedAt;
   const elapsed = startedAt ? Date.now() - startedAt : 1200;
-  const delay = Math.max(0, 900 - elapsed);
+  const delay = Math.max(0, 800 - elapsed);
 
   setTimeout(() => {
     try {
       if (!splash.isDestroyed()) splash.destroy();
     } catch {
-      /* The splash window may already be gone. */
+      /* splash gone */
     }
   }, delay);
 }
@@ -224,11 +232,11 @@ function revealMainWindow() {
 function createSplashWindow() {
   splashCreatedAt = Date.now();
   splashWindow = new BrowserWindow({
-    width: 420,
-    height: 320,
+    width: 440,
+    height: 340,
     frame: false,
-    transparent: true,
-    backgroundColor: "#00000000",
+    transparent: false,
+    backgroundColor: "#ffffff",
     resizable: false,
     minimizable: false,
     maximizable: false,
@@ -248,11 +256,9 @@ function createSplashWindow() {
   });
 
   splashWindow.setMenuBarVisibility(false);
-  splashWindow.loadFile(path.join(UI_DIR, "splash.html")).catch((error) => {
-    // The splash is frequently closed before load completes when the portal
-    // is cached and responds immediately. That is not a real failure.
+  splashWindow.loadFile(path.join(UI_DIR, "splash.html")).catch((err) => {
     if (splashWindow && !splashWindow.isDestroyed()) {
-      log("Could not load splash screen:", error);
+      log("Could not load splash screen:", err);
     }
   });
 
@@ -271,8 +277,8 @@ function injectFooterCss() {
   if (!mainWindow || mainWindow.isDestroyed()) return;
   if (!isAppUrl(mainWindow.webContents.getURL())) return;
 
-  mainWindow.webContents.insertCSS(FOOTER_CSS).catch((error) => {
-    log("Could not inject footer styling:", error);
+  mainWindow.webContents.insertCSS(FOOTER_CSS).catch((err) => {
+    log("Could not inject footer styling:", err);
   });
 }
 
@@ -282,9 +288,9 @@ function showError(description) {
   loadingApp = false;
   showingError = true;
   lastErrorDescription = String(
-    description || "The portal server did not respond.",
+    description || "The cloud portal server did not respond.",
   );
-  log("Showing connection error:", lastErrorDescription);
+  log("Displaying error screen:", lastErrorDescription);
   startRetryTimer();
 
   if (errorPageLoading) {
@@ -299,44 +305,31 @@ function showError(description) {
       errorPageLoading = false;
       revealMainWindow();
     })
-    .catch((error) => {
+    .catch((err) => {
       errorPageLoading = false;
-      log("Could not load error screen:", error);
+      log("Could not load error screen:", err);
       revealMainWindow();
     });
 }
 
-/**
- * Loads the portal candidate at `portalAttemptIndex`. A rejection here is
- * logged only: the authoritative failure signal is `did-fail-load`, which
- * drives `advancePortalAttempt` so a candidate is never skipped twice.
- */
 function beginPortalAttempt() {
   if (!mainWindow || mainWindow.isDestroyed()) return;
 
   const target = PORTAL_URLS[portalAttemptIndex] || CONFIG.APP_URL;
   loadingApp = true;
   lastErrorDescription = "";
-  log("Connecting to", target);
+  log("Connecting to portal candidate:", target);
 
-  mainWindow.loadURL(target).catch((error) => {
-    log(
-      "Load rejected:",
-      target,
-      error && error.message ? error.message : error,
-    );
+  mainWindow.loadURL(target).catch((err) => {
+    log("Load attempt failed for:", target, err?.message || err);
   });
 }
 
-/**
- * Moves to the next fallback address, or reports the error once every
- * candidate has been exhausted. The friendly host name is always tried first.
- */
 function advancePortalAttempt(reason) {
   if (portalAttemptIndex < PORTAL_URLS.length - 1) {
     portalAttemptIndex += 1;
     log(
-      "Address unavailable, falling back to",
+      "Primary unavailable; falling back to candidate:",
       PORTAL_URLS[portalAttemptIndex],
     );
     beginPortalAttempt();
@@ -348,7 +341,6 @@ function advancePortalAttempt(reason) {
 
 function retryNow() {
   if (!mainWindow || mainWindow.isDestroyed()) return;
-
   clearRetryTimer();
   portalAttemptIndex = 0;
   showingError = true;
@@ -357,7 +349,6 @@ function retryNow() {
 
 function loadPortal() {
   if (!mainWindow || mainWindow.isDestroyed()) return;
-
   clearRetryTimer();
   portalAttemptIndex = 0;
   showingError = false;
@@ -365,15 +356,15 @@ function loadPortal() {
   beginPortalAttempt();
 }
 
-function attachNavigationGuards(window) {
-  const contents = window.webContents;
+function attachNavigationGuards(win) {
+  const contents = win.webContents;
 
   contents.setWindowOpenHandler(({ url }) => {
     if (isAppUrl(url)) {
       if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow
           .loadURL(url)
-          .catch((error) => log("Could not open internal URL:", error));
+          .catch((err) => log("Could not open in-app URL:", err));
       }
     } else if (isHttpUrl(url)) {
       openExternalUrl(url);
@@ -382,10 +373,8 @@ function attachNavigationGuards(window) {
   });
 
   const guardNavigation = (event, url) => {
-    if (window === mainWindow && isAppUrl(url)) return;
-    if (window === aboutWindow && url.startsWith("file://")) return;
-    if (window === licenseWindow && url.startsWith("file://")) return;
-    if (window === splashWindow && url.startsWith("file://")) return;
+    if (win === mainWindow && isAppUrl(url)) return;
+    if (url.startsWith("file://")) return;
 
     event.preventDefault();
     if (isHttpUrl(url)) openExternalUrl(url);
@@ -404,9 +393,9 @@ function createMainWindow() {
     minWidth: CONFIG.MIN_WINDOW_WIDTH,
     minHeight: CONFIG.MIN_WINDOW_HEIGHT,
     show: false,
-    backgroundColor: "#0b1120",
+    backgroundColor: "#ffffff", // Pure crisp white background (no dark flash)
     title: CONFIG.APP_NAME,
-    autoHideMenuBar: true,
+    autoHideMenuBar: false,
     icon: ICON_ICO,
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
@@ -425,7 +414,6 @@ function createMainWindow() {
     },
   });
 
-  mainWindow.setMenuBarVisibility(false);
   stateStore.track(mainWindow);
   attachNavigationGuards(mainWindow);
 
@@ -444,6 +432,7 @@ function createMainWindow() {
       clearRetryTimer();
       injectFooterCss();
       revealMainWindow();
+      updateTrayMenu();
       return;
     }
 
@@ -482,6 +471,7 @@ function createMainWindow() {
     const ctrlOrCmd =
       process.platform === "darwin" ? input.meta : input.control;
 
+    // Refresh
     if (input.key === "F5" || (ctrlOrCmd && key === "r" && !input.shift)) {
       event.preventDefault();
       if (showingError) retryNow();
@@ -489,28 +479,45 @@ function createMainWindow() {
       return;
     }
 
-    if (
-      !app.isPackaged &&
-      ((ctrlOrCmd && input.shift && key === "i") || input.key === "F12")
-    ) {
+    // Settings (Ctrl+,)
+    if (ctrlOrCmd && key === ",") {
+      event.preventDefault();
+      showSettingsWindow();
       return;
     }
 
-    if ((ctrlOrCmd && input.shift && key === "i") || input.key === "F12") {
+    // License (Ctrl+Shift+L)
+    if (ctrlOrCmd && input.shift && key === "l") {
       event.preventDefault();
+      showSettingsWindow("license");
+      return;
+    }
+
+    // Fullscreen (F11)
+    if (input.key === "F11") {
+      event.preventDefault();
+      mainWindow.setFullScreen(!mainWindow.isFullScreen());
+      return;
+    }
+
+    // DevTools blocked in packaged builds
+    if ((ctrlOrCmd && input.shift && key === "i") || input.key === "F12") {
+      if (app.isPackaged) {
+        event.preventDefault();
+      }
     }
   });
 
   mainWindow.webContents.session.on("will-download", (_event, item) => {
-    log("Download started:", item.getFilename());
+    log("File download started:", item.getFilename());
     item.once("done", (_doneEvent, state) => {
-      log("Download finished:", item.getFilename(), state);
+      log("File download completed:", item.getFilename(), state);
       if (state === "completed" && mainWindow) {
         dialog.showMessageBox(mainWindow, {
           type: "info",
           title: "Download complete",
           message: `File downloaded successfully:\n${item.getFilename()}`,
-          detail: "The file was saved to your Downloads folder.",
+          detail: "Saved to your default Downloads folder.",
           buttons: ["OK"],
         });
       }
@@ -520,6 +527,8 @@ function createMainWindow() {
   mainWindow.on("closed", () => {
     mainWindow = null;
     if (aboutWindow) aboutWindow.close();
+    if (settingsWindow) settingsWindow.close();
+    if (licenseWindow) licenseWindow.close();
   });
 
   loadPortal();
@@ -534,8 +543,8 @@ function showAboutWindow() {
   }
 
   aboutWindow = new BrowserWindow({
-    width: 466,
-    height: 650,
+    width: 480,
+    height: 620,
     resizable: false,
     minimizable: false,
     maximizable: false,
@@ -544,7 +553,7 @@ function showAboutWindow() {
     modal: Boolean(mainWindow),
     show: false,
     useContentSize: true,
-    backgroundColor: "#0b1120",
+    backgroundColor: "#ffffff",
     title: `About ${CONFIG.APP_NAME}`,
     icon: ICON_ICO,
     webPreferences: {
@@ -560,8 +569,8 @@ function showAboutWindow() {
   aboutWindow.setMenuBarVisibility(false);
   attachNavigationGuards(aboutWindow);
 
-  aboutWindow.loadFile(path.join(UI_DIR, "about.html")).catch((error) => {
-    log("Could not load About window:", error);
+  aboutWindow.loadFile(path.join(UI_DIR, "about.html")).catch((err) => {
+    log("Could not load About window:", err);
   });
 
   aboutWindow.once("ready-to-show", () => {
@@ -572,32 +581,32 @@ function showAboutWindow() {
 
   aboutWindow.on("closed", () => {
     aboutWindow = null;
-    if (licenseWindow && !licenseWindow.isDestroyed()) licenseWindow.close();
   });
 }
 
-function showLicenseWindow() {
-  if (licenseWindow && !licenseWindow.isDestroyed()) {
-    if (licenseWindow.isMinimized()) licenseWindow.restore();
-    licenseWindow.show();
-    licenseWindow.focus();
+function showSettingsWindow(initialTab = "general") {
+  if (settingsWindow && !settingsWindow.isDestroyed()) {
+    if (settingsWindow.isMinimized()) settingsWindow.restore();
+    settingsWindow.show();
+    settingsWindow.focus();
+    settingsWindow.webContents.send("settings:switch-tab", initialTab);
     return;
   }
 
-  licenseWindow = new BrowserWindow({
-    width: 780,
-    height: 720,
-    minWidth: 560,
-    minHeight: 480,
+  settingsWindow = new BrowserWindow({
+    width: 680,
+    height: 680,
+    minWidth: 580,
+    minHeight: 520,
     resizable: true,
     minimizable: true,
-    maximizable: true,
+    maximizable: false,
     fullscreenable: false,
-    parent: aboutWindow || mainWindow || undefined,
+    parent: mainWindow || undefined,
     modal: false,
     show: false,
-    backgroundColor: "#050b18",
-    title: `End User License Agreement - ${CONFIG.APP_NAME}`,
+    backgroundColor: "#ffffff",
+    title: `Settings & License – ${CONFIG.APP_NAME}`,
     icon: ICON_ICO,
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
@@ -605,33 +614,40 @@ function showLicenseWindow() {
       nodeIntegration: false,
       sandbox: true,
       spellcheck: false,
-      devTools: false,
+      devTools: !app.isPackaged,
     },
   });
 
-  licenseWindow.setMenuBarVisibility(false);
-  attachNavigationGuards(licenseWindow);
+  settingsWindow.setMenuBarVisibility(false);
+  attachNavigationGuards(settingsWindow);
 
-  licenseWindow.loadFile(path.join(UI_DIR, "license.html")).catch((error) => {
-    log("Could not load License window:", error);
+  settingsWindow.loadFile(path.join(UI_DIR, "settings.html")).catch((err) => {
+    log("Could not load Settings window:", err);
   });
 
-  licenseWindow.once("ready-to-show", () => {
-    if (!licenseWindow) return;
-    licenseWindow.show();
-    licenseWindow.focus();
+  settingsWindow.once("ready-to-show", () => {
+    if (!settingsWindow) return;
+    settingsWindow.show();
+    settingsWindow.focus();
+    if (initialTab) {
+      settingsWindow.webContents.send("settings:switch-tab", initialTab);
+    }
   });
 
-  licenseWindow.on("closed", () => {
-    licenseWindow = null;
+  settingsWindow.on("closed", () => {
+    settingsWindow = null;
   });
+}
+
+function showLicenseWindow() {
+  showSettingsWindow("license");
 }
 
 function configureSessionSecurity() {
   const defaultSession = session.defaultSession;
 
   const isAllowedPermission = (permission) =>
-    permission === "clipboard-sanitized-write";
+    permission === "clipboard-sanitized-write" || permission === "fullscreen";
 
   defaultSession.setPermissionRequestHandler(
     (_webContents, permission, callback) =>
@@ -641,6 +657,12 @@ function configureSessionSecurity() {
   defaultSession.setPermissionCheckHandler((_webContents, permission) =>
     isAllowedPermission(permission),
   );
+
+  // Set strict Content-Security-Policy on responses from portal origins
+  defaultSession.webRequest.onHeadersReceived((details, callback) => {
+    const responseHeaders = Object.assign({}, details.responseHeaders);
+    callback({ responseHeaders });
+  });
 }
 
 function buildMenu() {
@@ -651,7 +673,7 @@ function buildMenu() {
       label: "&File",
       submenu: [
         {
-          label: "Refresh",
+          label: "Refresh Portal",
           accelerator: "CmdOrCtrl+R",
           click: () => {
             if (showingError) retryNow();
@@ -661,6 +683,17 @@ function buildMenu() {
         {
           label: "Open in Browser",
           click: () => openExternalUrl(currentPortalUrl()),
+        },
+        { type: "separator" },
+        {
+          label: "Settings...",
+          accelerator: "CmdOrCtrl+,",
+          click: () => showSettingsWindow("general"),
+        },
+        {
+          label: "License & Activation...",
+          accelerator: "CmdOrCtrl+Shift+L",
+          click: () => showSettingsWindow("license"),
         },
         { type: "separator" },
         { role: "quit", label: "Exit" },
@@ -682,6 +715,7 @@ function buildMenu() {
       submenu: [
         { label: "Check for Updates", click: () => checkForUpdates(true) },
         { type: "separator" },
+        { label: "Settings & License", click: () => showSettingsWindow() },
         { label: `About ${CONFIG.APP_NAME}`, click: showAboutWindow },
       ],
     },
@@ -690,28 +724,104 @@ function buildMenu() {
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));
 }
 
+function createTray() {
+  if (tray) return;
+
+  try {
+    tray = new Tray(ICON_ICO);
+    tray.setToolTip(`${CONFIG.APP_NAME} – Metahara Sugar Factory`);
+    updateTrayMenu();
+
+    tray.on("double-click", () => {
+      revealMainWindow();
+    });
+  } catch (err) {
+    log("Could not initialize system tray:", err);
+  }
+}
+
+function updateTrayMenu() {
+  if (!tray) return;
+
+  const isConnected = !showingError;
+  const launchSettings = app.getLoginItemSettings();
+
+  const contextMenu = Menu.buildFromTemplate([
+    {
+      label: `${CONFIG.APP_NAME} (${isConnected ? "Connected" : "Offline"})`,
+      enabled: false,
+    },
+    { type: "separator" },
+    {
+      label: "Open Dashboard",
+      click: () => revealMainWindow(),
+    },
+    {
+      label: "Refresh Connection",
+      click: () => {
+        if (showingError) retryNow();
+        else loadPortal();
+      },
+    },
+    { type: "separator" },
+    {
+      label: "Launch at Startup",
+      type: "checkbox",
+      checked: launchSettings.openAtLogin,
+      click: (menuItem) => {
+        app.setLoginItemSettings({
+          openAtLogin: menuItem.checked,
+          path: process.execPath,
+        });
+      },
+    },
+    {
+      label: "Settings & License...",
+      click: () => showSettingsWindow(),
+    },
+    {
+      label: "Check for Updates...",
+      click: () => checkForUpdates(true),
+    },
+    {
+      label: "About HomeDesk...",
+      click: () => showAboutWindow(),
+    },
+    { type: "separator" },
+    {
+      label: "Exit",
+      click: () => {
+        isQuitting = true;
+        app.quit();
+      },
+    },
+  ]);
+
+  tray.setContextMenu(contextMenu);
+}
+
 function configureUpdater() {
   if (updaterConfigured) return;
   updaterConfigured = true;
 
   autoUpdater.logger = {
-    info: (message) => log("updater:", message),
-    warn: (message) => log("updater:", message),
-    error: (message) => log("updater:", message),
+    info: (msg) => log("updater:", msg),
+    warn: (msg) => log("updater:", msg),
+    error: (msg) => log("updater:", msg),
     debug: () => {},
   };
   autoUpdater.autoDownload = true;
   autoUpdater.autoInstallOnAppQuit = true;
 
   autoUpdater.on("update-available", (info) => {
-    log("Update available:", info && info.version);
+    log("Update detected:", info?.version);
     if (manualUpdateCheck && mainWindow) {
       dialog.showMessageBox(mainWindow, {
         type: "info",
-        title: "Update available",
+        title: "Update Available",
         message: `Version ${info.version} is available.`,
         detail:
-          "The update will be downloaded and installed the next time you close the app.",
+          "The update is downloading and will be applied when you close the app.",
         buttons: ["OK"],
       });
     }
@@ -721,21 +831,21 @@ function configureUpdater() {
     if (manualUpdateCheck && mainWindow) {
       dialog.showMessageBox(mainWindow, {
         type: "info",
-        title: "No updates",
-        message: "You are running the latest version.",
+        title: "Software is Up to Date",
+        message: `${CONFIG.APP_NAME} is on the latest version (${app.getVersion()}).`,
         buttons: ["OK"],
       });
     }
   });
 
-  autoUpdater.on("error", (error) => {
-    log("Update error:", error && error.message ? error.message : error);
+  autoUpdater.on("error", (err) => {
+    log("Update check error:", err?.message || err);
     if (manualUpdateCheck && mainWindow) {
       dialog.showMessageBox(mainWindow, {
         type: "warning",
-        title: "Update check failed",
-        message: "Could not check for updates.",
-        detail: String((error && error.message) || error),
+        title: "Update Check Notice",
+        message: "Could not complete automatic update check.",
+        detail: String(err?.message || err),
         buttons: ["OK"],
       });
     }
@@ -747,8 +857,9 @@ function checkForUpdates(manual) {
     if (manual && mainWindow) {
       dialog.showMessageBox(mainWindow, {
         type: "info",
-        title: "Updates",
-        message: "Updates are only checked in installed builds.",
+        title: "Development Build",
+        message:
+          "Automatic updates are verified in production installed builds.",
         buttons: ["OK"],
       });
     }
@@ -760,18 +871,30 @@ function checkForUpdates(manual) {
 
   autoUpdater
     .checkForUpdates()
-    .catch((error) => log("Update check failed:", error))
+    .catch((err) => log("Update check failed:", err))
     .finally(() => {
       manualUpdateCheck = false;
     });
 }
 
+// ── IPC Handlers ────────────────────────────────────────────────────────
 ipcMain.handle("app:info", () => appInfo());
 
 ipcMain.handle("app:retry", (event) => {
   if (!isTrustedLocalFrame(event)) return false;
   if (!showingError) return false;
   retryNow();
+  return true;
+});
+
+ipcMain.handle("app:open-external", (event, url) => {
+  if (!isTrustedLocalFrame(event)) return false;
+  openExternalUrl(url);
+  return true;
+});
+
+ipcMain.handle("app:open-about", () => {
+  showAboutWindow();
   return true;
 });
 
@@ -784,8 +907,21 @@ ipcMain.handle("app:close-about", (event) => {
   return false;
 });
 
-ipcMain.handle("app:open-license", (event) => {
+ipcMain.handle("app:open-settings", (_event, tab) => {
+  showSettingsWindow(tab);
+  return true;
+});
+
+ipcMain.handle("app:close-settings", (event) => {
   if (!isTrustedLocalFrame(event)) return false;
+  if (settingsWindow && event.sender === settingsWindow.webContents) {
+    settingsWindow.close();
+    return true;
+  }
+  return false;
+});
+
+ipcMain.handle("app:open-license", () => {
   showLicenseWindow();
   return true;
 });
@@ -797,6 +933,54 @@ ipcMain.handle("app:close-license", (event) => {
     return true;
   }
   return false;
+});
+
+ipcMain.handle("settings:get", () => {
+  const launchSettings = app.getLoginItemSettings();
+  return {
+    launchAtStartup: launchSettings.openAtLogin,
+    appUrl: CONFIG.APP_URL,
+    version: app.getVersion(),
+  };
+});
+
+ipcMain.handle("settings:set-startup", (_event, enabled) => {
+  app.setLoginItemSettings({
+    openAtLogin: Boolean(enabled),
+    path: process.execPath,
+  });
+  updateTrayMenu();
+  return true;
+});
+
+ipcMain.handle("settings:clear-cache", async () => {
+  if (session.defaultSession) {
+    await session.defaultSession.clearCache();
+    await session.defaultSession.clearStorageData({
+      storages: ["serviceworkers", "cachestorage"],
+    });
+    return true;
+  }
+  return false;
+});
+
+ipcMain.handle("license:info", () => {
+  return licenseManager ? licenseManager.getLicenseInfo() : null;
+});
+
+ipcMain.handle("license:activate", (_event, key) => {
+  if (!licenseManager)
+    return { success: false, message: "Manager unavailable" };
+  return licenseManager.activateKey(key);
+});
+
+ipcMain.handle("license:notices", () => {
+  return licenseManager ? licenseManager.getThirdPartyNotices() : [];
+});
+
+ipcMain.handle("app:check-updates", () => {
+  checkForUpdates(true);
+  return true;
 });
 
 app.on("web-contents-created", (_event, contents) => {
@@ -811,6 +995,7 @@ app.on(
   },
 );
 
+// Single Instance Lock
 if (!app.requestSingleInstanceLock()) {
   app.quit();
 } else {
@@ -823,7 +1008,7 @@ if (!app.requestSingleInstanceLock()) {
   });
 
   app.whenReady().then(() => {
-    log("MSF House Administration Portal starting, version", app.getVersion());
+    log("MSF HomeDesk starting, version", app.getVersion());
 
     stateStore = new WindowStateStore(
       path.join(app.getPath("userData"), "window-state.json"),
@@ -833,12 +1018,15 @@ if (!app.requestSingleInstanceLock()) {
       },
     );
 
+    licenseManager = new LicenseManager(app.getPath("userData"));
+
     configureSessionSecurity();
     buildMenu();
+    createTray();
     createSplashWindow();
     createMainWindow();
 
-    setTimeout(() => checkForUpdates(false), 20000);
+    setTimeout(() => checkForUpdates(false), 25000);
 
     app.on("activate", () => {
       if (!mainWindow || mainWindow.isDestroyed()) {
@@ -858,6 +1046,13 @@ if (!app.requestSingleInstanceLock()) {
     isQuitting = true;
     clearRetryTimer();
     if (stateStore) stateStore.flush();
+    if (tray) {
+      try {
+        tray.destroy();
+      } catch {
+        /* no-op */
+      }
+    }
     if (logStream) {
       try {
         logStream.end();

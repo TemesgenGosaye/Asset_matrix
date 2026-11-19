@@ -59,6 +59,16 @@ export const signOut = async (): Promise<void> => {
   try {
     await authClient.signOut({});
   } finally {
+    if (typeof window !== "undefined") {
+      const bridge = (
+        window as Window & {
+          HomeDeskNative?: { clearAuthenticated?: () => void };
+        }
+      ).HomeDeskNative;
+      if (bridge && typeof bridge.clearAuthenticated === "function") {
+        bridge.clearAuthenticated();
+      }
+    }
     await clearClientSessionData();
   }
 };

@@ -1,83 +1,66 @@
 "use strict";
 
-const retryButton = document.getElementById("retryButton");
-const retryLabel = document.getElementById("retryLabel");
-const retryNote = document.getElementById("retryNote");
-const countdown = document.getElementById("countdown");
-const targetHost = document.getElementById("targetHost");
-const errorDetail = document.getElementById("errorDetail");
-const version = document.getElementById("version");
+(function () {
+  const retryBtn = document.getElementById("retry");
+  const settingsBtn = document.getElementById("settingsBtn");
+  const aboutBtn = document.getElementById("about");
+  const targetHostEl = document.getElementById("targetHost");
+  const errorDetailEl = document.getElementById("errorDetail");
+  const countdownEl = document.getElementById("countdown");
 
-let secondsRemaining = 15;
-let countdownTimer = null;
+  let countdownSeconds = 12;
+  let countdownTimer = null;
 
-function startCountdown(seconds) {
-  secondsRemaining = Number.isFinite(seconds) && seconds > 0 ? seconds : 15;
-  if (countdown) countdown.textContent = String(secondsRemaining);
-
-  if (countdownTimer) clearInterval(countdownTimer);
-  countdownTimer = setInterval(() => {
-    secondsRemaining -= 1;
-    if (secondsRemaining <= 0) {
+  function updateCountdown() {
+    if (countdownEl) {
+      countdownEl.textContent = `Auto-retrying in ${countdownSeconds}s…`;
+    }
+    if (countdownSeconds <= 0) {
       clearInterval(countdownTimer);
-      countdownTimer = null;
-      if (countdown) countdown.textContent = "0";
-      if (retryNote) retryNote.textContent = "Reconnecting now\u2026";
-      return;
+      if (retryBtn) retryBtn.click();
+    } else {
+      countdownSeconds--;
     }
-    if (countdown) countdown.textContent = String(secondsRemaining);
-  }, 1000);
-}
-
-async function initialise() {
-  try {
-    const info = await window.desktop.getAppInfo();
-
-    const targets = [
-      info && info.appUrl,
-      ...((info && info.fallbackUrls) || []),
-    ].filter(Boolean);
-
-    if (targets.length) {
-      targetHost.textContent = targets
-        .map((value) => {
-          try {
-            return new URL(value).host;
-          } catch {
-            return value;
-          }
-        })
-        .join(" or ");
-    }
-
-    if (info && info.lastError) {
-      errorDetail.textContent = info.lastError;
-      errorDetail.hidden = false;
-    }
-
-    if (info && info.version && version) {
-      version.textContent = `Version ${info.version}`;
-    }
-
-    startCountdown(info && info.retryIntervalSeconds);
-  } catch {
-    startCountdown(15);
   }
-}
 
-retryButton.addEventListener("click", () => {
-  retryButton.disabled = true;
-  if (retryLabel) retryLabel.textContent = "Reconnecting\u2026";
-  if (retryNote)
-    retryNote.textContent = "Attempting to reconnect to the portal\u2026";
-  if (countdownTimer) clearInterval(countdownTimer);
+  countdownTimer = setInterval(updateCountdown, 1000);
 
-  Promise.resolve(window.desktop.retry()).catch(() => {
-    retryButton.disabled = false;
-    if (retryLabel) retryLabel.textContent = "Reconnect now";
-    if (retryNote)
-      retryNote.textContent = "Could not start a retry. Please try again.";
+  retryBtn.addEventListener("click", () => {
+    retryBtn.disabled = true;
+    retryBtn.textContent = "Connecting…";
+    if (countdownTimer) clearInterval(countdownTimer);
+    if (countdownEl) countdownEl.textContent = "Attempting connection…";
+    window.desktop?.retry();
   });
-});
 
-initialise();
+  settingsBtn.addEventListener("click", () => {
+    window.desktop?.openSettings("general");
+  });
+
+  aboutBtn.addEventListener("click", () => {
+    window.desktop?.openAbout();
+  });
+
+  if (window.desktop) {
+    window.desktop
+      .getAppInfo()
+      .then((info) => {
+        if (!info) return;
+        if (targetHostEl && info.appUrl) {
+          try {
+            targetHostEl.textContent = new URL(info.appUrl).hostname;
+          } catch {
+            targetHostEl.textContent = info.appUrl;
+          }
+        }
+        if (errorDetailEl && info.lastError) {
+          errorDetailEl.textContent = info.lastError;
+          errorDetailEl.hidden = false;
+        }
+        if (info.retryIntervalSeconds) {
+          countdownSeconds = info.retryIntervalSeconds;
+        }
+      })
+      .catch(() => {});
+  }
+})();

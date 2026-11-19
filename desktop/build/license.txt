@@ -30,8 +30,8 @@ install or use the Software.
 user interface, documentation, and any updates or supplements.
 "User" means an authorised employee or contractor granted access to the
 Software by the Company.
-"Portal" means the Company's House Administration Portal located at
-https://house.taild2df63.ts.net.
+"Portal" means the Company's House Administration & Asset Portal located at
+https://msf-homedesk.vercel.app.
 
 --------------------------------------------------------------------------------
 2. LICENSE GRANT

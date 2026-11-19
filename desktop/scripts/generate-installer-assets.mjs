@@ -65,22 +65,11 @@ function bmpFromRgba(data, width, height) {
 function headerSvg() {
   return `
     <svg xmlns="http://www.w3.org/2000/svg" width="150" height="57" viewBox="0 0 150 57">
-      <defs>
-        <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stop-color="#0e2143"/>
-          <stop offset="1" stop-color="#050b18"/>
-        </linearGradient>
-        <radialGradient id="glow" cx="0.18" cy="0.3" r="0.6">
-          <stop offset="0" stop-color="#38bdf8" stop-opacity="0.35"/>
-          <stop offset="1" stop-color="#38bdf8" stop-opacity="0"/>
-        </radialGradient>
-      </defs>
-      <rect width="150" height="57" fill="url(#bg)"/>
-      <rect width="150" height="57" fill="url(#glow)"/>
-      <rect x="9.5" y="9.5" width="38" height="38" rx="11" fill="#0b1e3d" stroke="#38bdf8" stroke-opacity="0.4"/>
-      <text x="58" y="25" font-family="Segoe UI, Arial, sans-serif" font-size="11.5" font-weight="700" fill="#f1f5f9">Msf HomeDesk</text>
-      <text x="58" y="37" font-family="Segoe UI, Arial, sans-serif" font-size="6.5" font-weight="600" letter-spacing="1.1" fill="#38bdf8">HOUSE ADMINISTRATION</text>
-      <text x="58" y="47" font-family="Segoe UI, Arial, sans-serif" font-size="6.5" fill="#94a3b8">Metahara Sugar Factory</text>
+      <rect width="150" height="57" fill="#FFFFFF"/>
+      <rect x="9.5" y="9.5" width="38" height="38" rx="11" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="1"/>
+      <text x="58" y="25" font-family="Segoe UI, Arial, sans-serif" font-size="11.5" font-weight="700" fill="#000000">Msf HomeDesk</text>
+      <text x="58" y="37" font-family="Segoe UI, Arial, sans-serif" font-size="6.5" font-weight="600" letter-spacing="1.1" fill="#000000">HOUSE ADMINISTRATION</text>
+      <text x="58" y="47" font-family="Segoe UI, Arial, sans-serif" font-size="6.5" fill="#000000">Metahara Sugar Factory</text>
       <rect x="0" y="55" width="150" height="2" fill="#38bdf8" fill-opacity="0.5"/>
     </svg>
   `;
@@ -89,49 +78,20 @@ function headerSvg() {
 function sidebarSvg() {
   return `
     <svg xmlns="http://www.w3.org/2000/svg" width="164" height="314" viewBox="0 0 164 314">
-      <defs>
-        <linearGradient id="bg" x1="0" y1="0" x2="0.4" y2="1">
-          <stop offset="0" stop-color="#0b1e3d"/>
-          <stop offset="0.55" stop-color="#081428"/>
-          <stop offset="1" stop-color="#050b18"/>
-        </linearGradient>
-        <radialGradient id="glowTop" cx="0.5" cy="0.12" r="0.55">
-          <stop offset="0" stop-color="#38bdf8" stop-opacity="0.3"/>
-          <stop offset="1" stop-color="#38bdf8" stop-opacity="0"/>
-        </radialGradient>
-        <radialGradient id="glowBottom" cx="0.5" cy="0.92" r="0.55">
-          <stop offset="0" stop-color="#6366f1" stop-opacity="0.22"/>
-          <stop offset="1" stop-color="#6366f1" stop-opacity="0"/>
-        </radialGradient>
-        <linearGradient id="line" x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0" stop-color="#38bdf8" stop-opacity="0"/>
-          <stop offset="0.5" stop-color="#38bdf8" stop-opacity="0.6"/>
-          <stop offset="1" stop-color="#38bdf8" stop-opacity="0"/>
-        </linearGradient>
-        <pattern id="grid" width="22" height="22" patternUnits="userSpaceOnUse">
-          <path d="M 22 0 L 0 0 0 22" fill="none" stroke="#94a3b8" stroke-opacity="0.055" stroke-width="1"/>
-        </pattern>
-      </defs>
-      <rect width="164" height="314" fill="url(#bg)"/>
-      <rect width="164" height="314" fill="url(#grid)"/>
-      <rect width="164" height="314" fill="url(#glowTop)"/>
-      <rect width="164" height="314" fill="url(#glowBottom)"/>
+      <rect width="164" height="314" fill="#FFFFFF"/>
 
-      <rect x="45.5" y="30.5" width="73" height="73" rx="20" fill="#0d1a30" stroke="#38bdf8" stroke-opacity="0.4"/>
-      <rect x="50.5" y="35.5" width="63" height="63" rx="15" fill="#38bdf8" fill-opacity="0.06"/>
+      <rect x="45.5" y="30.5" width="73" height="73" rx="20" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="1"/>
+      <rect x="50.5" y="35.5" width="63" height="63" rx="15" fill="#FFFFFF" stroke="#F1F5F9" stroke-width="1"/>
 
-      <text x="82" y="132" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="17" font-weight="800" fill="#f1f5f9">Msf HomeDesk</text>
-      <text x="82" y="150" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="6.5" font-weight="600" letter-spacing="1.5" fill="#38bdf8">HOUSE ADMINISTRATION PORTAL</text>
+      <text x="82" y="132" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="17" font-weight="800" fill="#000000">Msf HomeDesk</text>
+      <text x="82" y="150" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="6.5" font-weight="600" letter-spacing="1.5" fill="#000000">HOUSE ADMINISTRATION PORTAL</text>
 
-      <rect x="34" y="170" width="96" height="1" fill="url(#line)"/>
+      <rect x="34" y="170" width="96" height="1" fill="#E2E8F0"/>
 
-      <text x="82" y="195" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="7.5" font-weight="600" fill="#cbd5e1">Metahara Sugar Factory</text>
-      <text x="82" y="207" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="7" fill="#94a3b8">IT Department</text>
+      <text x="82" y="195" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="7.5" font-weight="600" fill="#000000">Metahara Sugar Factory</text>
+      <text x="82" y="207" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="7" fill="#000000">IT Department</text>
 
-      <rect x="42" y="230" width="80" height="20" rx="10" fill="#38bdf8" fill-opacity="0.08" stroke="#38bdf8" stroke-opacity="0.25"/>
-      <text x="82" y="243.5" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="6.5" font-weight="700" letter-spacing="1" fill="#38bdf8">SECURE DESKTOP CLIENT</text>
-
-      <text x="82" y="292" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="6.5" fill="#94a3b8">Powered by Temesgen G.</text>
+      <text x="82" y="292" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="6.5" fill="#000000">Powered by Temesgen G.</text>
     </svg>
   `;
 }
@@ -145,7 +105,7 @@ async function renderAsset(sharp, { svg, icon, width, height, iconLeft, iconTop,
 
   const { data, info } = await sharp(background)
     .composite([{ input: iconBuffer, left: iconLeft, top: iconTop }])
-    .flatten({ background: "#050b18" })
+    .flatten({ background: "#FFFFFF" })
     .ensureAlpha()
     .raw()
     .toBuffer({ resolveWithObject: true });
