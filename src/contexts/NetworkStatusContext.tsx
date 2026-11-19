@@ -11,7 +11,6 @@ import {
   type ReactNode,
 } from "react";
 import { useRouter } from "next/navigation";
-import { useOffline } from "next/offline";
 import { App } from "@capacitor/app";
 import { Network } from "@capacitor/network";
 import { signOut } from "@/lib/auth-client";
@@ -41,7 +40,6 @@ type ListenerHandle = { remove: () => void | Promise<void> };
 
 export function NetworkStatusProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
-  const frameworkOffline = useOffline();
   const [state, setState] = useState<NetworkState>("online");
   const [networkLabel, setNetworkLabel] = useState("Checking");
   const [wasOffline, setWasOffline] = useState(false);
@@ -109,7 +107,7 @@ export function NetworkStatusProvider({ children }: { children: ReactNode }) {
     if (probeRef.current) return probeRef.current;
 
     const probe = (async () => {
-      let deviceDisconnected = frameworkOffline;
+      let deviceDisconnected = false;
       if (typeof navigator !== "undefined" && navigator.onLine === false) {
         deviceDisconnected = true;
       }
@@ -149,7 +147,7 @@ export function NetworkStatusProvider({ children }: { children: ReactNode }) {
     } finally {
       probeRef.current = null;
     }
-  }, [applyState, frameworkOffline]);
+  }, [applyState]);
 
   const validateSession = useCallback(async () => {
     try {
@@ -241,10 +239,6 @@ export function NetworkStatusProvider({ children }: { children: ReactNode }) {
       void appHandle?.remove();
     };
   }, [applyState, runProbe, validateSession]);
-
-  useEffect(() => {
-    if (frameworkOffline) recheckRef.current();
-  }, [frameworkOffline]);
 
   const value = useMemo<NetworkStatusValue>(
     () => ({
