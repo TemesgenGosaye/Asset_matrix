@@ -1,10 +1,23 @@
 import type { CSSProperties } from "react";
 
-const BARS = Array.from({ length: 12 }, (_, index) => index);
+const SEGMENTS = [
+  { rotate: 0, opacity: 1 },
+  { rotate: 30, opacity: 0.92 },
+  { rotate: 60, opacity: 0.84 },
+  { rotate: 90, opacity: 0.76 },
+  { rotate: 120, opacity: 0.68 },
+  { rotate: 150, opacity: 0.6 },
+  { rotate: 180, opacity: 0.52 },
+  { rotate: 210, opacity: 0.44 },
+  { rotate: 240, opacity: 0.36 },
+  { rotate: 270, opacity: 0.28 },
+  { rotate: 300, opacity: 0.2 },
+  { rotate: 330, opacity: 0.12 },
+];
 
 export default function RadialSpinner({
-  size = 48,
-  color = "#0a4f2c",
+  size = 50,
+  color = "hsl(var(--primary))",
   className,
 }: {
   size?: number;
@@ -23,8 +36,14 @@ export default function RadialSpinner({
       role="status"
       aria-label="Loading"
     >
-      {BARS.map((index) => (
-        <span key={index} />
+      {SEGMENTS.map((seg, i) => (
+        <span
+          key={i}
+          style={{
+            transform: `rotate(${seg.rotate}deg)`,
+            opacity: seg.opacity,
+          }}
+        />
       ))}
     </span>
   );

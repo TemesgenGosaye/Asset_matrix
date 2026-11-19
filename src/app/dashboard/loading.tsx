@@ -1,5 +1,5 @@
-import PageSkeleton from "@/components/PageSkeleton";
+﻿import BrandLoader from "@/components/BrandLoader";
 
 export default function Loading() {
-  return <PageSkeleton />;
+  return <BrandLoader />;
 }

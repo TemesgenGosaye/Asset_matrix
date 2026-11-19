@@ -1,4 +1,4 @@
-@import "tailwindcss";
+﻿@import "tailwindcss";
 @import "maplibre-gl/dist/maplibre-gl.css";
 @import "../ui/house-request/employee-verification.css";
 
@@ -7,7 +7,7 @@
  * <html> (`attribute="class"`).
  *
  * The selector list below is the ONLY place that decides what counts as "dark",
- * and it must stay in sync with `isDark: true` entries in src/lib/themes.ts —
+ * and it must stay in sync with `isDark: true` entries in src/lib/themes.ts â€”
  * `src/lib/__tests__/themes.test.ts` fails the build if they drift. Adding a
  * dark theme without adding it here would silently leave all 500+ `dark:`
  * utilities inert on that theme.
@@ -23,7 +23,7 @@
   /*
    * Geist carries no Ethiopic glyphs. The organisation name in the app chrome
    * (sidebar, top bar, mobile sheet) is Amharic, so without an explicit Ethiopic
-   * fallback those characters resolve against whatever the OS happens to pick —
+   * fallback those characters resolve against whatever the OS happens to pick â€”
    * correct on one machine, tofu or a mismatched face on another. Naming the
    * Ethiopic faces here makes the brand render identically everywhere, and
    * mirrors the stack the printed receipts already use (see
@@ -55,7 +55,7 @@
   --color-card-foreground: hsl(var(--card-foreground));
 
   /*
-   * APP CHROME — the navigation frame around the page.
+   * APP CHROME â€” the navigation frame around the page.
    *
    * The shell is three deliberate surfaces, not three different backgrounds:
    *
@@ -66,7 +66,7 @@
    * Chrome had no token of its own. It was painted either with `--card`, which
    * is the SAME value as the canvas in the light themes and so left the rail
    * invisible against the page, or with hard-coded emerald hex (`#071913` /
-   * `#132d23` and `emerald-*` text), which ignored the active theme entirely —
+   * `#132d23` and `emerald-*` text), which ignored the active theme entirely â€”
    * a black-green frame bolted onto a white Light or Paper page. Meanwhile
    * MobileNav, already on `--background`, followed the theme correctly. Two
    * different navigation backgrounds in one layout, only one of them right.
@@ -150,13 +150,13 @@
   }
 
   /*
-   * The navigation frame — one shared surface for the sidebar rail, the top
+   * The navigation frame â€” one shared surface for the sidebar rail, the top
    * bar, the mobile bar and the mobile sheet.
    *
    * All four carry `bg-chrome` and the same hairline, which is the whole point:
    * the frame is one continuous object, so it does not matter whether a given
    * pixel belongs to the rail or the bar. Elevation is left to the border and
-   * the shadow on each element, not to a per-surface tint — a gradient here
+   * the shadow on each element, not to a per-surface tint â€” a gradient here
    * would reintroduce exactly the "three different backgrounds" problem this
    * replaces, just harder to see.
    *
@@ -397,7 +397,7 @@
   background: hsl(var(--accent));
 }
 
-/* ── Login page animations ── */
+/* â”€â”€ Login page animations â”€â”€ */
 
 @keyframes fade-in {
   from {
@@ -460,7 +460,7 @@
   }
 }
 
-/* ── Utility classes ── */
+/* â”€â”€ Utility classes â”€â”€ */
 
 /*
  * Indeterminate progress bar.
@@ -533,125 +533,40 @@
   }
 }
 
-@keyframes msf-radial-fade {
+@keyframes msf-spinner-rotate {
   from {
-    opacity: 1;
+    transform: rotate(0deg);
   }
   to {
-    opacity: 0.08;
+    transform: rotate(360deg);
   }
 }
 
 .msf-radial-spinner {
   position: relative;
   display: inline-block;
-  width: var(--msf-spinner-size, 48px);
-  height: var(--msf-spinner-size, 48px);
+  width: var(--msf-spinner-size, 50px);
+  height: var(--msf-spinner-size, 50px);
   flex: none;
+  animation: msf-spinner-rotate 0.85s linear infinite;
+  will-change: transform;
 }
 
 .msf-radial-spinner > span {
   position: absolute;
   top: 0;
   left: 50%;
-  width: 11%;
+  width: 9%;
   height: 27%;
-  margin-left: -5.5%;
+  margin-left: -4.5%;
   border-radius: 9999px;
   background: var(--spinner-color, #0a4f2c);
-  transform-origin: 50% calc(var(--msf-spinner-size, 48px) / 2);
-  animation: msf-radial-fade 1s linear infinite;
-  will-change: opacity;
-}
-
-.msf-radial-spinner > span:nth-child(1) {
-  transform: rotate(0deg);
-  animation-delay: -1s;
-}
-.msf-radial-spinner > span:nth-child(2) {
-  transform: rotate(30deg);
-  animation-delay: -0.9167s;
-}
-.msf-radial-spinner > span:nth-child(3) {
-  transform: rotate(60deg);
-  animation-delay: -0.8333s;
-}
-.msf-radial-spinner > span:nth-child(4) {
-  transform: rotate(90deg);
-  animation-delay: -0.75s;
-}
-.msf-radial-spinner > span:nth-child(5) {
-  transform: rotate(120deg);
-  animation-delay: -0.6667s;
-}
-.msf-radial-spinner > span:nth-child(6) {
-  transform: rotate(150deg);
-  animation-delay: -0.5833s;
-}
-.msf-radial-spinner > span:nth-child(7) {
-  transform: rotate(180deg);
-  animation-delay: -0.5s;
-}
-.msf-radial-spinner > span:nth-child(8) {
-  transform: rotate(210deg);
-  animation-delay: -0.4167s;
-}
-.msf-radial-spinner > span:nth-child(9) {
-  transform: rotate(240deg);
-  animation-delay: -0.3333s;
-}
-.msf-radial-spinner > span:nth-child(10) {
-  transform: rotate(270deg);
-  animation-delay: -0.25s;
-}
-.msf-radial-spinner > span:nth-child(11) {
-  transform: rotate(300deg);
-  animation-delay: -0.1667s;
-}
-.msf-radial-spinner > span:nth-child(12) {
-  transform: rotate(330deg);
-  animation-delay: -0.0833s;
+  transform-origin: 50% calc(var(--msf-spinner-size, 50px) / 2);
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .msf-radial-spinner > span {
-    animation: none;
-  }
-  .msf-radial-spinner > span:nth-child(1) {
-    opacity: 1;
-  }
-  .msf-radial-spinner > span:nth-child(2) {
-    opacity: 0.92;
-  }
-  .msf-radial-spinner > span:nth-child(3) {
-    opacity: 0.84;
-  }
-  .msf-radial-spinner > span:nth-child(4) {
-    opacity: 0.76;
-  }
-  .msf-radial-spinner > span:nth-child(5) {
-    opacity: 0.68;
-  }
-  .msf-radial-spinner > span:nth-child(6) {
-    opacity: 0.6;
-  }
-  .msf-radial-spinner > span:nth-child(7) {
-    opacity: 0.52;
-  }
-  .msf-radial-spinner > span:nth-child(8) {
-    opacity: 0.44;
-  }
-  .msf-radial-spinner > span:nth-child(9) {
-    opacity: 0.36;
-  }
-  .msf-radial-spinner > span:nth-child(10) {
-    opacity: 0.28;
-  }
-  .msf-radial-spinner > span:nth-child(11) {
-    opacity: 0.2;
-  }
-  .msf-radial-spinner > span:nth-child(12) {
-    opacity: 0.12;
+  .msf-radial-spinner {
+    animation-duration: 2s;
   }
 }
 
@@ -968,7 +883,7 @@
   animation: login-shake 0.4s ease-in-out;
 }
 
-/* ──────────────────────────────────────────────────────────────────────────
+/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
    Feedback toasts.
 
    One centre-screen card, one style, every variant. Everything a toast needs
@@ -979,9 +894,9 @@
    The surface tokens are declared once for light and overridden once for the
    dark appearance (the selector list matches `@custom-variant dark` at the top
    of this file). A toast is therefore built from the same material as the page
-   it appears over, in both themes �?" rather than being a hard-coded black
+   it appears over, in both themes ï¿½?" rather than being a hard-coded black
    card that reads as a foreign object on a light page.
-   ────────────────────────────────────────────────────────────────────────── */
+   â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 :root {
   --fb-surface: 0 0% 100%;
@@ -1010,7 +925,7 @@
     0 18px 40px -12px rgb(0 0 0 / 0.55), 0 32px 64px -24px rgb(0 0 0 / 0.6);
 }
 
-/* ── Card surface ──────────────────────────────────────────────────────── */
+/* â”€â”€ Card surface â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 .fb-card {
   background-color: hsl(var(--fb-surface) / var(--fb-surface-alpha));
@@ -1020,7 +935,7 @@
 }
 
 /*
- * The card is a true square — width and height locked to the same value — so
+ * The card is a true square â€” width and height locked to the same value â€” so
  * every toast reads as the same shape regardless of how long its text is.
  *
  * The edge length is `min()` of a viewport width, a comfortable reading cap and
@@ -1032,7 +947,7 @@
   aspect-ratio: 1 / 1;
 }
 
-/* ── Icon animation ─────────────────────────────────────────────────────── */
+/* â”€â”€ Icon animation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 /*
  * The icon is the loudest thing in the card, so it gets a three-part entrance
@@ -1066,7 +981,7 @@
   animation: toast-ripple 0.75s cubic-bezier(0.16, 1, 0.3, 1) 0.02s both;
 }
 
-/* ── Variant gradients ─────────────────────────────────────────────────── */
+/* â”€â”€ Variant gradients â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 /* Icon badge */
 .toast-badge {
@@ -1138,10 +1053,10 @@
   background-image: linear-gradient(90deg, #52525b, #a1a1aa);
 }
 
-/* ── Motion ────────────────────────────────────────────────────────────── */
+/* â”€â”€ Motion â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 /*
- * Entrance — a short spring with a single overshoot plus a blur that resolves
+ * Entrance â€” a short spring with a single overshoot plus a blur that resolves
  * inside the first third. The overshoot is the part that reads as physical:
  * the card arrives, settles past its resting size, and comes back.
  */
@@ -1166,7 +1081,7 @@
 }
 
 /*
- * Exit — lifts and dissolves. Deliberately faster than the entrance: the
+ * Exit â€” lifts and dissolves. Deliberately faster than the entrance: the
  * entrance is what the user watches, the dismissal only has to feel instant.
  */
 @keyframes toast-out {
@@ -1183,7 +1098,7 @@
 }
 
 /*
- * Check mark drawn by its own stroke — the dashoffset technique behind every
+ * Check mark drawn by its own stroke â€” the dashoffset technique behind every
  * professional icon animation. The path carries `pathLength="1"`, which
  * normalises its measured length to exactly 1 unit, so both the dasharray and
  * the starting offset are literal 1s regardless of the path's real geometry.
@@ -1216,7 +1131,7 @@
 }
 
 /*
- * Both strokes of the × draw simultaneously. Normalised with `pathLength="1"`
+ * Both strokes of the Ã— draw simultaneously. Normalised with `pathLength="1"`
  * on each path, for the same reason as the check mark.
  */
 @keyframes toast-x-draw {
@@ -1269,7 +1184,7 @@
   }
 }
 
-/* ── Wiring ────────────────────────────────────────────────────────────── */
+/* â”€â”€ Wiring â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 .toast-enter {
   animation: toast-in 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
@@ -1283,7 +1198,7 @@
  * badge's own inset/drop-shadow stack also sets. Two animations on one element
  * both writing box-shadow would fight; splitting them across two nested
  * elements would cost a wrapper. Instead the badge keeps its shadow and only
- * the ring-in/shake (transform + opacity) is animated here — the halo is
+ * the ring-in/shake (transform + opacity) is animated here â€” the halo is
  * carried by the card-level `--fb-shadow`, which already carries a coloured
  * 1px halo per variant.
  */
@@ -1332,7 +1247,7 @@
   }
 }
 
-/* ── Assistant (Meri) surfaces ── */
+/* â”€â”€ Assistant (Meri) surfaces â”€â”€ */
 
 @keyframes assistant-rise {
   from {
@@ -1371,14 +1286,14 @@
  *
  * Lives here rather than as a wall of arbitrary selectors on the element because
  * a reasoning answer is mostly markdown, and markdown needs real typographic
- * rules — headings, code, quotes, rules, tables. They also need to survive a
+ * rules â€” headings, code, quotes, rules, tables. They also need to survive a
  * design change: one class to restyle beats forty utility classes to hunt down.
  */
 .assistant-prose {
   /*
    * The assistant wears the system accent. Text needs more contrast than a
    * 13px interactive label does, so the accent is mixed toward
-   * `--assist-mix-target` — which every theme sets to black or white — rather
+   * `--assist-mix-target` â€” which every theme sets to black or white â€” rather
    * than used raw. Same hue family, readable on all seven appearances, and it
    * still follows `--primary` if the brand colour ever changes.
    *
@@ -1415,7 +1330,7 @@
   color: var(--color-foreground);
 }
 
-/* Accent headings, serif — the app's convention for display type. */
+/* Accent headings, serif â€” the app's convention for display type. */
 .assistant-prose h1,
 .assistant-prose h2,
 .assistant-prose h3,
@@ -1462,7 +1377,7 @@
   color: var(--assist-accent);
 }
 
-/* Quotes read as cited guidance — the assistant restating a policy. */
+/* Quotes read as cited guidance â€” the assistant restating a policy. */
 .assistant-prose blockquote {
   margin: 0.6rem 0;
   border-left: 2px solid var(--assist-rule);
@@ -1532,7 +1447,7 @@
   border-bottom: 0;
 }
 
-/* ── Print: allocation receipt (Original + Duplicate) ── */
+/* â”€â”€ Print: allocation receipt (Original + Duplicate) â”€â”€ */
 .allocation-receipt-print {
   display: none;
 }
@@ -1639,8 +1554,8 @@
  * House Request acknowledgement print output.
  *
  * A confirmation the employee can be handed. Same mechanism as the two receipts
- * above — the printable copy is portalled into <body> and everything else is
- * hidden while printing — so the browser's print dialog sees only the document.
+ * above â€” the printable copy is portalled into <body> and everything else is
+ * hidden while printing â€” so the browser's print dialog sees only the document.
  *
  * Deliberately NOT a Tailwind component: the whole document is inline
  * `React.CSSProperties`, because it is also rasterised to PDF through
@@ -1674,10 +1589,10 @@
   }
 }
 
-/* ── Reduced motion ──────────────────────────────────────────────────────────
+/* â”€â”€ Reduced motion â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
    The feedback viewport animates two things: the toast's own entrance and the
-   progress bar's sweep. Neither is load-bearing — the bar still reports the
-   remaining time, stepped rather than swept — so both are simply stopped rather
+   progress bar's sweep. Neither is load-bearing â€” the bar still reports the
+   remaining time, stepped rather than swept â€” so both are simply stopped rather
    than replaced with something slower, which is the usual way this preference
    ends up half-honoured. */
 @media (prefers-reduced-motion: reduce) {
