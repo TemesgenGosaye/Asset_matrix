@@ -3,8 +3,8 @@ import type { CSSProperties } from "react";
 const BARS = Array.from({ length: 12 }, (_, index) => index);
 
 export default function RadialSpinner({
-  size = 44,
-  color,
+  size = 48,
+  color = "#0a4f2c",
   className,
 }: {
   size?: number;
@@ -13,7 +13,7 @@ export default function RadialSpinner({
 }) {
   const style = {
     "--msf-spinner-size": `${size}px`,
-    ...(color ? { "--spinner-color": color } : {}),
+    "--spinner-color": color,
   } as CSSProperties;
 
   return (

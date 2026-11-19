@@ -545,8 +545,8 @@
 .msf-radial-spinner {
   position: relative;
   display: inline-block;
-  width: var(--msf-spinner-size, 44px);
-  height: var(--msf-spinner-size, 44px);
+  width: var(--msf-spinner-size, 48px);
+  height: var(--msf-spinner-size, 48px);
   flex: none;
 }
 
@@ -554,13 +554,14 @@
   position: absolute;
   top: 0;
   left: 50%;
-  width: 12%;
-  height: 28%;
-  margin-left: -6%;
+  width: 11%;
+  height: 27%;
+  margin-left: -5.5%;
   border-radius: 9999px;
-  background: var(--spinner-color, hsl(var(--primary)));
-  transform-origin: 50% calc(var(--msf-spinner-size, 44px) / 2);
+  background: var(--spinner-color, #0a4f2c);
+  transform-origin: 50% calc(var(--msf-spinner-size, 48px) / 2);
   animation: msf-radial-fade 1s linear infinite;
+  will-change: opacity;
 }
 
 .msf-radial-spinner > span:nth-child(1) {

@@ -9,6 +9,7 @@ import {
   type ReactNode,
 } from "react";
 import { SplashScreen } from "@capacitor/splash-screen";
+import RadialSpinner from "@/components/RadialSpinner";
 import { isNativeApp } from "@/lib/native-app";
 import {
   clearCachedSession,
@@ -173,18 +174,8 @@ export default function AppBootstrap({ children }: { children: ReactNode }) {
             </div>
           </div>
           <div className="msf-loader-center">
-            <div className="msf-loader-stage" aria-hidden="true">
-              <svg className="msf-loader-ring" viewBox="0 0 100 100">
-                <circle className="msf-loader-track" cx="50" cy="50" r="44" />
-                <circle className="msf-loader-arc" cx="50" cy="50" r="44" />
-                <circle
-                  className="msf-loader-arc-secondary"
-                  cx="50"
-                  cy="50"
-                  r="44"
-                />
-              </svg>
-              <span className="msf-loader-logo msf-loader-logo-image" />
+            <div className="py-2" aria-hidden="true">
+              <RadialSpinner size={48} color="#0a4f2c" />
             </div>
 
             <div className="msf-loader-copy">
