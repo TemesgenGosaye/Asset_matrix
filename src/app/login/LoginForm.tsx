@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import {
   useEffect,
@@ -28,6 +28,7 @@ import {
 } from "lucide-react";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import { isAndroidApp } from "@/lib/native-app";
+import SiteFooterLinks from "@/components/SiteFooterLinks";
 
 const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || "";
 
@@ -460,10 +461,16 @@ export default function LoginPage(_props: LoginPageProps) {
           </button>
         </form>
 
-        <div className="mt-6 flex items-center justify-center gap-1.5 text-[12px] text-slate-500 dark:text-slate-400">
-          <Building2 className="h-3.5 w-3.5 text-slate-400 dark:text-slate-500" />
-          <span>© {year} Metahara Sugar Factory</span>
-        </div>
+        <footer className="mt-6 space-y-2 text-center">
+          <div className="flex items-center justify-center gap-1.5 text-[12px] text-slate-500 dark:text-slate-400">
+            <Building2 className="h-3.5 w-3.5 text-slate-400 dark:text-slate-500" />
+            <span>© {year} Metahara Sugar Factory</span>
+          </div>
+          <SiteFooterLinks
+            className="text-[12px] text-slate-500 dark:text-slate-400"
+            linkClassName="hover:underline hover:text-slate-700 dark:hover:text-slate-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB]/40 rounded"
+          />
+        </footer>
       </div>
     </main>
   );
