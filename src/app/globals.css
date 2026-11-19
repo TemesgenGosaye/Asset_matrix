@@ -1607,6 +1607,5 @@
 
 html:has([data-login-page]),
 body:has([data-login-page]) {
-  background-color: #ffffff !important;
-  color: #000000 !important;
+  background-color: transparent;
 }

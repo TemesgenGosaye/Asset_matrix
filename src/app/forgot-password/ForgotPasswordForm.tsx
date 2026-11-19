@@ -1,15 +1,22 @@
-"use client";
+﻿"use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { Button } from "@/components/ui/button";
-import { ArrowLeft, Mail, Building2 } from "lucide-react";
+import { useTheme } from "next-themes";
+import { ArrowLeft, Building2, Mail, Moon, Sun } from "lucide-react";
 
 export default function ForgotPasswordForm() {
+  const { resolvedTheme, setTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
   const [email, setEmail] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+
+  useEffect(() => {
+    const t = window.setTimeout(() => setMounted(true), 0);
+    return () => window.clearTimeout(t);
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -28,54 +35,72 @@ export default function ForgotPasswordForm() {
     }
   };
 
-  return (
-    <div className="relative flex min-h-[100dvh] flex-col items-center justify-center overflow-hidden p-3.5 pt-[max(1rem,env(safe-area-inset-top))] pr-[max(0.75rem,env(safe-area-inset-right))] pb-[max(1rem,env(safe-area-inset-bottom))] pl-[max(0.75rem,env(safe-area-inset-left))] font-sans sm:p-6">
-      <div aria-hidden className="pointer-events-none absolute inset-0">
-        <div className="absolute inset-0 bg-gradient-to-br from-[#0293CA] via-[#0284c7] to-[#0369a1] dark:bg-gradient-to-br dark:from-[#012a4a] dark:via-[#013a63] dark:to-[#001d3d]" />
-        <div className="absolute -top-1/3 left-1/2 h-[80%] w-[120%] -translate-x-1/2 rounded-[50%] bg-[radial-gradient(ellipse,rgba(56,189,248,0.4)_0%,rgba(14,165,233,0.25)_40%,transparent_70%)] blur-[100px]" />
-        <div className="absolute top-1/4 -right-1/4 h-[50%] w-[50%] rounded-full bg-[radial-gradient(circle,rgba(125,211,252,0.3)_0%,transparent_70%)] blur-[80px]" />
-        <div className="absolute bottom-0 left-1/4 h-[40%] w-[60%] bg-[radial-gradient(ellipse,rgba(14,165,233,0.25)_0%,transparent_70%)] blur-[90px]" />
-        <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(255,255,255,0.08)_0%,transparent_40%)]" />
-        <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(255,255,255,0.05)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.05)_1px,transparent_1px)] [mask-image:radial-gradient(ellipse_70%_60%_at_50%_0%,black_30%,transparent_100%)] bg-[size:60px_60px]" />
-      </div>
+  const isDark = mounted && resolvedTheme === "dark";
+  const year = new Date().getFullYear();
 
-      <div className="relative z-10 w-full max-w-[420px] space-y-5 rounded-2xl border border-slate-200/90 bg-white/95 px-5 py-6 shadow-xl shadow-slate-200/40 backdrop-blur-xl sm:max-w-[440px] sm:rounded-3xl sm:px-8 sm:py-7 dark:border-slate-800 dark:bg-slate-900/90 dark:shadow-2xl dark:shadow-black/60">
-        {/* Logo */}
+  return (
+    <main
+      data-login-page
+      className="relative flex min-h-[100dvh] items-center justify-center overflow-hidden bg-[linear-gradient(135deg,#1E9FDB_0%,#0A74B0_100%)] p-4 font-sans dark:bg-[linear-gradient(135deg,#0b3d5e_0%,#06283d_100%)]"
+    >
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 opacity-[0.14]"
+        style={{
+          backgroundImage:
+            "linear-gradient(to right, rgba(255,255,255,0.7) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.7) 1px, transparent 1px)",
+          backgroundSize: "40px 40px",
+        }}
+      />
+
+      <button
+        type="button"
+        onClick={() => setTheme(isDark ? "light" : "dark")}
+        aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
+        className="absolute top-4 right-4 z-20 flex h-[34px] w-[34px] items-center justify-center rounded-lg bg-white/25 text-white backdrop-blur-sm transition hover:bg-white/35 focus-visible:ring-2 focus-visible:ring-white/70 focus-visible:outline-none dark:bg-white/10 dark:hover:bg-white/20"
+      >
+        {isDark ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
+      </button>
+
+      <div className="relative z-10 w-full max-w-[436px] rounded-[28px] border-2 border-[#1B7DB8] bg-white px-8 py-8 shadow-[0_20px_50px_-20px_rgba(10,50,90,0.45)] sm:px-9 dark:border-[#1B7DB8]/70 dark:bg-slate-900 dark:shadow-[0_24px_60px_-24px_rgba(0,0,0,0.7)]">
         <div className="flex flex-col items-center text-center">
-          <div className="relative flex h-16 w-16 items-center justify-center sm:h-20 sm:w-20">
+          <div className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-full">
             <Image
               src="/images/msflogo.jpg"
               alt="Metahara Sugar Factory"
-              width={80}
-              height={80}
-              className="h-full w-full object-contain"
+              width={44}
+              height={44}
+              className="h-full w-full object-cover"
               priority
             />
           </div>
+
+          <div className="mt-3 space-y-0.5">
+            <p className="text-[12px] leading-tight font-bold text-slate-800 dark:text-slate-100">
+              የመተሐራ ስኳር ፋብሪካ
+            </p>
+            <p className="text-[12px] leading-tight font-bold text-slate-800 dark:text-slate-100">
+              የንብረትና የቤት አስተዳደር ፖርታል
+            </p>
+          </div>
         </div>
 
-        <div className="space-y-1 text-center">
-          <h2 className="text-base leading-tight font-bold tracking-tight text-slate-900 sm:text-lg dark:text-white">
-            የመተሐራ ስኳር ፋብሪካ
-          </h2>
-          <p className="mt-1 text-xs leading-tight font-semibold tracking-wide text-[hsl(var(--primary))] sm:text-sm dark:text-[hsl(var(--primary))]">
-            የንብረትና የቤት አስተዳደር ፖርታል
-          </p>
-          <p className="mt-3 text-sm text-slate-600 dark:text-slate-400">
+        <div className="mt-6 text-center">
+          <h2 className="text-base font-bold text-slate-800 dark:text-slate-100">
             Reset your password
-          </p>
-          <p className="text-xs text-slate-500 dark:text-slate-400">
+          </h2>
+          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
             Enter your email and we&apos;ll send you a reset link
           </p>
         </div>
 
         {submitted ? (
-          <div className="space-y-4">
-            <div className="rounded-xl border border-blue-200 bg-blue-50 p-5 text-center dark:border-blue-900/50 dark:bg-blue-900/20">
-              <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900/40">
-                <Mail className="h-6 w-6 text-blue-700 dark:text-blue-400" />
+          <div className="mt-6 space-y-4">
+            <div className="rounded-xl border-2 border-[#C5D3E3] bg-[#F3F6FA] p-5 text-center dark:border-slate-600 dark:bg-slate-800">
+              <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-white text-[#0A6396] ring-1 ring-[#C5D3E3] dark:bg-slate-700 dark:text-[#1B9FE0] dark:ring-slate-600">
+                <Mail className="h-5 w-5" />
               </div>
-              <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">
+              <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">
                 Check your inbox
               </p>
               <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
@@ -83,83 +108,67 @@ export default function ForgotPasswordForm() {
                 reset link.
               </p>
             </div>
-            <Link href="/login">
-              <Button
-                variant="outline"
-                className="w-full dark:border-slate-700"
-              >
-                <ArrowLeft className="mr-2 h-4 w-4" />
-                Back to Sign In
-              </Button>
+            <Link
+              href="/login"
+              className="flex h-[46px] w-full items-center justify-center gap-2 rounded-[14px] border-2 border-[#C5D3E3] bg-white text-[14px] font-semibold text-slate-700 transition hover:bg-[#F3F6FA] focus-visible:ring-4 focus-visible:ring-[#0A6396]/15 focus-visible:outline-none dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Back to Sign In
             </Link>
           </div>
         ) : (
-          <form onSubmit={handleSubmit} className="space-y-4" noValidate>
-            <div className="group">
-              <label
-                htmlFor="email"
-                className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300"
-              >
-                Email or username
-              </label>
-              <div className="relative">
-                <div className="absolute top-1/2 left-3 -translate-y-1/2 text-slate-400">
-                  <Mail className="h-4 w-4" />
+          <form onSubmit={handleSubmit} className="mt-6 text-left" noValidate>
+            <div className="space-y-4">
+              <div className="space-y-1.5">
+                <label
+                  htmlFor="email"
+                  className="block text-[14px] font-semibold text-slate-700 dark:text-slate-200"
+                >
+                  Email or username
+                </label>
+                <div className="relative">
+                  <Mail className="pointer-events-none absolute top-1/2 left-3.5 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                  <input
+                    id="email"
+                    name="email"
+                    type="email"
+                    placeholder=""
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    disabled={isLoading}
+                    required
+                    autoComplete="email"
+                    className="h-11 w-full rounded-[16px] border-2 border-[#C5D3E3] bg-[#F3F6FA] pr-4 pl-10 text-sm text-slate-900 transition outline-none placeholder:text-slate-400 focus:border-[#0A6396] focus:bg-white focus:ring-4 focus:ring-[#0A6396]/15 disabled:opacity-60 dark:border-slate-600 dark:bg-slate-800 dark:text-white dark:focus:border-[#1B7DB8] dark:focus:bg-slate-800 dark:focus:ring-[#1B7DB8]/20"
+                  />
                 </div>
-                <input
-                  id="email"
-                  type="email"
-                  placeholder="Enter your email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  disabled={isLoading}
-                  required
-                  autoComplete="email"
-                  className="h-12 w-full rounded-xl border-2 border-slate-300 bg-slate-50 pr-4 pl-10 text-sm text-slate-900 transition-all duration-200 outline-none placeholder:text-slate-400 hover:border-[hsl(var(--primary))] focus:border-[hsl(var(--primary))] focus:bg-white focus:ring-2 focus:ring-[hsl(var(--primary))/20] dark:border-slate-700 dark:bg-slate-800/80 dark:text-white dark:placeholder:text-slate-500 dark:hover:border-[hsl(var(--primary))] dark:focus:border-[hsl(var(--primary))] dark:focus:bg-slate-700"
-                />
               </div>
             </div>
 
             <button
               type="submit"
               disabled={isLoading}
-              className="group relative flex h-12 w-full items-center justify-center overflow-hidden rounded-xl bg-[hsl(var(--primary))] text-sm font-semibold text-white shadow-lg shadow-[hsl(var(--primary))/30] transition-all duration-200 hover:-translate-y-0.5 hover:opacity-90 hover:shadow-xl hover:shadow-[hsl(var(--primary))/40] focus-visible:ring-2 focus-visible:ring-[hsl(var(--primary))] focus-visible:ring-offset-2 focus-visible:ring-offset-white focus-visible:outline-none active:translate-y-0 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0 dark:focus-visible:ring-offset-slate-900"
+              className="mt-6 flex h-[46px] w-full items-center justify-center gap-2 rounded-[14px] bg-[#0A6396] text-[14px] font-bold text-white transition hover:bg-[#08557f] focus-visible:ring-4 focus-visible:ring-[#0A6396]/30 focus-visible:outline-none active:bg-[#07486d] disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {isLoading ? (
-                <span className="flex items-center gap-2">
-                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
-                  Sending…
-                </span>
-              ) : (
-                "Send Reset Link"
-              )}
+              {isLoading ? "Sending..." : "Send Reset Link"}
             </button>
 
-            <div className="text-center">
+            <div className="mt-4 text-center">
               <Link
                 href="/login"
-                className="inline-flex items-center gap-1.5 text-sm font-semibold text-[hsl(var(--primary))] hover:opacity-80 dark:text-[hsl(var(--primary))]"
+                className="inline-flex items-center gap-1.5 rounded text-[14px] font-semibold text-[#2563EB] hover:underline focus-visible:ring-2 focus-visible:ring-[#2563EB]/40 focus-visible:outline-none"
               >
-                <ArrowLeft className="h-3.5 w-3.5" />
+                <ArrowLeft className="h-4 w-4" />
                 Back to Sign In
               </Link>
             </div>
           </form>
         )}
 
-        <div className="border-t border-slate-100 pt-3.5 text-center dark:border-slate-800/80">
-          <div className="flex items-center justify-center gap-1.5 text-xs font-medium text-slate-600 dark:text-slate-300">
-            <Building2 className="h-3.5 w-3.5 shrink-0 text-slate-400 dark:text-slate-500" />
-            <span>© {new Date().getFullYear()} Metahara Sugar Factory</span>
-          </div>
-          <div className="mt-1.5 text-xs text-slate-500 dark:text-slate-400">
-            Powered by{" "}
-            <span className="font-semibold text-slate-800 dark:text-slate-200">
-              Temesgen
-            </span>
-          </div>
+        <div className="mt-6 flex items-center justify-center gap-1.5 text-[12px] text-slate-500 dark:text-slate-400">
+          <Building2 className="h-3.5 w-3.5 text-slate-400 dark:text-slate-500" />
+          <span>© {year} Metahara Sugar Factory</span>
         </div>
       </div>
-    </div>
+    </main>
   );
 }

@@ -1,41 +1,53 @@
-"use client";
+﻿"use client";
 
 import {
   useEffect,
   useRef,
   useState,
   type ChangeEvent,
-  type CSSProperties,
   type FormEvent,
   type KeyboardEvent,
-  type RefObject,
 } from "react";
-import { signIn, authClient } from "@/lib/auth-client";
+import { signIn } from "@/lib/auth-client";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import Link from "next/link";
+import { useTheme } from "next-themes";
 import {
   AlertCircle,
+  ArrowRight,
+  Building2,
   Eye,
   EyeOff,
   Loader2,
   Lock,
   Mail,
+  Moon,
+  Sun,
   WifiOff,
 } from "lucide-react";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 
 const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || "";
-const TELEGRAM_HELP_URL = "https://t.me/Thefluxor";
 
 const NETWORK_ERROR_MESSAGE =
-  "Network error — unable to reach the server. Check your internet connection and try again.";
+  "Network error - unable to reach the server. Check your internet connection and try again.";
 const OFFLINE_ERROR_MESSAGE =
   "You appear to be offline. Check your internet connection and try again.";
 
-const inputStyle = {
-  WebkitBoxShadow: "0 0 0 1000px #ffffff inset",
-  WebkitTextFillColor: "#000000",
-} as CSSProperties;
+const REMEMBER_KEY = "msf-login-remember";
+const REMEMBER_USER_KEY = "msf-login-username";
+
+function formatClock(date: Date) {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${pad(date.getHours())} : ${pad(date.getMinutes())} : ${pad(date.getSeconds())}`;
+}
+
+function isNetworkErrorMessage(message: string): boolean {
+  return /network|fetch|failed to fetch|timeout|connection|offline|unreachable|err_/i.test(
+    message,
+  );
+}
 
 interface TurnstileWidget {
   render: (
@@ -56,13 +68,7 @@ function getTurnstile(): TurnstileWidget | undefined {
   return (window as Window & { turnstile?: TurnstileWidget }).turnstile;
 }
 
-function isNetworkErrorMessage(message: string): boolean {
-  return /network|fetch|failed to fetch|timeout|connection|offline|unreachable|err_/i.test(
-    message,
-  );
-}
-
-function useTurnstile(containerRef: RefObject<HTMLDivElement | null>) {
+function useTurnstile(containerRef: React.RefObject<HTMLDivElement | null>) {
   const [token, setToken] = useState<string | null>(null);
   const widgetIdRef = useRef<string | null>(null);
 
@@ -119,23 +125,36 @@ interface LoginPageProps {
   googleEnabled?: boolean;
 }
 
-interface SsoStatus {
-  enabled: boolean;
-  provider: string;
-  providerName: string;
-}
-
-export default function LoginPage({
-  microsoftEnabled = false,
-  googleEnabled = false,
-}: LoginPageProps) {
+export default function LoginPage(_props: LoginPageProps) {
   const router = useRouter();
-  const [formData, setFormData] = useState({ username: "", password: "" });
+  const { resolvedTheme, setTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+  const [now, setNow] = useState<Date | null>(null);
+
+  const [rememberMe, setRememberMe] = useState(() => {
+    if (typeof window === "undefined") return true;
+    try {
+      return localStorage.getItem(REMEMBER_KEY) !== "0";
+    } catch {
+      return true;
+    }
+  });
+  const [formData, setFormData] = useState(() => {
+    if (typeof window === "undefined") return { username: "", password: "" };
+    try {
+      const remembered = localStorage.getItem(REMEMBER_KEY) !== "0";
+      const savedUser = remembered
+        ? localStorage.getItem(REMEMBER_USER_KEY) || ""
+        : "";
+      return { username: savedUser, password: "" };
+    } catch {
+      return { username: "", password: "" };
+    }
+  });
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [ssoStatus, setSsoStatus] = useState<SsoStatus | null>(null);
-  const [devMessage, setDevMessage] = useState("");
+
   const usernameRef = useRef<HTMLInputElement>(null);
   const passwordRef = useRef<HTMLInputElement>(null);
   const turnstileRef = useRef<HTMLDivElement>(null);
@@ -144,21 +163,24 @@ export default function LoginPage({
   const { isOnline } = useOnlineStatus();
 
   useEffect(() => {
-    usernameRef.current?.focus({ preventScroll: true });
+    const timer = window.setTimeout(() => {
+      setMounted(true);
+      setNow(new Date());
+    }, 0);
+    const id = window.setInterval(() => setNow(new Date()), 1000);
+    return () => {
+      window.clearTimeout(timer);
+      window.clearInterval(id);
+    };
   }, []);
 
   useEffect(() => {
-    const controller = new AbortController();
-    fetch("/api/auth/sso-status", {
-      cache: "no-store",
-      signal: controller.signal,
-    })
-      .then((response) => response.json())
-      .then((data: SsoStatus) => {
-        if (data.enabled) setSsoStatus(data);
-      })
-      .catch(() => {});
-    return () => controller.abort();
+    if (formData.username) {
+      passwordRef.current?.focus({ preventScroll: true });
+    } else {
+      usernameRef.current?.focus({ preventScroll: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleChange = (event: ChangeEvent<HTMLInputElement>) => {
@@ -200,6 +222,7 @@ export default function LoginPage({
       const result = await signIn.email({
         email: formData.username,
         password: formData.password,
+        rememberMe,
         fetchOptions: TURNSTILE_SITE_KEY
           ? { headers: { "x-turnstile-token": turnstileToken || "" } }
           : undefined,
@@ -214,6 +237,15 @@ export default function LoginPage({
         setIsLoading(false);
         return;
       }
+
+      try {
+        localStorage.setItem(REMEMBER_KEY, rememberMe ? "1" : "0");
+        if (rememberMe) {
+          localStorage.setItem(REMEMBER_USER_KEY, formData.username.trim());
+        } else {
+          localStorage.removeItem(REMEMBER_USER_KEY);
+        }
+      } catch {}
 
       const data = result?.data as { twoFactorRedirect?: boolean } | null;
       if (data?.twoFactorRedirect) {
@@ -234,121 +266,106 @@ export default function LoginPage({
     }
   };
 
-  const handleSocialSignIn = async (provider: "google" | "microsoft") => {
-    setError("");
-
-    if (!isOnline) {
-      setError(OFFLINE_ERROR_MESSAGE);
-      return;
-    }
-
-    if (provider === "google") {
-      setDevMessage(
-        "Google sign-in is currently under development. Use email sign-in for now.",
-      );
-      setTimeout(() => setDevMessage(""), 4000);
-      return;
-    }
-
-    if (!microsoftEnabled) {
-      setError(
-        "Microsoft sign-in is not enabled on this server. Contact your administrator or use email sign-in.",
-      );
-      return;
-    }
-
-    try {
-      const result = await authClient.signIn.social({
-        provider,
-        callbackURL: "/dashboard",
-      });
-      if (result?.error) {
-        const message = result.error.message || "Microsoft sign-in failed";
-        setError(
-          isNetworkErrorMessage(message) ? NETWORK_ERROR_MESSAGE : message,
-        );
-      }
-    } catch {
-      setError(NETWORK_ERROR_MESSAGE);
-    }
-  };
-
-  const showSso =
-    googleEnabled ||
-    microsoftEnabled ||
-    (ssoStatus?.enabled && ssoStatus.provider !== "microsoft");
+  const isDark = mounted && resolvedTheme === "dark";
+  const year = new Date().getFullYear();
 
   return (
     <main
       data-login-page
-      className="flex min-h-[100dvh] w-full items-center justify-center bg-white px-5 py-10 text-black"
+      className="relative flex min-h-[100dvh] items-center justify-center overflow-hidden bg-[linear-gradient(135deg,#1E9FDB_0%,#0A74B0_100%)] p-4 font-sans dark:bg-[linear-gradient(135deg,#0b3d5e_0%,#06283d_100%)]"
     >
-      <div className="w-full max-w-[420px]">
-        <div className="mb-9 text-center">
-          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-[#0A4F2C] text-lg font-bold text-white">
-            M
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 opacity-[0.14]"
+        style={{
+          backgroundImage:
+            "linear-gradient(to right, rgba(255,255,255,0.7) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.7) 1px, transparent 1px)",
+          backgroundSize: "40px 40px",
+        }}
+      />
+
+      <button
+        type="button"
+        onClick={() => setTheme(isDark ? "light" : "dark")}
+        aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
+        className="absolute top-4 right-4 z-20 flex h-[34px] w-[34px] items-center justify-center rounded-lg bg-white/25 text-white backdrop-blur-sm transition hover:bg-white/35 focus-visible:ring-2 focus-visible:ring-white/70 focus-visible:outline-none dark:bg-white/10 dark:hover:bg-white/20"
+      >
+        {isDark ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
+      </button>
+
+      <div className="relative z-10 w-full max-w-[436px] rounded-[28px] border-2 border-[#1B7DB8] bg-white px-8 py-8 shadow-[0_20px_50px_-20px_rgba(10,50,90,0.45)] sm:px-9 dark:border-[#1B7DB8]/70 dark:bg-slate-900 dark:shadow-[0_24px_60px_-24px_rgba(0,0,0,0.7)]">
+        <div className="flex flex-col items-center text-center">
+          <div
+            className="text-[14px] font-bold tracking-[0.18em] text-slate-700 tabular-nums dark:text-slate-200"
+            suppressHydrationWarning
+          >
+            {now ? formatClock(now) : "00 : 00 : 00"}
           </div>
-          <h1 className="text-2xl font-semibold tracking-tight text-black">
-            Sign in to HomeDesk
-          </h1>
-          <p className="mt-1 text-sm text-black/60">
-            Metahara Sugar Factory · Asset &amp; House Portal
-          </p>
+
+          <div className="mt-4 flex h-11 w-11 items-center justify-center overflow-hidden rounded-full">
+            <Image
+              src="/images/msflogo.jpg"
+              alt="Metahara Sugar Factory"
+              width={44}
+              height={44}
+              className="h-full w-full object-cover"
+              priority
+            />
+          </div>
+
+          <div className="mt-3 space-y-0.5">
+            <p className="text-[12px] leading-tight font-bold text-slate-800 dark:text-slate-100">
+              የመተሐራ ስኳር ፋብሪካ
+            </p>
+            <p className="text-[12px] leading-tight font-bold text-slate-800 dark:text-slate-100">
+              የንብረትና የቤት አስተዳደር ፖርታል
+            </p>
+          </div>
         </div>
 
-        {!isOnline && (
-          <div className="mb-5 flex items-start gap-3 rounded-xl border border-black/15 bg-white p-4">
-            <WifiOff className="mt-0.5 h-5 w-5 shrink-0 text-[#0A4F2C]" />
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-medium text-black">
-                You&rsquo;re offline
-              </p>
-              <p className="mt-0.5 text-xs text-black/60">
-                Reconnect to continue, then try again.
-              </p>
+        <div className="mt-6 space-y-3">
+          {!isOnline && (
+            <div className="flex items-start gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200">
+              <WifiOff className="mt-0.5 h-4 w-4 shrink-0 text-slate-500 dark:text-slate-400" />
+              <div className="flex-1">
+                <p className="font-medium">You&apos;re offline</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  Reconnect to continue.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => window.location.reload()}
+                className="text-xs font-semibold text-[#2563EB] hover:underline"
+              >
+                Retry
+              </button>
             </div>
-            <button
-              type="button"
-              onClick={() => window.location.reload()}
-              className="text-xs font-semibold text-[#0A4F2C] hover:underline"
+          )}
+
+          {error && (
+            <div
+              role="alert"
+              aria-live="polite"
+              className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-300"
             >
-              Retry
-            </button>
-          </div>
-        )}
+              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+              <p>{error}</p>
+            </div>
+          )}
+        </div>
 
-        {error && (
-          <div
-            role="alert"
-            aria-live="polite"
-            className="mb-5 flex items-start gap-3 rounded-xl border border-black/15 bg-white p-4"
-          >
-            <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-[#0A4F2C]" />
-            <p className="text-sm text-black">{error}</p>
-          </div>
-        )}
-
-        {devMessage && (
-          <div
-            role="status"
-            aria-live="polite"
-            className="mb-5 rounded-xl border border-black/15 bg-white p-4 text-sm text-black"
-          >
-            {devMessage}
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit} noValidate>
-          <div className="space-y-5">
-            <div className="space-y-2 text-left">
+        <form onSubmit={handleSubmit} noValidate className="mt-6 text-left">
+          <div className="space-y-4">
+            <div className="space-y-1.5">
               <label
                 htmlFor="username"
-                className="block text-sm font-medium text-black"
+                className="block text-[14px] font-semibold text-slate-700 dark:text-slate-200"
               >
                 Email or username
               </label>
               <div className="relative">
-                <Mail className="pointer-events-none absolute top-1/2 left-4 h-4 w-4 -translate-y-1/2 text-black/40" />
+                <Mail className="pointer-events-none absolute top-1/2 left-3.5 h-4 w-4 -translate-y-1/2 text-slate-400" />
                 <input
                   ref={usernameRef}
                   id="username"
@@ -361,22 +378,20 @@ export default function LoginPage({
                   onChange={handleChange}
                   onKeyDown={handleUsernameKeyDown}
                   disabled={isLoading}
-                  placeholder="name@domain.com"
-                  style={inputStyle}
-                  className="h-12 w-full rounded-lg border border-black/15 bg-white pr-4 pl-11 text-base text-black outline-none placeholder:text-black/35 focus:border-[#0A4F2C] focus:ring-2 focus:ring-[#0A4F2C]/20 disabled:opacity-60"
+                  className="h-11 w-full rounded-[16px] border-2 border-[#C5D3E3] bg-[#F3F6FA] pr-4 pl-10 text-sm text-slate-900 transition outline-none placeholder:text-slate-400 focus:border-[#0A6396] focus:bg-white focus:ring-4 focus:ring-[#0A6396]/15 disabled:opacity-60 dark:border-slate-600 dark:bg-slate-800 dark:text-white dark:focus:border-[#1B7DB8] dark:focus:bg-slate-800 dark:focus:ring-[#1B7DB8]/20"
                 />
               </div>
             </div>
 
-            <div className="space-y-2 text-left">
+            <div className="space-y-1.5">
               <label
                 htmlFor="password"
-                className="block text-sm font-medium text-black"
+                className="block text-[14px] font-semibold text-slate-700 dark:text-slate-200"
               >
                 Password
               </label>
               <div className="relative">
-                <Lock className="pointer-events-none absolute top-1/2 left-4 h-4 w-4 -translate-y-1/2 text-black/40" />
+                <Lock className="pointer-events-none absolute top-1/2 left-3.5 h-4 w-4 -translate-y-1/2 text-slate-400" />
                 <input
                   ref={passwordRef}
                   id="password"
@@ -388,16 +403,14 @@ export default function LoginPage({
                   onChange={handleChange}
                   onKeyDown={handlePasswordKeyDown}
                   disabled={isLoading}
-                  placeholder="Enter your password"
-                  style={inputStyle}
-                  className="h-12 w-full rounded-lg border border-black/15 bg-white pr-12 pl-11 text-base text-black outline-none placeholder:text-black/35 focus:border-[#0A4F2C] focus:ring-2 focus:ring-[#0A4F2C]/20 disabled:opacity-60"
+                  className="h-11 w-full rounded-[16px] border-2 border-[#C5D3E3] bg-[#F3F6FA] pr-11 pl-10 text-sm text-slate-900 transition outline-none placeholder:text-slate-400 focus:border-[#0A6396] focus:bg-white focus:ring-4 focus:ring-[#0A6396]/15 disabled:opacity-60 dark:border-slate-600 dark:bg-slate-800 dark:text-white dark:focus:border-[#1B7DB8] dark:focus:bg-slate-800 dark:focus:ring-[#1B7DB8]/20"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword((visible) => !visible)}
                   disabled={isLoading}
                   aria-label={showPassword ? "Hide password" : "Show password"}
-                  className="absolute top-1/2 right-3 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-md text-black/50 hover:bg-black/5 hover:text-black disabled:opacity-50"
+                  className="absolute top-1/2 right-2.5 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-md text-slate-500 hover:bg-slate-200/60 hover:text-slate-700 focus-visible:ring-2 focus-visible:ring-[#0A6396]/40 focus-visible:outline-none disabled:opacity-50 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-slate-200"
                 >
                   {showPassword ? (
                     <EyeOff className="h-4 w-4" />
@@ -410,75 +423,50 @@ export default function LoginPage({
           </div>
 
           {TURNSTILE_SITE_KEY && (
-            <div ref={turnstileRef} className="mt-5 min-h-[60px]" />
+            <div ref={turnstileRef} className="mt-4 min-h-[60px]" />
           )}
+
+          <div className="mt-5 flex items-center justify-between gap-4">
+            <label className="flex cursor-pointer items-center gap-2 text-[14px] font-semibold text-slate-800 select-none dark:text-slate-200">
+              <input
+                type="checkbox"
+                checked={rememberMe}
+                onChange={(e) => setRememberMe(e.target.checked)}
+                disabled={isLoading}
+                className="h-[18px] w-[18px] cursor-pointer rounded-[4px] border border-slate-300 accent-[#2563EB] focus-visible:ring-2 focus-visible:ring-[#2563EB]/40 focus-visible:outline-none dark:border-slate-500"
+              />
+              <span>Remember me</span>
+            </label>
+            <Link
+              href="/forgot-password"
+              className="rounded text-[14px] font-semibold text-[#2563EB] hover:underline focus-visible:ring-2 focus-visible:ring-[#2563EB]/40 focus-visible:outline-none"
+            >
+              Forgot password?
+            </Link>
+          </div>
 
           <button
             type="submit"
             disabled={isLoading || !isOnline}
-            className="mt-7 flex h-12 w-full items-center justify-center gap-2 rounded-lg bg-[#0A4F2C] text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+            className="mt-6 flex h-[46px] w-full items-center justify-center gap-2 rounded-[14px] bg-[#0A6396] text-[14px] font-bold text-white transition hover:bg-[#08557f] focus-visible:ring-4 focus-visible:ring-[#0A6396]/30 focus-visible:outline-none active:bg-[#07486d] disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {isLoading && <Loader2 className="h-4 w-4 animate-spin" />}
-            {isLoading ? "Signing in…" : "Sign in"}
+            {isLoading ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Signing in...
+              </>
+            ) : (
+              <>
+                Sign in
+                <ArrowRight className="h-4 w-4" />
+              </>
+            )}
           </button>
         </form>
 
-        {showSso && (
-          <div className="mt-7 space-y-3">
-            <div className="flex items-center gap-3">
-              <span className="h-px flex-1 bg-black/10" />
-              <span className="text-xs text-black/45">or continue with</span>
-              <span className="h-px flex-1 bg-black/10" />
-            </div>
-            {googleEnabled && (
-              <button
-                type="button"
-                onClick={() => handleSocialSignIn("google")}
-                disabled={!isOnline}
-                className="h-11 w-full rounded-lg border border-black/15 bg-white text-sm font-medium text-black hover:bg-black/[0.03] disabled:opacity-50"
-              >
-                Google
-              </button>
-            )}
-            {microsoftEnabled && (
-              <button
-                type="button"
-                onClick={() => handleSocialSignIn("microsoft")}
-                disabled={!isOnline}
-                className="h-11 w-full rounded-lg border border-black/15 bg-white text-sm font-medium text-black hover:bg-black/[0.03] disabled:opacity-50"
-              >
-                Microsoft
-              </button>
-            )}
-            {ssoStatus?.enabled && ssoStatus.provider !== "microsoft" && (
-              <Link
-                href="/api/auth/sso-init"
-                className="flex h-11 items-center justify-center rounded-lg border border-black/15 bg-white text-sm font-medium text-black hover:bg-black/[0.03]"
-              >
-                {ssoStatus.providerName}
-              </Link>
-            )}
-          </div>
-        )}
-
-        <div className="mt-8 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-xs text-black/55">
-          <Link href="/forgot-password" className="hover:text-[#0A4F2C]">
-            Forgot password?
-          </Link>
-          <Link href="/terms" className="hover:text-[#0A4F2C]">
-            Terms
-          </Link>
-          <Link href="/privacy" className="hover:text-[#0A4F2C]">
-            Privacy
-          </Link>
-          <a
-            href={TELEGRAM_HELP_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="hover:text-[#0A4F2C]"
-          >
-            Support
-          </a>
+        <div className="mt-6 flex items-center justify-center gap-1.5 text-[12px] text-slate-500 dark:text-slate-400">
+          <Building2 className="h-3.5 w-3.5 text-slate-400 dark:text-slate-500" />
+          <span>© {year} Metahara Sugar Factory</span>
         </div>
       </div>
     </main>
