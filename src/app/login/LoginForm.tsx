@@ -176,7 +176,6 @@ export default function LoginPage(_props: LoginPageProps) {
   }, []);
 
   useEffect(() => {
-    if (isAndroidApp()) return;
     usernameRef.current?.focus({ preventScroll: true });
   }, []);
 
