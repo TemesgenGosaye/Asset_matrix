@@ -27,6 +27,7 @@ import {
   WifiOff,
 } from "lucide-react";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
+import { isAndroidApp } from "@/lib/native-app";
 
 const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || "";
 
@@ -175,12 +176,8 @@ export default function LoginPage(_props: LoginPageProps) {
   }, []);
 
   useEffect(() => {
-    if (formData.username) {
-      passwordRef.current?.focus({ preventScroll: true });
-    } else {
-      usernameRef.current?.focus({ preventScroll: true });
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    if (isAndroidApp()) return;
+    usernameRef.current?.focus({ preventScroll: true });
   }, []);
 
   const handleChange = (event: ChangeEvent<HTMLInputElement>) => {

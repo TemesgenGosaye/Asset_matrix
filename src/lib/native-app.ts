@@ -42,3 +42,35 @@ export function isNativeApp(): boolean {
 
   return false;
 }
+
+/**
+ * True when running inside the Android APK (Capacitor shell or WebView).
+ * Used for platform-specific UI such as the login background.
+ */
+export function isAndroidApp(): boolean {
+  if (typeof window === "undefined") return false;
+
+  const capacitor = (window as Window & { Capacitor?: CapacitorBridge })
+    .Capacitor;
+  const platform =
+    capacitor && typeof capacitor.getPlatform === "function"
+      ? capacitor.getPlatform()
+      : null;
+
+  if (platform === "android") return true;
+  if (platform && platform !== "web") return false;
+
+  const ua = window.navigator.userAgent || "";
+  if (!/android/i.test(ua)) return false;
+
+  // Android WebView marker
+  if (/; wv\)|\bwv\b/i.test(ua)) return true;
+
+  try {
+    if (window.localStorage.getItem(NATIVE_FLAG_KEY) === "1") return true;
+  } catch {
+    // ignore
+  }
+
+  return false;
+}

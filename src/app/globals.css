@@ -1609,3 +1609,26 @@ html:has([data-login-page]),
 body:has([data-login-page]) {
   background-color: transparent;
 }
+
+[data-login-page] input:-webkit-autofill,
+[data-login-page] input:-webkit-autofill:hover,
+[data-login-page] input:-webkit-autofill:focus,
+[data-login-page] textarea:-webkit-autofill,
+[data-login-page] select:-webkit-autofill {
+  -webkit-text-fill-color: #0f172a;
+  -webkit-box-shadow: 0 0 0px 1000px #f3f6fa inset;
+  box-shadow: 0 0 0px 1000px #f3f6fa inset;
+  transition: background-color 9999s ease-out 0s;
+  caret-color: #0f172a;
+}
+
+.dark [data-login-page] input:-webkit-autofill,
+.dark [data-login-page] input:-webkit-autofill:hover,
+.dark [data-login-page] input:-webkit-autofill:focus,
+.dark [data-login-page] textarea:-webkit-autofill,
+.dark [data-login-page] select:-webkit-autofill {
+  -webkit-text-fill-color: #f8fafc;
+  -webkit-box-shadow: 0 0 0px 1000px #1e293b inset;
+  box-shadow: 0 0 0px 1000px #1e293b inset;
+  caret-color: #f8fafc;
+}
