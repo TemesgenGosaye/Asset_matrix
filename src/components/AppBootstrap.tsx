@@ -8,6 +8,7 @@ import {
   useSyncExternalStore,
   type ReactNode,
 } from "react";
+import Image from "next/image";
 import { SplashScreen } from "@capacitor/splash-screen";
 import RadialSpinner from "@/components/RadialSpinner";
 import { isNativeApp } from "@/lib/native-app";
@@ -155,41 +156,37 @@ export default function AppBootstrap({ children }: { children: ReactNode }) {
       {children}
       {showOverlay && (
         <div
-          className={`msf-loader msf-loader-boot fixed inset-0 z-[100]${
+          className={`msf-loader-boot fixed inset-0 z-[100] flex flex-col items-center justify-center bg-white px-6 text-center${
             phase === "leaving" ? "msf-loader-fade" : ""
           }`}
           role="status"
           aria-live="polite"
-          aria-label="Loading HomeDesk"
+          aria-label="Loading MSF HomeDesk"
         >
-          <div className="msf-loader-ambient" aria-hidden="true" />
-          <div className="msf-loader-brand">
-            <span
-              className="msf-loader-brand-mark msf-loader-logo-image"
-              aria-hidden="true"
+          <p className="text-[11px] font-semibold tracking-[0.24em] text-[#0a4f2c] uppercase sm:text-xs">
+            METAHARA SUGAR FACTORY
+          </p>
+
+          <div className="my-6 flex h-24 w-24 items-center justify-center sm:h-28 sm:w-28">
+            <Image
+              src="/icons/msf-logo.png"
+              alt="MSF logo"
+              width={112}
+              height={112}
+              className="h-full w-full object-contain"
+              priority
             />
-            <div>
-              <p className="msf-loader-eyebrow">Metahara Sugar Factory</p>
-              <p className="msf-loader-title">HomeDesk</p>
-            </div>
           </div>
-          <div className="msf-loader-center">
-            <div className="py-2" aria-hidden="true">
-              <RadialSpinner size={48} color="#0a4f2c" />
-            </div>
 
-            <div className="msf-loader-copy">
-              <p className="msf-loader-subtitle">Secure workspace</p>
-              <p className="msf-loader-status">Restoring your workspace…</p>
-            </div>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
+            MSF HomeDesk
+          </h1>
+          <p className="mt-1 text-sm font-medium text-slate-600">
+            Asset &amp; House Portal
+          </p>
 
-            <div className="msf-loader-bar" aria-hidden="true">
-              <span />
-            </div>
-          </div>
-          <div className="msf-loader-footer">
-            <p>© 2026 Metahara Sugar Factory</p>
-            <p className="msf-loader-powered">Powered By Temesgen G.</p>
+          <div className="mt-8" aria-hidden="true">
+            <RadialSpinner size={40} color="#0a4f2c" />
           </div>
         </div>
       )}
