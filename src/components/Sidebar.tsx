@@ -297,7 +297,11 @@ const Sidebar = React.memo(function Sidebar({
       ) : (
         <div className="flex h-14 shrink-0 items-center gap-2 px-3">
           <div className="[&_.text-muted-foreground]:text-chrome-muted flex flex-1 items-center justify-between gap-2">
-            <BrandLockup size="md" subtitle="Workspace" />
+            <BrandLockup
+              size="md"
+              subtitle="Workspace"
+              className="sidebar-brand-lockup"
+            />
             <Button
               size="sm"
               variant="ghost"

@@ -211,6 +211,10 @@
     font-feature-settings: "cv11", "ss01";
     letter-spacing: -0.006em;
   }
+
+  aside.app-chrome .sidebar-brand-lockup :where(span) {
+    color: #ffffff !important;
+  }
 }
 
 @layer base {
