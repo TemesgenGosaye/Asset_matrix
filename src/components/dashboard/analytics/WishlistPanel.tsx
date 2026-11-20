@@ -26,11 +26,11 @@ interface Wish {
 }
 
 const tones: Record<Tone, string> = {
-  warning: "bg-amber-500/10 text-amber-600 dark:text-amber-400",
+  warning: "bg-warning-bg text-warning-foreground",
   danger: "bg-destructive/10 text-destructive",
   brass: "bg-brass-500/10 text-brass-600 dark:text-brass-300",
   navy: "bg-sky-500/10 text-sky-600 dark:text-sky-400",
-  success: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
+  success: "bg-success-bg text-success-foreground",
 };
 
 interface WishlistPanelProps {
@@ -127,7 +127,7 @@ export default function WishlistPanel({ data }: WishlistPanelProps) {
 
   if (visible.length === 0) {
     return (
-      <p className="text-muted-foreground flex h-full min-h-24 items-center justify-center text-xs">
+      <p className="text-muted-foreground flex h-full min-h-20 items-center justify-center text-center text-[10px]">
         No priority actions from the live register in this range.
       </p>
     );
@@ -141,24 +141,26 @@ export default function WishlistPanel({ data }: WishlistPanelProps) {
           <Link
             key={wish.id}
             href={wish.href}
-            className="border-border/70 bg-background/40 hover:border-brass-500/40 grid min-h-8 grid-cols-[1.25rem_minmax(0,1fr)_auto] items-center gap-2 rounded-lg border px-1.5 transition-colors"
+            className="border-border/60 bg-background/40 hover:border-brass-500/50 hover:bg-card grid min-h-8 grid-cols-[1.25rem_minmax(0,1fr)_auto] items-center gap-2 rounded-lg border px-2 transition-all duration-150 hover:shadow-sm"
           >
-            <span className="text-muted-foreground text-[9px] font-semibold tabular-nums">
-              0{index + 1}
+            <span className="text-muted-foreground text-[10px] font-semibold tabular-nums">
+              {String(index + 1).padStart(2, "0")}
             </span>
-            <div className="min-w-0">
-              <p className="truncate text-[10px] font-semibold">{wish.label}</p>
-              <p className="text-muted-foreground truncate text-[9px]">
+            <span className="min-w-0">
+              <span className="block truncate text-[11px] leading-tight font-semibold">
+                {wish.label}
+              </span>
+              <span className="text-muted-foreground block truncate text-[10px] leading-tight">
                 {wish.detail}
-              </p>
-            </div>
+              </span>
+            </span>
             <span
               className={cn(
                 "inline-flex min-w-8 items-center justify-center gap-1 rounded-md px-1.5 py-1 text-[10px] font-semibold tabular-nums",
                 tones[wish.tone],
               )}
             >
-              <Icon className="h-3 w-3" />
+              <Icon className="h-3 w-3" aria-hidden />
               {wish.value}
             </span>
           </Link>

@@ -8,7 +8,7 @@ import type { HouseAnalyticsResponse } from "@/lib/house-analytics/contract";
 type Occupancy = HouseAnalyticsResponse["occupancy"];
 
 const config = {
-  occupancy: { label: "Occupancy", color: "var(--color-brass-500)" },
+  occupancy: { label: "Occupancy", color: "hsl(var(--primary))" },
 } satisfies ChartConfig;
 
 interface OccupancyGaugeProps {
@@ -23,7 +23,7 @@ export default function OccupancyGauge({ occupancy }: OccupancyGaugeProps) {
       <ChartContainer config={config} className="min-h-0 w-full flex-1">
         <RadialBarChart
           data={data}
-          innerRadius="76%"
+          innerRadius="74%"
           outerRadius="100%"
           startAngle={210}
           endAngle={-30}
@@ -48,14 +48,14 @@ export default function OccupancyGauge({ occupancy }: OccupancyGaugeProps) {
                       <tspan
                         x={viewBox.cx}
                         y={viewBox.cy}
-                        className="fill-foreground text-2xl font-bold"
+                        className="fill-foreground text-xl font-bold tabular-nums"
                       >
                         {occupancy.value}%
                       </tspan>
                       <tspan
                         x={viewBox.cx}
-                        y={(viewBox.cy ?? 0) + 16}
-                        className="fill-muted-foreground text-[8px]"
+                        y={(viewBox.cy ?? 0) + 14}
+                        className="fill-muted-foreground text-[8px] font-medium tracking-[0.1em]"
                       >
                         OCCUPIED
                       </tspan>
@@ -68,9 +68,9 @@ export default function OccupancyGauge({ occupancy }: OccupancyGaugeProps) {
           </RadialBar>
         </RadialBarChart>
       </ChartContainer>
-      <p className="text-muted-foreground mt-1 text-center text-[10px] leading-tight">
+      <p className="text-muted-foreground mt-1 truncate text-center text-[10px] leading-tight tabular-nums">
         {occupancy.occupied.toLocaleString()} /{" "}
-        {occupancy.total.toLocaleString()} houses occupied
+        {occupancy.total.toLocaleString()} houses
       </p>
     </div>
   );

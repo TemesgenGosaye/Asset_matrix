@@ -149,22 +149,6 @@
     letter-spacing: 0.01em;
   }
 
-  .analytics-surface {
-    background-color: hsl(var(--card) / 0.6);
-    background-image:
-      radial-gradient(
-        circle at 12% -10%,
-        hsl(var(--chart-1) / 0.1),
-        transparent 42%
-      ),
-      linear-gradient(to right, hsl(var(--border) / 0.32) 1px, transparent 1px),
-      linear-gradient(to bottom, hsl(var(--border) / 0.32) 1px, transparent 1px);
-    background-size:
-      auto,
-      32px 32px,
-      32px 32px;
-  }
-
   @media (min-width: 1280px) {
     .dashboard-fixed-main {
       overflow: hidden !important;

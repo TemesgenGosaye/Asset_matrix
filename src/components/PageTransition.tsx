@@ -12,7 +12,7 @@ export default function PageTransition({ children }: PageTransitionProps) {
   return (
     <div
       key={pathname}
-      className="animate-in fade-in fill-mode-both duration-100"
+      className="animate-in fade-in fill-mode-both h-full duration-100"
     >
       {children}
     </div>

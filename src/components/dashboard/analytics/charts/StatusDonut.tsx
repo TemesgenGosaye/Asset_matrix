@@ -12,12 +12,16 @@ import type { HouseAnalyticsResponse } from "@/lib/house-analytics/contract";
 
 type Segment = HouseAnalyticsResponse["statusDistribution"][number];
 
-const colors = [
-  "hsl(var(--chart-2))",
-  "var(--color-brass-500)",
-  "hsl(var(--chart-4))",
-  "hsl(var(--chart-5))",
-];
+const colorByName: Record<string, string> = {
+  Free: "hsl(var(--success))",
+  Occupied: "hsl(var(--primary))",
+  "Awaiting inspection": "hsl(var(--warning))",
+  "Inactive / damaged": "hsl(var(--destructive))",
+};
+
+function colorFor(name: string): string {
+  return colorByName[name] ?? "hsl(var(--muted-foreground))";
+}
 
 function toKey(name: string): string {
   return name
@@ -36,16 +40,16 @@ export default function StatusDonut({ data }: StatusDonutProps) {
 
   if (total === 0) {
     return (
-      <p className="text-muted-foreground flex h-full min-h-32 items-center justify-center text-xs">
+      <p className="text-muted-foreground flex h-full min-h-24 items-center justify-center text-center text-[10px]">
         No houses recorded for this filter.
       </p>
     );
   }
 
   const config: ChartConfig = { value: { label: "Houses" } };
-  const chartData = active.map((segment, index) => {
+  const chartData = active.map((segment) => {
     const key = toKey(segment.name);
-    config[key] = { label: segment.name, color: colors[index % colors.length] };
+    config[key] = { label: segment.name, color: colorFor(segment.name) };
     return { key, value: segment.value, fill: `var(--color-${key})` };
   });
 
@@ -58,8 +62,9 @@ export default function StatusDonut({ data }: StatusDonutProps) {
             data={chartData}
             dataKey="value"
             nameKey="key"
-            innerRadius={42}
+            innerRadius={38}
             strokeWidth={2}
+            stroke="hsl(var(--card))"
           >
             <Label
               content={({ viewBox }) => {
@@ -74,14 +79,14 @@ export default function StatusDonut({ data }: StatusDonutProps) {
                       <tspan
                         x={viewBox.cx}
                         y={viewBox.cy}
-                        className="fill-foreground text-lg font-bold"
+                        className="fill-foreground text-lg font-bold tabular-nums"
                       >
                         {total.toLocaleString()}
                       </tspan>
                       <tspan
                         x={viewBox.cx}
-                        y={(viewBox.cy ?? 0) + 14}
-                        className="fill-muted-foreground text-[8px]"
+                        y={(viewBox.cy ?? 0) + 13}
+                        className="fill-muted-foreground text-[8px] font-medium tracking-[0.1em]"
                       >
                         HOUSES
                       </tspan>
@@ -94,16 +99,17 @@ export default function StatusDonut({ data }: StatusDonutProps) {
           </Pie>
         </PieChart>
       </ChartContainer>
-      <div className="mt-1 grid grid-cols-2 gap-x-2 gap-y-0.5">
-        {active.map((segment, index) => (
+      <div className="mt-1 grid min-h-0 grid-cols-1 gap-0.5 overflow-y-auto sm:grid-cols-2 xl:grid-cols-1">
+        {active.map((segment) => (
           <Link
             key={segment.name}
             href={segment.href}
-            className="hover:bg-muted/40 flex min-h-7 items-center gap-1.5 rounded px-1 text-[10px] transition-colors"
+            className="hover:bg-muted/50 flex min-h-5 items-center gap-1.5 rounded px-1 text-[10px] transition-colors"
           >
             <span
-              className="h-2 w-2 shrink-0 rounded-full"
-              style={{ backgroundColor: colors[index % colors.length] }}
+              aria-hidden
+              className="h-1.5 w-1.5 shrink-0 rounded-full"
+              style={{ backgroundColor: colorFor(segment.name) }}
             />
             <span className="text-muted-foreground min-w-0 flex-1 truncate">
               {segment.name}

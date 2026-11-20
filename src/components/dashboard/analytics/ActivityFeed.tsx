@@ -27,7 +27,6 @@ export default function ActivityFeed({ items }: ActivityFeedProps) {
       title="Recent activity"
       description="Latest audited house-queue actions"
       className="h-full"
-      surface
     >
       {items.length === 0 ? (
         <p className="text-muted-foreground py-8 text-center text-xs">

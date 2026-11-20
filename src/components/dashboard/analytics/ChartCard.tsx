@@ -1,12 +1,15 @@
 import type { ReactNode } from "react";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+
+type Accent = "brass" | "blue" | "green" | "amber" | "red";
+
+const accents: Record<Accent, string> = {
+  brass: "bg-brass-500",
+  blue: "bg-sky-500",
+  green: "bg-emerald-500",
+  amber: "bg-amber-500",
+  red: "bg-destructive",
+};
 
 interface ChartCardProps {
   title: string;
@@ -16,7 +19,7 @@ interface ChartCardProps {
   children: ReactNode;
   className?: string;
   contentClassName?: string;
-  surface?: boolean;
+  accent?: Accent;
 }
 
 export default function ChartCard({
@@ -27,45 +30,52 @@ export default function ChartCard({
   children,
   className,
   contentClassName,
-  surface = false,
+  accent = "brass",
 }: ChartCardProps) {
   return (
-    <Card
+    <section
       className={cn(
-        "border-border/70 bg-card/70 flex min-h-0 min-w-0 flex-col overflow-hidden",
-        surface && "analytics-surface",
+        "group border-border/70 bg-card/90 relative flex min-h-0 min-w-0 flex-col overflow-hidden rounded-xl border shadow-[0_1px_2px_0_rgb(0_0_0_/_0.03)] transition-[border-color,box-shadow] duration-200",
+        "hover:border-border hover:shadow-[0_4px_18px_-12px_hsl(var(--foreground)_/_0.28)]",
         className,
       )}
     >
-      <CardHeader className="flex shrink-0 flex-row items-start justify-between gap-3 space-y-0 px-3 py-2">
-        <div className="min-w-0 space-y-0.5">
-          {eyebrow && (
-            <p className="text-brass-600 dark:text-brass-400 text-[9px] font-semibold tracking-[0.16em] uppercase">
+      <span
+        aria-hidden
+        className={cn(
+          "pointer-events-none absolute inset-x-0 top-0 h-[2px]",
+          accents[accent],
+        )}
+      />
+      <header className="flex shrink-0 items-start justify-between gap-2 px-3 pt-2.5 pb-1.5 xl:px-2.5 xl:pt-2">
+        <div className="min-w-0">
+          {eyebrow ? (
+            <p className="text-brass-600 dark:text-brass-400 text-[9px] leading-none font-semibold tracking-[0.16em] uppercase">
               {eyebrow}
             </p>
-          )}
-          <div className="flex items-center gap-2">
-            <span className="bg-brass-500 h-1.5 w-1.5 shrink-0 rounded-full" />
-            <CardTitle className="text-[10px] leading-tight font-semibold tracking-[0.1em] uppercase">
-              {title}
-            </CardTitle>
-          </div>
-          {description && (
-            <CardDescription className="text-[10px] leading-snug xl:hidden">
+          ) : null}
+          <h3 className="mt-1 truncate text-[12px] leading-tight font-semibold tracking-tight xl:text-[11px]">
+            {title}
+          </h3>
+          {description ? (
+            <p
+              className="text-muted-foreground mt-0.5 truncate text-[10px] leading-tight"
+              title={description}
+            >
               {description}
-            </CardDescription>
-          )}
+            </p>
+          ) : null}
         </div>
         {action}
-      </CardHeader>
-      <CardContent
+      </header>
+      <div
         className={cn(
-          "min-h-0 min-w-0 flex-1 px-2.5 pt-0 pb-2.5",
+          "min-h-0 min-w-0 flex-1 px-3 pb-3 xl:px-2.5 xl:pb-2.5",
           contentClassName,
         )}
       >
         {children}
-      </CardContent>
-    </Card>
+      </div>
+    </section>
   );
 }
