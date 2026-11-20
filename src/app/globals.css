@@ -1689,9 +1689,34 @@ html[data-android-app="1"] [data-login-page] > [aria-hidden="true"] {
   display: none;
 }
 
+html[data-android-app="1"] [data-login-page] {
+  align-items: flex-start !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  padding: max(20px, env(safe-area-inset-top))
+    max(18px, env(safe-area-inset-right)) max(24px, env(safe-area-inset-bottom))
+    max(18px, env(safe-area-inset-left)) !important;
+}
+
 html[data-android-app="1"] [data-login-page] .android-login-card {
-  border-color: #d7e4ef !important;
-  box-shadow: 0 18px 50px -28px rgba(15, 76, 120, 0.45) !important;
+  width: 100%;
+  max-width: 440px;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background-color: transparent !important;
+  box-shadow: none !important;
+  padding: 12px 4px 24px !important;
+}
+
+@media (max-width: 420px) {
+  html[data-android-app="1"] [data-login-page] {
+    padding: max(14px, env(safe-area-inset-top)) 16px
+      max(20px, env(safe-area-inset-bottom)) 16px !important;
+  }
+
+  html[data-android-app="1"] [data-login-page] .android-login-card {
+    padding: 6px 0 20px !important;
+  }
 }
 
 .dashboard-welcome {
