@@ -12,6 +12,7 @@ export interface OrganizationContext {
   } | null;
   userId: string;
   name: string | null;
+  fullName: string;
   departmentId: string | null;
   isAdmin: boolean;
   permissions: Set<string>;
@@ -95,6 +96,7 @@ export const getOrganizationContext = cache(
         : null,
       userId: user.userid,
       name: user.firstname,
+      fullName: `${user.firstname} ${user.lastname}`.trim(),
       departmentId: user.departmentId,
       isAdmin: user.isadmin,
       permissions,

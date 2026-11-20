@@ -1,5 +1,6 @@
 import Breadcrumb from "@/components/Breadcrumb";
 import DashboardGrid from "@/components/dashboard/DashboardGrid";
+import DashboardWelcome from "@/components/dashboard/DashboardWelcome";
 import QuickActions from "@/components/dashboard/QuickActions";
 import AnalyticsSkeleton from "@/components/dashboard/analytics/AnalyticsSkeleton";
 import HouseAnalyticsPanel from "@/components/dashboard/analytics/HouseAnalyticsPanel";
@@ -35,7 +36,8 @@ export default async function DashboardPage() {
         <Breadcrumb
           options={[{ label: "Dashboard", href: "/dashboard", current: true }]}
         />
-        <div className="flex flex-wrap items-start justify-between gap-3">
+        <DashboardWelcome className="mt-3" headingLevel={2} />
+        <div className="mt-4 flex flex-wrap items-start justify-between gap-3">
           <div>
             <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
               My Dashboard
@@ -62,6 +64,7 @@ export default async function DashboardPage() {
             { label: "Dashboard", href: "/dashboard" },
           ]}
         />
+        <DashboardWelcome className="mt-3" headingLevel={2} />
         <div className="border-border bg-card mt-6 rounded-xl border p-6">
           <h1 className="text-xl font-semibold">No organization assigned</h1>
           <p className="text-muted-foreground mt-1 text-sm">
@@ -81,6 +84,7 @@ export default async function DashboardPage() {
           { label: "Dashboard", href: "/dashboard" },
         ]}
       />
+      <DashboardWelcome className="mt-3 shrink-0" headingLevel={1} />
       <div className="mt-2 min-h-0 flex-1">
         <Suspense fallback={<AnalyticsSkeleton />}>
           <HouseAnalyticsPanel organizationId={ctx.organization.id} />

@@ -17,6 +17,7 @@ import {
   AlertCircle,
   ArrowRight,
   Building2,
+  Clock3,
   Eye,
   EyeOff,
   Loader2,
@@ -156,10 +157,14 @@ export default function LoginPage(_props: LoginPageProps) {
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [isAndroid, setIsAndroid] = useState(false);
+  const [googleNotice, setGoogleNotice] = useState(false);
 
   const usernameRef = useRef<HTMLInputElement>(null);
   const passwordRef = useRef<HTMLInputElement>(null);
   const turnstileRef = useRef<HTMLDivElement>(null);
+  const autoAdvancedRef = useRef(false);
+  const androidFocusInitializedRef = useRef(false);
   const { token: turnstileToken, reset: resetTurnstile } =
     useTurnstile(turnstileRef);
   const { isOnline } = useOnlineStatus();
@@ -183,11 +188,46 @@ export default function LoginPage(_props: LoginPageProps) {
   useEffect(() => {
     if (!isAndroidApp()) return;
     const root = document.documentElement;
+    const wasDark = root.classList.contains("dark");
+    root.classList.remove("dark");
     root.setAttribute("data-android-app", "1");
+    const timer = window.setTimeout(() => setIsAndroid(true), 0);
     return () => {
+      window.clearTimeout(timer);
       root.removeAttribute("data-android-app");
+      if (wasDark) root.classList.add("dark");
     };
   }, []);
+
+  useEffect(() => {
+    if (!isAndroid || androidFocusInitializedRef.current) return;
+    androidFocusInitializedRef.current = true;
+    if (formData.username.trim()) {
+      passwordRef.current?.focus({ preventScroll: true });
+      autoAdvancedRef.current = true;
+      return;
+    }
+    usernameRef.current?.focus({ preventScroll: true });
+  }, [isAndroid, formData.username]);
+
+  useEffect(() => {
+    if (!isAndroid || autoAdvancedRef.current) return;
+    if (!formData.username.trim()) {
+      autoAdvancedRef.current = false;
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      passwordRef.current?.focus({ preventScroll: true });
+      autoAdvancedRef.current = true;
+    }, 900);
+    return () => window.clearTimeout(timer);
+  }, [isAndroid, formData.username]);
+
+  useEffect(() => {
+    if (!googleNotice) return;
+    const timer = window.setTimeout(() => setGoogleNotice(false), 5000);
+    return () => window.clearTimeout(timer);
+  }, [googleNotice]);
 
   const handleChange = (event: ChangeEvent<HTMLInputElement>) => {
     const { name, value } = event.target;
@@ -299,7 +339,9 @@ export default function LoginPage(_props: LoginPageProps) {
         {isDark ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
       </button>
 
-      <div className="relative z-10 w-full max-w-[436px] rounded-[28px] border-2 border-[#1B7DB8] bg-white px-8 py-8 shadow-[0_20px_50px_-20px_rgba(10,50,90,0.45)] sm:px-9 dark:border-[#1B7DB8]/70 dark:bg-slate-900 dark:shadow-[0_24px_60px_-24px_rgba(0,0,0,0.7)]">
+      <div
+        className={`relative z-10 w-full max-w-[436px] rounded-[28px] border-2 border-[#1B7DB8] bg-white px-8 py-8 shadow-[0_20px_50px_-20px_rgba(10,50,90,0.45)] sm:px-9 dark:border-[#1B7DB8]/70 dark:bg-slate-900 dark:shadow-[0_24px_60px_-24px_rgba(0,0,0,0.7)] ${isAndroid ? "android-login-card" : ""}`}
+      >
         <div className="flex flex-col items-center text-center">
           <div
             className="text-[14px] font-bold tracking-[0.18em] text-slate-700 tabular-nums dark:text-slate-200"
@@ -468,6 +510,54 @@ export default function LoginPage(_props: LoginPageProps) {
               </>
             )}
           </button>
+
+          {isAndroid && (
+            <div className="android-google-section mt-5">
+              <div className="flex items-center gap-3 text-[11px] font-semibold tracking-[0.12em] text-slate-400 uppercase">
+                <span className="h-px flex-1 bg-slate-200" />
+                or
+                <span className="h-px flex-1 bg-slate-200" />
+              </div>
+              <button
+                type="button"
+                onClick={() => setGoogleNotice(true)}
+                aria-describedby={
+                  googleNotice ? "android-google-notice" : undefined
+                }
+                className="android-google-button mt-3 flex h-[46px] w-full items-center justify-center gap-2.5 rounded-[14px] border-2 border-[#C5D3E3] bg-white text-[14px] font-bold text-slate-700 transition hover:border-[#0A6396] hover:bg-[#F7FAFD] focus-visible:ring-4 focus-visible:ring-[#0A6396]/20 focus-visible:outline-none active:bg-[#EEF4F9]"
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true" className="h-4 w-4">
+                  <path
+                    fill="#4285F4"
+                    d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.27-4.74 3.27-8.1Z"
+                  />
+                  <path
+                    fill="#34A853"
+                    d="M12 23c2.97 0 5.46-.98 7.28-2.65l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84A11 11 0 0 0 12 23Z"
+                  />
+                  <path
+                    fill="#FBBC05"
+                    d="M5.84 14.11a6.6 6.6 0 0 1 0-4.22V7.05H2.18a11 11 0 0 0 0 9.9l3.66-2.84Z"
+                  />
+                  <path
+                    fill="#EA4335"
+                    d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.05l3.66 2.84C6.71 7.31 9.14 5.38 12 5.38Z"
+                  />
+                </svg>
+                Sign in with Google
+              </button>
+              {googleNotice && (
+                <div
+                  id="android-google-notice"
+                  role="status"
+                  className="android-google-notice mt-2 flex items-start gap-2 rounded-xl border border-[#BBD7EC] bg-[#F3F8FD] px-3 py-2 text-left text-[12px] font-medium text-[#0B4C73]"
+                >
+                  <Clock3 className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                  <span>Please wait - Google sign-in is coming soon.</span>
+                </div>
+              )}
+            </div>
+          )}
         </form>
 
         <footer className="mt-6 space-y-2 text-center">

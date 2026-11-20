@@ -1,5 +1,6 @@
 import React from "react";
 import Breadcrumb from "@/components/Breadcrumb";
+import DashboardWelcome from "@/components/dashboard/DashboardWelcome";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
@@ -68,6 +69,8 @@ export default async function HamsDashboardPage() {
           },
         ]}
       />
+
+      <DashboardWelcome className="mt-3" headingLevel={2} />
 
       {/* ─── Page Header Matching Existing Portal Module Style ─── */}
       <div className="flex flex-wrap items-center justify-between gap-3">
