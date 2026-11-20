@@ -189,6 +189,22 @@
   .app-chrome {
     @apply bg-chrome text-chrome-foreground border-chrome-border;
   }
+
+  aside.app-chrome {
+    --chrome: 216 44% 13%;
+    --chrome-foreground: 210 40% 97%;
+    --chrome-muted: 215 20% 72%;
+    --chrome-border: 215 30% 23%;
+    --chrome-hover: 215 32% 19%;
+  }
+
+  .dark aside.app-chrome {
+    --chrome: 216 42% 16%;
+    --chrome-foreground: 210 40% 97%;
+    --chrome-muted: 215 20% 74%;
+    --chrome-border: 215 30% 27%;
+    --chrome-hover: 215 32% 22%;
+  }
 }
 
 @layer base {
@@ -249,11 +265,11 @@
      * border is deliberately stronger than `--border` because this hairline
      * separates the frame from a surface rather than one field from another.
      */
-    --chrome: 216 44% 13%;
-    --chrome-foreground: 210 40% 97%;
-    --chrome-muted: 215 20% 72%;
-    --chrome-border: 215 30% 23%;
-    --chrome-hover: 215 32% 19%;
+    --chrome: 220 20% 96.5%;
+    --chrome-foreground: 220 24% 14%;
+    --chrome-muted: 220 10% 44%;
+    --chrome-border: 220 16% 88%;
+    --chrome-hover: 220 18% 92.5%;
 
     /* Which way the assistant accent is mixed, so the single
      * `.assistant-prose` rule serves both directions. */
@@ -303,11 +319,11 @@
     --info-bg: 220 50% 12%;
 
     /* Chrome steps UP from the near-black canvas, so the frame sits forward. */
-    --chrome: 216 42% 16%;
-    --chrome-foreground: 210 40% 97%;
-    --chrome-muted: 215 20% 74%;
-    --chrome-border: 215 30% 27%;
-    --chrome-hover: 215 32% 22%;
+    --chrome: 220 13% 10%;
+    --chrome-foreground: 220 16% 94%;
+    --chrome-muted: 220 10% 62%;
+    --chrome-border: 220 12% 18%;
+    --chrome-hover: 220 12% 16%;
 
     --assist-mix-target: 0 0% 100%;
 
