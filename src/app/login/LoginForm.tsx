@@ -569,6 +569,11 @@ export default function LoginPage(_props: LoginPageProps) {
             className="text-[12px] text-slate-500 dark:text-slate-400"
             linkClassName="hover:underline hover:text-slate-700 dark:hover:text-slate-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB]/40 rounded"
           />
+          {isAndroid && (
+            <p className="text-[11px] font-semibold tracking-[0.02em] text-slate-500">
+              Powered By Temesgen G.
+            </p>
+          )}
         </footer>
       </div>
     </main>

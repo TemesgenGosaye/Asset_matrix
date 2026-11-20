@@ -1705,13 +1705,21 @@ html[data-android-app="1"] [data-login-page] {
 }
 
 html[data-android-app="1"] [data-login-page] .android-login-card {
+  display: flex;
+  flex-direction: column;
   width: 100%;
+  min-height: calc(100dvh - 52px);
   max-width: 440px;
   border: 0 !important;
   border-radius: 0 !important;
   background-color: transparent !important;
   box-shadow: none !important;
   padding: 12px 4px 24px !important;
+}
+
+html[data-android-app="1"] [data-login-page] .android-login-card > footer {
+  margin-top: auto !important;
+  padding-top: 24px;
 }
 
 @media (max-width: 420px) {
@@ -1721,6 +1729,7 @@ html[data-android-app="1"] [data-login-page] .android-login-card {
   }
 
   html[data-android-app="1"] [data-login-page] .android-login-card {
+    min-height: calc(100dvh - 34px);
     padding: 6px 0 20px !important;
   }
 }
