@@ -1,21 +1,19 @@
 import DashboardWelcomeClient from "./DashboardWelcomeClient";
-import { getOrganizationContext } from "@/lib/organization-context";
 
 interface DashboardWelcomeProps {
+  fullName: string;
   headingLevel?: 1 | 2;
   className?: string;
 }
 
 const TIME_ZONE = "Africa/Addis_Ababa";
 
-export default async function DashboardWelcome({
+export default function DashboardWelcome({
+  fullName,
   headingLevel = 2,
   className,
 }: DashboardWelcomeProps) {
-  const ctx = await getOrganizationContext();
-  if (!ctx?.userId) return null;
-
-  const fullName = ctx.fullName?.trim() || ctx.name?.trim() || "Colleague";
+  const displayName = fullName.trim() || "Colleague";
   const now = new Date();
   const hour =
     Number(
@@ -34,7 +32,7 @@ export default async function DashboardWelcome({
 
   return (
     <DashboardWelcomeClient
-      fullName={fullName}
+      fullName={displayName}
       initialHour={hour}
       initialDateLabel={dateLabel}
       headingLevel={headingLevel}

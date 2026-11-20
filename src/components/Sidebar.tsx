@@ -154,7 +154,7 @@ const Sidebar = React.memo(function Sidebar({
       "group flex w-full items-center gap-3 rounded-md px-2.5 py-1.5 text-sm transition-colors",
       collapsed && "justify-center px-2",
       active
-        ? "bg-primary text-primary-foreground font-medium shadow-sm"
+        ? "bg-brass-500/15 text-brass-300 ring-brass-400/25 font-medium shadow-sm ring-1"
         : "text-chrome-muted hover:bg-chrome-hover hover:text-chrome-foreground",
     );
     const content = (
@@ -210,7 +210,7 @@ const Sidebar = React.memo(function Sidebar({
                     className={cn(
                       "group flex w-full items-center justify-center rounded-md px-2 py-1.5 text-sm transition-colors",
                       active
-                        ? "bg-primary text-primary-foreground font-medium shadow-sm"
+                        ? "bg-brass-500/15 text-brass-300 ring-brass-400/25 font-medium shadow-sm ring-1"
                         : "text-chrome-muted hover:bg-chrome-hover hover:text-chrome-foreground",
                     )}
                     aria-label={label}

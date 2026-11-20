@@ -32,11 +32,15 @@ export default async function DashboardPage() {
 
   if (!isAdmin && ctx?.userId) {
     return (
-      <main>
+      <main className="dashboard-modern-text">
         <Breadcrumb
           options={[{ label: "Dashboard", href: "/dashboard", current: true }]}
         />
-        <DashboardWelcome className="mt-3" headingLevel={2} />
+        <DashboardWelcome
+          className="mt-3"
+          fullName={ctx.fullName}
+          headingLevel={2}
+        />
         <div className="mt-4 flex flex-wrap items-start justify-between gap-3">
           <div>
             <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
@@ -57,14 +61,18 @@ export default async function DashboardPage() {
 
   if (!ctx.organization?.id) {
     return (
-      <main>
+      <main className="dashboard-modern-text">
         <Breadcrumb
           options={[
             { label: "Home", href: "/" },
             { label: "Dashboard", href: "/dashboard" },
           ]}
         />
-        <DashboardWelcome className="mt-3" headingLevel={2} />
+        <DashboardWelcome
+          className="mt-3"
+          fullName={ctx.fullName}
+          headingLevel={2}
+        />
         <div className="border-border bg-card mt-6 rounded-xl border p-6">
           <h1 className="text-xl font-semibold">No organization assigned</h1>
           <p className="text-muted-foreground mt-1 text-sm">
@@ -77,14 +85,18 @@ export default async function DashboardPage() {
   }
 
   return (
-    <main className="dashboard-fixed-main flex h-full min-h-0 flex-col">
+    <main className="dashboard-fixed-main dashboard-modern-text flex h-full min-h-0 flex-col">
       <Breadcrumb
         options={[
           { label: "Home", href: "/" },
           { label: "Dashboard", href: "/dashboard" },
         ]}
       />
-      <DashboardWelcome className="mt-3 shrink-0" headingLevel={1} />
+      <DashboardWelcome
+        className="mt-3 shrink-0"
+        fullName={ctx.fullName}
+        headingLevel={1}
+      />
       <div className="mt-2 min-h-0 flex-1">
         <Suspense fallback={<AnalyticsSkeleton />}>
           <HouseAnalyticsPanel organizationId={ctx.organization.id} />

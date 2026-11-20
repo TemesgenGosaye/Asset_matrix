@@ -56,7 +56,7 @@ export default async function HamsDashboardPage() {
   ]);
 
   return (
-    <div className="space-y-6">
+    <div className="dashboard-modern-text space-y-6">
       {/* ─── Breadcrumb Navigation ─── */}
       <Breadcrumb
         options={[
@@ -70,7 +70,11 @@ export default async function HamsDashboardPage() {
         ]}
       />
 
-      <DashboardWelcome className="mt-3" headingLevel={2} />
+      <DashboardWelcome
+        className="mt-3"
+        fullName={ctx.fullName}
+        headingLevel={2}
+      />
 
       {/* ─── Page Header Matching Existing Portal Module Style ─── */}
       <div className="flex flex-wrap items-center justify-between gap-3">

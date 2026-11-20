@@ -249,11 +249,11 @@
      * border is deliberately stronger than `--border` because this hairline
      * separates the frame from a surface rather than one field from another.
      */
-    --chrome: 220 20% 96.5%;
-    --chrome-foreground: 220 24% 14%;
-    --chrome-muted: 220 10% 44%;
-    --chrome-border: 220 16% 88%;
-    --chrome-hover: 220 18% 92.5%;
+    --chrome: 216 44% 13%;
+    --chrome-foreground: 210 40% 97%;
+    --chrome-muted: 215 20% 72%;
+    --chrome-border: 215 30% 23%;
+    --chrome-hover: 215 32% 19%;
 
     /* Which way the assistant accent is mixed, so the single
      * `.assistant-prose` rule serves both directions. */
@@ -303,11 +303,11 @@
     --info-bg: 220 50% 12%;
 
     /* Chrome steps UP from the near-black canvas, so the frame sits forward. */
-    --chrome: 220 13% 10%;
-    --chrome-foreground: 220 16% 94%;
-    --chrome-muted: 220 10% 62%;
-    --chrome-border: 220 12% 18%;
-    --chrome-hover: 220 12% 16%;
+    --chrome: 216 42% 16%;
+    --chrome-foreground: 210 40% 97%;
+    --chrome-muted: 215 20% 74%;
+    --chrome-border: 215 30% 27%;
+    --chrome-hover: 215 32% 22%;
 
     --assist-mix-target: 0 0% 100%;
 
@@ -1798,4 +1798,41 @@ html[data-android-app="1"] [data-login-page] .android-login-card {
   .android-google-button:active {
     transform: none;
   }
+}
+
+html:not(.dark) .dashboard-modern-text {
+  color: #0b1220;
+  font-family: var(--font-family-sans);
+  font-feature-settings: "cv11", "ss01";
+  font-optical-sizing: auto;
+  letter-spacing: -0.011em;
+}
+
+html:not(.dark)
+  .dashboard-modern-text
+  :where(h1, h2, h3, p, span, label, li, button, select, option):not(
+    .dashboard-welcome__name
+  ):not([class*="text-emerald"]):not([class*="text-destructive"]):not(
+    [class*="text-primary-foreground"]
+  ) {
+  color: #0b1220;
+  font-family: inherit;
+}
+
+html:not(.dark)
+  .dashboard-modern-text
+  :where(
+    .text-muted-foreground,
+    .text-brass-600,
+    .text-brass-400,
+    .text-slate-500,
+    .text-slate-400
+  ) {
+  color: #1f2937 !important;
+}
+
+html:not(.dark) .dashboard-modern-text select,
+html:not(.dark) .dashboard-modern-text option {
+  background-color: #ffffff;
+  color: #0b1220;
 }
