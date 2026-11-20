@@ -74,7 +74,7 @@ export default async function DashboardPage() {
   }
 
   return (
-    <div className="dashboard-fixed-main flex h-full min-h-0 flex-col">
+    <main className="dashboard-fixed-main flex h-full min-h-0 flex-col">
       <Breadcrumb
         options={[
           { label: "Home", href: "/" },
@@ -86,6 +86,6 @@ export default async function DashboardPage() {
           <HouseAnalyticsPanel organizationId={ctx.organization.id} />
         </Suspense>
       </div>
-    </div>
+    </main>
   );
 }

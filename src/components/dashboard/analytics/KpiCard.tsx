@@ -34,45 +34,20 @@ const icons: Record<string, LucideIcon> = {
   "released-month": LogOut,
 };
 
-const accents = {
-  brass: {
-    bar: "before:bg-brass-500",
-    dot: "bg-brass-500",
-    chip: "bg-brass-500/10 text-brass-600 dark:text-brass-300",
-  },
-  navy: {
-    bar: "before:bg-sky-500",
-    dot: "bg-sky-500",
-    chip: "bg-sky-500/10 text-sky-600 dark:text-sky-400",
-  },
-  warning: {
-    bar: "before:bg-amber-500",
-    dot: "bg-amber-500",
-    chip: "bg-warning-bg text-warning-foreground",
-  },
-  destructive: {
-    bar: "before:bg-destructive",
-    dot: "bg-destructive",
-    chip: "bg-destructive/10 text-destructive",
-  },
-  success: {
-    bar: "before:bg-emerald-500",
-    dot: "bg-emerald-500",
-    chip: "bg-success-bg text-success-foreground",
-  },
-} satisfies Record<
-  HouseAnalyticsKpi["variant"],
-  { bar: string; dot: string; chip: string }
->;
+const accents: Record<HouseAnalyticsKpi["variant"], string> = {
+  brass: "before:bg-brass-500",
+  navy: "before:bg-sky-500",
+  warning: "before:bg-amber-500",
+  destructive: "before:bg-destructive",
+  success: "before:bg-emerald-500",
+};
 
 interface KpiCardProps {
   kpi: HouseAnalyticsKpi;
-  size?: "featured" | "compact";
 }
 
-export default function KpiCard({ kpi, size = "featured" }: KpiCardProps) {
+export default function KpiCard({ kpi }: KpiCardProps) {
   const Icon = icons[kpi.id] ?? Building2;
-  const accent = accents[kpi.variant];
   const trend = kpi.trend;
   const hasTrend = typeof trend === "number" && Number.isFinite(trend);
   const value = trend ?? 0;
@@ -80,90 +55,51 @@ export default function KpiCard({ kpi, size = "featured" }: KpiCardProps) {
   const TrendIcon =
     value > 0 ? ArrowUpRight : value < 0 ? ArrowDownRight : Minus;
 
-  const focusRing =
-    "focus-visible:ring-ring focus-visible:ring-2 focus-visible:outline-none";
-
-  if (size === "compact") {
-    return (
-      <Link
-        href={kpi.href}
-        title={kpi.hint}
-        className={cn(
-          "group border-border/60 bg-card/60 flex min-h-9 items-center gap-2 rounded-lg border px-2.5 transition-all duration-150",
-          "hover:border-foreground/20 hover:bg-card hover:-translate-y-px hover:shadow-sm",
-          focusRing,
-        )}
-      >
-        <span className={cn("h-1.5 w-1.5 shrink-0 rounded-full", accent.dot)} />
-        <span className="text-muted-foreground min-w-0 flex-1 truncate text-[10px] font-medium">
-          {kpi.label}
-        </span>
-        <span className="text-sm leading-none font-semibold tabular-nums xl:text-[13px]">
-          {kpi.value.toLocaleString()}
-        </span>
-        {hasTrend ? (
-          <TrendIcon
-            className={cn(
-              "h-3 w-3 shrink-0",
-              positive ? "text-emerald-500" : "text-destructive",
-            )}
-            aria-hidden
-          />
-        ) : null}
-      </Link>
-    );
-  }
-
   return (
     <Link
       href={kpi.href}
       title={kpi.hint}
       className={cn(
-        "group border-border/70 bg-card/90 relative flex min-h-[78px] flex-col justify-between overflow-hidden rounded-xl border px-3 py-2 transition-all duration-200",
-        "before:absolute before:inset-x-0 before:top-0 before:h-[2px] before:content-['']",
-        "hover:border-foreground/20 hover:bg-card hover:-translate-y-px hover:shadow-[0_8px_24px_-16px_hsl(var(--foreground)_/_0.4)]",
-        focusRing,
-        accent.bar,
+        "group border-border/70 bg-card/70 relative flex h-full min-w-0 flex-col justify-between overflow-hidden rounded-lg border p-2.5 transition-all duration-200 xl:p-2",
+        "before:absolute before:inset-x-0 before:top-0 before:h-px before:content-['']",
+        "hover:border-brass-500/40 hover:bg-card hover:-translate-y-px hover:shadow-[0_10px_30px_-18px_hsl(var(--foreground)_/_0.45)]",
+        "focus-visible:ring-ring focus-visible:ring-2 focus-visible:outline-none",
+        accents[kpi.variant],
       )}
     >
       <div className="flex items-start justify-between gap-2">
-        <p className="text-muted-foreground min-w-0 truncate text-[10px] leading-none font-semibold tracking-[0.1em] uppercase">
+        <p className="text-muted-foreground line-clamp-1 text-[10px] font-semibold tracking-[0.09em] uppercase">
           {kpi.label}
         </p>
-        <span
-          className={cn(
-            "flex h-6 w-6 shrink-0 items-center justify-center rounded-md",
-            accent.chip,
-          )}
-        >
-          <Icon className="h-3.5 w-3.5" aria-hidden />
-        </span>
+        <Icon className="text-muted-foreground group-hover:text-brass-500 h-3.5 w-3.5 shrink-0 transition-colors" />
       </div>
 
-      <div className="mt-1 flex items-end justify-between gap-2">
-        <span className="text-2xl leading-none font-semibold tracking-tight tabular-nums xl:text-[26px]">
+      <div className="mt-1.5 flex items-end justify-between gap-2">
+        <span className="text-xl leading-none font-semibold tracking-tight tabular-nums xl:text-lg 2xl:text-2xl">
           {kpi.value.toLocaleString()}
         </span>
-        {hasTrend ? (
+        {hasTrend && (
           <span
             className={cn(
-              "mb-0.5 inline-flex shrink-0 items-center gap-0.5 rounded-md px-1.5 py-0.5 text-[10px] leading-none font-semibold tabular-nums",
+              "inline-flex shrink-0 items-center gap-0.5 rounded-md px-1.5 py-0.5 text-[10px] font-medium tabular-nums",
               positive
-                ? "bg-success-bg text-success-foreground"
+                ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
                 : "bg-destructive/10 text-destructive",
             )}
           >
-            <TrendIcon className="h-3 w-3" aria-hidden />
+            <TrendIcon className="h-3 w-3" />
             {Math.abs(value).toFixed(0)}%
           </span>
-        ) : null}
+        )}
       </div>
 
-      <MiniSparkline
-        values={kpi.sparkline}
-        positive={positive}
-        className="mt-1 h-4 w-full"
-      />
+      <div className="mt-2 flex items-center gap-2">
+        <MiniSparkline
+          values={kpi.sparkline}
+          positive={positive}
+          className="h-5 w-full xl:h-3"
+        />
+      </div>
     </Link>
   );
 }

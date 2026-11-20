@@ -1,5 +1,6 @@
 import { Clock3 } from "lucide-react";
 import type { HouseAnalyticsResponse } from "@/lib/house-analytics/contract";
+import ChartCard from "./ChartCard";
 
 type Inspection = HouseAnalyticsResponse["inspections"];
 
@@ -15,7 +16,7 @@ export default function InspectionPipeline({
     {
       label: "Scheduled",
       value: inspection.scheduled,
-      className: "bg-sky-500",
+      className: "bg-blue-500",
     },
     {
       label: "Completed",
@@ -26,43 +27,48 @@ export default function InspectionPipeline({
   const total = stages.reduce((sum, stage) => sum + stage.value, 0);
 
   return (
-    <div className="flex h-full min-h-0 flex-col justify-center gap-1.5">
-      <div className="bg-muted flex h-1.5 w-full overflow-hidden rounded-full">
-        {stages.map((stage) => (
-          <div
-            key={stage.label}
-            className={stage.className}
-            style={{
-              width: total === 0 ? "0%" : `${(stage.value / total) * 100}%`,
-            }}
-            title={`${stage.label}: ${stage.value}`}
-          />
-        ))}
+    <ChartCard
+      eyebrow="Assurance"
+      title="Inspection pipeline"
+      description="Handback inspections created in the selected period"
+      className="h-full"
+      surface
+    >
+      <div className="space-y-3">
+        <div className="bg-muted flex h-3 w-full overflow-hidden rounded-full">
+          {stages.map((stage) => (
+            <div
+              key={stage.label}
+              className={stage.className}
+              style={{
+                width: total === 0 ? "0%" : `${(stage.value / total) * 100}%`,
+              }}
+            />
+          ))}
+        </div>
+        <div className="grid grid-cols-3 gap-2 text-center">
+          {stages.map((stage) => (
+            <div
+              key={stage.label}
+              className="border-border/70 bg-background/40 rounded-lg border py-2"
+            >
+              <p className="text-muted-foreground text-[10px]">{stage.label}</p>
+              <p className="text-lg font-semibold tabular-nums">
+                {stage.value}
+              </p>
+            </div>
+          ))}
+        </div>
+        <div className="border-border/60 flex items-center justify-between border-t pt-2 text-xs">
+          <span className="text-muted-foreground inline-flex items-center gap-2">
+            <Clock3 className="h-4 w-4" />
+            Average waiting time
+          </span>
+          <span className="font-semibold tabular-nums">
+            {inspection.avgDaysWaiting} days
+          </span>
+        </div>
       </div>
-      <div className="grid grid-cols-3 gap-1.5">
-        {stages.map((stage) => (
-          <div
-            key={stage.label}
-            className="border-border/60 bg-background/40 rounded-md border px-1.5 py-1 text-center"
-          >
-            <p className="text-muted-foreground truncate text-[9px] leading-none">
-              {stage.label}
-            </p>
-            <p className="mt-0.5 text-sm leading-none font-semibold tabular-nums">
-              {stage.value}
-            </p>
-          </div>
-        ))}
-      </div>
-      <div className="text-muted-foreground flex items-center justify-between text-[10px] leading-none">
-        <span className="inline-flex items-center gap-1">
-          <Clock3 className="h-3 w-3" aria-hidden />
-          Avg. waiting
-        </span>
-        <span className="text-foreground font-semibold tabular-nums">
-          {inspection.avgDaysWaiting}d
-        </span>
-      </div>
-    </div>
+    </ChartCard>
   );
 }
