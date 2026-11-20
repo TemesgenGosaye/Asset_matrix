@@ -6,7 +6,7 @@ The APK is a hardened Capacitor WebView shell for the hosted MSF HomeDesk portal
 
 | Field                | Value                             |
 | -------------------- | --------------------------------- |
-| App name             | MSF Homedesk                      |
+| App name             | HomeDesk                          |
 | Package              | `com.metahara.homedesk`           |
 | Minimum Android      | 24 (Android 7.0)                  |
 | Compile / target SDK | 36                                |
@@ -37,8 +37,8 @@ npm run apk:build
 
 The build writes:
 
-- `MSF-Homedesk.apk` in the repository root
-- `build-artifacts/MSF-Homedesk-v<version>.apk`
+- `HomeDesk.apk` in the repository root
+- `build-artifacts/HomeDesk-v<version>.apk`
 
 ## Target / staging builds
 

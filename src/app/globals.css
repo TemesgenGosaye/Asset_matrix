@@ -1632,3 +1632,18 @@ body:has([data-login-page]) {
   box-shadow: 0 0 0px 1000px #1e293b inset;
   caret-color: #f8fafc;
 }
+
+html[data-android-app="1"]:has([data-login-page]),
+html[data-android-app="1"] body:has([data-login-page]) {
+  background-color: #ffffff;
+}
+
+html[data-android-app="1"] [data-login-page] {
+  background-image: none;
+  background-color: #ffffff;
+}
+
+html[data-android-app="1"] [data-login-page] > button {
+  background-color: #f1f5f9;
+  color: #0f172a;
+}

@@ -12,7 +12,7 @@ import { fileURLToPath } from "node:url";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const androidDir = join(root, "android");
-const apkName = "MSF-Homedesk.apk";
+const apkName = "HomeDesk.apk";
 const isWindows = process.platform === "win32";
 
 const rawTarget =
@@ -72,7 +72,7 @@ function main() {
     `window.HOMEDESK_CONFIG = {\n  serverOrigin: ${JSON.stringify(origin)},\n  startupUrl: ${JSON.stringify(startupUrl)},\n  startPath: "/?app=1",\n  healthPath: "/api/mobile/health",\n  livePath: "/api/health/live",\n};\n`,
   );
 
-  console.log(`MSF HomeDesk APK — target ${origin} — version ${versionName}`);
+  console.log(`HomeDesk APK — target ${origin} — version ${versionName}`);
 
   if (!process.env.ANDROID_KEYSTORE_FILE) {
     console.warn(
@@ -110,7 +110,7 @@ function main() {
   const artifactsDir = join(root, "build-artifacts");
   mkdirSync(artifactsDir, { recursive: true });
   copyFileSync(apk, destination);
-  copyFileSync(apk, join(artifactsDir, `MSF-Homedesk-v${versionName}.apk`));
+  copyFileSync(apk, join(artifactsDir, `HomeDesk-v${versionName}.apk`));
 
   const sizeMb = (statSync(destination).size / (1024 * 1024)).toFixed(1);
   console.log(`\nAPK ready: ${destination} (${sizeMb} MB)`);

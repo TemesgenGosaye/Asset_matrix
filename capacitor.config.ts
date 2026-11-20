@@ -15,7 +15,7 @@ if (target.username || target.password) {
 
 const config: CapacitorConfig = {
   appId: "com.metahara.homedesk",
-  appName: "MSF Homedesk",
+  appName: "HomeDesk",
   webDir: "android-shell",
   server: {
     androidScheme: "https",

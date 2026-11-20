@@ -12,7 +12,7 @@
     "dev:warm": "node scripts/dev-warm.mjs",
     "dev:prod": "next build && next start",
     "start:prod": "next build && next start",
-    "build": "node prisma/set-schema.mjs && prisma generate && prisma migrate deploy && next build",
+    "build": "node prisma/set-schema.mjs && prisma generate && prisma migrate deploy && next build --webpack",
     "check:mobile-target": "node scripts/check-mobile-target.mjs",
     "apk:check": "node scripts/check-mobile-target.mjs",
     "apk:icons": "node scripts/generate-android-icons.mjs",

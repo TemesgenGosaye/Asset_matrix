@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">MSF Homedesk</string>
-    <string name="title_activity_main">MSF Homedesk</string>
+    <string name="app_name">HomeDesk</string>
+    <string name="title_activity_main">HomeDesk</string>
     <string name="splash_title">HomeDesk</string>
     <string name="splash_subtitle">Metahara Sugar Factory</string>
     <string name="splash_status">Preparing your workspace…</string>

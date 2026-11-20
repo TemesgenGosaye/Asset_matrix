@@ -180,6 +180,15 @@ export default function LoginPage(_props: LoginPageProps) {
     usernameRef.current?.focus({ preventScroll: true });
   }, []);
 
+  useEffect(() => {
+    if (!isAndroidApp()) return;
+    const root = document.documentElement;
+    root.setAttribute("data-android-app", "1");
+    return () => {
+      root.removeAttribute("data-android-app");
+    };
+  }, []);
+
   const handleChange = (event: ChangeEvent<HTMLInputElement>) => {
     const { name, value } = event.target;
     setFormData((current) => ({ ...current, [name]: value }));

@@ -109,7 +109,7 @@ const checks = [
   {
     name: "Capacitor app name",
     file: files.config,
-    expected: 'appName: "MSF Homedesk"',
+    expected: 'appName: "HomeDesk"',
   },
   {
     name: "Capacitor env override",
@@ -231,6 +231,16 @@ const checks = [
     name: "Native splash powered by",
     file: files.strings,
     expected: 'name="splash_powered"',
+  },
+  {
+    name: "Android app label",
+    file: files.strings,
+    expected: '<string name="app_name">HomeDesk</string>',
+  },
+  {
+    name: "Android activity label",
+    file: files.strings,
+    expected: '<string name="title_activity_main">HomeDesk</string>',
   },
   {
     name: "White icon background",

@@ -49,8 +49,8 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: msf-homedesk-apk
+          name: homedesk-apk
           path: |
-            MSF-Homedesk.apk
+            HomeDesk.apk
             build-artifacts/*.apk
           retention-days: 30
