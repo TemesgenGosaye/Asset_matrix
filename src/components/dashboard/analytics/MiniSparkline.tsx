@@ -16,15 +16,17 @@ export default function MiniSparkline({
   const max = Math.max(...values);
   const min = Math.min(...values);
   const span = max - min || 1;
-  const points = values
-    .map((value, index) => {
-      const x =
-        values.length === 1 ? 50 : (index / (values.length - 1)) * 98 + 1;
-      const y = 26 - ((value - min) / span) * 22;
-      return `${x.toFixed(1)},${y.toFixed(1)}`;
-    })
-    .join(" ");
-  const surfacePoints = `0,28 ${points} 100,28`;
+  const slot = 100 / values.length;
+  const bars = values.map((value, index) => {
+    const height = Math.max(2, ((value - min) / span) * 22);
+    return {
+      x: index * slot + 1,
+      y: 26 - height,
+      width: Math.max(2, slot - 2),
+      height,
+      last: index === values.length - 1,
+    };
+  });
 
   return (
     <svg
@@ -37,16 +39,28 @@ export default function MiniSparkline({
         className,
       )}
     >
-      <polygon points={surfacePoints} fill="currentColor" opacity={0.09} />
-      <polyline
-        points={points}
-        fill="none"
+      <line
+        x1="0"
+        y1="27.5"
+        x2="100"
+        y2="27.5"
         stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
+        strokeOpacity="0.15"
+        strokeWidth="1"
         vectorEffect="non-scaling-stroke"
       />
+      {bars.map((bar, index) => (
+        <rect
+          key={index}
+          x={bar.x}
+          y={bar.y}
+          width={bar.width}
+          height={bar.height}
+          rx="1.4"
+          fill="currentColor"
+          fillOpacity={bar.last ? 1 : 0.45}
+        />
+      ))}
     </svg>
   );
 }

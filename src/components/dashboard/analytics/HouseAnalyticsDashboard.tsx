@@ -6,12 +6,13 @@ import { AlertTriangle } from "lucide-react";
 import ChartCard from "./ChartCard";
 import KpiCard from "./KpiCard";
 import AnalyticsToolbar from "./AnalyticsToolbar";
-import ActivityFeed from "./ActivityFeed";
 import TopQueueTable from "./TopQueueTable";
 import InspectionPipeline from "./InspectionPipeline";
 import AnalyticsSkeleton from "./AnalyticsSkeleton";
+import WishlistPanel from "./WishlistPanel";
 import QueueFunnel from "./charts/QueueFunnel";
 import ReleaseReasons from "./charts/ReleaseReasons";
+import SupplyPressure from "./charts/SupplyPressure";
 import {
   houseAnalyticsResponseSchema,
   type HouseAnalyticsQuery,
@@ -29,10 +30,6 @@ const FlowSurfaceChart = dynamic(() => import("./charts/FlowSurfaceChart"), {
   loading: chartLoading,
 });
 const StatusDonut = dynamic(() => import("./charts/StatusDonut"), {
-  ssr: false,
-  loading: chartLoading,
-});
-const SupplyDemandBar = dynamic(() => import("./charts/SupplyDemandBar"), {
   ssr: false,
   loading: chartLoading,
 });
@@ -128,15 +125,25 @@ export default function HouseAnalyticsDashboard({
             House Analytics
           </h2>
         </div>
-        <div className="border-border/70 bg-card/60 flex items-center gap-2 rounded-full border px-2.5 py-1 text-[10px]">
-          <span className="relative flex h-2 w-2">
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-500 opacity-60" />
-            <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
-          </span>
-          <span className="text-muted-foreground">Live</span>
-          <span className="font-medium tabular-nums">
-            {new Date(data.meta.generatedAt).toLocaleTimeString()}
-          </span>
+        <div className="flex min-w-0 flex-wrap items-center justify-end gap-2">
+          <div className="border-border/70 bg-card/60 hidden max-w-[24rem] min-w-0 items-center gap-2 rounded-full border px-3 py-1 text-[10px] xl:flex">
+            <span className="text-brass-600 dark:text-brass-400 shrink-0 font-semibold tracking-[0.12em]">
+              PULSE
+            </span>
+            <span className="text-muted-foreground truncate">
+              {data.activity[0]?.description ?? "No recent queue activity"}
+            </span>
+          </div>
+          <div className="border-border/70 bg-card/60 flex items-center gap-2 rounded-full border px-2.5 py-1 text-[10px]">
+            <span className="relative flex h-2 w-2">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-500 opacity-60" />
+              <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
+            </span>
+            <span className="text-muted-foreground">Live</span>
+            <span className="font-medium tabular-nums">
+              {new Date(data.meta.generatedAt).toLocaleTimeString()}
+            </span>
+          </div>
         </div>
       </div>
 
@@ -172,11 +179,11 @@ export default function HouseAnalyticsDashboard({
           ))}
         </div>
 
-        <div className="grid min-h-0 flex-1 grid-cols-1 gap-2 xl:grid-cols-12 xl:grid-rows-[minmax(0,1.15fr)_minmax(0,0.95fr)_minmax(0,0.8fr)]">
+        <div className="grid min-h-0 flex-1 grid-cols-1 gap-2 xl:grid-cols-12 xl:grid-rows-[minmax(0,1.1fr)_minmax(0,0.95fr)_minmax(0,0.85fr)]">
           <ChartCard
-            eyebrow="Surface / XY"
-            title="Estate flow"
-            description="Allocations, releases and requests by month"
+            eyebrow="XY / Surface"
+            title="Estate flow matrix"
+            description="Allocations, demand, releases and inspections by month"
             className="xl:col-span-8"
             surface
           >
@@ -185,8 +192,8 @@ export default function HouseAnalyticsDashboard({
 
           <ChartCard
             eyebrow="Coverage"
-            title="Occupancy & status"
-            description="Current register position"
+            title="Occupancy & register mix"
+            description="Current position from the live register"
             className="xl:col-span-4"
             surface
           >
@@ -198,21 +205,21 @@ export default function HouseAnalyticsDashboard({
 
           <ChartCard
             eyebrow="Inventory"
-            title="House type"
-            description="Register status by band"
+            title="House type stack"
+            description="Stock condition by band"
             className="xl:col-span-4"
             surface
           >
             <HouseTypeBar data={data.housesByType} />
           </ChartCard>
           <ChartCard
-            eyebrow="Demand"
-            title="Supply vs demand"
-            description="Eligible demand against free stock"
+            eyebrow="Supply / Demand"
+            title="Band pressure matrix"
+            description="Free stock against eligible demand"
             className="xl:col-span-4"
             surface
           >
-            <SupplyDemandBar data={data.supplyDemand} />
+            <SupplyPressure data={data.supplyDemand} />
           </ChartCard>
           <ChartCard
             eyebrow="Pipeline"
@@ -233,12 +240,18 @@ export default function HouseAnalyticsDashboard({
           >
             <ReleaseReasons data={data.releaseReasons} />
           </ChartCard>
-          <div className="min-h-0 xl:col-span-3">
+          <div className="min-h-0 xl:col-span-2">
             <InspectionPipeline inspection={data.inspections} />
           </div>
-          <div className="min-h-0 xl:col-span-2">
-            <ActivityFeed items={data.activity} />
-          </div>
+          <ChartCard
+            eyebrow="Priority wishlist"
+            title="Action queue"
+            description="Generated from live pressure signals"
+            className="xl:col-span-3"
+            surface
+          >
+            <WishlistPanel data={data} />
+          </ChartCard>
           <div className="min-h-0 xl:col-span-5">
             <TopQueueTable rows={data.topQueue} />
           </div>
