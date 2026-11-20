@@ -12,19 +12,19 @@ export default function ReleaseReasons({ data }: ReleaseReasonsProps) {
 
   if (total === 0) {
     return (
-      <p className="text-muted-foreground flex h-[180px] items-center justify-center text-sm">
+      <p className="text-muted-foreground flex h-full min-h-24 items-center justify-center text-xs">
         No terminations recorded in this period.
       </p>
     );
   }
 
   return (
-    <div className="space-y-3">
-      {data.map((segment) => (
+    <div className="flex h-full min-h-0 flex-col justify-center space-y-1.5">
+      {data.slice(0, 4).map((segment) => (
         <Link
           key={segment.name}
           href={segment.href}
-          className="hover:bg-muted/40 block min-h-11 rounded-lg px-1 py-1 transition-colors"
+          className="hover:bg-muted/40 block min-h-11 rounded-lg px-1 py-0.5 transition-colors xl:min-h-6"
         >
           <div className="mb-1 flex items-center justify-between gap-3 text-xs">
             <span className="truncate font-medium">{segment.name}</span>

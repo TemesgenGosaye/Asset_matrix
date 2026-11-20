@@ -25,8 +25,8 @@ interface SupplyDemandBarProps {
 
 export default function SupplyDemandBar({ data }: SupplyDemandBarProps) {
   return (
-    <div className="space-y-2">
-      <ChartContainer config={config} className="h-[240px] w-full">
+    <div className="flex h-full min-h-0 flex-col">
+      <ChartContainer config={config} className="min-h-0 w-full flex-1">
         <BarChart
           data={[...data]}
           layout="vertical"
@@ -60,7 +60,7 @@ export default function SupplyDemandBar({ data }: SupplyDemandBarProps) {
           />
         </BarChart>
       </ChartContainer>
-      <div className="flex flex-wrap gap-1.5">
+      <div className="hidden max-h-7 flex-wrap gap-1.5 overflow-hidden 2xl:flex">
         {data
           .filter((segment) => segment.shortage > 0)
           .map((segment) => (

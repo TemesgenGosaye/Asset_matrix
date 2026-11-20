@@ -28,11 +28,13 @@ export default function InspectionPipeline({
 
   return (
     <ChartCard
+      eyebrow="Assurance"
       title="Inspection pipeline"
       description="Handback inspections created in the selected period"
       className="h-full"
+      surface
     >
-      <div className="space-y-4">
+      <div className="space-y-3">
         <div className="bg-muted flex h-3 w-full overflow-hidden rounded-full">
           {stages.map((stage) => (
             <div
@@ -46,15 +48,18 @@ export default function InspectionPipeline({
         </div>
         <div className="grid grid-cols-3 gap-2 text-center">
           {stages.map((stage) => (
-            <div key={stage.label} className="rounded-lg border py-3">
-              <p className="text-muted-foreground text-[11px]">{stage.label}</p>
-              <p className="housing-serif text-xl font-semibold tabular-nums">
+            <div
+              key={stage.label}
+              className="border-border/70 bg-background/40 rounded-lg border py-2"
+            >
+              <p className="text-muted-foreground text-[10px]">{stage.label}</p>
+              <p className="text-lg font-semibold tabular-nums">
                 {stage.value}
               </p>
             </div>
           ))}
         </div>
-        <div className="border-border/60 flex items-center justify-between border-t pt-3 text-sm">
+        <div className="border-border/60 flex items-center justify-between border-t pt-2 text-xs">
           <span className="text-muted-foreground inline-flex items-center gap-2">
             <Clock3 className="h-4 w-4" />
             Average waiting time

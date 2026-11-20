@@ -36,7 +36,7 @@ export default function StatusDonut({ data }: StatusDonutProps) {
 
   if (total === 0) {
     return (
-      <p className="text-muted-foreground flex h-[220px] items-center justify-center text-sm">
+      <p className="text-muted-foreground flex h-full min-h-32 items-center justify-center text-xs">
         No houses recorded for this filter.
       </p>
     );
@@ -50,18 +50,15 @@ export default function StatusDonut({ data }: StatusDonutProps) {
   });
 
   return (
-    <div className="space-y-3">
-      <ChartContainer
-        config={config}
-        className="mx-auto aspect-square max-h-[220px]"
-      >
+    <div className="flex h-full min-h-0 flex-col">
+      <ChartContainer config={config} className="min-h-0 w-full flex-1">
         <PieChart>
           <ChartTooltip content={<ChartTooltipContent hideLabel />} />
           <Pie
             data={chartData}
             dataKey="value"
             nameKey="key"
-            innerRadius={58}
+            innerRadius={42}
             strokeWidth={2}
           >
             <Label
@@ -77,14 +74,14 @@ export default function StatusDonut({ data }: StatusDonutProps) {
                       <tspan
                         x={viewBox.cx}
                         y={viewBox.cy}
-                        className="fill-foreground housing-serif text-2xl font-bold"
+                        className="fill-foreground text-lg font-bold"
                       >
                         {total.toLocaleString()}
                       </tspan>
                       <tspan
                         x={viewBox.cx}
-                        y={(viewBox.cy ?? 0) + 20}
-                        className="fill-muted-foreground text-[10px]"
+                        y={(viewBox.cy ?? 0) + 14}
+                        className="fill-muted-foreground text-[8px]"
                       >
                         HOUSES
                       </tspan>
@@ -97,15 +94,15 @@ export default function StatusDonut({ data }: StatusDonutProps) {
           </Pie>
         </PieChart>
       </ChartContainer>
-      <div className="grid grid-cols-2 gap-2">
+      <div className="mt-1 grid grid-cols-2 gap-x-2 gap-y-0.5">
         {active.map((segment, index) => (
           <Link
             key={segment.name}
             href={segment.href}
-            className="hover:bg-muted/40 flex min-h-11 items-center gap-2 rounded-lg px-2 text-xs transition-colors"
+            className="hover:bg-muted/40 flex min-h-7 items-center gap-1.5 rounded px-1 text-[10px] transition-colors"
           >
             <span
-              className="h-2.5 w-2.5 shrink-0 rounded-full"
+              className="h-2 w-2 shrink-0 rounded-full"
               style={{ backgroundColor: colors[index % colors.length] }}
             />
             <span className="text-muted-foreground min-w-0 flex-1 truncate">

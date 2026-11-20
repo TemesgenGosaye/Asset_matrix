@@ -19,12 +19,12 @@ import {
 } from "@/lib/house-analytics/contract";
 
 const chartLoading = () => (
-  <div className="text-muted-foreground flex h-[220px] items-center justify-center text-sm">
+  <div className="text-muted-foreground flex h-24 items-center justify-center text-xs">
     Loading chart…
   </div>
 );
 
-const TrendArea = dynamic(() => import("./charts/TrendArea"), {
+const FlowSurfaceChart = dynamic(() => import("./charts/FlowSurfaceChart"), {
   ssr: false,
   loading: chartLoading,
 });
@@ -112,16 +112,31 @@ export default function HouseAnalyticsDashboard({
   }
 
   return (
-    <section aria-label="House administration analytics" className="min-w-0">
-      <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h2 className="housing-serif text-xl font-semibold tracking-tight sm:text-2xl">
-            House Administration Analytics
+    <section
+      aria-label="House administration analytics"
+      className="min-w-0 space-y-2 xl:flex xl:h-full xl:min-h-0 xl:flex-col xl:overflow-hidden"
+    >
+      <div className="flex shrink-0 flex-wrap items-end justify-between gap-2">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2">
+            <span className="bg-brass-500 h-1.5 w-1.5 rounded-full" />
+            <p className="text-brass-600 dark:text-brass-400 text-[9px] font-semibold tracking-[0.16em] uppercase">
+              Housing operations / command center
+            </p>
+          </div>
+          <h2 className="mt-0.5 text-xl font-semibold tracking-tight xl:text-2xl">
+            House Analytics
           </h2>
-          <p className="text-muted-foreground mt-1 text-xs sm:text-sm">
-            Estate stock, occupancy, queue pressure and handback performance
-            from the live register and queue engine.
-          </p>
+        </div>
+        <div className="border-border/70 bg-card/60 flex items-center gap-2 rounded-full border px-2.5 py-1 text-[10px]">
+          <span className="relative flex h-2 w-2">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-500 opacity-60" />
+            <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
+          </span>
+          <span className="text-muted-foreground">Live</span>
+          <span className="font-medium tabular-nums">
+            {new Date(data.meta.generatedAt).toLocaleTimeString()}
+          </span>
         </div>
       </div>
 
@@ -130,13 +145,12 @@ export default function HouseAnalyticsDashboard({
         onChange={applyQuery}
         onRefresh={() => void load(query)}
         loading={loading}
-        generatedAt={data.meta.generatedAt}
       />
 
       {error && (
         <div
           role="alert"
-          className="border-destructive/30 bg-destructive/10 text-destructive mb-5 flex items-center gap-2 rounded-lg border px-3 py-2.5 text-sm"
+          className="border-destructive/30 bg-destructive/10 text-destructive flex shrink-0 items-center gap-2 rounded-lg border px-3 py-1.5 text-xs"
         >
           <AlertTriangle className="h-4 w-4 shrink-0" />
           {error}
@@ -145,79 +159,90 @@ export default function HouseAnalyticsDashboard({
 
       {loading && <AnalyticsSkeleton />}
 
-      <div className={loading ? "hidden" : "space-y-5"}>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+      <div
+        className={
+          loading
+            ? "hidden"
+            : "flex min-h-0 flex-1 flex-col gap-2 overflow-hidden"
+        }
+      >
+        <div className="grid shrink-0 grid-cols-2 gap-1.5 sm:grid-cols-3 lg:grid-cols-4 xl:auto-rows-[68px] xl:grid-cols-6 2xl:auto-rows-[70px] 2xl:grid-cols-[repeat(11,minmax(0,1fr))]">
           {data.kpis.map((kpi) => (
             <KpiCard key={kpi.id} kpi={kpi} />
           ))}
         </div>
 
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <div className="grid min-h-0 flex-1 grid-cols-1 gap-2 xl:grid-cols-12 xl:grid-rows-[minmax(0,1.15fr)_minmax(0,0.95fr)_minmax(0,0.8fr)]">
           <ChartCard
-            title="Occupancy"
-            description="Physical occupancy across the selected estate"
+            eyebrow="Surface / XY"
+            title="Estate flow"
+            description="Allocations, releases and requests by month"
+            className="xl:col-span-8"
+            surface
           >
-            <OccupancyGauge occupancy={data.occupancy} />
+            <FlowSurfaceChart data={data.monthly} />
           </ChartCard>
+
           <ChartCard
-            title="House status"
-            description="Mutually exclusive categories — each house is counted once"
-            className="lg:col-span-2"
+            eyebrow="Coverage"
+            title="Occupancy & status"
+            description="Current register position"
+            className="xl:col-span-4"
+            surface
           >
-            <StatusDonut data={data.statusDistribution} />
+            <div className="grid h-full min-h-0 grid-cols-2 gap-1.5">
+              <OccupancyGauge occupancy={data.occupancy} />
+              <StatusDonut data={data.statusDistribution} />
+            </div>
           </ChartCard>
-        </div>
 
-        <ChartCard
-          title="Allocation, release and request flow"
-          description="Trailing 12 months ending in the selected period"
-        >
-          <TrendArea data={data.monthly} />
-        </ChartCard>
-
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           <ChartCard
-            title="House-type breakdown"
-            description="Register status by staff and A–E bands"
+            eyebrow="Inventory"
+            title="House type"
+            description="Register status by band"
+            className="xl:col-span-4"
+            surface
           >
             <HouseTypeBar data={data.housesByType} />
           </ChartCard>
           <ChartCard
+            eyebrow="Demand"
             title="Supply vs demand"
-            description="Eligible requesters against free houses by band"
+            description="Eligible demand against free stock"
+            className="xl:col-span-4"
+            surface
           >
             <SupplyDemandBar data={data.supplyDemand} />
           </ChartCard>
-        </div>
-
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
           <ChartCard
+            eyebrow="Pipeline"
             title="Queue funnel"
-            description="Live allocation queue engine summary"
+            description="Active allocation engine"
+            className="xl:col-span-4"
+            surface
           >
             <QueueFunnel funnel={data.funnel} />
           </ChartCard>
+
           <ChartCard
+            eyebrow="Handback"
             title="Release reasons"
             description="Terminations in the selected period"
+            className="xl:col-span-2"
+            surface
           >
             <ReleaseReasons data={data.releaseReasons} />
           </ChartCard>
-          <InspectionPipeline inspection={data.inspections} />
+          <div className="min-h-0 xl:col-span-3">
+            <InspectionPipeline inspection={data.inspections} />
+          </div>
+          <div className="min-h-0 xl:col-span-2">
+            <ActivityFeed items={data.activity} />
+          </div>
+          <div className="min-h-0 xl:col-span-5">
+            <TopQueueTable rows={data.topQueue} />
+          </div>
         </div>
-
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-          <TopQueueTable rows={data.topQueue} />
-          <ActivityFeed items={data.activity} />
-        </div>
-
-        <p className="text-muted-foreground text-[11px] leading-relaxed">
-          No historical house-snapshot table exists. Stock-card trends use the
-          closest real flow — houses added, allocation/release ledgers and
-          completed inspections — rather than snapshot deltas. Queue figures are
-          produced by the active allocation configuration, not recalculated in
-          the browser.
-        </p>
       </div>
     </section>
   );

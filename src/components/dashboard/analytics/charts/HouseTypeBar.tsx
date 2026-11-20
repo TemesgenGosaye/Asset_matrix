@@ -35,14 +35,14 @@ export default function HouseTypeBar({ data }: HouseTypeBarProps) {
 
   if (!hasHouses) {
     return (
-      <p className="text-muted-foreground flex h-[240px] items-center justify-center text-sm">
+      <p className="text-muted-foreground flex h-full min-h-32 items-center justify-center text-xs">
         No houses recorded for this filter.
       </p>
     );
   }
 
   return (
-    <ChartContainer config={config} className="h-[240px] w-full">
+    <ChartContainer config={config} className="h-full min-h-0 w-full">
       <BarChart
         data={[...data]}
         layout="vertical"

@@ -53,11 +53,6 @@ export default async function DashboardPage() {
     );
   }
 
-  const hour = new Date().getHours();
-  const greeting =
-    hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
-  const firstName = ctx?.name ?? null;
-
   if (!ctx.organization?.id) {
     return (
       <main>
@@ -79,26 +74,14 @@ export default async function DashboardPage() {
   }
 
   return (
-    <main>
+    <main className="dashboard-fixed-main flex h-full min-h-0 flex-col">
       <Breadcrumb
         options={[
           { label: "Home", href: "/" },
           { label: "Dashboard", href: "/dashboard" },
         ]}
       />
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
-            {greeting}
-            {firstName ? `, ${firstName}` : ""}
-          </h1>
-          <p className="text-muted-foreground mt-1 text-sm">
-            Your house and assets at a glance
-          </p>
-        </div>
-        <QuickActions canRequestHouse={canRequestHouse} />
-      </div>
-      <div className="mt-6 sm:mt-8">
+      <div className="mt-2 min-h-0 flex-1">
         <Suspense fallback={<AnalyticsSkeleton />}>
           <HouseAnalyticsPanel organizationId={ctx.organization.id} />
         </Suspense>

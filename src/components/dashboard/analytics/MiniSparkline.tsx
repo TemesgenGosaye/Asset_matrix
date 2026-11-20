@@ -24,6 +24,7 @@ export default function MiniSparkline({
       return `${x.toFixed(1)},${y.toFixed(1)}`;
     })
     .join(" ");
+  const surfacePoints = `0,28 ${points} 100,28`;
 
   return (
     <svg
@@ -36,6 +37,7 @@ export default function MiniSparkline({
         className,
       )}
     >
+      <polygon points={surfacePoints} fill="currentColor" opacity={0.09} />
       <polyline
         points={points}
         fill="none"

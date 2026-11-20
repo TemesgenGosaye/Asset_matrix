@@ -17,14 +17,13 @@ const rangeOptions: Array<{ value: HouseAnalyticsRange; label: string }> = [
 ];
 
 const controlClass =
-  "border-border bg-background text-foreground focus-visible:ring-ring min-h-11 rounded-md border px-3 text-sm outline-none focus-visible:ring-2";
+  "border-border bg-background text-foreground focus-visible:ring-ring min-h-11 rounded-md border px-3 text-sm outline-none focus-visible:ring-2 xl:min-h-9 xl:text-xs";
 
 interface AnalyticsToolbarProps {
   value: HouseAnalyticsQuery;
   onChange: (next: HouseAnalyticsQuery) => void;
   onRefresh: () => void;
   loading: boolean;
-  generatedAt?: string;
 }
 
 export default function AnalyticsToolbar({
@@ -32,11 +31,10 @@ export default function AnalyticsToolbar({
   onChange,
   onRefresh,
   loading,
-  generatedAt,
 }: AnalyticsToolbarProps) {
   return (
-    <div className="border-border/70 bg-card/60 mb-5 flex flex-col gap-3 rounded-xl border p-3 sm:p-4">
-      <div className="flex flex-wrap items-end gap-3">
+    <div className="border-border/70 bg-card/60 flex shrink-0 flex-col gap-2 rounded-xl border p-2.5 sm:p-3 xl:p-2">
+      <div className="flex flex-wrap items-end gap-2 xl:gap-3">
         <label className="flex min-w-[9rem] flex-col gap-1.5">
           <span className="text-muted-foreground text-[11px] font-semibold tracking-[0.08em] uppercase">
             Period
@@ -127,12 +125,6 @@ export default function AnalyticsToolbar({
           Refresh
         </button>
       </div>
-      {generatedAt && (
-        <p className="text-muted-foreground text-[11px]">
-          Data generated {new Date(generatedAt).toLocaleString()}. Figures are
-          scoped to your organization and cached for 60 seconds.
-        </p>
-      )}
     </div>
   );
 }

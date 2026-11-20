@@ -48,18 +48,18 @@ export default function QueueFunnel({ funnel }: QueueFunnelProps) {
   const max = Math.max(1, ...stages.map((stage) => stage.value));
 
   return (
-    <div className="space-y-2.5">
+    <div className="flex h-full min-h-0 flex-col justify-center space-y-1.5">
       {stages.map((stage) => (
         <Link
           key={stage.label}
           href={stage.href}
-          className="hover:bg-muted/40 block min-h-11 rounded-lg px-1 py-1 transition-colors"
+          className="hover:bg-muted/40 block min-h-11 rounded-lg px-1 py-0.5 transition-colors xl:min-h-6"
         >
-          <div className="mb-1 flex items-center justify-between text-xs">
+          <div className="mb-0.5 flex items-center justify-between text-[10px]">
             <span className="text-muted-foreground">{stage.label}</span>
             <span className="font-semibold tabular-nums">{stage.value}</span>
           </div>
-          <div className="bg-muted h-2.5 w-full overflow-hidden rounded-full">
+          <div className="bg-muted h-2 w-full overflow-hidden rounded-full">
             <div
               className="h-full rounded-full"
               style={{
@@ -70,7 +70,7 @@ export default function QueueFunnel({ funnel }: QueueFunnelProps) {
           </div>
         </Link>
       ))}
-      <p className="text-muted-foreground border-border/60 pt-2 text-[11px]">
+      <p className="text-muted-foreground border-border/60 pt-1 text-[10px]">
         {funnel.skipped} skipped · {funnel.deferred} deferred in the active
         queue
       </p>

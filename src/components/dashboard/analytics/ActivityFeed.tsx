@@ -23,27 +23,29 @@ interface ActivityFeedProps {
 export default function ActivityFeed({ items }: ActivityFeedProps) {
   return (
     <ChartCard
+      eyebrow="Audit trail"
       title="Recent activity"
       description="Latest audited house-queue actions"
       className="h-full"
+      surface
     >
       {items.length === 0 ? (
-        <p className="text-muted-foreground py-10 text-center text-sm">
+        <p className="text-muted-foreground py-8 text-center text-xs">
           No house-queue activity in this period.
         </p>
       ) : (
         <ul className="divide-border/60 divide-y">
-          {items.map((item) => (
+          {items.slice(0, 3).map((item) => (
             <li key={item.id}>
               <Link
                 href={item.href}
                 className="group hover:bg-muted/40 -mx-2 flex min-h-11 items-center justify-between gap-3 rounded-lg px-2 py-2.5 transition-colors"
               >
                 <div className="min-w-0">
-                  <p className="truncate text-sm font-medium">
+                  <p className="truncate text-xs font-medium">
                     {item.description}
                   </p>
-                  <p className="text-muted-foreground text-[11px]">
+                  <p className="text-muted-foreground text-[10px]">
                     {formatUtc(item.at)} UTC
                   </p>
                 </div>
