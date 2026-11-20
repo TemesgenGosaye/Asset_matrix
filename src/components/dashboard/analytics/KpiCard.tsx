@@ -60,9 +60,9 @@ export default function KpiCard({ kpi }: KpiCardProps) {
       href={kpi.href}
       title={kpi.hint}
       className={cn(
-        "group border-border/70 bg-card/70 relative flex h-full min-w-0 flex-col justify-between overflow-hidden rounded-lg border p-2.5 transition-all duration-200 xl:p-2",
-        "before:absolute before:inset-x-0 before:top-0 before:h-px before:content-['']",
-        "hover:border-brass-500/40 hover:bg-card hover:-translate-y-px hover:shadow-[0_10px_30px_-18px_hsl(var(--foreground)_/_0.45)]",
+        "group border-border/80 bg-card/80 relative flex h-full min-w-0 flex-col justify-between overflow-hidden border p-2.5 transition-colors duration-150 xl:p-2",
+        "before:absolute before:inset-y-0 before:left-0 before:w-[3px] before:content-['']",
+        "hover:border-brass-500/50 hover:bg-card",
         "focus-visible:ring-ring focus-visible:ring-2 focus-visible:outline-none",
         accents[kpi.variant],
       )}
@@ -71,35 +71,35 @@ export default function KpiCard({ kpi }: KpiCardProps) {
         <p className="text-muted-foreground line-clamp-1 text-[10px] font-semibold tracking-[0.09em] uppercase">
           {kpi.label}
         </p>
-        <Icon className="text-muted-foreground group-hover:text-brass-500 h-3.5 w-3.5 shrink-0 transition-colors" />
+        <span className="border-border/60 bg-muted/40 text-muted-foreground group-hover:text-brass-600 group-hover:border-brass-500/40 flex h-5 w-5 shrink-0 items-center justify-center border transition-colors">
+          <Icon className="h-3 w-3" aria-hidden />
+        </span>
       </div>
 
       <div className="mt-1.5 flex items-end justify-between gap-2">
         <span className="text-xl leading-none font-semibold tracking-tight tabular-nums xl:text-lg 2xl:text-2xl">
           {kpi.value.toLocaleString()}
         </span>
-        {hasTrend && (
+        {hasTrend ? (
           <span
             className={cn(
-              "inline-flex shrink-0 items-center gap-0.5 rounded-md px-1.5 py-0.5 text-[10px] font-medium tabular-nums",
+              "border-border/60 inline-flex shrink-0 items-center gap-0.5 border px-1 py-0.5 text-[10px] font-medium tabular-nums",
               positive
                 ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
                 : "bg-destructive/10 text-destructive",
             )}
           >
-            <TrendIcon className="h-3 w-3" />
+            <TrendIcon className="h-3 w-3" aria-hidden />
             {Math.abs(value).toFixed(0)}%
           </span>
-        )}
+        ) : null}
       </div>
 
-      <div className="mt-2 flex items-center gap-2">
-        <MiniSparkline
-          values={kpi.sparkline}
-          positive={positive}
-          className="h-5 w-full xl:h-3"
-        />
-      </div>
+      <MiniSparkline
+        values={kpi.sparkline}
+        positive={positive}
+        className="mt-1.5 h-4 w-full opacity-70 xl:h-3"
+      />
     </Link>
   );
 }
