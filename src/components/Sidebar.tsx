@@ -151,10 +151,10 @@ const Sidebar = React.memo(function Sidebar({
     const active = activeMap.get(item.key);
     const label = labelFor(item);
     const linkClasses = cn(
-      "group flex w-full items-center gap-3 rounded-md px-2.5 py-1.5 text-sm transition-colors",
+      "group relative flex w-full items-center gap-3 rounded-md px-2.5 py-1.5 text-sm transition-colors",
       collapsed && "justify-center px-2",
       active
-        ? "bg-brass-500/20 text-[#0b1220] ring-brass-400/40 font-semibold shadow-sm ring-1"
+        ? "bg-chrome-hover text-[#e8c874] font-semibold shadow-sm before:absolute before:top-1/2 before:left-0 before:h-5 before:w-[3px] before:-translate-y-1/2 before:rounded-full before:bg-[#e8c874] before:content-['']"
         : "text-chrome-muted hover:bg-chrome-hover hover:text-chrome-foreground",
     );
     const content = (
@@ -208,9 +208,9 @@ const Sidebar = React.memo(function Sidebar({
                       }
                     }}
                     className={cn(
-                      "group flex w-full items-center justify-center rounded-md px-2 py-1.5 text-sm transition-colors",
+                      "group relative flex w-full items-center justify-center rounded-md px-2 py-1.5 text-sm transition-colors",
                       active
-                        ? "bg-brass-500/20 ring-brass-400/40 font-semibold text-[#0b1220] shadow-sm ring-1"
+                        ? "bg-chrome-hover font-semibold text-[#e8c874] shadow-sm before:absolute before:top-1/2 before:left-0 before:h-5 before:w-[3px] before:-translate-y-1/2 before:rounded-full before:bg-[#e8c874] before:content-['']"
                         : "text-chrome-muted hover:bg-chrome-hover hover:text-chrome-foreground",
                     )}
                     aria-label={label}
@@ -233,7 +233,7 @@ const Sidebar = React.memo(function Sidebar({
             >
               <CollapsibleTrigger
                 className={cn(
-                  "group flex w-full items-center gap-3 rounded-md px-2.5 py-1.5 text-sm transition-colors",
+                  "group relative flex w-full items-center gap-3 rounded-md px-2.5 py-1.5 text-sm transition-colors",
                   active
                     ? "text-chrome-foreground font-medium"
                     : "text-chrome-muted hover:bg-chrome-hover hover:text-chrome-foreground",

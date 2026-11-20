@@ -190,34 +190,18 @@
     @apply bg-chrome text-chrome-foreground border-chrome-border;
   }
 
-  aside.app-chrome {
-    --chrome: 42 40% 96%;
-    --chrome-foreground: 220 30% 9%;
-    --chrome-muted: 220 16% 28%;
-    --chrome-border: 40 26% 84%;
-    --chrome-hover: 42 38% 90%;
-    background-image: linear-gradient(
-      180deg,
-      hsl(42 46% 97%) 0%,
-      hsl(42 32% 94%) 100%
-    );
-    color-scheme: light;
+  aside.app-chrome,
+  .dark aside.app-chrome {
+    --chrome: 209.3 67.2% 12%;
+    --chrome-foreground: 210 61.5% 94.9%;
+    --chrome-muted: 210.7 24.6% 64.1%;
+    --chrome-border: 212.2 42.3% 19%;
+    --chrome-hover: 207.9 60.9% 18%;
+    background-image: none;
+    color-scheme: dark;
     font-family: var(--font-family-sans);
     font-feature-settings: "cv11", "ss01";
     letter-spacing: -0.006em;
-  }
-
-  .dark aside.app-chrome {
-    --chrome: 42 34% 94%;
-    --chrome-foreground: 220 30% 9%;
-    --chrome-muted: 220 16% 28%;
-    --chrome-border: 40 24% 80%;
-    --chrome-hover: 42 32% 87%;
-    background-image: linear-gradient(
-      180deg,
-      hsl(42 40% 95%) 0%,
-      hsl(42 28% 92%) 100%
-    );
   }
 }
 
