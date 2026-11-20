@@ -12,12 +12,27 @@ import type { HouseAnalyticsResponse } from "@/lib/house-analytics/contract";
 
 type Segment = HouseAnalyticsResponse["statusDistribution"][number];
 
-const colors = [
+const houseTypeColors: Record<string, string> = {
+  Staff: "var(--color-brass-500)",
+  A: "hsl(var(--chart-1))",
+  B: "hsl(var(--chart-2))",
+  C: "hsl(var(--chart-3))",
+  D: "hsl(var(--chart-4))",
+  E: "hsl(var(--chart-5))",
+};
+
+const fallbackColors = [
+  "hsl(var(--chart-1))",
   "hsl(var(--chart-2))",
-  "var(--color-brass-500)",
+  "hsl(var(--chart-3))",
   "hsl(var(--chart-4))",
   "hsl(var(--chart-5))",
+  "var(--color-brass-500)",
 ];
+
+function colorFor(name: string, index: number): string {
+  return houseTypeColors[name] ?? fallbackColors[index % fallbackColors.length];
+}
 
 function toKey(name: string): string {
   return name
@@ -45,7 +60,7 @@ export default function StatusDonut({ data }: StatusDonutProps) {
   const config: ChartConfig = { value: { label: "Houses" } };
   const chartData = active.map((segment, index) => {
     const key = toKey(segment.name);
-    config[key] = { label: segment.name, color: colors[index % colors.length] };
+    config[key] = { label: segment.name, color: colorFor(segment.name, index) };
     return { key, value: segment.value, fill: `var(--color-${key})` };
   });
 
@@ -103,7 +118,7 @@ export default function StatusDonut({ data }: StatusDonutProps) {
           >
             <span
               className="h-2 w-2 shrink-0 rounded-full"
-              style={{ backgroundColor: colors[index % colors.length] }}
+              style={{ backgroundColor: colorFor(segment.name, index) }}
             />
             <span className="text-muted-foreground min-w-0 flex-1 truncate">
               {segment.name}

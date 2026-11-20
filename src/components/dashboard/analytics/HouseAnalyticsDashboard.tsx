@@ -52,6 +52,11 @@ function queryString(query: HouseAnalyticsQuery): string {
   return params.toString();
 }
 
+function registerHref(type: string, range: string): string {
+  const params = new URLSearchParams({ type, range });
+  return `/household/register?${params.toString()}`;
+}
+
 interface HouseAnalyticsDashboardProps {
   initialData: HouseAnalyticsResponse;
   initialQuery: HouseAnalyticsQuery;
@@ -173,7 +178,7 @@ export default function HouseAnalyticsDashboard({
             : "flex min-h-0 flex-1 flex-col gap-2 overflow-hidden"
         }
       >
-        <div className="grid shrink-0 grid-cols-2 gap-1.5 sm:grid-cols-3 lg:grid-cols-4 xl:auto-rows-[68px] xl:grid-cols-6 2xl:auto-rows-[70px] 2xl:grid-cols-[repeat(11,minmax(0,1fr))]">
+        <div className="grid shrink-0 grid-cols-2 gap-1.5 sm:grid-cols-3 lg:grid-cols-5 xl:auto-rows-[68px] xl:grid-cols-5 2xl:auto-rows-[70px]">
           {data.kpis.map((kpi) => (
             <KpiCard key={kpi.id} kpi={kpi} />
           ))}
@@ -199,7 +204,17 @@ export default function HouseAnalyticsDashboard({
           >
             <div className="grid h-full min-h-0 grid-cols-2 gap-1.5">
               <OccupancyGauge occupancy={data.occupancy} />
-              <StatusDonut data={data.statusDistribution} />
+              <StatusDonut
+                data={data.housesByType.map((row) => ({
+                  name: row.type,
+                  value:
+                    row.free +
+                    row.occupied +
+                    row.awaitingInspection +
+                    row.inactive,
+                  href: registerHref(row.type, data.meta.range),
+                }))}
+              />
             </div>
           </ChartCard>
 

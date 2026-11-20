@@ -8,8 +8,8 @@ export default function AnalyticsSkeleton() {
       aria-busy="true"
       aria-label="Loading house analytics"
     >
-      <div className="grid shrink-0 grid-cols-2 gap-1.5 sm:grid-cols-3 lg:grid-cols-4 xl:auto-rows-[68px] xl:grid-cols-6 2xl:auto-rows-[70px] 2xl:grid-cols-[repeat(11,minmax(0,1fr))]">
-        {Array.from({ length: 11 }, (_, index) => (
+      <div className="grid shrink-0 grid-cols-2 gap-1.5 sm:grid-cols-3 lg:grid-cols-5 xl:auto-rows-[68px] xl:grid-cols-5 2xl:auto-rows-[70px]">
+        {Array.from({ length: 5 }, (_, index) => (
           <Card
             key={index}
             className="border-border/70 bg-card/70 h-full p-2.5"

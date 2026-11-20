@@ -1,5 +1,6 @@
 import { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
+import { getEmployeeCounts } from "@/lib/employees/queries";
 import { cached } from "@/lib/cache";
 import { computeHouseQueueWithActiveConfig } from "@/lib/house-queue/engine";
 import { LIVE_ALLOCATION_STATUSES } from "@/lib/house-queue/state";
@@ -128,6 +129,7 @@ async function loadUncached(
     averageWait,
     releaseGroups,
     queue,
+    employeeCounts,
   ] = await Promise.all([
     prisma.$queryRaw<HouseBucketRow[]>(Prisma.sql`
         SELECT "houseType", "bucket", COUNT(*)::int AS "count"
@@ -235,6 +237,7 @@ async function loadUncached(
       _count: { id: true },
     }),
     computeHouseQueueWithActiveConfig(organizationId),
+    getEmployeeCounts(organizationId),
   ]);
 
   const series = buildMonthlySeries(
@@ -295,11 +298,6 @@ async function loadUncached(
     type: query.houseType,
   };
 
-  const queueHref = (status?: string) =>
-    href("/house-queue", {
-      ...(status ? { status } : {}),
-      range: rangeParams.range,
-    });
   const registerHref = (type?: string) =>
     href("/household/register", {
       ...(type ? { type } : {}),
@@ -321,60 +319,8 @@ async function loadUncached(
       months: range.months,
     }),
     buildKpi({
-      id: "free-houses",
-      label: "Free / available",
-      value: buckets.free,
-      variant: "success",
-      flow: "releases",
-      sparkFlow: "releases",
-      positiveIsGood: true,
-      hint: "Active, vacant, no live allocation and not awaiting inspection.",
-      href: registerHref("all"),
-      series,
-      months: range.months,
-    }),
-    buildKpi({
-      id: "occupied-houses",
-      label: "Occupied",
-      value: buckets.occupied,
-      variant: "navy",
-      flow: "allocations",
-      sparkFlow: "allocations",
-      positiveIsGood: true,
-      hint: "Households physically marked Occupied; trend from live allocation dates.",
-      href: "/houses/allocated",
-      series,
-      months: range.months,
-    }),
-    buildKpi({
-      id: "awaiting-inspection",
-      label: "Awaiting inspection",
-      value: buckets.awaitingInspection,
-      variant: "warning",
-      flow: "releases",
-      sparkFlow: "releases",
-      positiveIsGood: false,
-      hint: "PendingInspection / UnderMaintenance or an unresolved handback inspection.",
-      href: "/houses/inspections?status=pending",
-      series,
-      months: range.months,
-    }),
-    buildKpi({
-      id: "inactive-houses",
-      label: "Inactive / damaged",
-      value: buckets.inactive,
-      variant: "destructive",
-      flow: "inspectionsCompleted",
-      sparkFlow: "inspectionsCompleted",
-      positiveIsGood: false,
-      hint: "Inactive, under maintenance or with a recorded damage flag.",
-      href: registerHref(),
-      series,
-      months: range.months,
-    }),
-    buildKpi({
       id: "requests",
-      label: "House requests",
+      label: "Requested",
       value: sumMonth(series, range.months, "requests"),
       variant: "brass",
       flow: "requests",
@@ -386,47 +332,8 @@ async function loadUncached(
       months: range.months,
     }),
     buildKpi({
-      id: "queue-ready",
-      label: "Employees in queue",
-      value: queue.summary.readyCount,
-      variant: "navy",
-      flow: "requests",
-      sparkFlow: "requests",
-      positiveIsGood: false,
-      hint: "Ready-for-allocation rows from the live queue engine.",
-      href: queueHref("ready_for_allocation"),
-      series,
-      months: range.months,
-    }),
-    buildKpi({
-      id: "not-eligible",
-      label: "Not eligible",
-      value: queue.summary.notEligibleCount,
-      variant: "destructive",
-      flow: "requests",
-      sparkFlow: "requests",
-      positiveIsGood: false,
-      hint: "Requesters with no eligible job-grade band in the active config.",
-      href: queueHref("not_eligible"),
-      series,
-      months: range.months,
-    }),
-    buildKpi({
-      id: "no-house-available",
-      label: "No house available",
-      value: queue.summary.noHouseCount,
-      variant: "warning",
-      flow: "requests",
-      sparkFlow: "requests",
-      positiveIsGood: false,
-      hint: "Eligible requesters with no recommended house in their band.",
-      href: queueHref("no_house_available"),
-      series,
-      months: range.months,
-    }),
-    buildKpi({
       id: "allocated-month",
-      label: "Allocated this period",
+      label: "Allocated",
       value: sumMonth(series, range.months, "allocations"),
       variant: "success",
       flow: "allocations",
@@ -439,7 +346,7 @@ async function loadUncached(
     }),
     buildKpi({
       id: "released-month",
-      label: "Terminated / released",
+      label: "Terminated",
       value: sumMonth(series, range.months, "releases"),
       variant: "warning",
       flow: "releases",
@@ -450,6 +357,18 @@ async function loadUncached(
       series,
       months: range.months,
     }),
+    {
+      id: "total-employees",
+      label: "Total employees",
+      value: employeeCounts.total,
+      unit: "count",
+      trend: null,
+      sparkline: [],
+      href: "/employee",
+      variant: "navy",
+      positiveIsGood: true,
+      hint: "Active employee records in the organization directory.",
+    },
   ];
 
   const auditRows = await prisma.audit_logs.findMany({
