@@ -61,13 +61,73 @@ const tones: Record<
   },
 };
 
+interface CardTheme {
+  surface: string;
+  border: string;
+  hover: string;
+  accent: string;
+  icon: string;
+  label: string;
+}
+
+const cardThemes: Record<string, CardTheme> = {
+  "total-houses": {
+    surface: "bg-[#123A57]",
+    border: "border-[#2E6B90]",
+    hover: "hover:bg-[#184B6D]",
+    accent: "before:bg-sky-300",
+    icon: "border-sky-300/30 bg-sky-300/10 text-sky-200",
+    label: "text-sky-200/80",
+  },
+  requests: {
+    surface: "bg-[#0F4C59]",
+    border: "border-[#2A7F8C]",
+    hover: "hover:bg-[#145E6D]",
+    accent: "before:bg-cyan-300",
+    icon: "border-cyan-300/30 bg-cyan-300/10 text-cyan-200",
+    label: "text-cyan-200/80",
+  },
+  "allocated-month": {
+    surface: "bg-[#15543C]",
+    border: "border-[#2F8060]",
+    hover: "hover:bg-[#1B684B]",
+    accent: "before:bg-emerald-300",
+    icon: "border-emerald-300/30 bg-emerald-300/10 text-emerald-200",
+    label: "text-emerald-200/80",
+  },
+  "released-month": {
+    surface: "bg-[#5A2433]",
+    border: "border-[#8F4153]",
+    hover: "hover:bg-[#6D2C3E]",
+    accent: "before:bg-rose-300",
+    icon: "border-rose-300/30 bg-rose-300/10 text-rose-200",
+    label: "text-rose-200/80",
+  },
+  "total-employees": {
+    surface: "bg-[#332D63]",
+    border: "border-[#5B54A0]",
+    hover: "hover:bg-[#403976]",
+    accent: "before:bg-indigo-300",
+    icon: "border-indigo-300/30 bg-indigo-300/10 text-indigo-200",
+    label: "text-indigo-200/80",
+  },
+};
+
 interface KpiCardProps {
   kpi: HouseAnalyticsKpi;
 }
 
 export default function KpiCard({ kpi }: KpiCardProps) {
   const Icon = icons[kpi.id] ?? Building2;
-  const tone = tones[kpi.variant];
+  const variantTone = tones[kpi.variant];
+  const theme = cardThemes[kpi.id] ?? {
+    surface: "bg-slate-800",
+    border: "border-slate-700",
+    hover: "hover:bg-slate-700",
+    accent: variantTone.accent,
+    icon: variantTone.icon,
+    label: "text-slate-400",
+  };
   const trend = kpi.trend;
   const hasTrend = typeof trend === "number" && Number.isFinite(trend);
   const value = trend ?? 0;
@@ -85,21 +145,29 @@ export default function KpiCard({ kpi }: KpiCardProps) {
       title={kpi.hint}
       aria-label={`${kpi.label}: ${displayValue}`}
       className={cn(
-        "group relative flex h-full min-w-0 flex-col justify-between overflow-hidden rounded-none border border-slate-700 bg-slate-800 p-2.5 transition-all duration-200",
+        "group relative flex h-full min-w-0 flex-col justify-between overflow-hidden rounded-none border p-2.5 transition-all duration-200",
+        theme.surface,
+        theme.border,
         "before:absolute before:inset-x-0 before:top-0 before:h-[3px] before:content-['']",
-        "hover:-translate-y-0.5 hover:border-amber-400/60 hover:bg-slate-700",
-        "focus-visible:ring-2 focus-visible:ring-amber-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900 focus-visible:outline-none",
-        tone.accent,
+        theme.accent,
+        "hover:-translate-y-0.5 hover:border-white/40",
+        theme.hover,
+        "focus-visible:ring-2 focus-visible:ring-white/70 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900 focus-visible:outline-none",
       )}
     >
       <div className="relative flex items-start justify-between gap-2">
-        <p className="line-clamp-1 text-[10px] font-semibold tracking-[0.12em] text-slate-400 uppercase">
+        <p
+          className={cn(
+            "line-clamp-1 text-[10px] font-semibold tracking-[0.12em] uppercase",
+            theme.label,
+          )}
+        >
           {kpi.label}
         </p>
         <span
           className={cn(
             "flex h-7 w-7 shrink-0 items-center justify-center rounded-none border transition-transform duration-200 group-hover:scale-105",
-            tone.icon,
+            theme.icon,
           )}
         >
           <Icon className="h-3.5 w-3.5" />
@@ -114,16 +182,18 @@ export default function KpiCard({ kpi }: KpiCardProps) {
           <span
             className={cn(
               "inline-flex shrink-0 items-center gap-0.5 rounded-none px-1.5 py-0.5 text-[10px] font-semibold tabular-nums",
-              positive
-                ? "bg-emerald-500/15 text-emerald-300"
-                : "bg-rose-500/15 text-rose-300",
+              value === 0
+                ? "bg-white/10 text-slate-200"
+                : positive
+                  ? "bg-emerald-500/20 text-emerald-200"
+                  : "bg-rose-500/20 text-rose-200",
             )}
           >
             <TrendIcon className="h-3 w-3" />
             {Math.abs(value).toFixed(0)}%
           </span>
         ) : (
-          <span className="rounded-none bg-slate-700 px-1.5 py-0.5 text-[10px] font-medium text-slate-400">
+          <span className="rounded-none bg-black/20 px-1.5 py-0.5 text-[10px] font-medium text-slate-300">
             No trend
           </span>
         )}
