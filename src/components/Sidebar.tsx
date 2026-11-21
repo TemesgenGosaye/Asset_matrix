@@ -20,6 +20,7 @@ import { PanelLeftClose, PanelRightOpen, ChevronDown } from "lucide-react";
 import SearchTypeahead from "./SearchTypeahead";
 import { useSession, type SessionUser } from "@/lib/auth-client";
 import {
+  DEFAULT_EXPANDED_NAV_GROUPS,
   isActivePath,
   resolveNavSections,
   type NavRegistryItem,
@@ -116,7 +117,9 @@ const Sidebar = React.memo(function Sidebar({
     return map;
   }, [pathname, filteredSections]);
 
-  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [expanded, setExpanded] = useState<Set<string>>(
+    () => new Set(DEFAULT_EXPANDED_NAV_GROUPS),
+  );
 
   useEffect(() => {
     const activeGroups = new Set<string>();

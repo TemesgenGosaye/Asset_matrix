@@ -17,6 +17,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useSession, signOut, type SessionUser } from "@/lib/auth-client";
 import {
+  DEFAULT_EXPANDED_NAV_GROUPS,
   isActivePath,
   resolveNavSections,
   resolvePrimaryItems,
@@ -79,7 +80,9 @@ export default React.memo(function MobileNav({
     [filteredSections],
   );
 
-  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [expanded, setExpanded] = useState<Set<string>>(
+    () => new Set(DEFAULT_EXPANDED_NAV_GROUPS),
+  );
 
   useEffect(() => {
     const activeGroups = new Set<string>();

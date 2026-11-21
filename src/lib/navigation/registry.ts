@@ -131,6 +131,12 @@ export interface NavRegistrySection {
   items: NavRegistryItem[];
 }
 
+export const DEFAULT_EXPANDED_NAV_GROUPS: readonly string[] = [
+  "house.allocation",
+  "house.tenancy",
+  "house.setup",
+];
+
 // ---------------------------------------------------------------------------
 // The registry
 // ---------------------------------------------------------------------------
