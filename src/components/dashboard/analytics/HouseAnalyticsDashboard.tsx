@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import dynamic from "next/dynamic";
-import { AlertTriangle } from "lucide-react";
+import { Activity, AlertTriangle, LayoutDashboard } from "lucide-react";
 import ChartCard from "./ChartCard";
 import KpiCard from "./KpiCard";
 import AnalyticsToolbar from "./AnalyticsToolbar";
@@ -118,46 +118,70 @@ export default function HouseAnalyticsDashboard({
       aria-label="House administration analytics"
       className="min-w-0 space-y-2 xl:flex xl:h-full xl:min-h-0 xl:flex-col xl:overflow-hidden"
     >
-      <div className="flex shrink-0 flex-wrap items-end justify-between gap-2">
-        <div className="min-w-0">
-          <div className="flex items-center gap-2">
-            <span className="bg-brass-500 h-1.5 w-1.5 rounded-full" />
-            <p className="text-brass-600 dark:text-brass-400 text-[9px] font-semibold tracking-[0.16em] uppercase">
-              Housing operations / command center
-            </p>
+      <div className="border-border/60 bg-card/40 shrink-0 rounded-2xl border p-2.5 shadow-sm backdrop-blur-sm xl:p-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex min-w-0 items-center gap-2.5">
+            <span className="border-brass-500/20 bg-brass-500/10 text-brass-600 dark:text-brass-300 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border">
+              <LayoutDashboard className="h-4 w-4" />
+            </span>
+            <div className="min-w-0">
+              <p className="text-brass-600 dark:text-brass-400 text-[9px] font-semibold tracking-[0.16em] uppercase">
+                Housing operations / command center
+              </p>
+              <h2 className="text-lg font-semibold tracking-tight xl:text-2xl">
+                Dashboard Overview
+              </h2>
+            </div>
           </div>
-          <h2 className="mt-0.5 text-xl font-semibold tracking-tight xl:text-2xl">
-            House Analytics
-          </h2>
+          <div className="flex min-w-0 flex-wrap items-center justify-end gap-2">
+            <div className="border-border/70 bg-card/60 hidden max-w-[22rem] min-w-0 items-center gap-2 rounded-full border px-3 py-1 text-[10px] xl:flex">
+              <Activity className="text-brass-500 h-3.5 w-3.5 shrink-0" />
+              <span className="text-brass-600 dark:text-brass-400 shrink-0 font-semibold tracking-[0.12em]">
+                PULSE
+              </span>
+              <span className="text-muted-foreground truncate">
+                {data.activity[0]?.description ?? "No recent queue activity"}
+              </span>
+            </div>
+            <div className="border-border/70 bg-card/60 flex items-center gap-2 rounded-full border px-2.5 py-1 text-[10px]">
+              <span className="relative flex h-2 w-2">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-500 opacity-60" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
+              </span>
+              <span className="text-muted-foreground">Live</span>
+              <span className="font-medium tabular-nums">
+                {new Date(data.meta.generatedAt).toLocaleTimeString()}
+              </span>
+            </div>
+          </div>
         </div>
-        <div className="flex min-w-0 flex-wrap items-center justify-end gap-2">
-          <div className="border-border/70 bg-card/60 hidden max-w-[24rem] min-w-0 items-center gap-2 rounded-full border px-3 py-1 text-[10px] xl:flex">
-            <span className="text-brass-600 dark:text-brass-400 shrink-0 font-semibold tracking-[0.12em]">
-              PULSE
-            </span>
-            <span className="text-muted-foreground truncate">
-              {data.activity[0]?.description ?? "No recent queue activity"}
-            </span>
-          </div>
-          <div className="border-border/70 bg-card/60 flex items-center gap-2 rounded-full border px-2.5 py-1 text-[10px]">
-            <span className="relative flex h-2 w-2">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-500 opacity-60" />
-              <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
-            </span>
-            <span className="text-muted-foreground">Live</span>
-            <span className="font-medium tabular-nums">
-              {new Date(data.meta.generatedAt).toLocaleTimeString()}
-            </span>
-          </div>
+
+        <div className="mt-2.5">
+          <AnalyticsToolbar
+            value={query}
+            onChange={applyQuery}
+            onRefresh={() => void load(query)}
+            loading={loading}
+          />
+        </div>
+
+        <div className="mt-2.5 mb-1 flex items-center justify-between">
+          <p className="text-muted-foreground text-[10px] font-semibold tracking-[0.14em] uppercase">
+            Key metrics
+          </p>
+          <p className="text-muted-foreground text-[10px]">
+            Live estate position
+          </p>
+        </div>
+        <div
+          aria-label="Key metrics"
+          className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5 xl:auto-rows-[96px] 2xl:auto-rows-[104px]"
+        >
+          {data.kpis.map((kpi) => (
+            <KpiCard key={kpi.id} kpi={kpi} />
+          ))}
         </div>
       </div>
-
-      <AnalyticsToolbar
-        value={query}
-        onChange={applyQuery}
-        onRefresh={() => void load(query)}
-        loading={loading}
-      />
 
       {error && (
         <div
@@ -178,12 +202,6 @@ export default function HouseAnalyticsDashboard({
             : "flex min-h-0 flex-1 flex-col gap-2 overflow-hidden"
         }
       >
-        <div className="grid shrink-0 grid-cols-2 gap-1.5 sm:grid-cols-3 lg:grid-cols-5 xl:auto-rows-[68px] xl:grid-cols-5 2xl:auto-rows-[70px]">
-          {data.kpis.map((kpi) => (
-            <KpiCard key={kpi.id} kpi={kpi} />
-          ))}
-        </div>
-
         <div className="grid min-h-0 flex-1 grid-cols-1 gap-2 xl:grid-cols-12 xl:grid-rows-[minmax(0,1.1fr)_minmax(0,0.95fr)_minmax(0,0.85fr)]">
           <ChartCard
             eyebrow="XY / Surface"

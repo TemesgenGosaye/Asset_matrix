@@ -1,6 +1,6 @@
 "use client";
 
-import { RefreshCw } from "lucide-react";
+import { CalendarDays, House, RefreshCw } from "lucide-react";
 import { HOUSE_TYPES } from "@/lib/household-constants";
 import type {
   HouseAnalyticsQuery,
@@ -17,7 +17,10 @@ const rangeOptions: Array<{ value: HouseAnalyticsRange; label: string }> = [
 ];
 
 const controlClass =
-  "border-border bg-background text-foreground focus-visible:ring-ring min-h-11 rounded-md border px-3 text-sm outline-none focus-visible:ring-2 xl:min-h-9 xl:text-xs";
+  "border-border bg-background/80 text-foreground hover:border-brass-500/40 focus-visible:ring-ring h-8 min-w-0 rounded-lg border px-2.5 text-xs font-medium shadow-sm outline-none transition-colors focus-visible:ring-2";
+
+const labelClass =
+  "text-muted-foreground hidden items-center gap-1.5 text-[10px] font-semibold tracking-[0.12em] uppercase sm:flex";
 
 interface AnalyticsToolbarProps {
   value: HouseAnalyticsQuery;
@@ -33,98 +36,87 @@ export default function AnalyticsToolbar({
   loading,
 }: AnalyticsToolbarProps) {
   return (
-    <div className="border-border/70 bg-card/60 flex shrink-0 flex-col gap-2 rounded-xl border p-2.5 sm:p-3 xl:p-2">
-      <div className="flex flex-wrap items-end gap-2 xl:gap-3">
-        <label className="flex min-w-[9rem] flex-col gap-1.5">
-          <span className="text-muted-foreground text-[11px] font-semibold tracking-[0.08em] uppercase">
-            Period
-          </span>
-          <select
-            className={controlClass}
-            value={value.range}
-            onChange={(event) =>
-              onChange({
-                ...value,
-                range: event.target.value as HouseAnalyticsRange,
-              })
-            }
-          >
-            {rangeOptions.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </label>
+    <div className="border-border/70 bg-card/70 flex shrink-0 flex-wrap items-center gap-2 rounded-xl border p-2 shadow-sm backdrop-blur-sm">
+      <span className={labelClass}>
+        <CalendarDays className="text-brass-500 h-3.5 w-3.5" />
+        Period
+      </span>
+      <select
+        aria-label="Analytics period"
+        className={cn(controlClass, "min-w-[7rem]")}
+        value={value.range}
+        onChange={(event) =>
+          onChange({
+            ...value,
+            range: event.target.value as HouseAnalyticsRange,
+          })
+        }
+      >
+        {rangeOptions.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
 
-        <label className="flex min-w-[9rem] flex-col gap-1.5">
-          <span className="text-muted-foreground text-[11px] font-semibold tracking-[0.08em] uppercase">
-            House type
-          </span>
-          <select
-            className={controlClass}
-            value={value.houseType}
-            onChange={(event) =>
-              onChange({
-                ...value,
-                houseType: event.target
-                  .value as HouseAnalyticsQuery["houseType"],
-              })
-            }
-          >
-            <option value="all">All types</option>
-            {HOUSE_TYPES.map((type) => (
-              <option key={type} value={type}>
-                {type === "Staff" ? "S (Staff)" : type}
-              </option>
-            ))}
-          </select>
-        </label>
+      <span className="bg-border/70 mx-0.5 hidden h-5 w-px sm:block" />
 
-        {value.range === "custom" && (
-          <>
-            <label className="flex min-w-[9rem] flex-1 flex-col gap-1.5">
-              <span className="text-muted-foreground text-[11px] font-semibold tracking-[0.08em] uppercase">
-                From
-              </span>
-              <input
-                className={controlClass}
-                type="date"
-                value={value.from ?? ""}
-                onChange={(event) =>
-                  onChange({ ...value, from: event.target.value })
-                }
-              />
-            </label>
-            <label className="flex min-w-[9rem] flex-1 flex-col gap-1.5">
-              <span className="text-muted-foreground text-[11px] font-semibold tracking-[0.08em] uppercase">
-                To
-              </span>
-              <input
-                className={controlClass}
-                type="date"
-                value={value.to ?? ""}
-                onChange={(event) =>
-                  onChange({ ...value, to: event.target.value })
-                }
-              />
-            </label>
-          </>
+      <span className={labelClass}>
+        <House className="text-brass-500 h-3.5 w-3.5" />
+        Type
+      </span>
+      <select
+        aria-label="House type"
+        className={cn(controlClass, "min-w-[6.5rem]")}
+        value={value.houseType}
+        onChange={(event) =>
+          onChange({
+            ...value,
+            houseType: event.target.value as HouseAnalyticsQuery["houseType"],
+          })
+        }
+      >
+        <option value="all">All types</option>
+        {HOUSE_TYPES.map((type) => (
+          <option key={type} value={type}>
+            {type === "Staff" ? "S (Staff)" : type}
+          </option>
+        ))}
+      </select>
+
+      {value.range === "custom" && (
+        <>
+          <input
+            aria-label="From date"
+            className={cn(controlClass, "w-[8.5rem]")}
+            type="date"
+            value={value.from ?? ""}
+            onChange={(event) =>
+              onChange({ ...value, from: event.target.value })
+            }
+          />
+          <input
+            aria-label="To date"
+            className={cn(controlClass, "w-[8.5rem]")}
+            type="date"
+            value={value.to ?? ""}
+            onChange={(event) => onChange({ ...value, to: event.target.value })}
+          />
+        </>
+      )}
+
+      <button
+        type="button"
+        onClick={onRefresh}
+        disabled={loading}
+        className={cn(
+          controlClass,
+          "hover:bg-muted ml-auto inline-flex items-center justify-center gap-1.5 px-2.5 disabled:opacity-60",
         )}
-
-        <button
-          type="button"
-          onClick={onRefresh}
-          disabled={loading}
-          className={cn(
-            controlClass,
-            "hover:bg-muted inline-flex min-w-[7rem] items-center justify-center gap-2 font-medium transition-colors disabled:opacity-60",
-          )}
-        >
-          <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
-          Refresh
-        </button>
-      </div>
+      >
+        <RefreshCw className={cn("h-3.5 w-3.5", loading && "animate-spin")} />
+        <span className="hidden md:inline">Refresh</span>
+      </button>
     </div>
   );
 }
