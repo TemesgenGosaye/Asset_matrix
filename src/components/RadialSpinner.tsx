@@ -30,21 +30,24 @@ export default function RadialSpinner({
   } as CSSProperties;
 
   return (
-    <span
-      className={`msf-radial-spinner${className ? ` ${className}` : ""}`}
-      style={style}
-      role="status"
-      aria-label="Loading"
-    >
-      {SEGMENTS.map((seg, i) => (
-        <span
-          key={i}
-          style={{
-            transform: `rotate(${seg.rotate}deg)`,
-            opacity: seg.opacity,
-          }}
-        />
-      ))}
-    </span>
+    <div className="flex flex-col items-center justify-center gap-2">
+      <span
+        className={`msf-radial-spinner${className ? ` ${className}` : ""}`}
+        style={style}
+        role="status"
+        aria-label="Loading"
+      >
+        {SEGMENTS.map((seg, i) => (
+          <span
+            key={i}
+            style={{
+              transform: `rotate(${seg.rotate}deg)`,
+              opacity: seg.opacity,
+            }}
+          />
+        ))}
+      </span>
+      <span className="text-sm text-slate-600">Please Wait...</span>
+    </div>
   );
 }
