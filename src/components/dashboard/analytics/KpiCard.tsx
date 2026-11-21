@@ -61,7 +61,7 @@ export default function KpiCard({ kpi }: KpiCardProps) {
       href={kpi.href}
       title={kpi.hint}
       className={cn(
-        "group border-border/70 bg-card/70 relative flex h-full min-w-0 flex-col justify-between overflow-hidden rounded-lg border p-2 transition-all duration-200 sm:p-2.5",
+        "group border-border/70 bg-card/70 relative flex h-full min-w-0 flex-col justify-between overflow-hidden rounded-lg border p-2.5 transition-all duration-200 xl:p-2",
         "before:absolute before:inset-x-0 before:top-0 before:h-px before:content-['']",
         "hover:border-brass-500/40 hover:bg-card hover:-translate-y-px hover:shadow-[0_10px_30px_-18px_hsl(var(--foreground)_/_0.45)]",
         "focus-visible:ring-ring focus-visible:ring-2 focus-visible:outline-none",
@@ -76,7 +76,7 @@ export default function KpiCard({ kpi }: KpiCardProps) {
       </div>
 
       <div className="mt-1.5 flex items-end justify-between gap-2">
-        <span className="text-base leading-none font-semibold tracking-tight tabular-nums sm:text-lg 2xl:text-2xl">
+        <span className="text-xl leading-none font-semibold tracking-tight tabular-nums xl:text-lg 2xl:text-2xl">
           {kpi.value.toLocaleString()}
         </span>
         {hasTrend && (
@@ -98,7 +98,7 @@ export default function KpiCard({ kpi }: KpiCardProps) {
         <MiniSparkline
           values={kpi.sparkline}
           positive={positive}
-          className="hidden h-3 w-full sm:block xl:h-3"
+          className="h-5 w-full xl:h-3"
         />
       </div>
     </Link>

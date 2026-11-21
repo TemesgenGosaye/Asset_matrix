@@ -27,7 +27,6 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { EmptyState } from "@/components/EmptyState";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   AlertTriangle,
   ArrowUpRight,
@@ -1478,12 +1477,10 @@ const SortableWidget = memo(function SortableWidget({
   widget,
   onRemove,
   serverStats,
-  compact = false,
 }: {
   widget: DashboardWidgetData;
   onRemove: (id: string) => void;
   serverStats?: { assets: number; accessories: number; users: number };
-  compact?: boolean;
 }) {
   const {
     attributes,
@@ -1506,30 +1503,10 @@ const SortableWidget = memo(function SortableWidget({
   const title = definition?.title ?? widget.widgetType;
 
   return (
-    <div
-      ref={setNodeRef}
-      style={style}
-      className={compact ? "h-full min-h-0" : undefined}
-    >
-      <Card
-        className={
-          compact ? "flex h-full min-h-0 flex-col overflow-hidden" : undefined
-        }
-      >
-        <CardHeader
-          className={
-            compact
-              ? "flex shrink-0 flex-row items-center justify-between space-y-0 px-3 py-2"
-              : "flex flex-row items-center justify-between space-y-0 pb-2"
-          }
-        >
-          <CardTitle
-            className={
-              compact ? "text-xs font-semibold" : "text-sm font-medium"
-            }
-          >
-            {title}
-          </CardTitle>
+    <div ref={setNodeRef} style={style}>
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium">{title}</CardTitle>
           <div className="flex items-center gap-1">
             <button
               className="hover:bg-muted cursor-grab rounded p-1"
@@ -1550,11 +1527,7 @@ const SortableWidget = memo(function SortableWidget({
             </Button>
           </div>
         </CardHeader>
-        <CardContent
-          className={
-            compact ? "min-h-0 flex-1 overflow-hidden px-3 pb-3" : undefined
-          }
-        >
+        <CardContent>
           <WidgetContent
             widgetType={widget.widgetType}
             serverStats={serverStats}
@@ -1573,7 +1546,6 @@ export default function DashboardGrid({
   serverStats,
   isAdmin = true,
   permissions,
-  compact = false,
 }: {
   serverStats?: { assets: number; accessories: number; users: number };
   isAdmin?: boolean;
@@ -1588,7 +1560,6 @@ export default function DashboardGrid({
    * and a broken-looking dashboard.
    */
   permissions?: string[];
-  compact?: boolean;
 } = {}) {
   const [widgets, setWidgets] = useState<DashboardWidgetData[]>([]);
   const [loading, setLoading] = useState(true);
@@ -1612,9 +1583,7 @@ export default function DashboardGrid({
   }, []);
 
   useEffect(() => {
-    queueMicrotask(() => {
-      void fetchWidgets();
-    });
+    fetchWidgets();
   }, [fetchWidgets]);
 
   const handleDragEnd = useCallback(
@@ -1690,18 +1659,9 @@ export default function DashboardGrid({
 
   if (loading) {
     return (
-      <div
-        className={
-          compact
-            ? "grid min-h-0 flex-1 grid-cols-1 gap-2 lg:grid-cols-3"
-            : "grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3"
-        }
-      >
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
         {[1, 2, 3].map((i) => (
-          <Card
-            key={i}
-            className={compact ? "animate-pulse p-3" : "animate-pulse"}
-          >
+          <Card key={i} className="animate-pulse">
             <CardHeader>
               <div className="bg-muted h-4 w-1/2 rounded" />
             </CardHeader>
@@ -1728,124 +1688,6 @@ export default function DashboardGrid({
   const availableWidgets = WIDGET_DEFINITIONS.filter(
     (d) => !activeTypes.has(d.type) && isWidgetAvailable(d),
   );
-
-  const widgetTitle = (type: string) =>
-    WIDGET_DEFINITIONS.find((definition) => definition.type === type)?.title ??
-    type;
-
-  if (compact) {
-    return (
-      <div className="flex h-full min-h-0 flex-col gap-2">
-        <div className="flex shrink-0 items-center justify-between gap-2">
-          <h2 className="text-sm font-semibold tracking-tight">My Dashboard</h2>
-          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-            <DialogTrigger asChild>
-              <Button variant="outline" size="sm" className="h-7 text-[11px]">
-                <Plus className="mr-1 h-3 w-3" />
-                Widgets
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Add widget</DialogTitle>
-              </DialogHeader>
-              <div className="grid max-h-[60vh] gap-3 overflow-y-auto py-4">
-                {availableWidgets.length === 0 ? (
-                  <p className="text-muted-foreground text-sm">
-                    All widgets have been added.
-                  </p>
-                ) : (
-                  availableWidgets.map((definition) => (
-                    <Button
-                      key={definition.type}
-                      variant="outline"
-                      className="hover:bg-muted flex h-auto flex-col items-start gap-1 rounded-lg border p-3 text-left transition-colors"
-                      onClick={() => handleAdd(definition.type)}
-                    >
-                      <span className="text-sm font-medium">
-                        {definition.title}
-                      </span>
-                      <span className="text-muted-foreground text-xs">
-                        {definition.description}
-                      </span>
-                    </Button>
-                  ))
-                )}
-              </div>
-            </DialogContent>
-          </Dialog>
-        </div>
-
-        {widgets.length === 0 ? (
-          <EmptyState
-            icon={<Plus className="h-8 w-8" />}
-            title="No widgets yet"
-            description="Add a widget to build your personal dashboard."
-          />
-        ) : (
-          <>
-            <Tabs
-              defaultValue={widgets[0].id}
-              className="flex min-h-0 flex-1 flex-col lg:hidden"
-            >
-              <TabsList className="bg-muted/60 grid h-8 w-full grid-cols-3 gap-0.5 p-0.5">
-                {widgets.slice(0, 3).map((widget) => (
-                  <TabsTrigger
-                    key={widget.id}
-                    value={widget.id}
-                    className="px-1 text-[10px]"
-                  >
-                    {widgetTitle(widget.widgetType)}
-                  </TabsTrigger>
-                ))}
-              </TabsList>
-              {widgets.slice(0, 3).map((widget) => (
-                <TabsContent
-                  key={widget.id}
-                  value={widget.id}
-                  className="mt-1 min-h-0 flex-1"
-                >
-                  <Card className="flex h-full min-h-0 flex-col overflow-hidden">
-                    <CardContent className="min-h-0 flex-1 overflow-hidden px-3 py-3">
-                      <WidgetContent
-                        widgetType={widget.widgetType}
-                        serverStats={serverStats}
-                      />
-                    </CardContent>
-                  </Card>
-                </TabsContent>
-              ))}
-            </Tabs>
-
-            <div className="hidden h-full min-h-0 lg:block">
-              <DndContext
-                sensors={sensors}
-                collisionDetection={closestCenter}
-                onDragEnd={handleDragEnd}
-              >
-                <SortableContext
-                  items={widgets.map((widget) => widget.id)}
-                  strategy={rectSortingStrategy}
-                >
-                  <div className="grid h-full min-h-0 grid-cols-3 gap-2">
-                    {widgets.map((widget) => (
-                      <SortableWidget
-                        key={widget.id}
-                        widget={widget}
-                        onRemove={handleRemove}
-                        serverStats={serverStats}
-                        compact
-                      />
-                    ))}
-                  </div>
-                </SortableContext>
-              </DndContext>
-            </div>
-          </>
-        )}
-      </div>
-    );
-  }
 
   return (
     <div>

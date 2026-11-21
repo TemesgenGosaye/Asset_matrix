@@ -17,7 +17,7 @@ const rangeOptions: Array<{ value: HouseAnalyticsRange; label: string }> = [
 ];
 
 const controlClass =
-  "border-border bg-background text-foreground focus-visible:ring-ring h-7 min-w-0 rounded-md border px-2 text-[11px] outline-none focus-visible:ring-2 sm:text-xs";
+  "border-border bg-background text-foreground focus-visible:ring-ring min-h-11 rounded-md border px-3 text-sm outline-none focus-visible:ring-2 xl:min-h-9 xl:text-xs";
 
 interface AnalyticsToolbarProps {
   value: HouseAnalyticsQuery;
@@ -33,83 +33,98 @@ export default function AnalyticsToolbar({
   loading,
 }: AnalyticsToolbarProps) {
   return (
-    <div className="border-border/70 bg-card/60 flex shrink-0 flex-wrap items-center gap-1.5 rounded-lg border px-1.5 py-1">
-      <span className="text-muted-foreground hidden text-[9px] font-semibold tracking-[0.12em] uppercase sm:inline">
-        Period
-      </span>
-      <select
-        aria-label="Analytics period"
-        className={controlClass}
-        value={value.range}
-        onChange={(event) =>
-          onChange({
-            ...value,
-            range: event.target.value as HouseAnalyticsRange,
-          })
-        }
-      >
-        {rangeOptions.map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.label}
-          </option>
-        ))}
-      </select>
-
-      <span className="text-muted-foreground hidden text-[9px] font-semibold tracking-[0.12em] uppercase sm:inline">
-        Type
-      </span>
-      <select
-        aria-label="House type"
-        className={controlClass}
-        value={value.houseType}
-        onChange={(event) =>
-          onChange({
-            ...value,
-            houseType: event.target.value as HouseAnalyticsQuery["houseType"],
-          })
-        }
-      >
-        <option value="all">All types</option>
-        {HOUSE_TYPES.map((type) => (
-          <option key={type} value={type}>
-            {type === "Staff" ? "S (Staff)" : type}
-          </option>
-        ))}
-      </select>
-
-      {value.range === "custom" && (
-        <>
-          <input
-            aria-label="From date"
-            className={cn(controlClass, "w-[7.5rem]")}
-            type="date"
-            value={value.from ?? ""}
+    <div className="border-border/70 bg-card/60 flex shrink-0 flex-col gap-2 rounded-xl border p-2.5 sm:p-3 xl:p-2">
+      <div className="flex flex-wrap items-end gap-2 xl:gap-3">
+        <label className="flex min-w-[9rem] flex-col gap-1.5">
+          <span className="text-muted-foreground text-[11px] font-semibold tracking-[0.08em] uppercase">
+            Period
+          </span>
+          <select
+            className={controlClass}
+            value={value.range}
             onChange={(event) =>
-              onChange({ ...value, from: event.target.value })
+              onChange({
+                ...value,
+                range: event.target.value as HouseAnalyticsRange,
+              })
             }
-          />
-          <input
-            aria-label="To date"
-            className={cn(controlClass, "w-[7.5rem]")}
-            type="date"
-            value={value.to ?? ""}
-            onChange={(event) => onChange({ ...value, to: event.target.value })}
-          />
-        </>
-      )}
+          >
+            {rangeOptions.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </label>
 
-      <button
-        type="button"
-        onClick={onRefresh}
-        disabled={loading}
-        aria-label="Refresh analytics"
-        className={cn(
-          controlClass,
-          "hover:bg-muted ml-auto inline-flex w-7 items-center justify-center px-0 transition-colors disabled:opacity-60",
+        <label className="flex min-w-[9rem] flex-col gap-1.5">
+          <span className="text-muted-foreground text-[11px] font-semibold tracking-[0.08em] uppercase">
+            House type
+          </span>
+          <select
+            className={controlClass}
+            value={value.houseType}
+            onChange={(event) =>
+              onChange({
+                ...value,
+                houseType: event.target
+                  .value as HouseAnalyticsQuery["houseType"],
+              })
+            }
+          >
+            <option value="all">All types</option>
+            {HOUSE_TYPES.map((type) => (
+              <option key={type} value={type}>
+                {type === "Staff" ? "S (Staff)" : type}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        {value.range === "custom" && (
+          <>
+            <label className="flex min-w-[9rem] flex-1 flex-col gap-1.5">
+              <span className="text-muted-foreground text-[11px] font-semibold tracking-[0.08em] uppercase">
+                From
+              </span>
+              <input
+                className={controlClass}
+                type="date"
+                value={value.from ?? ""}
+                onChange={(event) =>
+                  onChange({ ...value, from: event.target.value })
+                }
+              />
+            </label>
+            <label className="flex min-w-[9rem] flex-1 flex-col gap-1.5">
+              <span className="text-muted-foreground text-[11px] font-semibold tracking-[0.08em] uppercase">
+                To
+              </span>
+              <input
+                className={controlClass}
+                type="date"
+                value={value.to ?? ""}
+                onChange={(event) =>
+                  onChange({ ...value, to: event.target.value })
+                }
+              />
+            </label>
+          </>
         )}
-      >
-        <RefreshCw className={cn("h-3.5 w-3.5", loading && "animate-spin")} />
-      </button>
+
+        <button
+          type="button"
+          onClick={onRefresh}
+          disabled={loading}
+          className={cn(
+            controlClass,
+            "hover:bg-muted inline-flex min-w-[7rem] items-center justify-center gap-2 font-medium transition-colors disabled:opacity-60",
+          )}
+        >
+          <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
+          Refresh
+        </button>
+      </div>
     </div>
   );
 }

@@ -9,7 +9,6 @@ import KeyboardShortcuts from "./KeyboardShortcuts";
 import OfflineSyncIndicator from "./OfflineSyncIndicator";
 import PageTransition from "./PageTransition";
 import { isActivePath } from "@/lib/navigation/registry";
-import { cn } from "@/lib/utils";
 
 const OnboardingWizard = dynamic(() => import("./OnboardingWizard"), {
   ssr: false,
@@ -66,7 +65,6 @@ export default function AppShell({
   const isPublicRoute =
     pathname === "/" ||
     PUBLIC_ROUTES.some((route) => isActivePath(pathname, route));
-  const isDashboardRoute = pathname === "/dashboard";
 
   if (isPublicRoute) {
     return <>{children}</>;
@@ -96,16 +94,9 @@ export default function AppShell({
           <OfflineSyncIndicator />
           <main
             id="main-content"
-            className={cn(
-              "bg-background flex-1 transition-colors duration-300",
-              isDashboardRoute
-                ? "overflow-hidden"
-                : "overflow-y-auto p-4 pb-20 md:p-8 md:pb-8",
-            )}
+            className="bg-background flex-1 overflow-y-auto p-4 pb-20 transition-colors duration-300 md:p-8 md:pb-8"
           >
-            <PageTransition className={isDashboardRoute ? "h-full" : undefined}>
-              {children}
-            </PageTransition>
+            <PageTransition>{children}</PageTransition>
           </main>
           <MobileNav permissions={permissions} isAdmin={isAdmin} />
         </div>
