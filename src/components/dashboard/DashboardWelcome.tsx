@@ -4,6 +4,7 @@ interface DashboardWelcomeProps {
   fullName: string;
   headingLevel?: 1 | 2;
   className?: string;
+  compact?: boolean;
 }
 
 const TIME_ZONE = "Africa/Addis_Ababa";
@@ -12,6 +13,7 @@ export default function DashboardWelcome({
   fullName,
   headingLevel = 2,
   className,
+  compact = false,
 }: DashboardWelcomeProps) {
   const displayName = fullName.trim() || "Colleague";
   const now = new Date();
@@ -37,6 +39,7 @@ export default function DashboardWelcome({
       initialDateLabel={dateLabel}
       headingLevel={headingLevel}
       className={className}
+      compact={compact}
     />
   );
 }

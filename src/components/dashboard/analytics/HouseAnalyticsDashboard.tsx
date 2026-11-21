@@ -2,7 +2,16 @@
 
 import { useRef, useState } from "react";
 import dynamic from "next/dynamic";
-import { AlertTriangle } from "lucide-react";
+import {
+  Activity,
+  AlertTriangle,
+  Gauge,
+  LayoutDashboard,
+  ListChecks,
+  Radio,
+  Workflow,
+} from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import ChartCard from "./ChartCard";
 import KpiCard from "./KpiCard";
 import AnalyticsToolbar from "./AnalyticsToolbar";
@@ -20,7 +29,7 @@ import {
 } from "@/lib/house-analytics/contract";
 
 const chartLoading = () => (
-  <div className="text-muted-foreground flex h-24 items-center justify-center text-xs">
+  <div className="text-muted-foreground flex h-full min-h-16 items-center justify-center text-[10px]">
     Loading chart…
   </div>
 );
@@ -113,165 +122,279 @@ export default function HouseAnalyticsDashboard({
     void load(next);
   }
 
+  const donutData = data.housesByType.map((row) => ({
+    name: row.type,
+    value: row.free + row.occupied + row.awaitingInspection + row.inactive,
+    href: registerHref(row.type, data.meta.range),
+  }));
+
   return (
     <section
       aria-label="House administration analytics"
-      className="min-w-0 space-y-2 xl:flex xl:h-full xl:min-h-0 xl:flex-col xl:overflow-hidden"
+      className="flex h-full min-h-0 flex-col gap-2"
     >
-      <div className="flex shrink-0 flex-wrap items-end justify-between gap-2">
-        <div className="min-w-0">
-          <div className="flex items-center gap-2">
-            <span className="bg-brass-500 h-1.5 w-1.5 rounded-full" />
-            <p className="text-brass-600 dark:text-brass-400 text-[9px] font-semibold tracking-[0.16em] uppercase">
+      <header className="flex shrink-0 flex-wrap items-center justify-between gap-2">
+        <div className="flex min-w-0 items-center gap-2">
+          <span className="border-brass-500/20 bg-brass-500/10 text-brass-600 dark:text-brass-300 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border">
+            <LayoutDashboard className="h-4 w-4" />
+          </span>
+          <div className="min-w-0">
+            <p className="text-brass-600 dark:text-brass-400 truncate text-[9px] font-semibold tracking-[0.16em] uppercase">
               Housing operations / command center
             </p>
+            <h2 className="text-sm leading-tight font-semibold tracking-tight sm:text-base">
+              Dashboard Overview
+            </h2>
           </div>
-          <h2 className="mt-0.5 text-xl font-semibold tracking-tight xl:text-2xl">
-            House Analytics
-          </h2>
         </div>
-        <div className="flex min-w-0 flex-wrap items-center justify-end gap-2">
-          <div className="border-border/70 bg-card/60 hidden max-w-[24rem] min-w-0 items-center gap-2 rounded-full border px-3 py-1 text-[10px] xl:flex">
-            <span className="text-brass-600 dark:text-brass-400 shrink-0 font-semibold tracking-[0.12em]">
-              PULSE
-            </span>
+
+        <div className="flex min-w-0 flex-wrap items-center justify-end gap-1.5">
+          <div className="border-border/70 bg-card/60 hidden max-w-[14rem] min-w-0 items-center gap-1.5 rounded-full border px-2 py-1 text-[10px] xl:flex">
+            <Activity className="text-brass-500 h-3 w-3 shrink-0" />
             <span className="text-muted-foreground truncate">
               {data.activity[0]?.description ?? "No recent queue activity"}
             </span>
           </div>
-          <div className="border-border/70 bg-card/60 flex items-center gap-2 rounded-full border px-2.5 py-1 text-[10px]">
+          <div className="border-border/70 bg-card/60 hidden items-center gap-1.5 rounded-full border px-2 py-1 text-[10px] sm:flex">
             <span className="relative flex h-2 w-2">
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-500 opacity-60" />
               <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
             </span>
-            <span className="text-muted-foreground">Live</span>
+            <span className="text-muted-foreground hidden sm:inline">Live</span>
             <span className="font-medium tabular-nums">
               {new Date(data.meta.generatedAt).toLocaleTimeString()}
             </span>
           </div>
+          <AnalyticsToolbar
+            value={query}
+            onChange={applyQuery}
+            onRefresh={() => void load(query)}
+            loading={loading}
+          />
         </div>
-      </div>
-
-      <AnalyticsToolbar
-        value={query}
-        onChange={applyQuery}
-        onRefresh={() => void load(query)}
-        loading={loading}
-      />
+      </header>
 
       {error && (
         <div
           role="alert"
-          className="border-destructive/30 bg-destructive/10 text-destructive flex shrink-0 items-center gap-2 rounded-lg border px-3 py-1.5 text-xs"
+          className="border-destructive/30 bg-destructive/10 text-destructive flex shrink-0 items-center gap-2 rounded-lg border px-2.5 py-1 text-[11px]"
         >
-          <AlertTriangle className="h-4 w-4 shrink-0" />
-          {error}
+          <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+          <span className="truncate">{error}</span>
         </div>
       )}
 
-      {loading && <AnalyticsSkeleton />}
+      {loading ? (
+        <AnalyticsSkeleton />
+      ) : (
+        <>
+          <div className="grid shrink-0 grid-cols-3 gap-1.5 sm:grid-cols-5">
+            {data.kpis.map((kpi) => (
+              <KpiCard key={kpi.id} kpi={kpi} />
+            ))}
+          </div>
 
-      <div
-        className={
-          loading
-            ? "hidden"
-            : "flex min-h-0 flex-1 flex-col gap-2 overflow-hidden"
-        }
-      >
-        <div className="grid shrink-0 grid-cols-2 gap-1.5 sm:grid-cols-3 lg:grid-cols-5 xl:auto-rows-[68px] xl:grid-cols-5 2xl:auto-rows-[70px]">
-          {data.kpis.map((kpi) => (
-            <KpiCard key={kpi.id} kpi={kpi} />
-          ))}
-        </div>
+          <div className="hidden min-h-0 flex-1 grid-cols-12 grid-rows-[minmax(0,1fr)_minmax(0,0.92fr)] gap-2 lg:grid 2xl:grid-rows-[minmax(0,1.05fr)_minmax(0,0.85fr)_minmax(0,0.75fr)]">
+            <ChartCard
+              eyebrow="Estate flow"
+              title="Allocations, demand and releases"
+              description="Monthly movement across the housing register"
+              className="col-span-7"
+              surface
+            >
+              <FlowSurfaceChart data={data.monthly} />
+            </ChartCard>
 
-        <div className="grid min-h-0 flex-1 grid-cols-1 gap-2 xl:grid-cols-12 xl:grid-rows-[minmax(0,1.1fr)_minmax(0,0.95fr)_minmax(0,0.85fr)]">
-          <ChartCard
-            eyebrow="XY / Surface"
-            title="Estate flow matrix"
-            description="Allocations, demand, releases and inspections by month"
-            className="xl:col-span-8"
-            surface
-          >
-            <FlowSurfaceChart data={data.monthly} />
-          </ChartCard>
+            <ChartCard
+              eyebrow="Coverage"
+              title="Occupancy and register mix"
+              description="Current position from the live register"
+              className="col-span-5"
+              surface
+            >
+              <div className="grid h-full min-h-0 grid-cols-2 gap-1.5">
+                <OccupancyGauge occupancy={data.occupancy} />
+                <StatusDonut data={donutData} />
+              </div>
+            </ChartCard>
 
-          <ChartCard
-            eyebrow="Coverage"
-            title="Occupancy & register mix"
-            description="Current position from the live register"
-            className="xl:col-span-4"
-            surface
-          >
-            <div className="grid h-full min-h-0 grid-cols-2 gap-1.5">
-              <OccupancyGauge occupancy={data.occupancy} />
-              <StatusDonut
-                data={data.housesByType.map((row) => ({
-                  name: row.type,
-                  value:
-                    row.free +
-                    row.occupied +
-                    row.awaitingInspection +
-                    row.inactive,
-                  href: registerHref(row.type, data.meta.range),
-                }))}
-              />
+            <ChartCard
+              eyebrow="Supply / demand"
+              title="Band pressure"
+              description="Free stock against eligible demand by band"
+              className="col-span-4"
+              surface
+            >
+              <SupplyPressure data={data.supplyDemand} />
+            </ChartCard>
+
+            <ChartCard
+              eyebrow="Allocation engine"
+              title="Queue funnel"
+              description="Live eligible, ready and blocked requesters"
+              className="col-span-4"
+              surface
+            >
+              <QueueFunnel funnel={data.funnel} />
+            </ChartCard>
+
+            <ChartCard
+              eyebrow="Priority actions"
+              title="Action queue"
+              description="Generated from live pressure signals"
+              className="col-span-4"
+              surface
+            >
+              <WishlistPanel data={data} />
+            </ChartCard>
+
+            <ChartCard
+              eyebrow="Inventory"
+              title="House type stock"
+              description="Occupancy and condition by house type"
+              className="col-span-4 hidden 2xl:flex"
+              surface
+            >
+              <HouseTypeBar data={data.housesByType} />
+            </ChartCard>
+
+            <ChartCard
+              eyebrow="Handback"
+              title="Release reasons"
+              description="Terminations in the selected period"
+              className="col-span-3 hidden 2xl:flex"
+              surface
+            >
+              <ReleaseReasons data={data.releaseReasons} />
+            </ChartCard>
+
+            <div className="col-span-5 hidden min-h-0 2xl:block">
+              <TopQueueTable rows={data.topQueue} />
             </div>
-          </ChartCard>
-
-          <ChartCard
-            eyebrow="Inventory"
-            title="House type stack"
-            description="Stock condition by band"
-            className="xl:col-span-4"
-            surface
-          >
-            <HouseTypeBar data={data.housesByType} />
-          </ChartCard>
-          <ChartCard
-            eyebrow="Supply / Demand"
-            title="Band pressure matrix"
-            description="Free stock against eligible demand"
-            className="xl:col-span-4"
-            surface
-          >
-            <SupplyPressure data={data.supplyDemand} />
-          </ChartCard>
-          <ChartCard
-            eyebrow="Pipeline"
-            title="Queue funnel"
-            description="Active allocation engine"
-            className="xl:col-span-4"
-            surface
-          >
-            <QueueFunnel funnel={data.funnel} />
-          </ChartCard>
-
-          <ChartCard
-            eyebrow="Handback"
-            title="Release reasons"
-            description="Terminations in the selected period"
-            className="xl:col-span-2"
-            surface
-          >
-            <ReleaseReasons data={data.releaseReasons} />
-          </ChartCard>
-          <div className="min-h-0 xl:col-span-2">
-            <InspectionPipeline inspection={data.inspections} />
           </div>
-          <ChartCard
-            eyebrow="Priority wishlist"
-            title="Action queue"
-            description="Generated from live pressure signals"
-            className="xl:col-span-3"
-            surface
+
+          <Tabs
+            defaultValue="flow"
+            className="flex min-h-0 flex-1 flex-col lg:hidden"
           >
-            <WishlistPanel data={data} />
-          </ChartCard>
-          <div className="min-h-0 xl:col-span-5">
-            <TopQueueTable rows={data.topQueue} />
-          </div>
-        </div>
-      </div>
+            <TabsList className="bg-muted/60 grid h-8 w-full grid-cols-4 gap-0.5 p-0.5">
+              <TabsTrigger value="flow" className="gap-1 px-1 text-[10px]">
+                <Workflow className="h-3 w-3" />
+                Flow
+              </TabsTrigger>
+              <TabsTrigger value="coverage" className="gap-1 px-1 text-[10px]">
+                <Gauge className="h-3 w-3" />
+                Coverage
+              </TabsTrigger>
+              <TabsTrigger value="pipeline" className="gap-1 px-1 text-[10px]">
+                <ListChecks className="h-3 w-3" />
+                Pipeline
+              </TabsTrigger>
+              <TabsTrigger value="actions" className="gap-1 px-1 text-[10px]">
+                <Radio className="h-3 w-3" />
+                Actions
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent
+              value="flow"
+              className="mt-1 min-h-0 flex-1 data-[state=inactive]:hidden"
+            >
+              <ChartCard
+                eyebrow="Estate flow"
+                title="Allocations, demand and releases"
+                className="h-full"
+                surface
+              >
+                <FlowSurfaceChart data={data.monthly} />
+              </ChartCard>
+            </TabsContent>
+
+            <TabsContent
+              value="coverage"
+              className="mt-1 min-h-0 flex-1 data-[state=inactive]:hidden"
+            >
+              <div className="grid h-full min-h-0 grid-cols-2 gap-1.5">
+                <ChartCard
+                  eyebrow="Coverage"
+                  title="Occupancy"
+                  className="h-full"
+                  surface
+                >
+                  <OccupancyGauge occupancy={data.occupancy} />
+                </ChartCard>
+                <ChartCard
+                  eyebrow="Register"
+                  title="House mix"
+                  className="h-full"
+                  surface
+                >
+                  <StatusDonut data={donutData} />
+                </ChartCard>
+              </div>
+            </TabsContent>
+
+            <TabsContent
+              value="pipeline"
+              className="mt-1 min-h-0 flex-1 data-[state=inactive]:hidden"
+            >
+              <div className="grid h-full min-h-0 grid-cols-2 gap-1.5">
+                <ChartCard
+                  eyebrow="Queue"
+                  title="Allocation funnel"
+                  className="h-full"
+                  surface
+                >
+                  <QueueFunnel funnel={data.funnel} />
+                </ChartCard>
+                <div className="min-h-0">
+                  <InspectionPipeline inspection={data.inspections} />
+                </div>
+              </div>
+            </TabsContent>
+
+            <TabsContent
+              value="actions"
+              className="mt-1 min-h-0 flex-1 data-[state=inactive]:hidden"
+            >
+              <div className="grid h-full min-h-0 grid-cols-2 grid-rows-2 gap-1.5">
+                <ChartCard
+                  eyebrow="Priority"
+                  title="Action queue"
+                  className="min-h-0"
+                  surface
+                >
+                  <WishlistPanel data={data} />
+                </ChartCard>
+                <ChartCard
+                  eyebrow="Handback"
+                  title="Release reasons"
+                  className="min-h-0"
+                  surface
+                >
+                  <ReleaseReasons data={data.releaseReasons} />
+                </ChartCard>
+                <ChartCard
+                  eyebrow="Supply / demand"
+                  title="Band pressure"
+                  className="min-h-0"
+                  surface
+                >
+                  <SupplyPressure data={data.supplyDemand} />
+                </ChartCard>
+                <ChartCard
+                  eyebrow="Inventory"
+                  title="House stock"
+                  className="min-h-0"
+                  surface
+                >
+                  <HouseTypeBar data={data.housesByType} />
+                </ChartCard>
+              </div>
+            </TabsContent>
+          </Tabs>
+        </>
+      )}
     </section>
   );
 }
