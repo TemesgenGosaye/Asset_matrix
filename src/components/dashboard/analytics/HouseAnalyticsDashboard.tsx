@@ -118,38 +118,38 @@ export default function HouseAnalyticsDashboard({
       aria-label="House administration analytics"
       className="min-w-0 space-y-2 xl:flex xl:h-full xl:min-h-0 xl:flex-col xl:overflow-hidden"
     >
-      <div className="border-border/60 bg-card/40 shrink-0 rounded-2xl border p-2.5 shadow-sm backdrop-blur-sm xl:p-3">
+      <div className="shrink-0 rounded-none border border-slate-800 bg-slate-900 p-2.5 shadow-sm xl:p-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex min-w-0 items-center gap-2.5">
-            <span className="border-brass-500/20 bg-brass-500/10 text-brass-600 dark:text-brass-300 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-none border border-amber-400/30 bg-amber-400/10 text-amber-300">
               <LayoutDashboard className="h-4 w-4" />
             </span>
             <div className="min-w-0">
-              <p className="text-brass-600 dark:text-brass-400 text-[9px] font-semibold tracking-[0.16em] uppercase">
+              <p className="text-[9px] font-semibold tracking-[0.16em] text-amber-300 uppercase">
                 Housing operations / command center
               </p>
-              <h2 className="text-lg font-semibold tracking-tight xl:text-2xl">
+              <h2 className="text-lg font-semibold tracking-tight text-slate-50 xl:text-2xl">
                 Dashboard Overview
               </h2>
             </div>
           </div>
           <div className="flex min-w-0 flex-wrap items-center justify-end gap-2">
-            <div className="border-border/70 bg-card/60 hidden max-w-[22rem] min-w-0 items-center gap-2 rounded-full border px-3 py-1 text-[10px] xl:flex">
-              <Activity className="text-brass-500 h-3.5 w-3.5 shrink-0" />
-              <span className="text-brass-600 dark:text-brass-400 shrink-0 font-semibold tracking-[0.12em]">
+            <div className="hidden max-w-[22rem] min-w-0 items-center gap-2 rounded-none border border-slate-700 bg-slate-800 px-3 py-1 text-[10px] text-slate-300 xl:flex">
+              <Activity className="h-3.5 w-3.5 shrink-0 text-amber-300" />
+              <span className="shrink-0 font-semibold tracking-[0.12em] text-amber-300">
                 PULSE
               </span>
-              <span className="text-muted-foreground truncate">
+              <span className="truncate text-slate-300">
                 {data.activity[0]?.description ?? "No recent queue activity"}
               </span>
             </div>
-            <div className="border-border/70 bg-card/60 flex items-center gap-2 rounded-full border px-2.5 py-1 text-[10px]">
+            <div className="flex items-center gap-2 rounded-none border border-slate-700 bg-slate-800 px-2.5 py-1 text-[10px] text-slate-300">
               <span className="relative flex h-2 w-2">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-500 opacity-60" />
-                <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
               </span>
-              <span className="text-muted-foreground">Live</span>
-              <span className="font-medium tabular-nums">
+              <span className="text-slate-400">Live</span>
+              <span className="font-medium text-slate-100 tabular-nums">
                 {new Date(data.meta.generatedAt).toLocaleTimeString()}
               </span>
             </div>
@@ -166,12 +166,10 @@ export default function HouseAnalyticsDashboard({
         </div>
 
         <div className="mt-2.5 mb-1 flex items-center justify-between">
-          <p className="text-muted-foreground text-[10px] font-semibold tracking-[0.14em] uppercase">
+          <p className="text-[10px] font-semibold tracking-[0.14em] text-slate-400 uppercase">
             Key metrics
           </p>
-          <p className="text-muted-foreground text-[10px]">
-            Live estate position
-          </p>
+          <p className="text-[10px] text-slate-400">Live estate position</p>
         </div>
         <div
           aria-label="Key metrics"
