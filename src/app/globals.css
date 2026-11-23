@@ -1816,6 +1816,21 @@ html[data-android-app="1"] [data-login-page] .android-login-card > footer {
   );
   content: "";
   pointer-events: none;
+  transition: background 300ms ease;
+}
+
+.kpi-card[data-featured="true"]::after {
+  background: radial-gradient(
+    circle at 100% 0%,
+    hsl(var(--primary) / 0.12),
+    transparent 55%
+  );
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .kpi-card {
+    transform: none !important;
+  }
 }
 
 .android-google-button {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { Activity, AlertTriangle, LayoutDashboard } from "lucide-react";
 import ChartCard from "./ChartCard";
@@ -70,7 +70,27 @@ export default function HouseAnalyticsDashboard({
   const [data, setData] = useState<HouseAnalyticsResponse>(initialData);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [spotlightIndex, setSpotlightIndex] = useState(0);
+  const [spotlightPaused, setSpotlightPaused] = useState(false);
   const requestId = useRef(0);
+
+  useEffect(() => {
+    if (spotlightPaused || data.kpis.length < 2) return;
+
+    const timer = window.setInterval(() => {
+      if (
+        document.visibilityState !== "visible" ||
+        window.matchMedia("(prefers-reduced-motion: reduce)").matches
+      ) {
+        return;
+      }
+      setSpotlightIndex((current) => (current + 1) % data.kpis.length);
+    }, 3200);
+
+    return () => window.clearInterval(timer);
+  }, [data.kpis.length, spotlightPaused]);
+
+  const activeSpotlightIndex = spotlightIndex % Math.max(data.kpis.length, 1);
 
   async function load(next: HouseAnalyticsQuery) {
     const id = ++requestId.current;
@@ -179,9 +199,19 @@ export default function HouseAnalyticsDashboard({
         <div
           aria-label="Key metrics"
           className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5 xl:auto-rows-[96px] 2xl:auto-rows-[104px]"
+          onPointerLeave={() => setSpotlightPaused(false)}
         >
-          {data.kpis.map((kpi) => (
-            <KpiCard key={kpi.id} kpi={kpi} />
+          {data.kpis.map((kpi, index) => (
+            <KpiCard
+              key={kpi.id}
+              kpi={kpi}
+              featured={!spotlightPaused && index === activeSpotlightIndex}
+              onSpotlight={() => {
+                setSpotlightIndex(index);
+                setSpotlightPaused(true);
+              }}
+              onRelease={() => setSpotlightPaused(false)}
+            />
           ))}
         </div>
       </div>

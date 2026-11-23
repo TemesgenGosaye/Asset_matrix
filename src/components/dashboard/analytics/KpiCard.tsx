@@ -126,9 +126,17 @@ const cardThemes: Record<string, CardTheme> = {
 
 interface KpiCardProps {
   kpi: HouseAnalyticsKpi;
+  featured?: boolean;
+  onSpotlight?: () => void;
+  onRelease?: () => void;
 }
 
-export default function KpiCard({ kpi }: KpiCardProps) {
+export default function KpiCard({
+  kpi,
+  featured = false,
+  onSpotlight,
+  onRelease,
+}: KpiCardProps) {
   const Icon = icons[kpi.id] ?? Building2;
   const variantTone = tones[kpi.variant];
   const theme = cardThemes[kpi.id] ?? {
@@ -156,6 +164,10 @@ export default function KpiCard({ kpi }: KpiCardProps) {
       href={kpi.href}
       title={kpi.hint}
       aria-label={`${kpi.label}: ${displayValue}`}
+      data-featured={featured ? "true" : undefined}
+      onPointerEnter={onSpotlight}
+      onFocus={onSpotlight}
+      onBlur={onRelease}
       className={cn(
         "kpi-card group relative flex h-full min-w-0 flex-col justify-between overflow-hidden rounded-xl border p-3 shadow-[var(--shadow-sm)] transition-all duration-200",
         theme.surface,
@@ -164,6 +176,8 @@ export default function KpiCard({ kpi }: KpiCardProps) {
         theme.accent,
         "hover:-translate-y-0.5",
         theme.hover,
+        featured &&
+          "border-primary/40 ring-primary/40 -translate-y-0.5 shadow-lg ring-1",
         "focus-visible:ring-ring focus-visible:ring-offset-background focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none",
       )}
     >
