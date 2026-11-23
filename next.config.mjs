@@ -1,5 +1,4 @@
 import path from "node:path";
-import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { withSentryConfig } from "@sentry/nextjs";
 import bundleAnalyzer from "@next/bundle-analyzer";
@@ -9,12 +8,6 @@ const projectRoot = path.dirname(fileURLToPath(import.meta.url));
 const withBundleAnalyzer = bundleAnalyzer({
   enabled: process.env.ANALYZE === "true",
 });
-
-// Read the app version once at build time instead of bundling package.json
-// into client bundles (previously imported by src/components/Sidebar.tsx).
-const appVersion = JSON.parse(
-  readFileSync(new URL("./package.json", import.meta.url), "utf8"),
-).version;
 
 /**
  * Host patterns for Next's dev-origin allowlist, derived from
@@ -72,11 +65,6 @@ const nextConfig = {
   // origin that is missing here but present above used to load the app fine and
   // then fail authentication. One list, one behaviour.
   allowedDevOrigins: allowedDevOrigins(),
-
-  // Inject build-time values without shipping package.json to the client.
-  env: {
-    NEXT_PUBLIC_APP_VERSION: appVersion,
-  },
 
   // Pin Turbopack to this project. A stray package-lock.json in the home
   // directory made Next.js detect C:\Users\<user> as the workspace root,

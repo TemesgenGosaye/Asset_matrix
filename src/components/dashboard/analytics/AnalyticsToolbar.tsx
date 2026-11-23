@@ -17,10 +17,10 @@ const rangeOptions: Array<{ value: HouseAnalyticsRange; label: string }> = [
 ];
 
 const controlClass =
-  "h-8 min-w-0 rounded-none border border-slate-700 bg-slate-900 px-2.5 text-xs font-medium text-slate-100 outline-none transition-colors hover:border-amber-400/60 focus-visible:ring-2 focus-visible:ring-amber-300";
+  "border-border bg-background text-foreground h-9 min-w-0 rounded-lg border px-2.5 text-xs font-medium shadow-sm outline-none transition-colors hover:border-primary/50 focus-visible:ring-ring focus-visible:ring-2";
 
 const labelClass =
-  "text-slate-400 hidden items-center gap-1.5 text-[10px] font-semibold tracking-[0.12em] uppercase sm:flex";
+  "text-muted-foreground hidden items-center gap-1.5 text-[10px] font-semibold tracking-[0.12em] uppercase sm:flex";
 
 interface AnalyticsToolbarProps {
   value: HouseAnalyticsQuery;
@@ -36,9 +36,9 @@ export default function AnalyticsToolbar({
   loading,
 }: AnalyticsToolbarProps) {
   return (
-    <div className="flex shrink-0 flex-wrap items-center gap-2 rounded-none border border-slate-700 bg-slate-800 p-2">
+    <div className="border-border/70 bg-background/60 flex shrink-0 flex-wrap items-center gap-2 rounded-lg border p-2.5">
       <span className={labelClass}>
-        <CalendarDays className="h-3.5 w-3.5 text-amber-300" />
+        <CalendarDays className="text-brass-600 dark:text-brass-300 h-3.5 w-3.5" />
         Period
       </span>
       <select
@@ -59,10 +59,10 @@ export default function AnalyticsToolbar({
         ))}
       </select>
 
-      <span className="mx-0.5 hidden h-5 w-px bg-slate-700 sm:block" />
+      <span className="bg-border mx-0.5 hidden h-5 w-px sm:block" />
 
       <span className={labelClass}>
-        <House className="h-3.5 w-3.5 text-amber-300" />
+        <House className="text-brass-600 dark:text-brass-300 h-3.5 w-3.5" />
         Type
       </span>
       <select
@@ -111,7 +111,7 @@ export default function AnalyticsToolbar({
         disabled={loading}
         className={cn(
           controlClass,
-          "ml-auto inline-flex items-center justify-center gap-1.5 px-2.5 hover:bg-slate-700 disabled:opacity-60",
+          "hover:bg-accent hover:text-accent-foreground ml-auto inline-flex items-center justify-center gap-1.5 px-2.5 disabled:opacity-60",
         )}
       >
         <RefreshCw className={cn("h-3.5 w-3.5", loading && "animate-spin")} />

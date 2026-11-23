@@ -118,45 +118,45 @@ export default function HouseAnalyticsDashboard({
       aria-label="House administration analytics"
       className="min-w-0 space-y-2 xl:flex xl:h-full xl:min-h-0 xl:flex-col xl:overflow-hidden"
     >
-      <div className="shrink-0 rounded-none border border-slate-800 bg-slate-900 p-2.5 shadow-sm xl:p-3">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="flex min-w-0 items-center gap-2.5">
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-none border border-amber-400/30 bg-amber-400/10 text-amber-300">
-              <LayoutDashboard className="h-4 w-4" />
+      <div className="border-border/70 bg-card text-card-foreground shrink-0 rounded-xl border p-4 shadow-[var(--shadow-sm)] xl:p-5">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-3">
+            <span className="border-brass-400/30 bg-brass-400/10 flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border">
+              <LayoutDashboard className="text-brass-600 dark:text-brass-300 h-4 w-4" />
             </span>
             <div className="min-w-0">
-              <p className="text-[9px] font-semibold tracking-[0.16em] text-amber-300 uppercase">
+              <p className="text-brass-600 dark:text-brass-400 text-[10px] font-semibold tracking-[0.16em] uppercase">
                 Housing operations / command center
               </p>
-              <h2 className="text-lg font-semibold tracking-tight text-slate-50 xl:text-2xl">
+              <h2 className="text-foreground text-lg font-semibold tracking-tight xl:text-2xl">
                 Dashboard Overview
               </h2>
             </div>
           </div>
           <div className="flex min-w-0 flex-wrap items-center justify-end gap-2">
-            <div className="hidden max-w-[22rem] min-w-0 items-center gap-2 rounded-none border border-slate-700 bg-slate-800 px-3 py-1 text-[10px] text-slate-300 xl:flex">
-              <Activity className="h-3.5 w-3.5 shrink-0 text-amber-300" />
-              <span className="shrink-0 font-semibold tracking-[0.12em] text-amber-300">
+            <div className="border-border/70 bg-background/60 hidden max-w-[22rem] min-w-0 items-center gap-2 rounded-lg border px-3 py-1.5 text-[10px] xl:flex">
+              <Activity className="text-brass-600 dark:text-brass-300 h-3.5 w-3.5 shrink-0" />
+              <span className="text-foreground shrink-0 font-semibold tracking-[0.12em] uppercase">
                 PULSE
               </span>
-              <span className="truncate text-slate-300">
+              <span className="text-muted-foreground truncate">
                 {data.activity[0]?.description ?? "No recent queue activity"}
               </span>
             </div>
-            <div className="flex items-center gap-2 rounded-none border border-slate-700 bg-slate-800 px-2.5 py-1 text-[10px] text-slate-300">
+            <div className="border-border/70 bg-background/60 flex items-center gap-2 rounded-lg border px-2.5 py-1.5 text-[10px]">
               <span className="relative flex h-2 w-2">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60" />
-                <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-500 opacity-60" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
               </span>
-              <span className="text-slate-400">Live</span>
-              <span className="font-medium text-slate-100 tabular-nums">
+              <span className="text-muted-foreground">Live</span>
+              <span className="text-foreground font-medium tabular-nums">
                 {new Date(data.meta.generatedAt).toLocaleTimeString()}
               </span>
             </div>
           </div>
         </div>
 
-        <div className="mt-2.5">
+        <div className="mt-3">
           <AnalyticsToolbar
             value={query}
             onChange={applyQuery}
@@ -165,15 +165,17 @@ export default function HouseAnalyticsDashboard({
           />
         </div>
 
-        <div className="mt-2.5 mb-1 flex items-center justify-between">
-          <p className="text-[10px] font-semibold tracking-[0.14em] text-slate-400 uppercase">
+        <div className="mt-4 mb-2 flex items-center justify-between gap-3">
+          <p className="text-muted-foreground text-[10px] font-semibold tracking-[0.14em] uppercase">
             Key metrics
           </p>
-          <p className="text-[10px] text-slate-400">Live estate position</p>
+          <p className="text-muted-foreground text-[11px]">
+            Live estate position
+          </p>
         </div>
         <div
           aria-label="Key metrics"
-          className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5 xl:auto-rows-[96px] 2xl:auto-rows-[104px]"
+          className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5 xl:auto-rows-[96px] 2xl:auto-rows-[104px]"
         >
           {data.kpis.map((kpi) => (
             <KpiCard key={kpi.id} kpi={kpi} />

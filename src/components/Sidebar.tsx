@@ -375,16 +375,6 @@ const Sidebar = React.memo(function Sidebar({
           );
         })}
       </div>
-
-      <Separator className="bg-chrome-border mx-3 w-auto" />
-
-      {/* ─── Version & Attribution ─── */}
-      {!collapsed && (
-        <div className="text-chrome-muted space-y-0.5 pb-2 text-center text-[10px]">
-          <p>v{process.env.NEXT_PUBLIC_APP_VERSION || "dev"}</p>
-          <p className="text-[9px] font-medium opacity-75">Powered by Mark</p>
-        </div>
-      )}
     </aside>
   );
 });

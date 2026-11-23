@@ -1,4 +1,4 @@
-# Test Script — v0.7.0 Feature Verification
+# Test Script — Feature Verification
 
 ## Prerequisites
 
