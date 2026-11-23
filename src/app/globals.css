@@ -1738,10 +1738,6 @@ html[data-android-app="1"] [data-login-page] .android-login-card > footer {
   }
 }
 
-.dashboard-welcome {
-  border-color: color-mix(in oklab, var(--color-brass-400) 24%, transparent);
-}
-
 .dashboard-welcome__halo {
   animation: welcome-halo 8s ease-in-out infinite;
 }
@@ -1752,20 +1748,6 @@ html[data-android-app="1"] [data-login-page] .android-login-card > footer {
 
 .dashboard-welcome__rule {
   animation: welcome-rule 1.1s ease-out both;
-}
-
-.dashboard-welcome__name {
-  background-image: linear-gradient(
-    100deg,
-    hsl(var(--foreground)) 0%,
-    var(--color-brass-500) 42%,
-    var(--color-brass-300) 60%,
-    hsl(var(--foreground)) 100%
-  );
-  background-size: 220% 100%;
-  background-clip: text;
-  color: transparent;
-  animation: welcome-shimmer 9s ease-in-out infinite;
 }
 
 @keyframes welcome-rise {
@@ -1802,21 +1784,10 @@ html[data-android-app="1"] [data-login-page] .android-login-card > footer {
   }
 }
 
-@keyframes welcome-shimmer {
-  0%,
-  100% {
-    background-position: 0% 50%;
-  }
-  50% {
-    background-position: 100% 50%;
-  }
-}
-
 @media (prefers-reduced-motion: reduce) {
   .dashboard-welcome__halo,
   .dashboard-welcome__content,
-  .dashboard-welcome__rule,
-  .dashboard-welcome__name {
+  .dashboard-welcome__rule {
     animation: none !important;
   }
 }
@@ -1871,10 +1842,8 @@ html:not(.dark) .dashboard-modern-text {
 html:not(.dark)
   .dashboard-modern-text
   :where(h1, h2, h3, p, span, label, li, button, select, option):not(
-    .dashboard-welcome__name
-  ):not([class*="text-emerald"]):not([class*="text-destructive"]):not(
-    [class*="text-primary-foreground"]
-  ) {
+    [class*="text-emerald"]
+  ):not([class*="text-destructive"]):not([class*="text-primary-foreground"]) {
   color: #0b1220;
   font-family: inherit;
 }
