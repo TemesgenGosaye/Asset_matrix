@@ -40,12 +40,12 @@ export default function ChartCard({
       <CardHeader className="flex shrink-0 flex-row items-start justify-between gap-3 space-y-0 px-3 py-2">
         <div className="min-w-0 space-y-0.5">
           {eyebrow && (
-            <p className="text-brass-600 dark:text-brass-400 text-[9px] font-semibold tracking-[0.16em] uppercase">
+            <p className="text-muted-foreground text-[9px] font-semibold tracking-[0.16em] uppercase">
               {eyebrow}
             </p>
           )}
           <div className="flex items-center gap-2">
-            <span className="bg-brass-500 h-1.5 w-1.5 shrink-0 rounded-full" />
+            <span className="bg-primary/70 h-1.5 w-1.5 shrink-0 rounded-full" />
             <CardTitle className="text-[10px] leading-tight font-semibold tracking-[0.1em] uppercase">
               {title}
             </CardTitle>

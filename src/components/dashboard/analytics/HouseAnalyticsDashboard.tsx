@@ -121,12 +121,12 @@ export default function HouseAnalyticsDashboard({
       <div className="border-border/70 bg-card text-card-foreground shrink-0 rounded-xl border p-4 shadow-[var(--shadow-sm)] xl:p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex min-w-0 items-center gap-3">
-            <span className="border-brass-400/30 bg-brass-400/10 flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border">
-              <LayoutDashboard className="text-brass-600 dark:text-brass-300 h-4 w-4" />
+            <span className="border-border/70 bg-primary/5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border shadow-sm">
+              <LayoutDashboard className="text-foreground h-4 w-4" />
             </span>
             <div className="min-w-0">
-              <p className="text-brass-600 dark:text-brass-400 text-[10px] font-semibold tracking-[0.16em] uppercase">
-                Housing operations / command center
+              <p className="text-muted-foreground text-[10px] font-semibold tracking-[0.16em] uppercase">
+                Operations intelligence
               </p>
               <h2 className="text-foreground text-lg font-semibold tracking-tight xl:text-2xl">
                 Dashboard Overview
@@ -135,7 +135,7 @@ export default function HouseAnalyticsDashboard({
           </div>
           <div className="flex min-w-0 flex-wrap items-center justify-end gap-2">
             <div className="border-border/70 bg-background/60 hidden max-w-[22rem] min-w-0 items-center gap-2 rounded-lg border px-3 py-1.5 text-[10px] xl:flex">
-              <Activity className="text-brass-600 dark:text-brass-300 h-3.5 w-3.5 shrink-0" />
+              <Activity className="text-muted-foreground h-3.5 w-3.5 shrink-0" />
               <span className="text-foreground shrink-0 font-semibold tracking-[0.12em] uppercase">
                 PULSE
               </span>
@@ -165,11 +165,14 @@ export default function HouseAnalyticsDashboard({
           />
         </div>
 
-        <div className="mt-4 mb-2 flex items-center justify-between gap-3">
-          <p className="text-muted-foreground text-[10px] font-semibold tracking-[0.14em] uppercase">
-            Key metrics
-          </p>
-          <p className="text-muted-foreground text-[11px]">
+        <div className="border-border/60 mt-4 mb-2 flex items-center justify-between gap-3 border-t pt-3">
+          <div className="flex items-center gap-2">
+            <span className="bg-primary/70 h-1.5 w-1.5 shrink-0 rounded-full" />
+            <p className="text-foreground text-[10px] font-semibold tracking-[0.16em] uppercase">
+              Key metrics
+            </p>
+          </div>
+          <p className="text-muted-foreground text-[11px] font-medium">
             Live estate position
           </p>
         </div>

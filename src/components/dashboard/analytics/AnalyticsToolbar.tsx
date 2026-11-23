@@ -38,7 +38,7 @@ export default function AnalyticsToolbar({
   return (
     <div className="border-border/70 bg-background/60 flex shrink-0 flex-wrap items-center gap-2 rounded-lg border p-2.5">
       <span className={labelClass}>
-        <CalendarDays className="text-brass-600 dark:text-brass-300 h-3.5 w-3.5" />
+        <CalendarDays className="text-muted-foreground h-3.5 w-3.5" />
         Period
       </span>
       <select
@@ -62,7 +62,7 @@ export default function AnalyticsToolbar({
       <span className="bg-border mx-0.5 hidden h-5 w-px sm:block" />
 
       <span className={labelClass}>
-        <House className="text-brass-600 dark:text-brass-300 h-3.5 w-3.5" />
+        <House className="text-muted-foreground h-3.5 w-3.5" />
         Type
       </span>
       <select

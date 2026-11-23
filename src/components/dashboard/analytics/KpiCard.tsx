@@ -157,7 +157,7 @@ export default function KpiCard({ kpi }: KpiCardProps) {
       title={kpi.hint}
       aria-label={`${kpi.label}: ${displayValue}`}
       className={cn(
-        "group relative flex h-full min-w-0 flex-col justify-between overflow-hidden rounded-xl border p-3 shadow-[var(--shadow-sm)] transition-all duration-200",
+        "kpi-card group relative flex h-full min-w-0 flex-col justify-between overflow-hidden rounded-xl border p-3 shadow-[var(--shadow-sm)] transition-all duration-200",
         theme.surface,
         theme.border,
         "before:absolute before:inset-x-0 before:top-0 before:h-[3px] before:content-['']",
@@ -170,7 +170,7 @@ export default function KpiCard({ kpi }: KpiCardProps) {
       <div className="relative flex items-start justify-between gap-2">
         <p
           className={cn(
-            "text-muted-foreground line-clamp-1 text-[10px] font-semibold tracking-[0.12em] uppercase",
+            "text-muted-foreground line-clamp-1 text-[10px] font-semibold tracking-[0.14em] uppercase",
             theme.label,
           )}
         >
@@ -178,22 +178,22 @@ export default function KpiCard({ kpi }: KpiCardProps) {
         </p>
         <span
           className={cn(
-            "flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border transition-transform duration-200 group-hover:scale-105",
+            "flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border transition-transform duration-200 group-hover:scale-105",
             theme.icon,
           )}
         >
-          <Icon className={cn("h-3.5 w-3.5", theme.iconText)} />
+          <Icon className={cn("h-4 w-4", theme.iconText)} />
         </span>
       </div>
 
       <div className="relative mt-1.5 flex items-end justify-between gap-2">
-        <span className="text-foreground text-2xl leading-none font-semibold tracking-tight tabular-nums xl:text-xl 2xl:text-3xl">
+        <span className="text-foreground text-[1.7rem] leading-none font-semibold tracking-tight tabular-nums xl:text-xl 2xl:text-[2rem]">
           {displayValue}
         </span>
         {hasTrend ? (
           <span
             className={cn(
-              "inline-flex shrink-0 items-center gap-0.5 rounded-md px-1.5 py-0.5 text-[10px] font-semibold tabular-nums",
+              "inline-flex shrink-0 items-center gap-0.5 rounded-lg px-2 py-1 text-[10px] font-semibold tabular-nums",
               value === 0
                 ? "bg-muted text-muted-foreground"
                 : positive
@@ -205,8 +205,8 @@ export default function KpiCard({ kpi }: KpiCardProps) {
             {Math.abs(value).toFixed(0)}%
           </span>
         ) : (
-          <span className="text-muted-foreground bg-muted rounded-md px-1.5 py-0.5 text-[10px] font-medium">
-            No trend
+          <span className="text-muted-foreground bg-muted/70 rounded-lg px-2 py-1 text-[10px] font-medium">
+            Baseline
           </span>
         )}
       </div>
@@ -215,7 +215,7 @@ export default function KpiCard({ kpi }: KpiCardProps) {
         values={kpi.sparkline}
         positive={positive}
         className={cn(
-          "relative mt-2 h-4 w-full xl:h-3",
+          "relative mt-2.5 h-4 w-full xl:h-3",
           positive ? "text-emerald-600" : "text-destructive",
         )}
       />

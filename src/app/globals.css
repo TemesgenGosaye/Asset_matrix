@@ -1738,6 +1738,15 @@ html[data-android-app="1"] [data-login-page] .android-login-card > footer {
   }
 }
 
+.dashboard-welcome {
+  background-image: linear-gradient(
+    120deg,
+    hsl(var(--card) / 0.95) 0%,
+    hsl(var(--card) / 0.75) 60%,
+    hsl(var(--primary) / 0.04) 100%
+  );
+}
+
 .dashboard-welcome__halo {
   animation: welcome-halo 8s ease-in-out infinite;
 }
@@ -1792,6 +1801,23 @@ html[data-android-app="1"] [data-login-page] .android-login-card > footer {
   }
 }
 
+.kpi-card {
+  isolation: isolate;
+}
+
+.kpi-card::after {
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  background: radial-gradient(
+    circle at 100% 0%,
+    hsl(var(--foreground) / 0.07),
+    transparent 45%
+  );
+  content: "";
+  pointer-events: none;
+}
+
 .android-google-button {
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
 }
@@ -1843,7 +1869,11 @@ html:not(.dark)
   .dashboard-modern-text
   :where(h1, h2, h3, p, span, label, li, button, select, option):not(
     [class*="text-emerald"]
-  ):not([class*="text-destructive"]):not([class*="text-primary-foreground"]) {
+  ):not([class*="text-destructive"]):not(
+    [class*="text-primary-foreground"]
+  ):not([class*="text-sky-"]):not([class*="text-cyan-"]):not(
+    [class*="text-indigo-"]
+  ):not([class*="text-rose-"]):not([class*="text-amber-"]) {
   color: #0b1220;
   font-family: inherit;
 }
