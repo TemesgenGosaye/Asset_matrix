@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requirePermission } from "@/lib/api-auth";
 import { isFeatureEnabled } from "@/lib/feature-flags";
+import { getOrganizationContext } from "@/lib/organization-context";
 import {
   MAX_FIXED_ASSET_IMPORT_BYTES,
+  buildFixedAssetImportPlan,
+  normalizeDuplicatePolicy,
+  normalizeErrorHandling,
   parseFixedAssetWorkbook,
   suggestFixedAssetMappings,
 } from "@/lib/fixed-asset-import";
@@ -15,7 +19,15 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
   try {
-    await requirePermission("import:execute");
+    const user = await requirePermission("import:execute");
+    const context = await getOrganizationContext();
+    const organizationId = user.organizationId ?? context?.organization?.id;
+    if (!organizationId) {
+      return NextResponse.json(
+        { error: "Organization context required" },
+        { status: 403 },
+      );
+    }
     const formData = await request.formData();
     const file = formData.get("file");
     if (!(file instanceof File)) {
@@ -37,12 +49,20 @@ export async function POST(request: NextRequest) {
       sheetName,
       headerRow,
     );
+    const plan = await buildFixedAssetImportPlan(workbook, {
+      organizationId,
+      errorHandling: normalizeErrorHandling(formData.get("errorHandling")),
+      duplicatePolicy: normalizeDuplicatePolicy(
+        formData.get("duplicatePolicy"),
+      ),
+    });
     return NextResponse.json({
       sheets: workbook.sheets,
       sheetName: workbook.sheetName,
       headers: workbook.headers,
       mappings: suggestFixedAssetMappings(workbook.headers),
       summary: workbook.summary,
+      plan,
       preview: workbook.preview.map((row) => ({
         rowNumber: row.rowNumber,
         parsed: row.parsed,

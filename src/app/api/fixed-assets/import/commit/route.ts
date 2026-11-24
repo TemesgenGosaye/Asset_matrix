@@ -1,3 +1,4 @@
+import { createHash } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { requirePermission, requireNotDemoMode } from "@/lib/api-auth";
 import { isFeatureEnabled } from "@/lib/feature-flags";
@@ -5,6 +6,8 @@ import { getOrganizationContext } from "@/lib/organization-context";
 import {
   MAX_FIXED_ASSET_IMPORT_BYTES,
   commitFixedAssetImport,
+  normalizeDuplicatePolicy,
+  normalizeErrorHandling,
   parseFixedAssetWorkbook,
 } from "@/lib/fixed-asset-import";
 import { createAuditLog } from "@/lib/audit-log";
@@ -49,8 +52,10 @@ export async function POST(request: NextRequest) {
     const modeRaw = String(formData.get("mode") ?? "commit").toLowerCase();
     const mode = modeRaw === "dry-run" ? "dry-run" : "commit";
 
+    const buffer = Buffer.from(await file.arrayBuffer());
+    const fileHash = createHash("sha256").update(buffer).digest("hex");
     const workbook = await parseFixedAssetWorkbook(
-      Buffer.from(await file.arrayBuffer()),
+      buffer,
       sheetName,
       headerRow,
     );
@@ -76,6 +81,11 @@ export async function POST(request: NextRequest) {
       sheetName: workbook.sheetName,
       headerRow,
       mode,
+      errorHandling: normalizeErrorHandling(formData.get("errorHandling")),
+      duplicatePolicy: normalizeDuplicatePolicy(
+        formData.get("duplicatePolicy"),
+      ),
+      fileHash,
     });
     await createAuditLog({
       userId: user.id,
@@ -86,8 +96,11 @@ export async function POST(request: NextRequest) {
         fileName: file.name,
         sheetName: workbook.sheetName,
         totalRows: result.totalRows,
-        successCount: result.successCount,
-        errorCount: result.errorCount,
+        createdCount: result.createdCount,
+        updatedCount: result.updatedCount,
+        flaggedCount: result.flaggedCount,
+        skippedCount: result.skippedCount,
+        failedCount: result.failedCount,
       },
     });
     invalidateCacheByPrefix("assets_");

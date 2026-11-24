@@ -75,6 +75,7 @@ export function parseFixedAssetParams(
     missingProperty: bool(params.get("missingProperty")),
     hidden: bool(params.get("hidden")),
     needsReview: bool(params.get("needsReview")),
+    batch: params.get("batch") ?? undefined,
     sortBy: params.get("sortBy") ?? "department",
     sortOrder: sortOrder === "desc" ? "desc" : "asc",
     page: Number.isFinite(page) && page > 0 ? Math.floor(page) : 1,

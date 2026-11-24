@@ -66,6 +66,7 @@ export interface FixedAssetListParams {
   missingProperty?: boolean;
   hidden?: boolean;
   needsReview?: boolean;
+  batch?: string;
   sortBy?: string;
   sortOrder?: "asc" | "desc";
   page?: number;
@@ -102,7 +103,10 @@ export function normalizeCondition(value: CellValue): {
   const key = raw.toLowerCase().replace(/[.\s_/-]+/g, "");
   const map: Record<string, string> = {
     good: "Good",
+    goood: "Good",
+    dood: "Good",
     nf: "N/F",
+    n: "N/F",
     scrap: "Scrap",
     demonshed: "Demolished",
     demolished: "Demolished",

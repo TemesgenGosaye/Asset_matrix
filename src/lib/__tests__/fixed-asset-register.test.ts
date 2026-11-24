@@ -11,7 +11,10 @@ import {
 describe("fixed asset register normalization", () => {
   it("normalizes condition values and flags unknown values", () => {
     expect(normalizeCondition("good").value).toBe("Good");
+    expect(normalizeCondition("goood").value).toBe("Good");
+    expect(normalizeCondition("dood").value).toBe("Good");
     expect(normalizeCondition(" n/f ").value).toBe("N/F");
+    expect(normalizeCondition("n").value).toBe("N/F");
     expect(normalizeCondition("demonshed").value).toBe("Demolished");
     expect(normalizeCondition("battery damaged").warning).toContain(
       "Unrecognized",

@@ -190,7 +190,7 @@ export default function FixedAssetForm({
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-brass-400 text-2xl font-bold">
+          <h1 className="text-foreground text-2xl font-bold">
             {mode === "create" ? "New fixed asset" : "Edit fixed asset"}
           </h1>
           <p className="text-muted-foreground text-sm">

@@ -136,6 +136,7 @@ export default function FixedAssetRegisterClient({
       hidden: "false",
       missingProperty: "false",
       needsReview: "false",
+      batch: "",
     }),
     [],
   );
@@ -170,6 +171,7 @@ export default function FixedAssetRegisterClient({
       sortOrder: "sortOrder",
       page: "page",
       pageSize: "pageSize",
+      batch: "batch",
     };
     for (const [key, target] of Object.entries(mapping)) {
       if (urlState[key]) params.set(target, urlState[key]);
@@ -293,7 +295,7 @@ export default function FixedAssetRegisterClient({
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-brass-400 text-2xl font-bold tracking-tight">
+          <h1 className="text-foreground text-2xl font-bold tracking-tight">
             Fixed Asset Register
           </h1>
           <p className="text-muted-foreground text-sm">
@@ -330,7 +332,7 @@ export default function FixedAssetRegisterClient({
         </div>
       </div>
 
-      <Card className="border-brass-500/20 from-card to-brass-500/5 bg-gradient-to-r">
+      <Card className="border-border/70 from-card to-muted/30 bg-gradient-to-r">
         <CardContent className="flex flex-wrap items-end gap-3 p-4">
           <div className="min-w-[220px] flex-1">
             <label className="text-muted-foreground mb-1 block text-xs">
@@ -525,7 +527,7 @@ export default function FixedAssetRegisterClient({
       </div>
 
       {selected.size > 0 && (
-        <div className="border-brass-500/30 bg-brass-500/10 flex flex-wrap items-center gap-2 rounded-xl border p-2 text-sm">
+        <div className="border-border/70 bg-muted/60 flex flex-wrap items-center gap-2 rounded-xl border p-2 text-sm">
           <span className="font-medium">{selected.size} selected</span>
           {isAdmin && (
             <>
@@ -627,7 +629,7 @@ export default function FixedAssetRegisterClient({
                       <TableRow className="bg-muted/60">
                         <TableCell
                           colSpan={11}
-                          className="text-brass-500 font-semibold"
+                          className="text-foreground font-semibold"
                         >
                           {group.key} ({group.items.length})
                         </TableCell>
@@ -764,7 +766,7 @@ export default function FixedAssetRegisterClient({
       >
         <DialogContent className="max-h-[85vh] max-w-3xl overflow-auto">
           <DialogHeader>
-            <DialogTitle className="text-brass-400">
+            <DialogTitle className="text-foreground">
               {drawerItem?.assetname || "Asset detail"}
             </DialogTitle>
             <DialogDescription>

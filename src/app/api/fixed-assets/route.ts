@@ -30,6 +30,21 @@ export async function GET(request: NextRequest) {
       context.assignedAssetIds,
       context.availableStatusIds,
     );
+    if (params.batch) {
+      const batchRows = await prisma.importRowResult.findMany({
+        where: {
+          batchId: params.batch,
+          organizationId: context.organizationId,
+          assetId: { not: null },
+        },
+        select: { assetId: true },
+      });
+      where.assetid = {
+        in: batchRows
+          .map((row) => row.assetId)
+          .filter((id): id is string => Boolean(id)),
+      };
+    }
     const orderBy = buildFixedAssetOrderBy(params);
     const skip = ((params.page ?? 1) - 1) * (params.pageSize ?? 25);
 
