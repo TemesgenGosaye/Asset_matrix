@@ -47,7 +47,7 @@ const DEFAULT_FLAGS: FeatureFlags = {
   advancedSearch: true,
   maintenanceMode: false,
   selfHosted: false,
-  fixedAssetRegister: false,
+  fixedAssetRegister: true,
 };
 
 /**
