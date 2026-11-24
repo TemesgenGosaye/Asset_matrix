@@ -1,6 +1,8 @@
-import React from "react";
+import React, { Suspense } from "react";
 import Breadcrumb from "@/components/Breadcrumb";
 import AssetsTableClient from "./ui/AssetsTableClient";
+import FixedAssetRegisterClient from "@/ui/assets/FixedAssetRegisterClient";
+import { isFeatureEnabled } from "@/lib/feature-flags";
 import {
   getAssets,
   getLocation,
@@ -31,6 +33,50 @@ export default async function Page() {
     redirect("/login");
   }
   const isAdmin = ctx?.isAdmin ?? false;
+
+  if (isFeatureEnabled("fixedAssetRegister")) {
+    const [departmentsRaw, statusesRaw, categoriesRaw] = await Promise.all([
+      getDepartments().catch(() => []),
+      getStatus().catch(() => []),
+      getCategories().catch(() => []),
+    ]);
+    return (
+      <div>
+        <Breadcrumb
+          options={[
+            { label: "Home", href: "/" },
+            { label: "Assets", href: "/assets" },
+          ]}
+        />
+        <Suspense
+          fallback={
+            <div className="text-muted-foreground p-8 text-sm">
+              Loading register…
+            </div>
+          }
+        >
+          <FixedAssetRegisterClient
+            isAdmin={isAdmin}
+            departments={departmentsRaw.map((department) => ({
+              id: department.id,
+              name: department.name,
+              code: department.code,
+            }))}
+            statuses={statusesRaw.map((status) => ({
+              id: status.statustypeid,
+              name: status.statustypename,
+            }))}
+            categories={categoriesRaw.map((category) => ({
+              id: category.assetcategorytypeid,
+              name: category.assetcategorytypename,
+              code: category.assetTypeCode,
+            }))}
+          />
+        </Suspense>
+      </div>
+    );
+  }
+
   const columns = [
     { name: "Sr. No.", uid: "srno" },
     { name: "Asset Name", uid: "assetname", sortable: true },

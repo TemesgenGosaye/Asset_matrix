@@ -33,6 +33,7 @@ export interface FeatureFlags {
    * session), so there is no landing page for this flag to skip.
    */
   selfHosted: boolean;
+  fixedAssetRegister: boolean;
 }
 
 /**
@@ -46,6 +47,7 @@ const DEFAULT_FLAGS: FeatureFlags = {
   advancedSearch: true,
   maintenanceMode: false,
   selfHosted: false,
+  fixedAssetRegister: false,
 };
 
 /**
@@ -86,6 +88,10 @@ function loadFromEnvironment(): Partial<FeatureFlags> {
       DEFAULT_FLAGS.maintenanceMode,
     ),
     selfHosted: getBoolEnvVar("SELF_HOSTED", DEFAULT_FLAGS.selfHosted),
+    fixedAssetRegister: getBoolEnvVar(
+      "FEATURE_FIXED_ASSET_REGISTER",
+      DEFAULT_FLAGS.fixedAssetRegister,
+    ),
   };
 }
 

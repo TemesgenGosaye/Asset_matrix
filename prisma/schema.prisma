@@ -154,6 +154,8 @@ model Organization {
   rentPayments             RentPayment[]
   rentReceiptSequences     RentReceiptSequence[]
   navigationPreferences    NavigationPreference[]
+  departmentAliases        DepartmentAlias[]
+  importRowResults         ImportRowResult[]
 
   @@map("organizations")
   @@schema("public")
@@ -180,6 +182,7 @@ model Department {
   purchaseRequests PurchaseRequest[]
   employees        Employee[]
   assets           asset[]
+  aliases          DepartmentAlias[]
 
   @@unique([code, organizationId])
   @@index([organizationId])
@@ -407,9 +410,61 @@ model ImportJob {
   startedAt     DateTime? @db.Timestamp(6)
   completedAt   DateTime? @db.Timestamp(6)
   createdAt     DateTime  @default(now()) @db.Timestamp(6)
+  organizationId String?  @db.Uuid
+  fileHash       String?  @db.VarChar(64)
+  mode           String?  @db.VarChar(20)
+  options        Json?
+  finishedAt     DateTime? @db.Timestamp(6)
+  rows           ImportRowResult[]
 
   @@index([userId])
   @@map("import_jobs")
+  @@schema("public")
+}
+
+model ImportRowResult {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  batchId        String    @db.Uuid
+  batch          ImportJob @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  organizationId String?   @db.Uuid
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  sheet          String    @db.VarChar(255)
+  rowNumber      Int
+  status         String    @db.VarChar(20)
+  action         String?   @db.VarChar(20)
+  matchKey       String?   @db.VarChar(30)
+  assetId        String?   @db.Uuid
+  propertyKey    String?   @db.VarChar(255)
+  warnings       Json?
+  errors         Json?
+  diff           Json?
+  previousValues Json?
+  raw            Json?
+  createdAt      DateTime  @default(now()) @db.Timestamp(6)
+
+  @@index([batchId])
+  @@index([organizationId, batchId])
+  @@index([batchId, status])
+  @@index([assetId])
+  @@map("import_row_results")
+  @@schema("public")
+}
+
+model DepartmentAlias {
+  id              String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId  String      @db.Uuid
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  alias           String      @db.VarChar(255)
+  normalizedAlias String      @db.VarChar(255)
+  departmentId    String?     @db.Uuid
+  department      Department? @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  createdBy       String?     @db.Uuid
+  createdAt       DateTime    @default(now()) @db.Timestamp(6)
+
+  @@unique([organizationId, normalizedAlias])
+  @@index([organizationId])
+  @@index([departmentId])
+  @@map("department_aliases")
   @@schema("public")
 }
 
@@ -511,6 +566,27 @@ model asset {
   departmentCode           String?                 @db.VarChar(20)
   externalId               String?                 @db.VarChar(255)
   externalSource           String?                 @db.VarChar(30)
+  sourceDepartment         String?                 @db.VarChar(255)
+  categoryCode             String?                 @db.VarChar(100)
+  serialNo                 String?                 @db.VarChar(100)
+  assetnameRaw             String?
+  propertyKey              String?                 @db.VarChar(255)
+  financeNo1               String?                 @db.VarChar(255)
+  condition1               String?                 @db.VarChar(50)
+  condition1Raw            String?                 @db.VarChar(255)
+  location1                String?                 @db.VarChar(500)
+  reviewDate1              DateTime?               @db.Date
+  reviewDate1Raw           String?                 @db.VarChar(255)
+  reviewDate1Ambiguous     Boolean                 @default(false)
+  financeNo2               String?                 @db.VarChar(255)
+  condition2Raw            String?                 @db.VarChar(255)
+  location2Raw             String?                 @db.VarChar(500)
+  reviewDate2Raw           String?                 @db.VarChar(255)
+  reviewDate2Ambiguous     Boolean                 @default(false)
+  additionalData           String?
+  additionalDataJson       Json?
+  sourceRow                Int?
+  hiddenInSource           Boolean                 @default(false)
   assetCategoryType        assetCategoryType?      @relation(fields: [assetcategorytypeid], references: [assetcategorytypeid], onDelete: NoAction, onUpdate: NoAction, map: "fk_asset_assetcategorytype_c_assetcategorytypeid")
   location                 location?               @relation(fields: [locationid], references: [locationid], onDelete: NoAction, onUpdate: NoAction, map: "fk_asset_location_c_locationid")
   manufacturer             manufacturer?           @relation(fields: [manufacturerid], references: [manufacturerid], onDelete: NoAction, onUpdate: NoAction, map: "fk_asset_manufacturer_c_manufacturerid")
@@ -542,6 +618,12 @@ model asset {
   @@index([organizationId, creation_date])
   @@index([externalId])
   @@index([externalSource])
+  @@index([organizationId, departmentId])
+  @@index([organizationId, statustypeid])
+  @@index([organizationId, condition1])
+  @@index([organizationId, categoryCode])
+  @@index([organizationId, propertyKey])
+  @@index([organizationId, sourceDepartment])
   @@schema("public")
 }
 
