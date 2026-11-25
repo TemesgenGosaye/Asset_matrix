@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
-import { Separator } from "@/components/ui/separator";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
 import { useRouter } from "next/navigation";
 import { notify } from "@/lib/feedback/notify";
@@ -238,22 +238,460 @@ export default function AssetEditForm({
   };
 
   return (
-    <div className="max-w-5xl">
-      <form onSubmit={onSubmit} className="flex flex-col gap-6">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-semibold">
+    <div className="mx-auto w-full max-w-6xl">
+      <form onSubmit={onSubmit} className="flex flex-col gap-3">
+        <div className="flex flex-col gap-2 border-b pb-3 sm:flex-row sm:items-end sm:justify-between">
+          <div className="min-w-0">
+            <h1 className="truncate text-xl font-semibold tracking-tight sm:text-2xl">
               Edit: {initial.assetname}
             </h1>
-            <p className="text-foreground-500 mt-1 text-sm">
-              Asset Tag {initial.assettag} • PID (Property ID){" "}
-              {initial.serialnumber}
+            <p className="text-foreground-500 mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
+              <span className="rounded bg-blue-500/10 px-1.5 py-0.5 font-mono font-medium text-blue-700 dark:text-blue-200">
+                {initial.assettag}
+              </span>
+              <span className="bg-muted rounded px-1.5 py-0.5 font-mono">
+                {initial.serialnumber}
+              </span>
+              {isDirty ? (
+                <span className="rounded bg-amber-500/15 px-1.5 py-0.5 font-medium text-amber-700 dark:text-amber-300">
+                  Unsaved changes
+                </span>
+              ) : null}
             </p>
           </div>
-          <div className="flex items-center gap-2">
+          <p className="text-foreground-500 text-xs">
+            Update the register record and keep master values consistent.
+          </p>
+        </div>
+
+        <Tabs defaultValue="core" className="w-full">
+          <TabsList className="bg-muted/60 h-10 w-full justify-start gap-1 rounded-xl p-1 sm:w-auto">
+            <TabsTrigger
+              value="core"
+              className="data-[state=active]:bg-blue-600 data-[state=active]:text-white data-[state=active]:shadow-sm"
+            >
+              Core
+            </TabsTrigger>
+            <TabsTrigger
+              value="details"
+              className="data-[state=active]:bg-blue-600 data-[state=active]:text-white data-[state=active]:shadow-sm"
+            >
+              Details
+            </TabsTrigger>
+            <TabsTrigger
+              value="review"
+              className="data-[state=active]:bg-blue-600 data-[state=active]:text-white data-[state=active]:shadow-sm"
+            >
+              Review
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="core" className="mt-3">
+            <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+              <section className="form-card">
+                <h2 className="text-foreground-600 mb-3 text-sm font-semibold">
+                  Summary
+                </h2>
+                <div className="grid grid-cols-1 gap-3">
+                  <div>
+                    <SearchableCombobox
+                      id="assetname"
+                      ariaLabel="Asset name"
+                      label="Asset Name"
+                      required
+                      type="assetName"
+                      value={form.assetname}
+                      placeholder="Search existing asset names..."
+                      onChange={(val) => onSelectChange("assetname")(val)}
+                    />
+                  </div>
+                  <div>
+                    <SearchableCombobox
+                      id="assetcategorytypeid"
+                      label="Asset Type"
+                      type="category"
+                      value={form.assetcategorytypeid}
+                      departmentId={form.departmentid || null}
+                      currentValue={
+                        !form.assetcategorytypeid
+                          ? initial.categoryCode || null
+                          : null
+                      }
+                      placeholder="Select asset type..."
+                      onChange={(val) =>
+                        onSelectChange("assetcategorytypeid")(val)
+                      }
+                    />
+                  </div>
+                  <div>
+                    <SearchableCombobox
+                      id="statustypeid"
+                      label="Status / Condition (2nd)"
+                      type="status"
+                      value={form.statustypeid}
+                      currentValue={
+                        !form.statustypeid
+                          ? initial.condition2Raw || null
+                          : null
+                      }
+                      placeholder="Select status..."
+                      allowCreate={false}
+                      onChange={(val) => onSelectChange("statustypeid")(val)}
+                    />
+                  </div>
+                  <div>
+                    <SearchableCombobox
+                      id="condition1StatusId"
+                      label="Condition (1st)"
+                      type="status"
+                      value={form.condition1StatusId}
+                      currentValue={
+                        !form.condition1StatusId
+                          ? initial.condition1 || null
+                          : null
+                      }
+                      placeholder="Select condition (1st)..."
+                      allowCreate={false}
+                      onChange={(val) =>
+                        onSelectChange("condition1StatusId")(val)
+                      }
+                    />
+                  </div>
+                  <div>
+                    <SearchableCombobox
+                      id="departmentid"
+                      label="Department"
+                      type="department"
+                      value={form.departmentid}
+                      currentValue={
+                        !form.departmentid
+                          ? initial.sourceDepartment || null
+                          : null
+                      }
+                      placeholder="Select department..."
+                      allowCreate={false}
+                      onChange={(value, item) => {
+                        const option = departmentOptions.find(
+                          (o) => o.id === value,
+                        );
+                        setForm((f) => ({
+                          ...f,
+                          departmentid: value,
+                          departmentCode: item?.code ?? option?.code ?? "",
+                        }));
+                      }}
+                    />
+                    <p className="text-foreground-500 mt-1 text-xs">
+                      Official MSF department. The department code is used in
+                      PID and asset tag generation.
+                    </p>
+                  </div>
+                  <div>
+                    <SearchableCombobox
+                      id="location1Id"
+                      label="Location (1st)"
+                      type="location1"
+                      value={form.location1Id}
+                      departmentId={form.departmentid || null}
+                      currentValue={
+                        !form.location1Id ? initial.location1 || null : null
+                      }
+                      placeholder="Search location (1st)..."
+                      onChange={(val) => onSelectChange("location1Id")(val)}
+                    />
+                  </div>
+                  <div>
+                    <SearchableCombobox
+                      id="locationid"
+                      label="Location (2nd)"
+                      type="location2"
+                      value={form.locationid}
+                      departmentId={form.departmentid || null}
+                      currentValue={
+                        !form.locationid ? initial.location2Raw || null : null
+                      }
+                      placeholder="Search location (2nd)..."
+                      onChange={(val) => onSelectChange("locationid")(val)}
+                    />
+                  </div>
+                  <div className="flex gap-6">
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id="requestable"
+                        checked={form.requestable}
+                        onCheckedChange={(v) =>
+                          setForm((f) => ({ ...f, requestable: Boolean(v) }))
+                        }
+                      />
+                      <Label htmlFor="requestable">Requestable</Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id="mobile"
+                        checked={form.mobile}
+                        onCheckedChange={(v) =>
+                          setForm((f) => ({ ...f, mobile: Boolean(v) }))
+                        }
+                      />
+                      <Label htmlFor="mobile">Mobile</Label>
+                    </div>
+                  </div>
+                </div>
+              </section>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="details" className="mt-3">
+            <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+              <section className="form-card">
+                <h2 className="text-foreground-600 mb-3 text-sm font-semibold">
+                  Specifications
+                </h2>
+                <div className="grid grid-cols-1 gap-3">
+                  <div>
+                    <Label htmlFor="manufacturerid">Brand</Label>
+                    <SelectWithQuickCreate
+                      id="manufacturerid"
+                      value={form.manufacturerid}
+                      onValueChange={onSelectChange("manufacturerid")}
+                      options={manufacturerOptions}
+                      onItemCreated={(item) =>
+                        setManufacturerOptions((prev) => [...prev, item])
+                      }
+                      placeholder="Select brand"
+                      apiEndpoint="/api/manufacturer"
+                      nameField="manufacturername"
+                      idField="manufacturerid"
+                      entityLabel="Brand"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="modelid">Model</Label>
+                    <SelectWithQuickCreate
+                      id="modelid"
+                      value={form.modelid}
+                      onValueChange={onSelectChange("modelid")}
+                      options={modelOptions}
+                      onItemCreated={(item) =>
+                        setModelOptions((prev) => [...prev, item])
+                      }
+                      placeholder="Select model"
+                      apiEndpoint="/api/model"
+                      nameField="modelname"
+                      idField="modelid"
+                      entityLabel="Model"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="specs">Specs</Label>
+                    <Textarea
+                      id="specs"
+                      name="specs"
+                      value={form.specs ?? ""}
+                      onChange={onChange}
+                      rows={2}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="notes">Notes</Label>
+                    <Textarea
+                      id="notes"
+                      name="notes"
+                      value={form.notes ?? ""}
+                      onChange={onChange}
+                      rows={2}
+                    />
+                  </div>
+                </div>
+              </section>
+
+              <section className="form-card">
+                <h2 className="text-foreground-600 mb-3 text-sm font-semibold">
+                  Procurement
+                </h2>
+                <div className="grid grid-cols-1 gap-3">
+                  <div>
+                    <Label htmlFor="supplierid">Supplier</Label>
+                    <SelectWithQuickCreate
+                      id="supplierid"
+                      value={form.supplierid}
+                      onValueChange={onSelectChange("supplierid")}
+                      options={supplierOptions}
+                      onItemCreated={(item) =>
+                        setSupplierOptions((prev) => [...prev, item])
+                      }
+                      placeholder="Select supplier"
+                      apiEndpoint="/api/supplier"
+                      nameField="suppliername"
+                      idField="supplierid"
+                      entityLabel="Supplier"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="purchaseprice">Purchase Price</Label>
+                    <Input
+                      id="purchaseprice"
+                      name="purchaseprice"
+                      value={form.purchaseprice ?? ""}
+                      onChange={onChange}
+                      type="number"
+                      step="0.01"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="purchasedate">Purchase Date</Label>
+                    <Input
+                      id="purchasedate"
+                      name="purchasedate"
+                      value={form.purchasedate ?? ""}
+                      onChange={onChange}
+                      type="date"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="warrantyMonths">Warranty (months)</Label>
+                    <Input
+                      id="warrantyMonths"
+                      name="warrantyMonths"
+                      value={form.warrantyMonths ?? ""}
+                      onChange={onChange}
+                      type="number"
+                      min="0"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="warrantyExpires">Warranty Expires</Label>
+                    <Input
+                      id="warrantyExpires"
+                      name="warrantyExpires"
+                      value={form.warrantyExpires ?? ""}
+                      onChange={onChange}
+                      type="date"
+                    />
+                  </div>
+                </div>
+              </section>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="review" className="mt-3">
+            <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+              <section className="form-card">
+                <h2 className="text-foreground-600 mb-3 text-sm font-semibold">
+                  Review
+                </h2>
+                <div className="grid grid-cols-1 gap-3">
+                  <div>
+                    <Label htmlFor="reviewsDate">Reviews Date</Label>
+                    <Input
+                      id="reviewsDate"
+                      name="reviewsDate"
+                      value={form.reviewsDate ?? ""}
+                      onChange={onChange}
+                      type="date"
+                    />
+                    <p className="text-foreground-500 mt-1 text-xs">
+                      Date of last / next physical asset review.
+                    </p>
+                  </div>
+                  <div>
+                    <Label htmlFor="remark">Remark</Label>
+                    <Textarea
+                      id="remark"
+                      name="remark"
+                      value={form.remark ?? ""}
+                      onChange={onChange}
+                      placeholder="Inspection findings, review notes, maintenance observations..."
+                      rows={3}
+                    />
+                  </div>
+                </div>
+              </section>
+            </div>
+
+            <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+              <section className="form-card">
+                <h2 className="text-foreground-600 mb-3 text-sm font-semibold">
+                  Identifiers
+                </h2>
+                <div className="grid grid-cols-1 gap-3">
+                  <div>
+                    <Label htmlFor="assettag">Asset Tag *</Label>
+                    <Input
+                      id="assettag"
+                      name="assettag"
+                      value={form.assettag}
+                      onChange={onChange}
+                      onBlur={async () => {
+                        if (
+                          !form.assettag ||
+                          form.assettag === (initial.assettag ?? "")
+                        )
+                          return;
+                        try {
+                          const res = await fetch(
+                            `/api/asset/validate?assettag=${encodeURIComponent(form.assettag)}`,
+                          );
+                          const data = await res.json();
+                          setAssettagTaken(Boolean(data?.assettag?.exists));
+                        } catch {}
+                      }}
+                      className={assettagTaken ? "border-red-500" : ""}
+                      required
+                    />
+                    {assettagTaken && (
+                      <p className="mt-1 text-sm text-red-500">
+                        Asset tag already exists
+                      </p>
+                    )}
+                  </div>
+                  <div>
+                    <div className="mb-1 flex items-center justify-between">
+                      <Label htmlFor="serialnumber">PID (Property ID) *</Label>
+                      <span className="bg-muted text-muted-foreground inline-flex items-center gap-1 rounded border px-2 py-0.5 text-[11px] font-medium">
+                        🔒 System Generated
+                      </span>
+                    </div>
+                    <Input
+                      id="serialnumber"
+                      name="serialnumber"
+                      value={form.serialnumber}
+                      readOnly
+                      className="bg-muted/40 cursor-not-allowed font-mono"
+                      required
+                    />
+                    <p className="text-muted-foreground mt-1 text-xs">
+                      Official Metahara Sugar Factory PID is immutable.
+                    </p>
+                  </div>
+                </div>
+              </section>
+            </div>
+
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+              <CustomFieldsSection
+                entityType="asset"
+                entityId={initial.assetid}
+                onChange={setCustomFieldValues}
+              />
+            </div>
+          </TabsContent>
+        </Tabs>
+
+        {error && (
+          <p className="text-sm text-red-500" role="alert">
+            {error}
+          </p>
+        )}
+        <div className="bg-background/95 sticky bottom-0 z-20 -mx-1 mt-1 flex flex-col gap-2 border-t px-1 py-3 backdrop-blur sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-foreground-500 hidden text-xs sm:block">
+            Changes are saved to the shared asset register.
+          </p>
+          <div className="flex flex-col gap-2 sm:flex-row">
             <Button
               type="button"
               variant="outline"
+              className="w-full sm:w-auto"
               onClick={() => {
                 if (!isDirty || confirm("Discard unsaved changes?"))
                   router.back();
@@ -263,409 +701,13 @@ export default function AssetEditForm({
             </Button>
             <Button
               variant="default"
+              className="w-full bg-blue-600 hover:bg-blue-700 sm:w-auto"
               type="submit"
               disabled={saving || assettagTaken || serialTaken}
             >
-              {saving ? "Saving..." : "Save"}
+              {saving ? "Saving..." : "Save changes"}
             </Button>
           </div>
-        </div>
-        <Separator />
-
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
-          <section className="border-default-200 col-span-1 rounded-lg border p-4">
-            <h2 className="text-foreground-600 mb-3 text-sm font-semibold">
-              Summary
-            </h2>
-            <div className="grid grid-cols-1 gap-3">
-              <div>
-                <SearchableCombobox
-                  id="assetname"
-                  ariaLabel="Asset name"
-                  label="Asset Name"
-                  required
-                  type="assetName"
-                  value={form.assetname}
-                  placeholder="Search existing asset names..."
-                  onChange={(val) => onSelectChange("assetname")(val)}
-                />
-              </div>
-              <div>
-                <SearchableCombobox
-                  id="assetcategorytypeid"
-                  label="Asset Type"
-                  type="category"
-                  value={form.assetcategorytypeid}
-                  departmentId={form.departmentid || null}
-                  currentValue={
-                    !form.assetcategorytypeid
-                      ? initial.categoryCode || null
-                      : null
-                  }
-                  placeholder="Select asset type..."
-                  onChange={(val) => onSelectChange("assetcategorytypeid")(val)}
-                />
-              </div>
-              <div>
-                <SearchableCombobox
-                  id="statustypeid"
-                  label="Status / Condition (2nd)"
-                  type="status"
-                  value={form.statustypeid}
-                  currentValue={
-                    !form.statustypeid ? initial.condition2Raw || null : null
-                  }
-                  placeholder="Select status..."
-                  allowCreate={false}
-                  onChange={(val) => onSelectChange("statustypeid")(val)}
-                />
-              </div>
-              <div>
-                <SearchableCombobox
-                  id="condition1StatusId"
-                  label="Condition (1st)"
-                  type="status"
-                  value={form.condition1StatusId}
-                  currentValue={
-                    !form.condition1StatusId ? initial.condition1 || null : null
-                  }
-                  placeholder="Select condition (1st)..."
-                  allowCreate={false}
-                  onChange={(val) => onSelectChange("condition1StatusId")(val)}
-                />
-              </div>
-              <div>
-                <SearchableCombobox
-                  id="departmentid"
-                  label="Department"
-                  type="department"
-                  value={form.departmentid}
-                  currentValue={
-                    !form.departmentid ? initial.sourceDepartment || null : null
-                  }
-                  placeholder="Select department..."
-                  allowCreate={false}
-                  onChange={(value, item) => {
-                    const option = departmentOptions.find(
-                      (o) => o.id === value,
-                    );
-                    setForm((f) => ({
-                      ...f,
-                      departmentid: value,
-                      departmentCode: item?.code ?? option?.code ?? "",
-                    }));
-                  }}
-                />
-                <p className="text-foreground-500 mt-1 text-xs">
-                  Official MSF department. The department code is used in PID
-                  and asset tag generation.
-                </p>
-              </div>
-              <div>
-                <SearchableCombobox
-                  id="location1Id"
-                  label="Location (1st)"
-                  type="location1"
-                  value={form.location1Id}
-                  departmentId={form.departmentid || null}
-                  currentValue={
-                    !form.location1Id ? initial.location1 || null : null
-                  }
-                  placeholder="Search location (1st)..."
-                  onChange={(val) => onSelectChange("location1Id")(val)}
-                />
-              </div>
-              <div>
-                <SearchableCombobox
-                  id="locationid"
-                  label="Location (2nd)"
-                  type="location2"
-                  value={form.locationid}
-                  departmentId={form.departmentid || null}
-                  currentValue={
-                    !form.locationid ? initial.location2Raw || null : null
-                  }
-                  placeholder="Search location (2nd)..."
-                  onChange={(val) => onSelectChange("locationid")(val)}
-                />
-              </div>
-              <div className="flex gap-6">
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="requestable"
-                    checked={form.requestable}
-                    onCheckedChange={(v) =>
-                      setForm((f) => ({ ...f, requestable: Boolean(v) }))
-                    }
-                  />
-                  <Label htmlFor="requestable">Requestable</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="mobile"
-                    checked={form.mobile}
-                    onCheckedChange={(v) =>
-                      setForm((f) => ({ ...f, mobile: Boolean(v) }))
-                    }
-                  />
-                  <Label htmlFor="mobile">Mobile</Label>
-                </div>
-              </div>
-            </div>
-          </section>
-
-          <section className="border-default-200 col-span-1 rounded-lg border p-4">
-            <h2 className="text-foreground-600 mb-3 text-sm font-semibold">
-              Specifications
-            </h2>
-            <div className="grid grid-cols-1 gap-3">
-              <div>
-                <Label htmlFor="manufacturerid">Brand</Label>
-                <SelectWithQuickCreate
-                  id="manufacturerid"
-                  value={form.manufacturerid}
-                  onValueChange={onSelectChange("manufacturerid")}
-                  options={manufacturerOptions}
-                  onItemCreated={(item) =>
-                    setManufacturerOptions((prev) => [...prev, item])
-                  }
-                  placeholder="Select brand"
-                  apiEndpoint="/api/manufacturer"
-                  nameField="manufacturername"
-                  idField="manufacturerid"
-                  entityLabel="Brand"
-                />
-              </div>
-              <div>
-                <Label htmlFor="modelid">Model</Label>
-                <SelectWithQuickCreate
-                  id="modelid"
-                  value={form.modelid}
-                  onValueChange={onSelectChange("modelid")}
-                  options={modelOptions}
-                  onItemCreated={(item) =>
-                    setModelOptions((prev) => [...prev, item])
-                  }
-                  placeholder="Select model"
-                  apiEndpoint="/api/model"
-                  nameField="modelname"
-                  idField="modelid"
-                  entityLabel="Model"
-                />
-              </div>
-              <div>
-                <Label htmlFor="specs">Specs</Label>
-                <Textarea
-                  id="specs"
-                  name="specs"
-                  value={form.specs ?? ""}
-                  onChange={onChange}
-                  rows={2}
-                />
-              </div>
-              <div>
-                <Label htmlFor="notes">Notes</Label>
-                <Textarea
-                  id="notes"
-                  name="notes"
-                  value={form.notes ?? ""}
-                  onChange={onChange}
-                  rows={2}
-                />
-              </div>
-            </div>
-          </section>
-
-          <section className="border-default-200 col-span-1 rounded-lg border p-4">
-            <h2 className="text-foreground-600 mb-3 text-sm font-semibold">
-              Procurement
-            </h2>
-            <div className="grid grid-cols-1 gap-3">
-              <div>
-                <Label htmlFor="supplierid">Supplier</Label>
-                <SelectWithQuickCreate
-                  id="supplierid"
-                  value={form.supplierid}
-                  onValueChange={onSelectChange("supplierid")}
-                  options={supplierOptions}
-                  onItemCreated={(item) =>
-                    setSupplierOptions((prev) => [...prev, item])
-                  }
-                  placeholder="Select supplier"
-                  apiEndpoint="/api/supplier"
-                  nameField="suppliername"
-                  idField="supplierid"
-                  entityLabel="Supplier"
-                />
-              </div>
-              <div>
-                <Label htmlFor="purchaseprice">Purchase Price</Label>
-                <Input
-                  id="purchaseprice"
-                  name="purchaseprice"
-                  value={form.purchaseprice ?? ""}
-                  onChange={onChange}
-                  type="number"
-                  step="0.01"
-                />
-              </div>
-              <div>
-                <Label htmlFor="purchasedate">Purchase Date</Label>
-                <Input
-                  id="purchasedate"
-                  name="purchasedate"
-                  value={form.purchasedate ?? ""}
-                  onChange={onChange}
-                  type="date"
-                />
-              </div>
-              <div>
-                <Label htmlFor="warrantyMonths">Warranty (months)</Label>
-                <Input
-                  id="warrantyMonths"
-                  name="warrantyMonths"
-                  value={form.warrantyMonths ?? ""}
-                  onChange={onChange}
-                  type="number"
-                  min="0"
-                />
-              </div>
-              <div>
-                <Label htmlFor="warrantyExpires">Warranty Expires</Label>
-                <Input
-                  id="warrantyExpires"
-                  name="warrantyExpires"
-                  value={form.warrantyExpires ?? ""}
-                  onChange={onChange}
-                  type="date"
-                />
-              </div>
-            </div>
-          </section>
-
-          <section className="border-default-200 col-span-1 rounded-lg border p-4">
-            <h2 className="text-foreground-600 mb-3 text-sm font-semibold">
-              Review
-            </h2>
-            <div className="grid grid-cols-1 gap-3">
-              <div>
-                <Label htmlFor="reviewsDate">Reviews Date</Label>
-                <Input
-                  id="reviewsDate"
-                  name="reviewsDate"
-                  value={form.reviewsDate ?? ""}
-                  onChange={onChange}
-                  type="date"
-                />
-                <p className="text-foreground-500 mt-1 text-xs">
-                  Date of last / next physical asset review.
-                </p>
-              </div>
-              <div>
-                <Label htmlFor="remark">Remark</Label>
-                <Textarea
-                  id="remark"
-                  name="remark"
-                  value={form.remark ?? ""}
-                  onChange={onChange}
-                  placeholder="Inspection findings, review notes, maintenance observations..."
-                  rows={3}
-                />
-              </div>
-            </div>
-          </section>
-        </div>
-
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
-          <section className="border-default-200 col-span-1 rounded-lg border p-4">
-            <h2 className="text-foreground-600 mb-3 text-sm font-semibold">
-              Identifiers
-            </h2>
-            <div className="grid grid-cols-1 gap-3">
-              <div>
-                <Label htmlFor="assettag">Asset Tag *</Label>
-                <Input
-                  id="assettag"
-                  name="assettag"
-                  value={form.assettag}
-                  onChange={onChange}
-                  onBlur={async () => {
-                    if (
-                      !form.assettag ||
-                      form.assettag === (initial.assettag ?? "")
-                    )
-                      return;
-                    try {
-                      const res = await fetch(
-                        `/api/asset/validate?assettag=${encodeURIComponent(form.assettag)}`,
-                      );
-                      const data = await res.json();
-                      setAssettagTaken(Boolean(data?.assettag?.exists));
-                    } catch {}
-                  }}
-                  className={assettagTaken ? "border-red-500" : ""}
-                  required
-                />
-                {assettagTaken && (
-                  <p className="mt-1 text-sm text-red-500">
-                    Asset tag already exists
-                  </p>
-                )}
-              </div>
-              <div>
-                <div className="mb-1 flex items-center justify-between">
-                  <Label htmlFor="serialnumber">PID (Property ID) *</Label>
-                  <span className="bg-muted text-muted-foreground inline-flex items-center gap-1 rounded border px-2 py-0.5 text-[11px] font-medium">
-                    🔒 System Generated
-                  </span>
-                </div>
-                <Input
-                  id="serialnumber"
-                  name="serialnumber"
-                  value={form.serialnumber}
-                  readOnly
-                  className="bg-muted/40 cursor-not-allowed font-mono"
-                  required
-                />
-                <p className="text-muted-foreground mt-1 text-xs">
-                  Official Metahara Sugar Factory PID is immutable.
-                </p>
-              </div>
-            </div>
-          </section>
-        </div>
-
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
-          <CustomFieldsSection
-            entityType="asset"
-            entityId={initial.assetid}
-            onChange={setCustomFieldValues}
-          />
-        </div>
-
-        {error && (
-          <p className="text-sm text-red-500" role="alert">
-            {error}
-          </p>
-        )}
-        <div className="flex justify-end gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => {
-              if (!isDirty || confirm("Discard unsaved changes?"))
-                router.back();
-            }}
-          >
-            Cancel
-          </Button>
-          <Button
-            variant="default"
-            type="submit"
-            disabled={saving || assettagTaken || serialTaken}
-          >
-            {saving ? "Saving..." : "Save"}
-          </Button>
         </div>
       </form>
     </div>

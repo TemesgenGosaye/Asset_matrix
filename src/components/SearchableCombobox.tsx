@@ -312,15 +312,19 @@ export default function SearchableCombobox({
               aria-label={ariaLabel || label || placeholder}
               disabled={disabled}
               className={cn(
-                "bg-background h-10 w-full justify-between px-3 text-left text-sm font-normal shadow-xs",
+                "border-default-200 bg-background h-10 w-full justify-between rounded-lg px-3 text-left text-sm font-normal shadow-xs transition-colors hover:border-blue-500/60 focus-visible:border-blue-500 focus-visible:ring-blue-500/20",
                 !value && !currentValue && "text-muted-foreground",
+                !!selectedOption &&
+                  !selectedOption.isLegacy &&
+                  !selectedOption.isCurrent &&
+                  "border-blue-500/40 bg-blue-500/5 text-blue-950 dark:text-blue-100",
                 (selectedOption?.isLegacy || selectedOption?.isCurrent) &&
                   "border-amber-500/60 bg-amber-500/5 text-amber-900 dark:text-amber-200",
               )}
             >
               <span className="truncate pr-4">
                 {selectedOption ? (
-                  <span className="inline-flex items-center gap-1.5 font-medium">
+                  <span className="inline-flex min-w-0 items-center gap-1.5 font-medium">
                     {(selectedOption.isLegacy || selectedOption.isCurrent) && (
                       <span className="rounded bg-amber-500/20 px-1 py-0.5 text-[10px] font-bold tracking-wider text-amber-700 uppercase dark:text-amber-300">
                         Current (not in list)
@@ -336,10 +340,12 @@ export default function SearchableCombobox({
                         }}
                       />
                     )}
-                    <span>
-                      {selectedOption.code ? `[${selectedOption.code}] ` : ""}
-                      {selectedOption.name}
-                    </span>
+                    {selectedOption.code && (
+                      <span className="shrink-0 rounded bg-blue-600/10 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-blue-700 dark:bg-blue-400/15 dark:text-blue-200">
+                        {selectedOption.code}
+                      </span>
+                    )}
+                    <span className="truncate">{selectedOption.name}</span>
                   </span>
                 ) : (
                   placeholder
@@ -366,7 +372,7 @@ export default function SearchableCombobox({
         </div>
 
         <PopoverContent
-          className="w-[var(--radix-popover-trigger-width)] min-w-[280px] p-0 shadow-lg"
+          className="w-[var(--radix-popover-trigger-width)] min-w-[280px] overflow-hidden rounded-xl border-blue-500/20 p-0 shadow-xl ring-1 ring-blue-500/10"
           align="start"
         >
           {/* Search box input */}
@@ -445,19 +451,24 @@ export default function SearchableCombobox({
                         transform: `translateY(${virtualRow.start}px)`,
                       }}
                       className={cn(
-                        "hover:bg-accent hover:text-accent-foreground flex cursor-pointer items-center justify-between rounded px-2.5 py-1.5 text-sm transition-colors select-none",
-                        isHighlighted && "bg-accent text-accent-foreground",
-                        isSelected && "bg-accent/80 font-medium",
-                        opt.isLegacy && "text-amber-800 dark:text-amber-300",
+                        "flex cursor-pointer items-center justify-between rounded-md px-2.5 py-1.5 text-sm transition-colors select-none",
+                        isHighlighted && "bg-blue-600 font-medium text-white",
+                        isSelected &&
+                          "bg-blue-600 font-semibold text-white ring-1 ring-blue-400/60 ring-inset",
+                        !isHighlighted &&
+                          !isSelected &&
+                          "hover:bg-blue-600 hover:text-white",
+                        opt.isLegacy &&
+                          !isHighlighted &&
+                          !isSelected &&
+                          "text-amber-800 dark:text-amber-300",
                       )}
                     >
                       <div className="flex items-center gap-2 truncate pr-2">
                         <Check
                           className={cn(
                             "h-4 w-4 shrink-0",
-                            isSelected
-                              ? "text-primary opacity-100"
-                              : "opacity-0",
+                            isSelected ? "text-white opacity-100" : "opacity-0",
                           )}
                         />
                         {safeColor(opt.color) && (
@@ -472,14 +483,28 @@ export default function SearchableCombobox({
                         )}
                         <span className="truncate">
                           {opt.code ? (
-                            <span className="text-muted-foreground mr-1.5 font-mono text-xs">
+                            <span
+                              className={cn(
+                                "mr-1.5 rounded px-1.5 py-0.5 font-mono text-[10px] font-semibold",
+                                isHighlighted || isSelected
+                                  ? "bg-white/20 text-white"
+                                  : "bg-blue-500/10 text-blue-700 dark:bg-blue-400/15 dark:text-blue-200",
+                              )}
+                            >
                               {opt.code}
                             </span>
                           ) : null}
-                          {opt.name}
+                          <span className="truncate">{opt.name}</span>
                         </span>
                         {opt.isCurrent && (
-                          <span className="rounded bg-amber-500/20 px-1 py-0.5 text-[10px] font-semibold text-amber-700 dark:text-amber-300">
+                          <span
+                            className={cn(
+                              "shrink-0 rounded px-1 py-0.5 text-[10px] font-semibold",
+                              isHighlighted || isSelected
+                                ? "bg-white/20 text-white"
+                                : "bg-amber-500/20 text-amber-700 dark:text-amber-300",
+                            )}
+                          >
                             Current
                           </span>
                         )}
@@ -488,21 +513,38 @@ export default function SearchableCombobox({
                       {/* Small usage count badges */}
                       <div className="flex shrink-0 items-center gap-1">
                         {opt.isLegacy ? (
-                          <span className="rounded bg-amber-500/20 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700 dark:text-amber-300">
+                          <span
+                            className={cn(
+                              "rounded px-1.5 py-0.5 text-[10px] font-semibold",
+                              isHighlighted || isSelected
+                                ? "bg-white/20 text-white"
+                                : "bg-amber-500/20 text-amber-700 dark:text-amber-300",
+                            )}
+                          >
                             Legacy
                           </span>
                         ) : type !== "employee" ? (
                           <>
                             {opt.departmentUsageCount ? (
                               <span
-                                className="bg-primary/10 text-primary rounded px-1 py-0.5 text-[10px] font-medium"
+                                className={cn(
+                                  "rounded px-1 py-0.5 text-[10px] font-medium",
+                                  isHighlighted || isSelected
+                                    ? "bg-white/20 text-white"
+                                    : "bg-blue-500/10 text-blue-700 dark:bg-blue-400/15 dark:text-blue-200",
+                                )}
                                 title="Department usage count"
                               >
                                 Dept: {opt.departmentUsageCount}
                               </span>
                             ) : null}
                             <span
-                              className="text-muted-foreground text-[11px]"
+                              className={cn(
+                                "text-[11px]",
+                                isHighlighted || isSelected
+                                  ? "text-white/80"
+                                  : "text-muted-foreground",
+                              )}
                               title="Global asset usage count"
                             >
                               {opt.usageCount}

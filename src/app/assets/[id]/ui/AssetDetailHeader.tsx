@@ -40,15 +40,26 @@ export default function AssetDetailHeader({ asset, statuses, isAdmin = true }) {
   const canRequest = !isAdmin && (asset.requestable || isAvailable);
 
   return (
-    <div className="flex items-start justify-between gap-4">
-      <div>
-        <h1 className="text-2xl font-semibold">{asset.assetname}</h1>
-        <p className="text-foreground-500 mt-1 text-sm">
-          Asset Tag {asset.assettag} • PID (Property ID) {asset.serialnumber}
+    <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+      <div className="min-w-0">
+        <div className="flex flex-wrap items-center gap-2">
+          <h1 className="truncate text-2xl font-semibold tracking-tight">
+            {asset.assetname}
+          </h1>
+          <StatusChip name={statusName} />
+        </div>
+        <p className="text-foreground-500 mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
+          <span className="rounded bg-blue-500/10 px-1.5 py-0.5 font-mono font-medium text-blue-700 dark:text-blue-200">
+            {asset.assettag}
+          </span>
+          <span className="bg-muted rounded px-1.5 py-0.5 font-mono">
+            {asset.serialnumber}
+          </span>
+          <span className="hidden sm:inline">•</span>
+          <span>Asset profile and lifecycle</span>
         </p>
       </div>
-      <div className="flex items-center gap-2">
-        <StatusChip name={statusName} />
+      <div className="flex flex-wrap items-center gap-2">
         <AskMeriButton
           variant="outline"
           size="sm"
@@ -79,7 +90,7 @@ export default function AssetDetailHeader({ asset, statuses, isAdmin = true }) {
         {isAdmin && (
           <Link
             href={`/assets/${asset.assetid}/edit`}
-            className="bg-primary text-primary-foreground rounded-md px-3 py-1.5 text-sm font-medium hover:opacity-90"
+            className="inline-flex h-8 items-center justify-center rounded-lg bg-blue-600 px-3 text-sm font-medium text-white shadow-sm transition-colors hover:bg-blue-700"
           >
             Edit
           </Link>

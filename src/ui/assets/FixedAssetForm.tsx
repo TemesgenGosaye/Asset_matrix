@@ -199,18 +199,23 @@ export default function FixedAssetForm({ mode, assetId }: Props) {
     );
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-foreground text-2xl font-bold">
+    <div className="mx-auto w-full max-w-6xl space-y-3">
+      <div className="flex flex-col gap-2 border-b pb-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
+          <h1 className="text-foreground text-xl font-semibold tracking-tight sm:text-2xl">
             {mode === "create" ? "New fixed asset" : "Edit fixed asset"}
           </h1>
-          <p className="text-muted-foreground text-sm">
+          <p className="text-muted-foreground text-xs">
             Master List fields are saved additively; existing asset features
             stay unchanged.
           </p>
         </div>
-        <Button variant="ghost" onClick={() => router.push("/assets")}>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="w-full sm:w-auto"
+          onClick={() => router.push("/assets")}
+        >
           <ArrowLeft className="h-4 w-4" /> Back
         </Button>
       </div>
@@ -220,7 +225,7 @@ export default function FixedAssetForm({ mode, assetId }: Props) {
         </div>
       )}
       <div className="grid gap-4 lg:grid-cols-2">
-        <Card>
+        <Card className="form-card">
           <CardHeader>
             <CardTitle className="text-lg">Identity</CardTitle>
           </CardHeader>
@@ -329,7 +334,7 @@ export default function FixedAssetForm({ mode, assetId }: Props) {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="form-card">
           <CardHeader>
             <CardTitle className="text-lg">First review</CardTitle>
           </CardHeader>
@@ -436,11 +441,19 @@ export default function FixedAssetForm({ mode, assetId }: Props) {
           </CardContent>
         </Card>
       </div>
-      <div className="flex justify-end gap-2">
-        <Button variant="outline" onClick={() => router.push("/assets")}>
+      <div className="bg-background/95 sticky bottom-0 z-20 -mx-1 flex flex-col gap-2 border-t px-1 py-3 backdrop-blur sm:flex-row sm:items-center sm:justify-end">
+        <Button
+          variant="outline"
+          className="w-full sm:w-auto"
+          onClick={() => router.push("/assets")}
+        >
           Cancel
         </Button>
-        <Button onClick={() => void submit()} disabled={saving}>
+        <Button
+          className="w-full bg-blue-600 hover:bg-blue-700 sm:w-auto"
+          onClick={() => void submit()}
+          disabled={saving}
+        >
           <Save className="h-4 w-4" /> {saving ? "Saving…" : "Save"}
         </Button>
       </div>

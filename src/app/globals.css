@@ -116,6 +116,37 @@
 }
 
 @layer components {
+  .detail-card,
+  .form-card,
+  .metric-card {
+    border: 1px solid hsl(var(--border));
+    border-radius: calc(var(--radius) - 2px);
+    background-color: hsl(var(--card) / 0.7);
+    box-shadow: 0 1px 2px rgb(15 23 42 / 0.06);
+    transition:
+      border-color 150ms ease,
+      box-shadow 150ms ease;
+  }
+
+  .detail-card,
+  .form-card {
+    padding: 1rem;
+  }
+
+  .metric-card {
+    padding: 0.75rem 1rem;
+  }
+
+  .detail-card:hover,
+  .form-card:hover,
+  .metric-card:hover {
+    border-color: rgb(59 130 246 / 0.4);
+  }
+
+  .metric-card:hover {
+    box-shadow: 0 6px 16px rgb(15 23 42 / 0.1);
+  }
+
   .scroll-shadow {
     overflow-y: auto;
     position: relative;

@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import Breadcrumb from "@/components/Breadcrumb";
 import { Separator } from "@/components/ui/separator";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import HistoryTimeline from "@/components/HistoryTimeline";
 import {
   getAssetById,
@@ -74,6 +75,21 @@ function formatDate(value) {
     month: "short",
     day: "numeric",
   });
+}
+
+function MetricTile({ label, value, hint }) {
+  return (
+    <div className="metric-card relative overflow-hidden">
+      <span className="absolute top-0 left-0 h-full w-0.5 bg-blue-600" />
+      <p className="text-foreground-500 text-[11px] font-semibold tracking-wide uppercase">
+        {label}
+      </p>
+      <p className="mt-1.5 truncate text-lg font-semibold">{value}</p>
+      {hint ? (
+        <p className="text-foreground-500 mt-1 truncate text-xs">{hint}</p>
+      ) : null}
+    </div>
+  );
 }
 
 export default async function Page(props: { params: Promise<{ id: string }> }) {
@@ -313,446 +329,518 @@ export default async function Page(props: { params: Promise<{ id: string }> }) {
   return (
     <>
       <Breadcrumb options={breadcrumbOptions} />
-      <div className="flex h-full w-full flex-col overflow-hidden">
+      <div className="flex w-full flex-col gap-4 pb-6">
         <AssetDetailHeader asset={asset} statuses={status} isAdmin={isAdmin} />
-        <Separator className="my-4" />
 
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
-          <section className="border-default-200 col-span-1 rounded-lg border p-4">
-            <h2 className="text-foreground-600 mb-3 text-sm font-semibold">
-              Summary
-            </h2>
-            <dl className="grid grid-cols-1 gap-2 text-sm">
-              <div className="flex justify-between">
-                <dt className="text-foreground-500">Asset ID</dt>
-                <dd className="text-foreground font-medium">{asset.assetid}</dd>
-              </div>
-              <div className="flex justify-between">
-                <dt className="text-foreground-500">Category</dt>
-                <dd className="text-foreground font-medium">
-                  {categoryName || "-"}
-                </dd>
-              </div>
-              <div className="flex justify-between">
-                <dt className="text-foreground-500">Status</dt>
-                <dd className="text-foreground font-medium">
-                  {statusName || "-"}
-                </dd>
-              </div>
-              <div className="flex justify-between">
-                <dt className="text-foreground-500">Requestable</dt>
-                <dd className="font-medium">
-                  {booleanPill(Boolean(asset.requestable))}
-                </dd>
-              </div>
-              <div className="flex justify-between">
-                <dt className="text-foreground-500">Mobile</dt>
-                <dd className="font-medium">
-                  {booleanPill(Boolean(asset.mobile))}
-                </dd>
-              </div>
-              <div className="flex justify-between">
-                <dt className="text-foreground-500">Department</dt>
-                <dd className="font-medium">
-                  {department
-                    ? `${department.code ? department.code + " — " : ""}${department.name}`
-                    : asset?.departmentCode
-                      ? `${asset.departmentCode}`
-                      : "-"}
-                </dd>
-              </div>
-            </dl>
-          </section>
-
-          <section className="border-default-200 col-span-1 rounded-lg border p-4">
-            <h2 className="text-foreground-600 mb-3 text-sm font-semibold">
-              Specifications
-            </h2>
-            <dl className="grid grid-cols-1 gap-2 text-sm">
-              <div className="flex justify-between">
-                <dt className="text-foreground-500">Manufacturer</dt>
-                <dd className="font-medium">{manufacturerName || "-"}</dd>
-              </div>
-              <div className="flex justify-between">
-                <dt className="text-foreground-500">Model</dt>
-                <dd className="font-medium">{modelName || "-"}</dd>
-              </div>
-              <div className="flex justify-between">
-                <dt className="text-foreground-500">Specs</dt>
-                <dd
-                  className="max-w-[60%] truncate text-right font-medium"
-                  title={asset.specs || undefined}
-                >
-                  {asset.specs || "-"}
-                </dd>
-              </div>
-              <div className="flex justify-between">
-                <dt className="text-foreground-500">Notes</dt>
-                <dd
-                  className="max-w-[60%] truncate text-right font-medium"
-                  title={asset.notes || undefined}
-                >
-                  {asset.notes || "-"}
-                </dd>
-              </div>
-            </dl>
-          </section>
-
-          <section className="border-default-200 col-span-1 rounded-lg border p-4">
-            <h2 className="text-foreground-600 mb-3 text-sm font-semibold">
-              Procurement
-            </h2>
-            <dl className="grid grid-cols-1 gap-2 text-sm">
-              <div className="flex justify-between">
-                <dt className="text-foreground-500">Supplier</dt>
-                <dd className="font-medium">{supplierName || "-"}</dd>
-              </div>
-              <div className="flex justify-between">
-                <dt className="text-foreground-500">Purchase Price</dt>
-                <dd className="font-medium">
-                  {asCurrency(asset.purchaseprice)}
-                </dd>
-              </div>
-              <div className="flex justify-between">
-                <dt className="text-foreground-500">Created</dt>
-                <dd className="font-medium">
-                  {asset.creation_date
-                    ? new Date(asset.creation_date).toLocaleString()
-                    : "-"}
-                </dd>
-              </div>
-              <div className="flex justify-between">
-                <dt className="text-foreground-500">Updated</dt>
-                <dd className="font-medium">
-                  {asset.change_date
-                    ? new Date(asset.change_date).toLocaleString()
-                    : "-"}
-                </dd>
-              </div>
-            </dl>
-          </section>
+        <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+          <MetricTile
+            label="Condition"
+            value={statusName || "Not set"}
+            hint={`Category: ${categoryName || "Not set"}`}
+          />
+          <MetricTile
+            label="Assigned to"
+            value={currentAssignment?.name || "Unassigned"}
+            hint={currentAssignment?.department || "No department"}
+          />
+          <MetricTile
+            label="Health score"
+            value={`${healthScore.overall}/100`}
+            hint={healthScore.label || "Not calculated"}
+          />
+          <MetricTile
+            label="Warranty"
+            value={warrantyStatus?.label || "No warranty"}
+            hint={location?.locationname || "Location not set"}
+          />
         </div>
 
-        <div className="mt-8 grid grid-cols-1 gap-6 md:grid-cols-3">
-          <section className="border-default-200 col-span-1 rounded-lg border p-4">
-            <h2 className="text-foreground-600 mb-3 text-sm font-semibold">
-              Assigned To
-            </h2>
-            {currentAssignment ? (
-              <div className="space-y-3">
-                <div className="flex items-center justify-between gap-3">
-                  <div className="min-w-0">
-                    <span className="block truncate font-medium">
-                      {currentAssignment.name}
+        <Tabs defaultValue="overview" className="w-full">
+          <TabsList className="bg-muted/60 h-10 w-full justify-start gap-1 rounded-xl p-1 sm:w-auto">
+            <TabsTrigger
+              value="overview"
+              className="data-[state=active]:bg-blue-600 data-[state=active]:text-white data-[state=active]:shadow-sm"
+            >
+              Overview
+            </TabsTrigger>
+            <TabsTrigger
+              value="insights"
+              className="data-[state=active]:bg-blue-600 data-[state=active]:text-white data-[state=active]:shadow-sm"
+            >
+              Insights
+            </TabsTrigger>
+            <TabsTrigger
+              value="operations"
+              className="data-[state=active]:bg-blue-600 data-[state=active]:text-white data-[state=active]:shadow-sm"
+            >
+              Operations
+            </TabsTrigger>
+            <TabsTrigger
+              value="activity"
+              className="data-[state=active]:bg-blue-600 data-[state=active]:text-white data-[state=active]:shadow-sm"
+            >
+              Files &amp; History
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="overview" className="mt-3 space-y-4">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+              <section className="detail-card md:col-span-1">
+                <h2 className="text-foreground-600 mb-3 text-sm font-semibold">
+                  Summary
+                </h2>
+                <dl className="grid grid-cols-1 gap-2 text-sm">
+                  <div className="flex justify-between">
+                    <dt className="text-foreground-500">Asset ID</dt>
+                    <dd className="text-foreground font-medium">
+                      {asset.assetid}
+                    </dd>
+                  </div>
+                  <div className="flex justify-between">
+                    <dt className="text-foreground-500">Category</dt>
+                    <dd className="text-foreground font-medium">
+                      {categoryName || "-"}
+                    </dd>
+                  </div>
+                  <div className="flex justify-between">
+                    <dt className="text-foreground-500">Status</dt>
+                    <dd className="text-foreground font-medium">
+                      {statusName || "-"}
+                    </dd>
+                  </div>
+                  <div className="flex justify-between">
+                    <dt className="text-foreground-500">Requestable</dt>
+                    <dd className="font-medium">
+                      {booleanPill(Boolean(asset.requestable))}
+                    </dd>
+                  </div>
+                  <div className="flex justify-between">
+                    <dt className="text-foreground-500">Mobile</dt>
+                    <dd className="font-medium">
+                      {booleanPill(Boolean(asset.mobile))}
+                    </dd>
+                  </div>
+                  <div className="flex justify-between">
+                    <dt className="text-foreground-500">Department</dt>
+                    <dd className="font-medium">
+                      {department
+                        ? `${department.code ? department.code + " — " : ""}${department.name}`
+                        : asset?.departmentCode
+                          ? `${asset.departmentCode}`
+                          : "-"}
+                    </dd>
+                  </div>
+                </dl>
+              </section>
+
+              <section className="detail-card">
+                <h2 className="text-foreground-600 mb-3 text-sm font-semibold">
+                  Specifications
+                </h2>
+                <dl className="grid grid-cols-1 gap-2 text-sm">
+                  <div className="flex justify-between">
+                    <dt className="text-foreground-500">Manufacturer</dt>
+                    <dd className="font-medium">{manufacturerName || "-"}</dd>
+                  </div>
+                  <div className="flex justify-between">
+                    <dt className="text-foreground-500">Model</dt>
+                    <dd className="font-medium">{modelName || "-"}</dd>
+                  </div>
+                  <div className="flex justify-between">
+                    <dt className="text-foreground-500">Specs</dt>
+                    <dd
+                      className="max-w-[60%] truncate text-right font-medium"
+                      title={asset.specs || undefined}
+                    >
+                      {asset.specs || "-"}
+                    </dd>
+                  </div>
+                  <div className="flex justify-between">
+                    <dt className="text-foreground-500">Notes</dt>
+                    <dd
+                      className="max-w-[60%] truncate text-right font-medium"
+                      title={asset.notes || undefined}
+                    >
+                      {asset.notes || "-"}
+                    </dd>
+                  </div>
+                </dl>
+              </section>
+
+              <section className="detail-card">
+                <h2 className="text-foreground-600 mb-3 text-sm font-semibold">
+                  Procurement
+                </h2>
+                <dl className="grid grid-cols-1 gap-2 text-sm">
+                  <div className="flex justify-between">
+                    <dt className="text-foreground-500">Supplier</dt>
+                    <dd className="font-medium">{supplierName || "-"}</dd>
+                  </div>
+                  <div className="flex justify-between">
+                    <dt className="text-foreground-500">Purchase Price</dt>
+                    <dd className="font-medium">
+                      {asCurrency(asset.purchaseprice)}
+                    </dd>
+                  </div>
+                  <div className="flex justify-between">
+                    <dt className="text-foreground-500">Created</dt>
+                    <dd className="font-medium">
+                      {asset.creation_date
+                        ? new Date(asset.creation_date).toLocaleString()
+                        : "-"}
+                    </dd>
+                  </div>
+                  <div className="flex justify-between">
+                    <dt className="text-foreground-500">Updated</dt>
+                    <dd className="font-medium">
+                      {asset.change_date
+                        ? new Date(asset.change_date).toLocaleString()
+                        : "-"}
+                    </dd>
+                  </div>
+                </dl>
+              </section>
+            </div>
+
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+              <section className="detail-card">
+                <h2 className="text-foreground-600 mb-3 text-sm font-semibold">
+                  Assigned To
+                </h2>
+                {currentAssignment ? (
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <span className="block truncate font-medium">
+                          {currentAssignment.name}
+                        </span>
+                        <span className="text-foreground-500 block truncate text-sm">
+                          {[
+                            currentAssignment.employeeNumber
+                              ? `Employee ${currentAssignment.employeeNumber}`
+                              : null,
+                            currentAssignment.department,
+                            currentAssignment.email,
+                          ]
+                            .filter(Boolean)
+                            .join(" · ") || "No contact details"}
+                        </span>
+                      </div>
+                      <Link
+                        href={`/user/${currentAssignment.userId}`}
+                        className="text-primary shrink-0 text-sm font-medium hover:underline"
+                      >
+                        View
+                      </Link>
+                    </div>
+                    {!isAdmin && userByAsset?.userid === ctx?.userId && (
+                      <ReturnItemButton
+                        requestId={activeItemRequest?.id}
+                        entityId={asset.assetid}
+                        entityName={asset.assetname}
+                        entityType="asset"
+                      />
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-foreground-500 text-sm">
+                    No employee assigned.
+                  </p>
+                )}
+              </section>
+
+              <section className="detail-card border-dashed md:col-span-2">
+                <h2 className="text-foreground-600 mb-3 text-sm font-semibold">
+                  Identifiers
+                </h2>
+                <div className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
+                  <div className="flex justify-between">
+                    <span className="text-foreground-500">Asset Tag</span>
+                    <span className="font-medium">{asset.assettag}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-foreground-500">
+                      PID (Property ID)
                     </span>
-                    <span className="text-foreground-500 block truncate text-sm">
-                      {[
-                        currentAssignment.employeeNumber
-                          ? `Employee ${currentAssignment.employeeNumber}`
-                          : null,
-                        currentAssignment.department,
-                        currentAssignment.email,
-                      ]
-                        .filter(Boolean)
-                        .join(" · ") || "No contact details"}
+                    <span className="font-medium">{asset.serialnumber}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-foreground-500">Reviews Date</span>
+                    <span className="font-medium">
+                      {formatDate(asset.reviewsDate)}
                     </span>
                   </div>
-                  <Link
-                    href={`/user/${currentAssignment.userId}`}
-                    className="text-primary shrink-0 text-sm font-medium hover:underline"
-                  >
-                    View
-                  </Link>
+                  <div className="flex justify-between">
+                    <span className="text-foreground-500">Remark</span>
+                    <span className="font-medium">{asset.remark || "-"}</span>
+                  </div>
                 </div>
-                {!isAdmin && userByAsset?.userid === ctx?.userId && (
-                  <ReturnItemButton
-                    requestId={activeItemRequest?.id}
-                    entityId={asset.assetid}
-                    entityName={asset.assetname}
-                    entityType="asset"
-                  />
-                )}
+              </section>
+            </div>
+
+            {customFields.length > 0 && (
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                <section className="detail-card">
+                  <h2 className="text-foreground-600 mb-3 text-sm font-semibold">
+                    Custom Fields
+                  </h2>
+                  <dl className="grid grid-cols-1 gap-2 text-sm">
+                    {customFields.map((cf) => (
+                      <CustomFieldValue
+                        key={cf.name}
+                        name={cf.name}
+                        fieldType={cf.fieldType}
+                        value={cf.value}
+                      />
+                    ))}
+                  </dl>
+                </section>
               </div>
-            ) : (
-              <p className="text-foreground-500 text-sm">
-                No employee assigned.
-              </p>
             )}
-          </section>
+          </TabsContent>
 
-          <section className="border-default-200 col-span-2 rounded-lg border border-dashed p-4">
-            <h2 className="text-foreground-600 mb-3 text-sm font-semibold">
-              Identifiers
-            </h2>
-            <div className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
-              <div className="flex justify-between">
-                <span className="text-foreground-500">Asset Tag</span>
-                <span className="font-medium">{asset.assettag}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-foreground-500">PID (Property ID)</span>
-                <span className="font-medium">{asset.serialnumber}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-foreground-500">Reviews Date</span>
-                <span className="font-medium">
-                  {formatDate(asset.reviewsDate)}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-foreground-500">Remark</span>
-                <span className="font-medium">{asset.remark || "-"}</span>
-              </div>
-            </div>
-          </section>
-        </div>
-
-        {customFields.length > 0 && (
-          <div className="mt-8 grid grid-cols-1 gap-6 md:grid-cols-3">
-            <section className="border-default-200 col-span-1 rounded-lg border p-4">
-              <h2 className="text-foreground-600 mb-3 text-sm font-semibold">
-                Custom Fields
-              </h2>
-              <dl className="grid grid-cols-1 gap-2 text-sm">
-                {customFields.map((cf) => (
-                  <CustomFieldValue
-                    key={cf.name}
-                    name={cf.name}
-                    fieldType={cf.fieldType}
-                    value={cf.value}
-                  />
-                ))}
-              </dl>
-            </section>
-          </div>
-        )}
-
-        <div className="mt-8 grid grid-cols-1 gap-6 md:grid-cols-3">
-          <section className="border-default-200 col-span-1 rounded-lg border p-4">
-            <h2 className="text-foreground-600 mb-3 text-sm font-semibold">
-              Health Score
-            </h2>
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <span
-                  className={`inline-flex items-center rounded-full px-2.5 py-1 text-sm font-semibold capitalize ${labelBgColor(healthScore.label)}`}
-                >
-                  {healthScore.label}
-                </span>
-                <span className="text-2xl font-bold">
-                  {healthScore.overall}
-                </span>
-              </div>
-              <dl className="grid grid-cols-1 gap-1.5 text-sm">
-                <div className="flex justify-between">
-                  <dt className="text-foreground-500">Age</dt>
-                  <dd className="font-medium">{healthScore.ageFactor}/25</dd>
-                </div>
-                <div className="flex justify-between">
-                  <dt className="text-foreground-500">Warranty</dt>
-                  <dd className="font-medium">
-                    {healthScore.warrantyFactor}/25
-                  </dd>
-                </div>
-                <div className="flex justify-between">
-                  <dt className="text-foreground-500">Maintenance</dt>
-                  <dd className="font-medium">
-                    {healthScore.maintenanceFactor}/25
-                  </dd>
-                </div>
-                <div className="flex justify-between">
-                  <dt className="text-foreground-500">Depreciation</dt>
-                  <dd className="font-medium">
-                    {healthScore.depreciationFactor}/25
-                  </dd>
-                </div>
-              </dl>
-            </div>
-          </section>
-
-          <section className="border-default-200 col-span-1 rounded-lg border p-4">
-            <h2 className="text-foreground-600 mb-3 text-sm font-semibold">
-              Warranty
-            </h2>
-            <dl className="grid grid-cols-1 gap-2 text-sm">
-              <div className="flex justify-between">
-                <dt className="text-foreground-500">Status</dt>
-                <dd className="font-medium">
-                  {warrantyStatus ? (
+          <TabsContent value="insights" className="mt-3">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <section className="detail-card">
+                <h2 className="text-foreground-600 mb-3 text-sm font-semibold">
+                  Health Score
+                </h2>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
                     <span
-                      className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${warrantyStatus.color}`}
+                      className={`inline-flex items-center rounded-full px-2.5 py-1 text-sm font-semibold capitalize ${labelBgColor(healthScore.label)}`}
                     >
-                      {warrantyStatus.label}
+                      {healthScore.label}
                     </span>
-                  ) : (
-                    <span className="text-foreground-400">No warranty</span>
-                  )}
-                </dd>
-              </div>
-              <div className="flex justify-between">
-                <dt className="text-foreground-500">Duration</dt>
-                <dd className="font-medium">
-                  {asset.warrantyMonths
-                    ? `${asset.warrantyMonths} months`
-                    : "-"}
-                </dd>
-              </div>
-              <div className="flex justify-between">
-                <dt className="text-foreground-500">Expires</dt>
-                <dd className="font-medium">
-                  {asset.warrantyExpires
-                    ? new Date(asset.warrantyExpires).toLocaleDateString()
-                    : "-"}
-                </dd>
-              </div>
-            </dl>
-          </section>
-
-          <section className="border-default-200 col-span-1 rounded-lg border p-4">
-            <h2 className="text-foreground-600 mb-3 text-sm font-semibold">
-              Depreciation
-            </h2>
-            {depreciationData && depreciationSettings ? (
-              <dl className="grid grid-cols-1 gap-2 text-sm">
-                <div className="flex justify-between">
-                  <dt className="text-foreground-500">Method</dt>
-                  <dd className="font-medium">
-                    {getMethodDisplayName(
-                      depreciationSettings.method as DepreciationMethod,
-                    )}
-                  </dd>
-                </div>
-                <div className="flex justify-between">
-                  <dt className="text-foreground-500">Useful Life</dt>
-                  <dd className="font-medium">
-                    {depreciationSettings.usefulLifeYears} years
-                  </dd>
-                </div>
-                <div className="flex justify-between">
-                  <dt className="text-foreground-500">Current Value</dt>
-                  <dd className="font-medium text-green-700">
-                    {formatCurrency(depreciationData.currentValue)}
-                  </dd>
-                </div>
-                <div className="flex justify-between">
-                  <dt className="text-foreground-500">Depreciated</dt>
-                  <dd className="font-medium text-red-600">
-                    {formatCurrency(depreciationData.accumulatedDepreciation)} (
-                    {depreciationData.percentDepreciated.toFixed(1)}%)
-                  </dd>
-                </div>
-              </dl>
-            ) : (
-              <p className="text-foreground-500 text-sm">
-                {asset.purchaseprice == null
-                  ? "No purchase price set."
-                  : "No depreciation settings for this category."}
-              </p>
-            )}
-          </section>
-
-          <section className="border-default-200 col-span-1 rounded-lg border p-4">
-            <h2 className="text-foreground-600 mb-3 text-sm font-semibold">
-              Maintenance
-            </h2>
-            {maintenanceSchedules.length > 0 ? (
-              <div className="space-y-2">
-                {maintenanceSchedules.map((schedule) => {
-                  const isDue = new Date(schedule.nextDueDate) <= new Date();
-                  return (
-                    <div
-                      key={schedule.id}
-                      className="flex items-center justify-between text-sm"
-                    >
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate font-medium">{schedule.title}</p>
-                        <p className="text-foreground-500 text-xs">
-                          {schedule.frequency} &middot;{" "}
-                          {schedule.user
-                            ? `${schedule.user.firstname} ${schedule.user.lastname}`
-                            : "Unassigned"}
-                        </p>
-                      </div>
-                      <span
-                        className={`ml-2 inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${isDue ? "bg-red-100 text-red-700" : "bg-blue-100 text-blue-700"}`}
-                      >
-                        {isDue
-                          ? "Due"
-                          : new Date(schedule.nextDueDate).toLocaleDateString()}
-                      </span>
+                    <span className="text-2xl font-bold">
+                      {healthScore.overall}
+                    </span>
+                  </div>
+                  <dl className="grid grid-cols-1 gap-1.5 text-sm">
+                    <div className="flex justify-between">
+                      <dt className="text-foreground-500">Age</dt>
+                      <dd className="font-medium">
+                        {healthScore.ageFactor}/25
+                      </dd>
                     </div>
-                  );
-                })}
-              </div>
-            ) : (
-              <p className="text-foreground-500 text-sm">
-                No maintenance schedules.
-              </p>
-            )}
-          </section>
-        </div>
+                    <div className="flex justify-between">
+                      <dt className="text-foreground-500">Warranty</dt>
+                      <dd className="font-medium">
+                        {healthScore.warrantyFactor}/25
+                      </dd>
+                    </div>
+                    <div className="flex justify-between">
+                      <dt className="text-foreground-500">Maintenance</dt>
+                      <dd className="font-medium">
+                        {healthScore.maintenanceFactor}/25
+                      </dd>
+                    </div>
+                    <div className="flex justify-between">
+                      <dt className="text-foreground-500">Depreciation</dt>
+                      <dd className="font-medium">
+                        {healthScore.depreciationFactor}/25
+                      </dd>
+                    </div>
+                  </dl>
+                </div>
+              </section>
 
-        <div className="mt-8 grid grid-cols-1 gap-6 md:grid-cols-3">
-          {isAdmin && (
-            <section className="border-default-200 col-span-1 rounded-lg border p-4 md:col-span-3">
-              <AssetAssignment
-                assetId={asset.assetid}
-                assetTag={asset.assettag}
-                currentAssignment={currentAssignment}
-              />
-            </section>
-          )}
-          <section className="border-default-200 col-span-1 rounded-lg border p-4 md:col-span-3">
-            <AssetLifecycle
-              assetId={asset.assetid}
-              currentStatus={statusName}
-              isAssigned={!!currentAssignment}
-              statuses={status}
-              isAdmin={isAdmin}
-            />
-          </section>
-        </div>
+              <section className="detail-card">
+                <h2 className="text-foreground-600 mb-3 text-sm font-semibold">
+                  Warranty
+                </h2>
+                <dl className="grid grid-cols-1 gap-2 text-sm">
+                  <div className="flex justify-between">
+                    <dt className="text-foreground-500">Status</dt>
+                    <dd className="font-medium">
+                      {warrantyStatus ? (
+                        <span
+                          className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${warrantyStatus.color}`}
+                        >
+                          {warrantyStatus.label}
+                        </span>
+                      ) : (
+                        <span className="text-foreground-400">No warranty</span>
+                      )}
+                    </dd>
+                  </div>
+                  <div className="flex justify-between">
+                    <dt className="text-foreground-500">Duration</dt>
+                    <dd className="font-medium">
+                      {asset.warrantyMonths
+                        ? `${asset.warrantyMonths} months`
+                        : "-"}
+                    </dd>
+                  </div>
+                  <div className="flex justify-between">
+                    <dt className="text-foreground-500">Expires</dt>
+                    <dd className="font-medium">
+                      {asset.warrantyExpires
+                        ? new Date(asset.warrantyExpires).toLocaleDateString()
+                        : "-"}
+                    </dd>
+                  </div>
+                </dl>
+              </section>
 
-        <div className="mt-8 grid grid-cols-1 gap-6 md:grid-cols-2">
-          <section className="border-default-200 overflow-hidden rounded-lg border p-4">
-            <AssetReservations
-              assetId={asset.assetid}
-              assetName={asset.assetname}
-            />
-          </section>
-          {isAdmin && (
-            <section className="border-default-200 overflow-hidden rounded-lg border p-4">
-              <AssetTransfers
-                assetId={asset.assetid}
-                currentUserId={userByAsset?.userid}
-                currentLocationId={asset.locationid ?? undefined}
-                currentOrgId={asset.organizationId ?? undefined}
-              />
-            </section>
-          )}
-          {isAdmin && (
-            <section className="border-default-200 overflow-hidden rounded-lg border p-4 md:col-span-2">
-              <AssetCheckoutHistory
-                assetId={asset.assetid}
-                assetName={asset.assetname}
-              />
-            </section>
-          )}
-        </div>
+              <section className="detail-card">
+                <h2 className="text-foreground-600 mb-3 text-sm font-semibold">
+                  Depreciation
+                </h2>
+                {depreciationData && depreciationSettings ? (
+                  <dl className="grid grid-cols-1 gap-2 text-sm">
+                    <div className="flex justify-between">
+                      <dt className="text-foreground-500">Method</dt>
+                      <dd className="font-medium">
+                        {getMethodDisplayName(
+                          depreciationSettings.method as DepreciationMethod,
+                        )}
+                      </dd>
+                    </div>
+                    <div className="flex justify-between">
+                      <dt className="text-foreground-500">Useful Life</dt>
+                      <dd className="font-medium">
+                        {depreciationSettings.usefulLifeYears} years
+                      </dd>
+                    </div>
+                    <div className="flex justify-between">
+                      <dt className="text-foreground-500">Current Value</dt>
+                      <dd className="font-medium text-green-700">
+                        {formatCurrency(depreciationData.currentValue)}
+                      </dd>
+                    </div>
+                    <div className="flex justify-between">
+                      <dt className="text-foreground-500">Depreciated</dt>
+                      <dd className="font-medium text-red-600">
+                        {formatCurrency(
+                          depreciationData.accumulatedDepreciation,
+                        )}{" "}
+                        ({depreciationData.percentDepreciated.toFixed(1)}%)
+                      </dd>
+                    </div>
+                  </dl>
+                ) : (
+                  <p className="text-foreground-500 text-sm">
+                    {asset.purchaseprice == null
+                      ? "No purchase price set."
+                      : "No depreciation settings for this category."}
+                  </p>
+                )}
+              </section>
 
-        {isAdmin && (
-          <div className="mt-8 grid grid-cols-1 gap-6 md:grid-cols-3">
-            <div className="col-span-1 md:col-span-2">
-              <AssetAttachments assetId={asset.assetid} />
+              <section className="detail-card">
+                <h2 className="text-foreground-600 mb-3 text-sm font-semibold">
+                  Maintenance
+                </h2>
+                {maintenanceSchedules.length > 0 ? (
+                  <div className="space-y-2">
+                    {maintenanceSchedules.map((schedule) => {
+                      const isDue =
+                        new Date(schedule.nextDueDate) <= new Date();
+                      return (
+                        <div
+                          key={schedule.id}
+                          className="flex items-center justify-between text-sm"
+                        >
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate font-medium">
+                              {schedule.title}
+                            </p>
+                            <p className="text-foreground-500 text-xs">
+                              {schedule.frequency} &middot;{" "}
+                              {schedule.user
+                                ? `${schedule.user.firstname} ${schedule.user.lastname}`
+                                : "Unassigned"}
+                            </p>
+                          </div>
+                          <span
+                            className={`ml-2 inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${isDue ? "bg-red-100 text-red-700" : "bg-blue-100 text-blue-700"}`}
+                          >
+                            {isDue
+                              ? "Due"
+                              : new Date(
+                                  schedule.nextDueDate,
+                                ).toLocaleDateString()}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p className="text-foreground-500 text-sm">
+                    No maintenance schedules.
+                  </p>
+                )}
+              </section>
             </div>
-          </div>
-        )}
+          </TabsContent>
 
-        <div className="mt-10">
-          <h2 className="text-lg font-semibold">Asset History</h2>
-          <Separator className="my-3" />
-          <HistoryTimeline entries={historyEntries} entityType="asset" />
-        </div>
+          <TabsContent value="operations" className="mt-3 space-y-4">
+            <div className="grid grid-cols-1 gap-4">
+              {isAdmin && (
+                <section className="detail-card md:col-span-3">
+                  <AssetAssignment
+                    assetId={asset.assetid}
+                    assetTag={asset.assettag}
+                    currentAssignment={currentAssignment}
+                  />
+                </section>
+              )}
+              <section className="detail-card md:col-span-3">
+                <AssetLifecycle
+                  assetId={asset.assetid}
+                  currentStatus={statusName}
+                  isAssigned={!!currentAssignment}
+                  statuses={status}
+                  isAdmin={isAdmin}
+                />
+              </section>
+            </div>
+
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <section className="detail-card overflow-hidden">
+                <AssetReservations
+                  assetId={asset.assetid}
+                  assetName={asset.assetname}
+                />
+              </section>
+              {isAdmin && (
+                <section className="detail-card overflow-hidden">
+                  <AssetTransfers
+                    assetId={asset.assetid}
+                    currentUserId={userByAsset?.userid}
+                    currentLocationId={asset.locationid ?? undefined}
+                    currentOrgId={asset.organizationId ?? undefined}
+                  />
+                </section>
+              )}
+              {isAdmin && (
+                <section className="detail-card overflow-hidden md:col-span-2">
+                  <AssetCheckoutHistory
+                    assetId={asset.assetid}
+                    assetName={asset.assetname}
+                  />
+                </section>
+              )}
+            </div>
+          </TabsContent>
+
+          <TabsContent value="activity" className="mt-3 space-y-4">
+            {isAdmin && (
+              <div className="detail-card">
+                <AssetAttachments assetId={asset.assetid} />
+              </div>
+            )}
+
+            <div className="detail-card">
+              <h2 className="text-foreground-600 mb-1 text-sm font-semibold">
+                Asset History
+              </h2>
+              <Separator className="my-3" />
+              <HistoryTimeline entries={historyEntries} entityType="asset" />
+            </div>
+          </TabsContent>
+        </Tabs>
       </div>
     </>
   );
