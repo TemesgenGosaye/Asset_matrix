@@ -53,7 +53,11 @@ const ASSET_SORT_FIELDS = [
 async function resolveDepartment(
   departmentId: string | null | undefined,
   orgId: string | null | undefined,
-): Promise<{ id: string; code: string | null; name: string; isActive: boolean } | null | NextResponse> {
+): Promise<
+  | { id: string; code: string | null; name: string; isActive: boolean }
+  | null
+  | NextResponse
+> {
   if (!departmentId) return null;
   const department = await prisma.department.findFirst({
     where: { id: departmentId, ...(orgId ? { organizationId: orgId } : {}) },
@@ -114,9 +118,10 @@ export async function GET(req: NextRequest) {
       // Use PostgreSQL full-text search via the generated search_vector column
       const tsQuery = search.trim().split(/\s+/).join(" & ");
       const matchingIds = await prisma
-        .$queryRawUnsafe<
-          Array<{ assetid: string }>
-        >(`SELECT "assetid" FROM "asset" WHERE "search_vector" @@ websearch_to_tsquery('english', $1)`, tsQuery)
+        .$queryRawUnsafe<Array<{ assetid: string }>>(
+          `SELECT "assetid" FROM "asset" WHERE "search_vector" @@ websearch_to_tsquery('english', $1)`,
+          tsQuery,
+        )
         .catch(() => null);
 
       if (matchingIds && matchingIds.length > 0) {
@@ -250,7 +255,9 @@ export async function POST(req: NextRequest) {
           departmentId: department?.id ?? null,
           departmentCode: authoritativeDepartmentCode,
           warrantyMonths: d.warrantyMonths ?? null,
-          warrantyExpires: d.warrantyExpires ? new Date(d.warrantyExpires) : null,
+          warrantyExpires: d.warrantyExpires
+            ? new Date(d.warrantyExpires)
+            : null,
           reviewsDate: d.reviewsDate ? new Date(d.reviewsDate) : null,
           remark: d.remark ?? null,
           organizationId: orgId || null,
@@ -292,7 +299,9 @@ export async function POST(req: NextRequest) {
       if (error.code === "P2002") {
         const target = (error.meta?.target as string[] | undefined)?.join(", ");
         return NextResponse.json(
-          { error: `An asset with this ${target || "unique value"} already exists` },
+          {
+            error: `An asset with this ${target || "unique value"} already exists`,
+          },
           { status: 409 },
         );
       }
@@ -305,10 +314,7 @@ export async function POST(req: NextRequest) {
     }
     const message =
       error instanceof Error ? error.message : "Failed to create asset";
-    return NextResponse.json(
-      { error: message },
-      { status: 400 },
-    );
+    return NextResponse.json({ error: message }, { status: 400 });
   }
 }
 

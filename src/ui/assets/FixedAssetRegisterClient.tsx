@@ -69,6 +69,11 @@ interface ReferenceItem {
   id: string;
   name: string;
   code?: string | null;
+  color?: string | null;
+}
+
+function safeColor(color?: string | null): string | null {
+  return color && /^#[0-9a-fA-F]{6}$/.test(color) ? color : null;
 }
 
 interface Props {
@@ -101,7 +106,13 @@ function formatDate(value?: string | null): string {
   });
 }
 
-function ConditionBadge({ value }: { value?: string | null }) {
+function ConditionBadge({
+  value,
+  color,
+}: {
+  value?: string | null;
+  color?: string | null;
+}) {
   const normalized = (value ?? "").toLowerCase();
   const variant =
     normalized === "good"
@@ -111,7 +122,19 @@ function ConditionBadge({ value }: { value?: string | null }) {
         : normalized === "scrap" || normalized.includes("demol")
           ? "destructive"
           : "muted";
-  return <Badge variant={variant}>{value || "—"}</Badge>;
+  const swatch = safeColor(color);
+  return (
+    <Badge variant={variant}>
+      {swatch && (
+        <span
+          aria-hidden="true"
+          className="border-foreground/20 mr-1 inline-block h-2.5 w-2.5 rounded-full border"
+          style={{ backgroundColor: swatch }}
+        />
+      )}
+      {value || "—"}
+    </Badge>
+  );
 }
 
 export default function FixedAssetRegisterClient({
@@ -291,6 +314,15 @@ export default function FixedAssetRegisterClient({
     return [...groups.entries()].map(([key, items]) => ({ key, items }));
   }, [data.items, urlState.groupBy]);
 
+  const statusColorByName = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const status of statuses) {
+      const color = safeColor(status.color);
+      if (color) map.set(status.name.toLowerCase(), color);
+    }
+    return map;
+  }, [statuses]);
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -399,13 +431,11 @@ export default function FixedAssetRegisterClient({
               }
             >
               <option value="">All conditions</option>
-              {["Good", "N/F", "Scrap", "Demolished", "Out for Repair"].map(
-                (value) => (
-                  <option key={value} value={value}>
-                    {value}
-                  </option>
-                ),
-              )}
+              {statuses.map((status) => (
+                <option key={status.id} value={status.name}>
+                  {status.name}
+                </option>
+              ))}
             </select>
           </div>
           <div>
@@ -677,9 +707,22 @@ export default function FixedAssetRegisterClient({
                         </TableCell>
                         <TableCell>
                           <div className="flex flex-col gap-1">
-                            <ConditionBadge value={item.condition1} />
+                            <ConditionBadge
+                              value={item.condition1}
+                              color={
+                                statusColorByName.get(
+                                  item.condition1?.toLowerCase() ?? "",
+                                ) ?? null
+                              }
+                            />
                             <ConditionBadge
                               value={item.statusType?.statustypename}
+                              color={safeColor(
+                                statusColorByName.get(
+                                  item.statusType?.statustypename.toLowerCase() ??
+                                    "",
+                                ) ?? null,
+                              )}
                             />
                           </div>
                         </TableCell>

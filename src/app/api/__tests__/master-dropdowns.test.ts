@@ -1,5 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { createMockRequest, parseResponse } from "../../../../tests/setup/test-helpers";
+import {
+  createMockRequest,
+  parseResponse,
+} from "../../../../tests/setup/test-helpers";
 
 const prismaMock = vi.hoisted(() => ({
   $queryRawUnsafe: vi.fn(),
@@ -15,6 +18,7 @@ const prismaMock = vi.hoisted(() => ({
   statusType: {
     findFirst: vi.fn(),
     findUnique: vi.fn(),
+    findMany: vi.fn(),
   },
   assetCategoryType: {
     findFirst: vi.fn(),
@@ -33,10 +37,12 @@ const prismaMock = vi.hoisted(() => ({
   },
   department: {
     findUnique: vi.fn(),
+    findMany: vi.fn(),
   },
   asset: {
     updateMany: vi.fn(),
     count: vi.fn(),
+    groupBy: vi.fn(),
   },
 }));
 
@@ -70,7 +76,10 @@ vi.mock("@/lib/logger", () => ({
 }));
 
 import { validateMasterReferences } from "@/lib/master-validation";
-import { GET as getMasterOptions, POST as createMasterOption } from "@/app/api/master-options/route";
+import {
+  GET as getMasterOptions,
+  POST as createMasterOption,
+} from "@/app/api/master-options/route";
 import { POST as mergeMasterData } from "@/app/api/master-data/merge/route";
 
 beforeEach(() => {
@@ -131,13 +140,23 @@ describe("Server-side master validation", () => {
 
 describe("/api/master-options", () => {
   it("returns search results and appends legacy currentValue when unmapped", async () => {
-    prismaMock.$queryRawUnsafe.mockResolvedValueOnce([
-      { id: "loc-1", name: "Workers Club", usage_count: 15, dept_usage: 5 },
+    prismaMock.location.findMany.mockResolvedValueOnce([
+      {
+        locationid: "loc-1",
+        locationname: "Workers Club",
+        usageCount: 15,
+      },
+    ]);
+    prismaMock.asset.groupBy.mockResolvedValueOnce([
+      { location1Id: "loc-1", _count: { _all: 5 } },
     ]);
 
-    const req = createMockRequest("/api/master-options?type=location1&q=workers&currentValue=Old%20Club", {
-      method: "GET",
-    });
+    const req = createMockRequest(
+      "/api/master-options?type=location1&q=workers&departmentId=dept-1&currentValue=Old%20Club",
+      {
+        method: "GET",
+      },
+    );
     const res = await getMasterOptions(req);
     const { status, body } = await parseResponse<any>(res);
 
@@ -156,10 +175,62 @@ describe("/api/master-options", () => {
     });
   });
 
+  it("returns status colors from master data", async () => {
+    prismaMock.statusType.findMany.mockResolvedValueOnce([
+      {
+        statustypeid: "status-good",
+        statustypename: "Good",
+        color: "#22c55e",
+        usageCount: 7,
+      },
+    ]);
+
+    const req = createMockRequest("/api/master-options?type=status", {
+      method: "GET",
+    });
+    const res = await getMasterOptions(req);
+    const { body } = await parseResponse<any>(res);
+
+    expect(body.items[0]).toMatchObject({
+      id: "status-good",
+      name: "Good",
+      color: "#22c55e",
+    });
+  });
+
+  it("keeps a current inactive status visible", async () => {
+    prismaMock.statusType.findMany.mockResolvedValueOnce([]);
+    prismaMock.statusType.findFirst.mockResolvedValueOnce({
+      statustypeid: "status-old",
+      statustypename: "Out for Repair",
+      color: "#f59e0b",
+      usageCount: 2,
+      isActive: false,
+    });
+
+    const req = createMockRequest(
+      "/api/master-options?type=status&currentId=status-old",
+      { method: "GET" },
+    );
+    const res = await getMasterOptions(req);
+    const { body } = await parseResponse<any>(res);
+
+    expect(body.items[0]).toMatchObject({
+      id: "status-old",
+      name: "Out for Repair",
+      color: "#f59e0b",
+      isCurrent: true,
+    });
+  });
+
   it("warns on near-duplicate location and allows force create", async () => {
     prismaMock.location.findFirst.mockResolvedValue(null);
     prismaMock.location.findMany.mockResolvedValue([
-      { locationid: "loc-1", locationname: "Workers Club", normalizedName: "workers club" },
+      {
+        locationid: "loc-1",
+        locationname: "Workers Club",
+        normalizedName: "workers club",
+      },
     ]);
 
     const reqWarn = createMockRequest("/api/master-options", {
@@ -196,21 +267,23 @@ describe("/api/master-data/merge", () => {
       locationname: "Workers Club",
     });
 
-    prismaMock.$transaction.mockImplementation(async (cb: (tx: typeof prismaMock) => unknown) => {
-      prismaMock.asset.updateMany
-        .mockResolvedValueOnce({ count: 3 })
-        .mockResolvedValueOnce({ count: 2 });
-      prismaMock.location.updateMany.mockResolvedValueOnce({ count: 1 });
-      prismaMock.asset.count
-        .mockResolvedValueOnce(10)
-        .mockResolvedValueOnce(5);
-      prismaMock.location.update.mockResolvedValueOnce({
-        locationid: "loc-target",
-        locationname: "Workers Club",
-        usageCount: 15,
-      });
-      return cb(prismaMock);
-    });
+    prismaMock.$transaction.mockImplementation(
+      async (cb: (tx: typeof prismaMock) => unknown) => {
+        prismaMock.asset.updateMany
+          .mockResolvedValueOnce({ count: 3 })
+          .mockResolvedValueOnce({ count: 2 });
+        prismaMock.location.updateMany.mockResolvedValueOnce({ count: 1 });
+        prismaMock.asset.count
+          .mockResolvedValueOnce(10)
+          .mockResolvedValueOnce(5);
+        prismaMock.location.update.mockResolvedValueOnce({
+          locationid: "loc-target",
+          locationname: "Workers Club",
+          usageCount: 15,
+        });
+        return cb(prismaMock);
+      },
+    );
 
     const req = createMockRequest("/api/master-data/merge", {
       method: "POST",

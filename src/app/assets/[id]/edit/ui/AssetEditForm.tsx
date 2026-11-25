@@ -21,7 +21,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { flattenDepartmentOptions } from "@/lib/department-master";
-import { compareAssetCategoryNames } from "@/lib/utils";
 
 export default function AssetEditForm({
   initial,
@@ -33,13 +32,6 @@ export default function AssetEditForm({
   suppliers: initialSuppliers,
   departments: initialDepartments,
 }) {
-  const [categoryOptions, setCategoryOptions] = useState<QuickCreateOption[]>(
-    () =>
-      initialCategories.map((c: any) => ({
-        id: c.assetcategorytypeid,
-        label: c.assetcategorytypename,
-      })),
-  );
   // DB-backed department hierarchy from the official MSF master list.
   // Only active departments are offered for assignment.
   const departmentOptions = useMemo(
@@ -67,12 +59,6 @@ export default function AssetEditForm({
   );
   const [modelOptions, setModelOptions] = useState<QuickCreateOption[]>(() =>
     initialModels.map((m: any) => ({ id: m.modelid, label: m.modelname })),
-  );
-  const [statusOptions, setStatusOptions] = useState<QuickCreateOption[]>(() =>
-    initialStatuses.map((s: any) => ({
-      id: s.statustypeid,
-      label: s.statustypename,
-    })),
   );
   const [supplierOptions, setSupplierOptions] = useState<QuickCreateOption[]>(
     () =>
@@ -310,7 +296,9 @@ export default function AssetEditForm({
                   value={form.assetcategorytypeid}
                   departmentId={form.departmentid || null}
                   currentValue={
-                    !form.assetcategorytypeid ? initial.categoryCode || null : null
+                    !form.assetcategorytypeid
+                      ? initial.categoryCode || null
+                      : null
                   }
                   placeholder="Select asset type..."
                   onChange={(val) => onSelectChange("assetcategorytypeid")(val)}

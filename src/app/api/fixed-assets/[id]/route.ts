@@ -109,13 +109,16 @@ export async function PATCH(
     }
     const masterError = await validateMasterReferences(
       {
-        location1Id: typeof body.location1Id === "string" ? body.location1Id : undefined,
-        locationid: typeof body.locationid === "string" ? body.locationid : undefined,
+        location1Id:
+          typeof body.location1Id === "string" ? body.location1Id : undefined,
+        locationid:
+          typeof body.locationid === "string" ? body.locationid : undefined,
         condition1StatusId:
           typeof body.condition1StatusId === "string"
             ? body.condition1StatusId
             : undefined,
-        statustypeid: typeof body.statustypeid === "string" ? body.statustypeid : undefined,
+        statustypeid:
+          typeof body.statustypeid === "string" ? body.statustypeid : undefined,
         assetcategorytypeid:
           typeof body.assetcategorytypeid === "string"
             ? body.assetcategorytypeid

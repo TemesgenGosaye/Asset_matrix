@@ -120,13 +120,20 @@ export async function POST(req: NextRequest) {
 
     const codeMatch = assetcategorytypename.trim().match(/^(\d+(?:\.\d+)+)/);
     const assetTypeCode =
-      (typeof body.assetTypeCode === "string" ? body.assetTypeCode.trim() : null) ||
-      (codeMatch ? codeMatch[1] : null);
+      (typeof body.assetTypeCode === "string"
+        ? body.assetTypeCode.trim()
+        : null) || (codeMatch ? codeMatch[1] : null);
+    const normalizedName = assetcategorytypename
+      .trim()
+      .replace(/\s+/g, " ")
+      .toLowerCase();
 
     const created = await prisma.assetCategoryType.create({
       data: {
         assetcategorytypename,
         assetTypeCode,
+        normalizedName,
+        isActive: body.isActive !== false,
         organizationId: orgId ?? null,
       } as Prisma.assetCategoryTypeUncheckedCreateInput,
     });
@@ -189,7 +196,7 @@ export async function PUT(req: NextRequest) {
       );
     }
 
-    const { assetcategorytypeid, assetcategorytypename } = body;
+    const { assetcategorytypeid, assetcategorytypename, isActive } = body;
 
     const orgCtx = await getOrganizationContext();
     const orgId = orgCtx?.organization?.id;
@@ -209,6 +216,10 @@ export async function PUT(req: NextRequest) {
       where: { assetcategorytypeid },
       data: {
         assetcategorytypename,
+        normalizedName: assetcategorytypename
+          ? assetcategorytypename.trim().replace(/\s+/g, " ").toLowerCase()
+          : undefined,
+        ...(typeof isActive === "boolean" ? { isActive } : {}),
       },
     });
 

@@ -62,15 +62,20 @@ export default async function Page() {
               name: department.name,
               code: department.code,
             }))}
-            statuses={statusesRaw.map((status) => ({
-              id: status.statustypeid,
-              name: status.statustypename,
-            }))}
-            categories={categoriesRaw.map((category) => ({
-              id: category.assetcategorytypeid,
-              name: category.assetcategorytypename,
-              code: category.assetTypeCode,
-            }))}
+            statuses={statusesRaw
+              .filter((status) => status.isActive !== false)
+              .map((status) => ({
+                id: status.statustypeid,
+                name: status.statustypename,
+                color: status.color,
+              }))}
+            categories={categoriesRaw
+              .filter((category) => category.isActive !== false)
+              .map((category) => ({
+                id: category.assetcategorytypeid,
+                name: category.assetcategorytypename,
+                code: category.assetTypeCode,
+              }))}
           />
         </Suspense>
       </div>

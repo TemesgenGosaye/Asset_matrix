@@ -107,6 +107,10 @@ export async function POST(req: NextRequest) {
     const { statustypename } = validationResult.data;
     const color = body.color || null;
     const isDefault = body.isDefault ?? false;
+    const normalizedName = statustypename
+      .trim()
+      .replace(/\s+/g, " ")
+      .toLowerCase();
 
     const orgCtx = await getOrganizationContext();
     const orgId = orgCtx?.organization?.id;
@@ -122,8 +126,10 @@ export async function POST(req: NextRequest) {
     const created = await prisma.statusType.create({
       data: {
         statustypename,
+        normalizedName,
         color,
         isDefault,
+        isActive: body.isActive !== false,
         organizationId: orgId ?? null,
       },
     });
@@ -190,7 +196,7 @@ export async function PUT(req: NextRequest) {
       );
     }
 
-    const { statustypeid, statustypename } = body;
+    const { statustypeid, statustypename, isActive } = body;
     const color = body.color ?? undefined;
     const isDefault = body.isDefault ?? undefined;
 
@@ -220,8 +226,12 @@ export async function PUT(req: NextRequest) {
       where: { statustypeid },
       data: {
         statustypename,
+        normalizedName: statustypename
+          ? statustypename.trim().replace(/\s+/g, " ").toLowerCase()
+          : undefined,
         ...(color !== undefined ? { color } : {}),
         ...(isDefault !== undefined ? { isDefault } : {}),
+        ...(typeof isActive === "boolean" ? { isActive } : {}),
       },
     });
 

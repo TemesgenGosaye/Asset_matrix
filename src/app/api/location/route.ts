@@ -116,10 +116,15 @@ export async function POST(req: NextRequest) {
 
     const orgCtx = await getOrganizationContext();
     const orgId = orgCtx?.organization?.id;
+    const normalizedName = locationname
+      .trim()
+      .replace(/\s+/g, " ")
+      .toLowerCase();
 
     const created = await prisma.location.create({
       data: {
         locationname,
+        normalizedName,
         street: street ?? null,
         housenumber: housenumber ?? null,
         city: city ?? null,
@@ -240,7 +245,9 @@ export async function PUT(req: NextRequest) {
     const updated = await prisma.location.update({
       where: { locationid },
       data: {
-        ...(locationname !== undefined && { locationname: locationname.trim() }),
+        ...(locationname !== undefined && {
+          locationname: locationname.trim(),
+        }),
         ...(normalizedName !== undefined && { normalizedName }),
         ...(street !== undefined && { street: street ?? null }),
         ...(housenumber !== undefined && { housenumber: housenumber ?? null }),

@@ -1,3 +1,4 @@
+import type { Prisma } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getOrganizationContext } from "@/lib/organization-context";
@@ -12,9 +13,6 @@ function normalize(val: string | null | undefined): string {
   return val.trim().replace(/\s+/g, " ").toLowerCase();
 }
 
-/**
- * Compute simple Levenshtein distance for near-duplicate warnings.
- */
 function levenshtein(a: string, b: string): number {
   const an = a ? a.length : 0;
   const bn = b ? b.length : 0;
@@ -28,9 +26,9 @@ function levenshtein(a: string, b: string): number {
         matrix[i][j] = matrix[i - 1][j - 1];
       } else {
         matrix[i][j] = Math.min(
-          matrix[i - 1][j - 1] + 1, // substitution
-          matrix[i][j - 1] + 1,     // insertion
-          matrix[i - 1][j] + 1      // deletion
+          matrix[i - 1][j - 1] + 1,
+          matrix[i][j - 1] + 1,
+          matrix[i - 1][j] + 1,
         );
       }
     }
@@ -42,12 +40,23 @@ export interface MasterOption {
   id: string;
   name: string;
   code?: string | null;
+  color?: string | null;
   usageCount: number;
   departmentUsageCount?: number;
   isLegacy?: boolean;
+  isCurrent?: boolean;
 }
 
-// GET /api/master-options
+function sortOptions(items: MasterOption[]): MasterOption[] {
+  return items.sort((a, b) => {
+    const deptDelta =
+      (b.departmentUsageCount ?? 0) - (a.departmentUsageCount ?? 0);
+    if (deptDelta !== 0) return deptDelta;
+    if (b.usageCount !== a.usageCount) return b.usageCount - a.usageCount;
+    return a.name.localeCompare(b.name);
+  });
+}
+
 export async function GET(req: NextRequest) {
   try {
     const orgCtx = await getOrganizationContext();
@@ -57,212 +66,282 @@ export async function GET(req: NextRequest) {
     }
 
     const { searchParams } = req.nextUrl;
-    const type = searchParams.get("type") || "location"; // location1, location2, location, department, category, status
+    const type = searchParams.get("type") || "location";
     const q = (searchParams.get("q") || "").trim();
     const departmentId = searchParams.get("departmentId") || null;
     const currentId = searchParams.get("currentId") || null;
     const currentValue = searchParams.get("currentValue") || null;
-    const limit = Math.min(Number(searchParams.get("limit") || 50), 100);
+    const requestedLimit = Number(searchParams.get("limit") || 50);
+    const limit = Number.isFinite(requestedLimit)
+      ? Math.min(Math.max(Math.floor(requestedLimit), 1), 100)
+      : 50;
 
-    const normQ = normalize(q);
+    const qFilter = q
+      ? { contains: q, mode: "insensitive" as const }
+      : undefined;
+    const normalizedQuery = normalize(q);
+    const normalizedFilter = normalizedQuery
+      ? { contains: normalizedQuery, mode: "insensitive" as const }
+      : undefined;
+    const orgScope = {
+      OR: [{ organizationId: orgId }, { organizationId: null }],
+    };
 
     let items: MasterOption[] = [];
 
     if (type === "location" || type === "location1" || type === "location2") {
-      // Find matching active locations
-      let whereClause = `l."organizationId" = '${orgId}' AND l."isActive" = true`;
-      if (normQ) {
-        whereClause += ` AND (l."normalizedName" ILIKE '%${normQ.replace(/'/g, "''")}%' OR l.locationname ILIKE '%${q.replace(/'/g, "''")}%')`;
+      const where: Prisma.locationWhereInput = {
+        ...orgScope,
+        isActive: true,
+        ...(q
+          ? {
+              OR: [
+                { locationname: qFilter },
+                { normalizedName: normalizedFilter },
+              ],
+            }
+          : {}),
+      };
+      const candidates = await prisma.location.findMany({
+        where,
+        select: {
+          locationid: true,
+          locationname: true,
+          usageCount: true,
+        },
+        orderBy: [{ usageCount: "desc" }, { locationname: "asc" }],
+        take: 2000,
+      });
+      const usageByDepartment = new Map<string, number>();
+      if (departmentId && candidates.length) {
+        const ids = candidates.map((item) => item.locationid);
+        if (type === "location1") {
+          const grouped = await prisma.asset.groupBy({
+            by: ["location1Id"],
+            where: {
+              organizationId: orgId,
+              departmentId,
+              location1Id: { in: ids },
+            },
+            _count: { _all: true },
+          });
+          for (const row of grouped) {
+            if (row.location1Id) {
+              usageByDepartment.set(row.location1Id, row._count._all);
+            }
+          }
+        } else {
+          const grouped = await prisma.asset.groupBy({
+            by: ["locationid"],
+            where: {
+              organizationId: orgId,
+              departmentId,
+              locationid: { in: ids },
+            },
+            _count: { _all: true },
+          });
+          for (const row of grouped) {
+            if (row.locationid) {
+              usageByDepartment.set(row.locationid, row._count._all);
+            }
+          }
+        }
       }
-
-      // If departmentId is provided, rank by usage in that department
-      let deptJoin = "";
-      let deptSelect = "0 as dept_usage";
-      if (departmentId) {
-        const locCol = type === "location1" ? `"location1Id"` : "locationid";
-        deptJoin = `
-          LEFT JOIN (
-            SELECT ${locCol} as loc_id, COUNT(*) as d_cnt
-            FROM asset
-            WHERE "departmentId" = '${departmentId}' AND ${locCol} IS NOT NULL
-            GROUP BY ${locCol}
-          ) dept_usage_sub ON dept_usage_sub.loc_id = l.locationid
-        `;
-        deptSelect = "COALESCE(dept_usage_sub.d_cnt, 0) as dept_usage";
-      }
-
-      const query = `
-        SELECT 
-          l.locationid as id,
-          l.locationname as name,
-          l."usageCount" as usage_count,
-          ${deptSelect}
-        FROM location l
-        ${deptJoin}
-        WHERE ${whereClause}
-        ORDER BY dept_usage DESC, l."usageCount" DESC, l.locationname ASC
-        LIMIT ${limit};
-      `;
-
-      const res = await prisma.$queryRawUnsafe<any[]>(query);
-      items = res.map((r) => ({
-        id: r.id,
-        name: r.name || "Unnamed location",
-        usageCount: Number(r.usage_count || 0),
-        departmentUsageCount: Number(r.dept_usage || 0),
-      }));
-
+      items = sortOptions(
+        candidates.map((item) => ({
+          id: item.locationid,
+          name: item.locationname || "Unnamed location",
+          usageCount: item.usageCount,
+          departmentUsageCount: usageByDepartment.get(item.locationid) ?? 0,
+        })),
+      ).slice(0, limit);
     } else if (type === "category") {
-      let whereClause = `c."organizationId" = '${orgId}' AND c."isActive" = true`;
-      if (normQ) {
-        whereClause += ` AND (c."normalizedName" ILIKE '%${normQ.replace(/'/g, "''")}%' OR c."assetTypeCode" ILIKE '%${q.replace(/'/g, "''")}%' OR c.assetcategorytypename ILIKE '%${q.replace(/'/g, "''")}%')`;
+      const where: Prisma.assetCategoryTypeWhereInput = {
+        ...orgScope,
+        isActive: true,
+        ...(q
+          ? {
+              OR: [
+                { assetcategorytypename: qFilter },
+                { assetTypeCode: qFilter },
+                { normalizedName: normalizedFilter },
+              ],
+            }
+          : {}),
+      };
+      const candidates = await prisma.assetCategoryType.findMany({
+        where,
+        select: {
+          assetcategorytypeid: true,
+          assetcategorytypename: true,
+          assetTypeCode: true,
+          usageCount: true,
+        },
+        orderBy: [{ usageCount: "desc" }, { assetcategorytypename: "asc" }],
+        take: 2000,
+      });
+      const usageByDepartment = new Map<string, number>();
+      if (departmentId && candidates.length) {
+        const grouped = await prisma.asset.groupBy({
+          by: ["assetcategorytypeid"],
+          where: {
+            organizationId: orgId,
+            departmentId,
+            assetcategorytypeid: {
+              in: candidates.map((item) => item.assetcategorytypeid),
+            },
+          },
+          _count: { _all: true },
+        });
+        for (const row of grouped) {
+          if (row.assetcategorytypeid) {
+            usageByDepartment.set(row.assetcategorytypeid, row._count._all);
+          }
+        }
       }
-
-      let deptJoin = "";
-      let deptSelect = "0 as dept_usage";
-      if (departmentId) {
-        deptJoin = `
-          LEFT JOIN (
-            SELECT assetcategorytypeid as cat_id, COUNT(*) as d_cnt
-            FROM asset
-            WHERE "departmentId" = '${departmentId}' AND assetcategorytypeid IS NOT NULL
-            GROUP BY assetcategorytypeid
-          ) dept_sub ON dept_sub.cat_id = c.assetcategorytypeid
-        `;
-        deptSelect = "COALESCE(dept_sub.d_cnt, 0) as dept_usage";
-      }
-
-      const query = `
-        SELECT 
-          c.assetcategorytypeid as id,
-          c.assetcategorytypename as name,
-          c."assetTypeCode" as code,
-          c."usageCount" as usage_count,
-          ${deptSelect}
-        FROM "assetCategoryType" c
-        ${deptJoin}
-        WHERE ${whereClause}
-        ORDER BY dept_usage DESC, c."usageCount" DESC, c.assetcategorytypename ASC
-        LIMIT ${limit};
-      `;
-
-      const res = await prisma.$queryRawUnsafe<any[]>(query);
-      items = res.map((r) => ({
-        id: r.id,
-        name: r.name,
-        code: r.code,
-        usageCount: Number(r.usage_count || 0),
-        departmentUsageCount: Number(r.dept_usage || 0),
-      }));
-
+      items = sortOptions(
+        candidates.map((item) => ({
+          id: item.assetcategorytypeid,
+          name: item.assetcategorytypename,
+          code: item.assetTypeCode,
+          usageCount: item.usageCount,
+          departmentUsageCount:
+            usageByDepartment.get(item.assetcategorytypeid) ?? 0,
+        })),
+      ).slice(0, limit);
     } else if (type === "department") {
-      let whereClause = `d."organizationId" = '${orgId}' AND d."isActive" = true`;
-      if (normQ) {
-        whereClause += ` AND (LOWER(d.name) ILIKE '%${normQ.replace(/'/g, "''")}%' OR LOWER(COALESCE(d.code, '')) ILIKE '%${normQ.replace(/'/g, "''")}%')`;
-      }
-
-      const query = `
-        SELECT 
-          d.id as id,
-          d.name as name,
-          d.code as code,
-          COALESCE(d."sortOrder", 0) as usage_count
-        FROM departments d
-        WHERE ${whereClause}
-        ORDER BY usage_count DESC, d.name ASC
-        LIMIT ${limit};
-      `;
-
-      const res = await prisma.$queryRawUnsafe<any[]>(query);
-      items = res.map((r) => ({
-        id: r.id,
-        name: r.name,
-        code: r.code,
-        usageCount: Number(r.usage_count || 0),
+      const where: Prisma.DepartmentWhereInput = {
+        organizationId: orgId,
+        isActive: true,
+        ...(q ? { OR: [{ name: qFilter }, { code: qFilter }] } : {}),
+      };
+      const candidates = await prisma.department.findMany({
+        where,
+        select: { id: true, name: true, code: true, sortOrder: true },
+        orderBy: [{ sortOrder: "desc" }, { name: "asc" }],
+        take: limit,
+      });
+      items = candidates.map((item) => ({
+        id: item.id,
+        name: item.name,
+        code: item.code,
+        usageCount: item.sortOrder,
       }));
-
     } else if (type === "status") {
-      let whereClause = `(s."organizationId" = '${orgId}' OR s."organizationId" IS NULL) AND s."isActive" = true`;
-      if (normQ) {
-        whereClause += ` AND (s."normalizedName" ILIKE '%${normQ.replace(/'/g, "''")}%' OR s.statustypename ILIKE '%${q.replace(/'/g, "''")}%')`;
-      }
-
-      const query = `
-        SELECT 
-          s.statustypeid as id,
-          s.statustypename as name,
-          s."usageCount" as usage_count
-        FROM "statusType" s
-        WHERE ${whereClause}
-        ORDER BY s."usageCount" DESC, s.statustypename ASC
-        LIMIT ${limit};
-      `;
-
-      const res = await prisma.$queryRawUnsafe<any[]>(query);
-      items = res.map((r) => ({
-        id: r.id,
-        name: r.name,
-        usageCount: Number(r.usage_count || 0),
+      const where: Prisma.statusTypeWhereInput = {
+        ...orgScope,
+        isActive: true,
+        ...(q
+          ? {
+              OR: [
+                { statustypename: qFilter },
+                { normalizedName: normalizedFilter },
+              ],
+            }
+          : {}),
+      };
+      const candidates = await prisma.statusType.findMany({
+        where,
+        select: {
+          statustypeid: true,
+          statustypename: true,
+          color: true,
+          usageCount: true,
+        },
+        orderBy: [{ usageCount: "desc" }, { statustypename: "asc" }],
+        take: limit,
+      });
+      items = candidates.map((item) => ({
+        id: item.statustypeid,
+        name: item.statustypename,
+        color: item.color,
+        usageCount: item.usageCount,
       }));
     }
 
-    // Handle current item preservation (Rule 7: Legacy values)
     if (currentId && !items.some((item) => item.id === currentId)) {
       if (type.startsWith("location")) {
-        const cur = await prisma.location.findUnique({
-          where: { locationid: currentId },
-          select: { locationid: true, locationname: true, usageCount: true },
+        const current = await prisma.location.findFirst({
+          where: { locationid: currentId, ...orgScope },
+          select: {
+            locationid: true,
+            locationname: true,
+            usageCount: true,
+            isActive: true,
+          },
         });
-        if (cur) {
+        if (current) {
           items.unshift({
-            id: cur.locationid,
-            name: cur.locationname || "Current Location",
-            usageCount: cur.usageCount,
+            id: current.locationid,
+            name: current.locationname || "Current Location",
+            usageCount: current.usageCount,
+            isCurrent: true,
           });
         }
       } else if (type === "category") {
-        const cur = await prisma.assetCategoryType.findUnique({
-          where: { assetcategorytypeid: currentId },
-          select: { assetcategorytypeid: true, assetcategorytypename: true, assetTypeCode: true, usageCount: true },
+        const current = await prisma.assetCategoryType.findFirst({
+          where: { assetcategorytypeid: currentId, ...orgScope },
+          select: {
+            assetcategorytypeid: true,
+            assetcategorytypename: true,
+            assetTypeCode: true,
+            usageCount: true,
+            isActive: true,
+          },
         });
-        if (cur) {
+        if (current) {
           items.unshift({
-            id: cur.assetcategorytypeid,
-            name: cur.assetcategorytypename,
-            code: cur.assetTypeCode,
-            usageCount: cur.usageCount,
+            id: current.assetcategorytypeid,
+            name: current.assetcategorytypename,
+            code: current.assetTypeCode,
+            usageCount: current.usageCount,
+            isCurrent: true,
           });
         }
       } else if (type === "department") {
-        const cur = await prisma.department.findUnique({
-          where: { id: currentId },
+        const current = await prisma.department.findFirst({
+          where: { id: currentId, organizationId: orgId },
           select: { id: true, name: true, code: true, sortOrder: true },
         });
-        if (cur) {
+        if (current) {
           items.unshift({
-            id: cur.id,
-            name: cur.name,
-            code: cur.code,
-            usageCount: cur.sortOrder || 0,
+            id: current.id,
+            name: current.name,
+            code: current.code,
+            usageCount: current.sortOrder,
+            isCurrent: true,
           });
         }
       } else if (type === "status") {
-        const cur = await prisma.statusType.findUnique({
-          where: { statustypeid: currentId },
-          select: { statustypeid: true, statustypename: true, usageCount: true },
+        const current = await prisma.statusType.findFirst({
+          where: { statustypeid: currentId, ...orgScope },
+          select: {
+            statustypeid: true,
+            statustypename: true,
+            color: true,
+            usageCount: true,
+            isActive: true,
+          },
         });
-        if (cur) {
+        if (current) {
           items.unshift({
-            id: cur.statustypeid,
-            name: cur.statustypename,
-            usageCount: cur.usageCount,
+            id: current.statustypeid,
+            name: current.statustypename,
+            color: current.color,
+            usageCount: current.usageCount,
+            isCurrent: true,
           });
         }
       }
     }
 
-    // If current raw text value has no matched master ID, add it as a legacy value
-    if (currentValue && !currentId && !items.some((i) => i.name.toLowerCase() === currentValue.toLowerCase())) {
+    if (
+      currentValue &&
+      !currentId &&
+      !items.some(
+        (item) => item.name.toLowerCase() === currentValue.toLowerCase(),
+      )
+    ) {
       items.unshift({
         id: `legacy:${currentValue}`,
         name: currentValue,
@@ -275,13 +354,15 @@ export async function GET(req: NextRequest) {
   } catch (error) {
     logger.error("Failed to fetch master options", { error });
     return NextResponse.json(
-      { error: "Failed to load options", details: error instanceof Error ? error.message : "Unknown" },
-      { status: 500 }
+      {
+        error: "Failed to load options",
+        details: error instanceof Error ? error.message : "Unknown",
+      },
+      { status: 500 },
     );
   }
 }
 
-// POST /api/master-options (Add new option with near-duplicate warning & audit logging)
 export async function POST(req: NextRequest) {
   try {
     const user = await requirePermission("asset:create");
@@ -301,52 +382,69 @@ export async function POST(req: NextRequest) {
 
     const norm = normalize(trimmed);
 
-    // 1. Check for exact or near duplicate
     if (!force) {
       if (type === "location" || type === "location1" || type === "location2") {
         const candidates = await prisma.location.findMany({
           where: { organizationId: orgId },
-          select: { locationid: true, locationname: true, normalizedName: true },
+          select: {
+            locationid: true,
+            locationname: true,
+            normalizedName: true,
+          },
         });
 
-        // Exact match check
-        const exact = candidates.find((c) => c.normalizedName === norm);
+        const exact = candidates.find((item) => item.normalizedName === norm);
         if (exact) {
-          return NextResponse.json({
-            warning: `An option with the same name already exists: "${exact.locationname}".`,
-            existingItem: { id: exact.locationid, name: exact.locationname },
-            duplicate: true,
-          }, { status: 409 });
+          return NextResponse.json(
+            {
+              warning: `An option with the same name already exists: "${exact.locationname}".`,
+              existingItem: { id: exact.locationid, name: exact.locationname },
+              duplicate: true,
+            },
+            { status: 409 },
+          );
         }
 
-        // Near duplicate check (Levenshtein distance <= 2)
         const near = candidates.find(
-          (c) => c.normalizedName && levenshtein(c.normalizedName, norm) <= 2
+          (item) =>
+            item.normalizedName && levenshtein(item.normalizedName, norm) <= 2,
         );
         if (near) {
-          return NextResponse.json({
-            warning: `Similar option already exists: "${near.locationname}". Are you sure you want to add "${trimmed}"?`,
-            nearMatch: { id: near.locationid, name: near.locationname },
-            requiresConfirmation: true,
-          }, { status: 409 });
+          return NextResponse.json(
+            {
+              warning: `Similar option already exists: "${near.locationname}". Are you sure you want to add "${trimmed}"?`,
+              nearMatch: { id: near.locationid, name: near.locationname },
+              requiresConfirmation: true,
+            },
+            { status: 409 },
+          );
         }
       } else if (type === "category") {
         const candidates = await prisma.assetCategoryType.findMany({
           where: { organizationId: orgId },
-          select: { assetcategorytypeid: true, assetcategorytypename: true, normalizedName: true },
+          select: {
+            assetcategorytypeid: true,
+            assetcategorytypename: true,
+            normalizedName: true,
+          },
         });
-        const exact = candidates.find((c) => c.normalizedName === norm);
+        const exact = candidates.find((item) => item.normalizedName === norm);
         if (exact) {
-          return NextResponse.json({
-            warning: `Category code "${exact.assetcategorytypename}" already exists.`,
-            existingItem: { id: exact.assetcategorytypeid, name: exact.assetcategorytypename },
-            duplicate: true,
-          }, { status: 409 });
+          return NextResponse.json(
+            {
+              warning: `Category code "${exact.assetcategorytypename}" already exists.`,
+              existingItem: {
+                id: exact.assetcategorytypeid,
+                name: exact.assetcategorytypename,
+              },
+              duplicate: true,
+            },
+            { status: 409 },
+          );
         }
       }
     }
 
-    // 2. Insert into target master
     let createdItem: MasterOption;
 
     if (type === "location" || type === "location1" || type === "location2") {
@@ -402,15 +500,21 @@ export async function POST(req: NextRequest) {
         usageCount: 1,
       };
     } else {
-      return NextResponse.json({ error: "Unsupported master type" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Unsupported master type" },
+        { status: 400 },
+      );
     }
 
     return NextResponse.json({ item: createdItem }, { status: 201 });
   } catch (error) {
     logger.error("Failed to add new master option", { error });
     return NextResponse.json(
-      { error: "Failed to add option", details: error instanceof Error ? error.message : "Unknown" },
-      { status: 500 }
+      {
+        error: "Failed to add option",
+        details: error instanceof Error ? error.message : "Unknown",
+      },
+      { status: 500 },
     );
   }
 }

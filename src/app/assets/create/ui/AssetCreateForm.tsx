@@ -31,7 +31,6 @@ import SearchableCombobox, {
 } from "@/components/SearchableCombobox";
 import { flattenDepartmentOptions } from "@/lib/department-master";
 import { useUnsavedChanges } from "@/hooks/useUnsavedChanges";
-import { compareAssetCategoryNames } from "@/lib/utils";
 
 export default function AssetCreateForm({
   categories: initialCategories,
@@ -44,12 +43,15 @@ export default function AssetCreateForm({
   departments: initialDepartments,
 }) {
   // Mutable option lists for quick-create
-  const [categoryOptions, setCategoryOptions] = useState<QuickCreateOption[]>(
+  const categoryOptions = useMemo<QuickCreateOption[]>(
     () =>
-      initialCategories.map((c: any) => ({
-        id: c.assetcategorytypeid,
-        label: c.assetcategorytypename,
-      })),
+      initialCategories
+        .filter((c: any) => c.isActive !== false)
+        .map((c: any) => ({
+          id: c.assetcategorytypeid,
+          label: c.assetcategorytypename,
+        })),
+    [initialCategories],
   );
   // DB-backed department hierarchy from the official MSF master list.
   // Only active departments are offered for assignment.
@@ -78,12 +80,6 @@ export default function AssetCreateForm({
   );
   const [modelOptions, setModelOptions] = useState<QuickCreateOption[]>(() =>
     initialModels.map((m: any) => ({ id: m.modelid, label: m.modelname })),
-  );
-  const [statusOptions, setStatusOptions] = useState<QuickCreateOption[]>(() =>
-    initialStatuses.map((s: any) => ({
-      id: s.statustypeid,
-      label: s.statustypename,
-    })),
   );
   const [supplierOptions, setSupplierOptions] = useState<QuickCreateOption[]>(
     () =>

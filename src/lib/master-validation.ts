@@ -29,7 +29,7 @@ export async function validateMasterReferences(
     const loc = await prisma.location.findFirst({
       where: {
         locationid: input.locationid,
-        ...(orgId ? { organizationId: orgId } : {}),
+        ...orgScope,
       },
       select: { locationid: true, isActive: true },
     });
@@ -51,7 +51,7 @@ export async function validateMasterReferences(
     const loc1 = await prisma.location.findFirst({
       where: {
         locationid: input.location1Id,
-        ...(orgId ? { organizationId: orgId } : {}),
+        ...orgScope,
       },
       select: { locationid: true, isActive: true },
     });

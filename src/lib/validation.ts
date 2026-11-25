@@ -350,8 +350,11 @@ export const createAssetCategoryTypeSchema = z.object({
   assetcategorytypename: z.string().min(1).max(255),
 });
 
-export const updateAssetCategoryTypeSchema =
-  createAssetCategoryTypeSchema.partial();
+export const updateAssetCategoryTypeSchema = createAssetCategoryTypeSchema
+  .partial()
+  .extend({
+    isActive: z.boolean().optional(),
+  });
 
 export const createAccessoryCategoryTypeSchema = z.object({
   accessoriecategorytypename: z.string().min(1).max(255),

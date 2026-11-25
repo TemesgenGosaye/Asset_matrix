@@ -78,10 +78,7 @@ function dateOnly(value?: string | null): string {
   return new Date(value).toISOString().slice(0, 10);
 }
 
-export default function FixedAssetForm({
-  mode,
-  assetId,
-}: Props) {
+export default function FixedAssetForm({ mode, assetId }: Props) {
   const router = useRouter();
   const [form, setForm] = useState<FormState>(emptyForm);
   const [loading, setLoading] = useState(mode === "edit");
@@ -249,7 +246,9 @@ export default function FixedAssetForm({
                 ariaLabel="Department"
                 type="department"
                 value={form.departmentId}
-                currentValue={!form.departmentId ? form.sourceDepartment || null : null}
+                currentValue={
+                  !form.departmentId ? form.sourceDepartment || null : null
+                }
                 placeholder="Select department..."
                 allowCreate={false}
                 onChange={(val) => update("departmentId", val)}
@@ -261,7 +260,9 @@ export default function FixedAssetForm({
                 type="category"
                 value={form.assetcategorytypeid}
                 departmentId={form.departmentId || null}
-                currentValue={!form.assetcategorytypeid ? form.categoryCode || null : null}
+                currentValue={
+                  !form.assetcategorytypeid ? form.categoryCode || null : null
+                }
                 placeholder="Search category code..."
                 onChange={(val, item) => {
                   update("assetcategorytypeid", val);
@@ -288,7 +289,9 @@ export default function FixedAssetForm({
                 ariaLabel="Condition (2nd)"
                 type="status"
                 value={form.statustypeid}
-                currentValue={!form.statustypeid ? form.condition2Raw || null : null}
+                currentValue={
+                  !form.statustypeid ? form.condition2Raw || null : null
+                }
                 placeholder="Select condition (2nd)..."
                 allowCreate={false}
                 onChange={(val, item) => {
@@ -342,7 +345,9 @@ export default function FixedAssetForm({
                 ariaLabel="Condition (1st)"
                 type="status"
                 value={form.condition1StatusId}
-                currentValue={!form.condition1StatusId ? form.condition1 || null : null}
+                currentValue={
+                  !form.condition1StatusId ? form.condition1 || null : null
+                }
                 placeholder="Select condition (1st)..."
                 allowCreate={false}
                 onChange={(val, item) => {
@@ -375,7 +380,9 @@ export default function FixedAssetForm({
                 }}
               />
               <div className="space-y-1">
-                <Label htmlFor="fixed-asset-reviewdate1">Review Date (1st)</Label>
+                <Label htmlFor="fixed-asset-reviewdate1">
+                  Review Date (1st)
+                </Label>
                 <Input
                   id="fixed-asset-reviewdate1"
                   type="date"
@@ -394,7 +401,9 @@ export default function FixedAssetForm({
                 />
               </div>
               <div className="space-y-1">
-                <Label htmlFor="fixed-asset-reviewdate2">Review Date (2nd)</Label>
+                <Label htmlFor="fixed-asset-reviewdate2">
+                  Review Date (2nd)
+                </Label>
                 <Input
                   id="fixed-asset-reviewdate2"
                   type="date"

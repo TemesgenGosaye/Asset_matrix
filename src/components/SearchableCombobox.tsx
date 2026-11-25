@@ -1,6 +1,12 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import React, {
+  useState,
+  useEffect,
+  useRef,
+  useCallback,
+  useMemo,
+} from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import {
   Popover,
@@ -18,7 +24,15 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Check, ChevronsUpDown, X, Loader2, Plus, AlertCircle, AlertTriangle } from "lucide-react";
+import {
+  Check,
+  ChevronsUpDown,
+  X,
+  Loader2,
+  Plus,
+  AlertCircle,
+  AlertTriangle,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { notify } from "@/lib/feedback/notify";
 
@@ -26,15 +40,28 @@ export interface MasterOption {
   id: string;
   name: string;
   code?: string | null;
+  color?: string | null;
   usageCount: number;
   departmentUsageCount?: number;
   isLegacy?: boolean;
+  isCurrent?: boolean;
+}
+
+function safeColor(color?: string | null): string | null {
+  if (!color || !/^#[0-9a-fA-F]{6}$/.test(color)) return null;
+  return color;
 }
 
 interface SearchableComboboxProps {
   value: string;
   onChange: (value: string, item?: MasterOption | null) => void;
-  type: "location1" | "location2" | "location" | "category" | "department" | "status";
+  type:
+    | "location1"
+    | "location2"
+    | "location"
+    | "category"
+    | "department"
+    | "status";
   departmentId?: string | null;
   currentValue?: string | null;
   placeholder?: string;
@@ -75,7 +102,8 @@ export default function SearchableCombobox({
   const [newOptionName, setNewOptionName] = useState("");
   const [creating, setCreating] = useState(false);
   const [createWarning, setCreateWarning] = useState<string | null>(null);
-  const [existingNearMatch, setExistingNearMatch] = useState<MasterOption | null>(null);
+  const [existingNearMatch, setExistingNearMatch] =
+    useState<MasterOption | null>(null);
 
   // Debounce search query
   useEffect(() => {
@@ -143,6 +171,18 @@ export default function SearchableCombobox({
     overscan: 5,
   });
 
+  const selectOption = useCallback(
+    (option: MasterOption) => {
+      if (option.isLegacy) {
+        onChange("", null);
+      } else {
+        onChange(option.id, option);
+      }
+      setOpen(false);
+    },
+    [onChange],
+  );
+
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Escape") {
       e.preventDefault();
@@ -164,8 +204,7 @@ export default function SearchableCombobox({
       e.preventDefault();
       const opt = options[highlightedIndex];
       if (opt) {
-        onChange(opt.id, opt);
-        setOpen(false);
+        selectOption(opt);
       }
     }
   };
@@ -224,7 +263,8 @@ export default function SearchableCombobox({
     } catch (err) {
       notify.error({
         title: "Creation failed",
-        description: err instanceof Error ? err.message : "Error creating option",
+        description:
+          err instanceof Error ? err.message : "Error creating option",
       });
     } finally {
       setCreating(false);
@@ -251,26 +291,35 @@ export default function SearchableCombobox({
               aria-label={ariaLabel || label || placeholder}
               disabled={disabled}
               className={cn(
-                "h-10 w-full justify-between bg-background px-3 text-left font-normal text-sm shadow-xs",
+                "bg-background h-10 w-full justify-between px-3 text-left text-sm font-normal shadow-xs",
                 !value && !currentValue && "text-muted-foreground",
-                selectedOption?.isLegacy && "border-amber-500/60 bg-amber-500/5 text-amber-900 dark:text-amber-200"
+                (selectedOption?.isLegacy || selectedOption?.isCurrent) &&
+                  "border-amber-500/60 bg-amber-500/5 text-amber-900 dark:text-amber-200",
               )}
             >
               <span className="truncate pr-4">
                 {selectedOption ? (
-                  selectedOption.isLegacy ? (
-                    <span className="inline-flex items-center gap-1.5 font-medium">
-                      <span className="rounded bg-amber-500/20 px-1 py-0.5 text-[10px] uppercase font-bold tracking-wider text-amber-700 dark:text-amber-300">
+                  <span className="inline-flex items-center gap-1.5 font-medium">
+                    {(selectedOption.isLegacy || selectedOption.isCurrent) && (
+                      <span className="rounded bg-amber-500/20 px-1 py-0.5 text-[10px] font-bold tracking-wider text-amber-700 uppercase dark:text-amber-300">
                         Current (not in list)
                       </span>
-                      <span>{selectedOption.name}</span>
-                    </span>
-                  ) : (
+                    )}
+                    {safeColor(selectedOption.color) && (
+                      <span
+                        aria-hidden="true"
+                        className="border-foreground/20 inline-block h-3 w-3 shrink-0 rounded-full border"
+                        style={{
+                          backgroundColor:
+                            safeColor(selectedOption.color) ?? undefined,
+                        }}
+                      />
+                    )}
                     <span>
                       {selectedOption.code ? `[${selectedOption.code}] ` : ""}
                       {selectedOption.name}
                     </span>
-                  )
+                  </span>
                 ) : (
                   placeholder
                 )}
@@ -288,7 +337,7 @@ export default function SearchableCombobox({
                 e.stopPropagation();
                 onChange("", null);
               }}
-              className="absolute right-8 top-1/2 -translate-y-1/2 rounded p-1 text-muted-foreground hover:text-foreground"
+              className="text-muted-foreground hover:text-foreground absolute top-1/2 right-8 -translate-y-1/2 rounded p-1"
             >
               <X className="h-3.5 w-3.5" />
             </button>
@@ -311,15 +360,17 @@ export default function SearchableCombobox({
                   ? `${id || "combobox"}-opt-${highlightedIndex}`
                   : undefined
               }
-              className="h-8 border-none bg-transparent shadow-none focus-visible:ring-0 text-sm"
+              className="h-8 border-none bg-transparent text-sm shadow-none focus-visible:ring-0"
               autoFocus
             />
-            {loading && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
+            {loading && (
+              <Loader2 className="text-muted-foreground h-4 w-4 animate-spin" />
+            )}
           </div>
 
           {/* Quick department usage note */}
           {departmentId && (
-            <div className="bg-muted/40 px-3 py-1 text-[11px] text-muted-foreground border-b flex justify-between">
+            <div className="bg-muted/40 text-muted-foreground flex justify-between border-b px-3 py-1 text-[11px]">
               <span>Department-used options first</span>
               <span>All options available</span>
             </div>
@@ -328,17 +379,17 @@ export default function SearchableCombobox({
           {/* Options container with virtualization */}
           <div
             ref={parentRef}
-            className="max-h-60 overflow-y-auto overflow-x-hidden p-1 text-sm"
+            className="max-h-60 overflow-x-hidden overflow-y-auto p-1 text-sm"
             role="listbox"
           >
             {error && (
-              <div className="p-3 text-center text-xs text-destructive">
+              <div className="text-destructive p-3 text-center text-xs">
                 {error}
               </div>
             )}
 
             {!loading && options.length === 0 && !error && (
-              <div className="py-6 text-center text-xs text-muted-foreground">
+              <div className="text-muted-foreground py-6 text-center text-xs">
                 No matching options found.
               </div>
             )}
@@ -363,10 +414,7 @@ export default function SearchableCombobox({
                       role="option"
                       aria-selected={isSelected}
                       onMouseEnter={() => setHighlightedIndex(virtualRow.index)}
-                      onClick={() => {
-                        onChange(opt.id, opt);
-                        setOpen(false);
-                      }}
+                      onClick={() => selectOption(opt)}
                       style={{
                         position: "absolute",
                         top: 0,
@@ -376,31 +424,48 @@ export default function SearchableCombobox({
                         transform: `translateY(${virtualRow.start}px)`,
                       }}
                       className={cn(
-                        "flex cursor-pointer items-center justify-between rounded px-2.5 py-1.5 text-sm transition-colors select-none hover:bg-accent hover:text-accent-foreground",
+                        "hover:bg-accent hover:text-accent-foreground flex cursor-pointer items-center justify-between rounded px-2.5 py-1.5 text-sm transition-colors select-none",
                         isHighlighted && "bg-accent text-accent-foreground",
                         isSelected && "bg-accent/80 font-medium",
-                        opt.isLegacy && "text-amber-800 dark:text-amber-300"
+                        opt.isLegacy && "text-amber-800 dark:text-amber-300",
                       )}
                     >
                       <div className="flex items-center gap-2 truncate pr-2">
                         <Check
                           className={cn(
                             "h-4 w-4 shrink-0",
-                            isSelected ? "opacity-100 text-primary" : "opacity-0"
+                            isSelected
+                              ? "text-primary opacity-100"
+                              : "opacity-0",
                           )}
                         />
+                        {safeColor(opt.color) && (
+                          <span
+                            aria-hidden="true"
+                            className="border-foreground/20 inline-block h-3 w-3 shrink-0 rounded-full border"
+                            style={{
+                              backgroundColor:
+                                safeColor(opt.color) ?? undefined,
+                            }}
+                          />
+                        )}
                         <span className="truncate">
                           {opt.code ? (
-                            <span className="font-mono text-xs text-muted-foreground mr-1.5">
+                            <span className="text-muted-foreground mr-1.5 font-mono text-xs">
                               {opt.code}
                             </span>
                           ) : null}
                           {opt.name}
                         </span>
+                        {opt.isCurrent && (
+                          <span className="rounded bg-amber-500/20 px-1 py-0.5 text-[10px] font-semibold text-amber-700 dark:text-amber-300">
+                            Current
+                          </span>
+                        )}
                       </div>
 
                       {/* Small usage count badges */}
-                      <div className="flex items-center gap-1 shrink-0">
+                      <div className="flex shrink-0 items-center gap-1">
                         {opt.isLegacy ? (
                           <span className="rounded bg-amber-500/20 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700 dark:text-amber-300">
                             Legacy
@@ -408,11 +473,17 @@ export default function SearchableCombobox({
                         ) : (
                           <>
                             {opt.departmentUsageCount ? (
-                              <span className="rounded bg-primary/10 px-1 py-0.5 text-[10px] font-medium text-primary" title="Department usage count">
+                              <span
+                                className="bg-primary/10 text-primary rounded px-1 py-0.5 text-[10px] font-medium"
+                                title="Department usage count"
+                              >
                                 Dept: {opt.departmentUsageCount}
                               </span>
                             ) : null}
-                            <span className="text-[11px] text-muted-foreground" title="Global asset usage count">
+                            <span
+                              className="text-muted-foreground text-[11px]"
+                              title="Global asset usage count"
+                            >
                               {opt.usageCount}
                             </span>
                           </>
@@ -427,12 +498,12 @@ export default function SearchableCombobox({
 
           {/* Add new option footer */}
           {allowCreate && (
-            <div className="border-t p-1 bg-muted/20">
+            <div className="bg-muted/20 border-t p-1">
               <Button
                 type="button"
                 variant="ghost"
                 size="sm"
-                className="w-full justify-start text-xs font-normal h-8 text-primary"
+                className="text-primary h-8 w-full justify-start text-xs font-normal"
                 onClick={() => {
                   setNewOptionName(searchQuery.trim());
                   setCreateWarning(null);
@@ -452,9 +523,17 @@ export default function SearchableCombobox({
       <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Add New {type.startsWith("location") ? "Location" : type === "category" ? "Category Code" : "Option"}</DialogTitle>
+            <DialogTitle>
+              Add New{" "}
+              {type.startsWith("location")
+                ? "Location"
+                : type === "category"
+                  ? "Category Code"
+                  : "Option"}
+            </DialogTitle>
             <DialogDescription>
-              Create a new master entry. The system checks for near-duplicates to prevent spelling fragmentation.
+              Create a new master entry. The system checks for near-duplicates
+              to prevent spelling fragmentation.
             </DialogDescription>
           </DialogHeader>
 
@@ -475,9 +554,9 @@ export default function SearchableCombobox({
 
             {/* Near-duplicate warning banner */}
             {createWarning && (
-              <div className="rounded-lg border border-amber-500/50 bg-amber-500/10 p-3 text-xs text-amber-900 dark:text-amber-200 space-y-2">
+              <div className="space-y-2 rounded-lg border border-amber-500/50 bg-amber-500/10 p-3 text-xs text-amber-900 dark:text-amber-200">
                 <div className="flex items-center gap-2 font-medium">
-                  <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0" />
+                  <AlertTriangle className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
                   <span>Possible duplicate detected</span>
                 </div>
                 <p>{createWarning}</p>
@@ -486,7 +565,7 @@ export default function SearchableCombobox({
                     type="button"
                     variant="outline"
                     size="sm"
-                    className="h-7 text-xs bg-background text-foreground"
+                    className="bg-background text-foreground h-7 text-xs"
                     onClick={() => {
                       onChange(existingNearMatch.id, existingNearMatch);
                       setCreateDialogOpen(false);
