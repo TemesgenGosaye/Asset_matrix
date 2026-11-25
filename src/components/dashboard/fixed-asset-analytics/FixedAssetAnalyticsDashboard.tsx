@@ -710,37 +710,6 @@ export default function FixedAssetAnalyticsDashboard({
         </ChartFrame>
 
         <ChartFrame
-          title="First → second review flow"
-          eyebrow="Condition & lifecycle"
-          description="Where condition changed between reviews"
-          filename="fixed-assets-review-flow"
-          rows={toCsvRows(data.reviewFlow.links)}
-          caption="Condition transitions between first and second review"
-          className="lg:col-span-2"
-          empty={!data.reviewFlow.links.length}
-        >
-          <ChartContainer config={chartConfig} className="h-64 w-full">
-            <Sankey
-              data={data.reviewFlow as never}
-              nodeWidth={10}
-              nodePadding={24}
-              margin={{ top: 10, right: 96, bottom: 10, left: 12 }}
-              link={{ stroke: "var(--color-link)", strokeOpacity: 0.35 }}
-              node={{ fill: "var(--color-assets)" }}
-            >
-              <ChartTooltip content={<ChartTooltipContent />} />
-            </Sankey>
-          </ChartContainer>
-          <div className="text-muted-foreground mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[10px]">
-            {data.reviewFlow.links.slice(0, 6).map((link) => (
-              <span key={`${link.source}-${link.target}`}>
-                {link.source} → {link.target}: {compact(link.value)}
-              </span>
-            ))}
-          </div>
-        </ChartFrame>
-
-        <ChartFrame
           title="Review timeline"
           eyebrow="Condition & lifecycle"
           description="Monthly review activity and good-condition share"
@@ -943,6 +912,37 @@ export default function FixedAssetAnalyticsDashboard({
                   />
                 </div>
               </div>
+            ))}
+          </div>
+        </ChartFrame>
+
+        <ChartFrame
+          title="First → second review flow"
+          eyebrow="Condition & lifecycle"
+          description="Where condition changed between reviews"
+          filename="fixed-assets-review-flow"
+          rows={toCsvRows(data.reviewFlow.links)}
+          caption="Condition transitions between first and second review"
+          className="lg:col-span-3"
+          empty={!data.reviewFlow.links.length}
+        >
+          <ChartContainer config={chartConfig} className="h-64 w-full">
+            <Sankey
+              data={data.reviewFlow as never}
+              nodeWidth={10}
+              nodePadding={24}
+              margin={{ top: 10, right: 96, bottom: 10, left: 12 }}
+              link={{ stroke: "var(--color-link)", strokeOpacity: 0.35 }}
+              node={{ fill: "var(--color-assets)" }}
+            >
+              <ChartTooltip content={<ChartTooltipContent />} />
+            </Sankey>
+          </ChartContainer>
+          <div className="text-muted-foreground mt-2 flex flex-col gap-1 text-[11px]">
+            {data.reviewFlow.links.slice(0, 6).map((link) => (
+              <span key={`${link.source}-${link.target}`}>
+                {link.source} → {link.target}: {compact(link.value)}
+              </span>
             ))}
           </div>
         </ChartFrame>
