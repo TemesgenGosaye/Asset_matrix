@@ -1,58 +1,21 @@
 "use client";
-import React, { useState, useCallback, useRef } from "react";
+import React, { useCallback, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogFooter,
 } from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { QRCodeCanvas } from "qrcode.react";
-import { notify } from "@/lib/feedback/notify";
 import { useRouter } from "next/navigation";
 import { Copy } from "lucide-react";
 
-export default function AssetDetailActions({
-  asset,
-  users,
-  userAssets,
-  onAssigned,
-}) {
+export default function AssetDetailActions({ asset }) {
   const router = useRouter();
-  const [assignOpen, setAssignOpen] = useState(false);
-  const [qrOpen, setQrOpen] = useState(false);
-  const [selectedUser, setSelectedUser] = useState(null);
+  const [qrOpen, setQrOpen] = React.useState(false);
   const qrRef = useRef(null);
-
-  const assigned = userAssets.find((ua) => ua.assetid === asset.assetid);
-  const assignedUser = assigned
-    ? users.find((u) => u.userid === assigned.userid)
-    : null;
-
-  const handleAssign = useCallback(async () => {
-    if (!selectedUser) return;
-    try {
-      const res = await fetch("/api/userAssets/assign", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ assetId: asset.assetid, userId: selectedUser }),
-      });
-      if (!res.ok) throw new Error("Failed to assign user");
-      notify.success({ title: "Assigned", description: asset.assettag });
-      setAssignOpen(false);
-      onAssigned?.(selectedUser);
-    } catch (e) {
-      notify.error({ title: "Assign failed", description: e.message });
-    }
-  }, [asset, selectedUser, onAssigned]);
 
   const handleDownload = useCallback(() => {
     const canvas = qrRef.current?.querySelector("canvas");
@@ -92,13 +55,6 @@ export default function AssetDetailActions({
 
   return (
     <div className="flex gap-2">
-      <Button
-        variant="outline"
-        onClick={() => setAssignOpen(true)}
-        disabled={!asset.requestable}
-      >
-        Assign User
-      </Button>
       <Button variant="outline" onClick={() => setQrOpen(true)}>
         Show QR Code
       </Button>
@@ -106,44 +62,6 @@ export default function AssetDetailActions({
         <Copy className="mr-2 h-4 w-4" />
         Duplicate
       </Button>
-
-      <Dialog open={assignOpen} onOpenChange={setAssignOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>
-              Assign User{" "}
-              {assignedUser
-                ? `(current: ${assignedUser.firstname} ${assignedUser.lastname})`
-                : ""}
-            </DialogTitle>
-          </DialogHeader>
-          <div className="py-4">
-            <Select
-              value={selectedUser || (assignedUser ? assignedUser.userid : "")}
-              onValueChange={setSelectedUser}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select a user" />
-              </SelectTrigger>
-              <SelectContent>
-                {users.map((u) => (
-                  <SelectItem key={u.userid} value={u.userid}>
-                    {u.firstname} {u.lastname}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <DialogFooter>
-            <Button variant="ghost" onClick={() => setAssignOpen(false)}>
-              Cancel
-            </Button>
-            <Button disabled={!selectedUser} onClick={handleAssign}>
-              Assign
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       <Dialog open={qrOpen} onOpenChange={setQrOpen}>
         <DialogContent>

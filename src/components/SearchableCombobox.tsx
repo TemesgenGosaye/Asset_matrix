@@ -62,7 +62,8 @@ interface SearchableComboboxProps {
     | "category"
     | "department"
     | "status"
-    | "assetName";
+    | "assetName"
+    | "employee";
   departmentId?: string | null;
   currentValue?: string | null;
   placeholder?: string;
@@ -490,7 +491,7 @@ export default function SearchableCombobox({
                           <span className="rounded bg-amber-500/20 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700 dark:text-amber-300">
                             Legacy
                           </span>
-                        ) : (
+                        ) : type !== "employee" ? (
                           <>
                             {opt.departmentUsageCount ? (
                               <span
@@ -507,7 +508,7 @@ export default function SearchableCombobox({
                               {opt.usageCount}
                             </span>
                           </>
-                        )}
+                        ) : null}
                       </div>
                     </div>
                   );

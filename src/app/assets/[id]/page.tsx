@@ -35,6 +35,7 @@ import AssetAttachments from "@/components/AssetAttachments";
 import AssetLifecycle from "./ui/AssetLifecycle";
 import AssetReservations from "./ui/AssetReservations";
 import AssetTransfers from "./ui/AssetTransfers";
+import AssetAssignment from "./ui/AssetAssignment";
 import AssetCheckoutHistory from "./ui/AssetCheckoutHistory";
 import { CustomFieldValue } from "@/components/CustomFieldValue";
 import ReturnItemButton from "@/components/ReturnItemButton";
@@ -254,6 +255,35 @@ export default async function Page(props: { params: Promise<{ id: string }> }) {
   const assignedUser = userByAsset
     ? users.find((u) => u.userid === userByAsset.userid)
     : null;
+  const assignedEmployee =
+    userByAsset?.userid && ctx?.organization?.id
+      ? await prisma.employee.findFirst({
+          where: {
+            organizationId: ctx.organization.id,
+            userid: userByAsset.userid,
+          },
+          select: {
+            employeeNumber: true,
+            firstname: true,
+            lastname: true,
+            department: { select: { name: true } },
+            user: { select: { email: true } },
+          },
+        })
+      : null;
+  const currentAssignment = userByAsset
+    ? {
+        userId: userByAsset.userid,
+        name: assignedEmployee
+          ? `${assignedEmployee.firstname} ${assignedEmployee.lastname}`.trim()
+          : assignedUser
+            ? `${assignedUser.firstname} ${assignedUser.lastname}`.trim()
+            : userByAsset.userid,
+        employeeNumber: assignedEmployee?.employeeNumber ?? null,
+        department: assignedEmployee?.department?.name ?? null,
+        email: assignedEmployee?.user?.email ?? assignedUser?.email ?? null,
+      }
+    : null;
 
   const statusName = asset.statustypeid
     ? status.find((s) => s.statustypeid === asset.statustypeid)?.statustypename
@@ -284,13 +314,7 @@ export default async function Page(props: { params: Promise<{ id: string }> }) {
     <>
       <Breadcrumb options={breadcrumbOptions} />
       <div className="flex h-full w-full flex-col overflow-hidden">
-        <AssetDetailHeader
-          asset={asset}
-          statuses={status}
-          users={users}
-          userAssets={userAssets}
-          isAdmin={isAdmin}
-        />
+        <AssetDetailHeader asset={asset} statuses={status} isAdmin={isAdmin} />
         <Separator className="my-4" />
 
         <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
@@ -412,22 +436,30 @@ export default async function Page(props: { params: Promise<{ id: string }> }) {
         <div className="mt-8 grid grid-cols-1 gap-6 md:grid-cols-3">
           <section className="border-default-200 col-span-1 rounded-lg border p-4">
             <h2 className="text-foreground-600 mb-3 text-sm font-semibold">
-              Assigned User
+              Assigned To
             </h2>
-            {assignedUser ? (
+            {currentAssignment ? (
               <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex flex-col">
-                    <span className="font-medium">
-                      {assignedUser.firstname} {assignedUser.lastname}
+                <div className="flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <span className="block truncate font-medium">
+                      {currentAssignment.name}
                     </span>
-                    <span className="text-foreground-500 text-sm">
-                      {assignedUser.email || "No email"}
+                    <span className="text-foreground-500 block truncate text-sm">
+                      {[
+                        currentAssignment.employeeNumber
+                          ? `Employee ${currentAssignment.employeeNumber}`
+                          : null,
+                        currentAssignment.department,
+                        currentAssignment.email,
+                      ]
+                        .filter(Boolean)
+                        .join(" · ") || "No contact details"}
                     </span>
                   </div>
                   <Link
-                    href={`/user/${assignedUser.userid}`}
-                    className="text-primary text-sm font-medium hover:underline"
+                    href={`/user/${currentAssignment.userId}`}
+                    className="text-primary shrink-0 text-sm font-medium hover:underline"
                   >
                     View
                   </Link>
@@ -442,7 +474,9 @@ export default async function Page(props: { params: Promise<{ id: string }> }) {
                 )}
               </div>
             ) : (
-              <p className="text-foreground-500 text-sm">No user assigned.</p>
+              <p className="text-foreground-500 text-sm">
+                No employee assigned.
+              </p>
             )}
           </section>
 
@@ -659,11 +693,20 @@ export default async function Page(props: { params: Promise<{ id: string }> }) {
         </div>
 
         <div className="mt-8 grid grid-cols-1 gap-6 md:grid-cols-3">
+          {isAdmin && (
+            <section className="border-default-200 col-span-1 rounded-lg border p-4 md:col-span-3">
+              <AssetAssignment
+                assetId={asset.assetid}
+                assetTag={asset.assettag}
+                currentAssignment={currentAssignment}
+              />
+            </section>
+          )}
           <section className="border-default-200 col-span-1 rounded-lg border p-4 md:col-span-3">
             <AssetLifecycle
               assetId={asset.assetid}
               currentStatus={statusName}
-              isAssigned={!!assignedUser}
+              isAssigned={!!currentAssignment}
               statuses={status}
               isAdmin={isAdmin}
             />

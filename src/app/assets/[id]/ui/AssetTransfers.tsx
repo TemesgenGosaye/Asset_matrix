@@ -21,6 +21,8 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
+import SearchableCombobox from "@/components/SearchableCombobox";
 import {
   Table,
   TableBody,
@@ -30,7 +32,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { notify } from "@/lib/feedback/notify";
-import { ArrowRight, Repeat } from "lucide-react";
+import { ArrowRight, Repeat, UserRound } from "lucide-react";
 
 interface AssetTransfersProps {
   assetId: string;
@@ -73,7 +75,7 @@ interface OrgOption {
 }
 
 const TRANSFER_TYPE_LABELS: Record<string, string> = {
-  user: "User",
+  user: "Employee / User",
   location: "Location",
   organization: "Organization",
 };
@@ -99,7 +101,10 @@ export default function AssetTransfers({
   const [submitting, setSubmitting] = useState(false);
 
   // Form state
-  const [transferType, setTransferType] = useState<string>("");
+  const [transferType, setTransferType] = useState<string>("user");
+  const [identitySource, setIdentitySource] = useState<"employee" | "user">(
+    "employee",
+  );
   const [targetId, setTargetId] = useState<string>("");
   const [reason, setReason] = useState("");
 
@@ -134,11 +139,14 @@ export default function AssetTransfers({
 
   const fetchLookupData = useCallback(async () => {
     try {
-      const [usersRes, locationsRes, orgsRes] = await Promise.all([
-        fetch("/api/user"),
-        fetch("/api/location"),
-        fetch("/api/organizations"),
-      ]);
+      const [usersRes, employeesRes, locationsRes, orgsRes] = await Promise.all(
+        [
+          fetch("/api/user"),
+          fetch("/api/master-options?type=employee&limit=5000"),
+          fetch("/api/location"),
+          fetch("/api/organizations"),
+        ],
+      );
 
       if (usersRes.ok) {
         const usersData: UserOption[] = await usersRes.json();
@@ -148,6 +156,15 @@ export default function AssetTransfers({
           uMap[u.userid] = `${u.firstname} ${u.lastname}`;
         }
         setUserMap(uMap);
+      }
+
+      if (employeesRes.ok) {
+        const employeeData = await employeesRes.json();
+        const eMap: Record<string, string> = {};
+        for (const option of employeeData.items || []) {
+          eMap[option.id] = option.name;
+        }
+        setUserMap((prev) => ({ ...prev, ...eMap }));
       }
 
       if (locationsRes.ok) {
@@ -175,8 +192,11 @@ export default function AssetTransfers({
   }, []);
 
   useEffect(() => {
-    fetchTransfers();
-    fetchLookupData();
+    const timer = setTimeout(() => {
+      void fetchTransfers();
+      void fetchLookupData();
+    }, 0);
+    return () => clearTimeout(timer);
   }, [fetchTransfers, fetchLookupData]);
 
   // Load target options when transfer type changes in the dialog
@@ -204,6 +224,12 @@ export default function AssetTransfers({
     setTransferType(type);
     setTargetId("");
     fetchTargetOptions(type);
+  };
+
+  const handleIdentitySourceChange = (source: "employee" | "user") => {
+    setIdentitySource(source);
+    setTargetId("");
+    if (source === "user") fetchTargetOptions("user");
   };
 
   const handleSubmit = async () => {
@@ -295,22 +321,67 @@ export default function AssetTransfers({
     if (transferType === "user") {
       return (
         <div className="space-y-2">
-          <Label htmlFor="target-user">Target User</Label>
-          <Select value={targetId} onValueChange={setTargetId}>
-            <SelectTrigger id="target-user">
-              <SelectValue placeholder="Select a user" />
-            </SelectTrigger>
-            <SelectContent>
-              {users
-                .filter((u) => u.userid !== currentUserId)
-                .map((u) => (
-                  <SelectItem key={u.userid} value={u.userid}>
-                    {u.firstname} {u.lastname}
-                    {u.email ? ` (${u.email})` : ""}
-                  </SelectItem>
-                ))}
-            </SelectContent>
-          </Select>
+          <div className="bg-muted/20 flex items-center justify-between gap-3 rounded-lg border p-3">
+            <div className="flex items-center gap-2">
+              <UserRound className="text-muted-foreground h-4 w-4" />
+              <Label htmlFor="identity-source" className="cursor-pointer">
+                {identitySource === "employee"
+                  ? "Employee register"
+                  : "System users"}
+              </Label>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-muted-foreground text-xs">Users</span>
+              <Switch
+                id="identity-source"
+                checked={identitySource === "employee"}
+                onCheckedChange={(checked) =>
+                  handleIdentitySourceChange(checked ? "employee" : "user")
+                }
+              />
+              <span className="text-muted-foreground text-xs">Employees</span>
+            </div>
+          </div>
+
+          {identitySource === "employee" ? (
+            <div className="space-y-2">
+              <Label htmlFor="target-employee">Target Employee</Label>
+              <SearchableCombobox
+                id="target-employee"
+                ariaLabel="Target employee"
+                type="employee"
+                allowCreate={false}
+                value={targetId}
+                placeholder="Search employees by name or number..."
+                onChange={(value) => setTargetId(value)}
+              />
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <Label htmlFor="target-user">Target User</Label>
+              <Select value={targetId} onValueChange={setTargetId}>
+                <SelectTrigger id="target-user">
+                  <SelectValue placeholder="Select a user" />
+                </SelectTrigger>
+                <SelectContent>
+                  {users
+                    .filter((u) => u.userid !== currentUserId)
+                    .map((u) => (
+                      <SelectItem key={u.userid} value={u.userid}>
+                        {u.firstname} {u.lastname}
+                        {u.email ? ` (${u.email})` : ""}
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          {currentUserId && (
+            <p className="text-muted-foreground text-xs">
+              Currently assigned: {userMap[currentUserId] || currentUserId}
+            </p>
+          )}
         </div>
       );
     }
@@ -380,7 +451,7 @@ export default function AssetTransfers({
             <DialogHeader>
               <DialogTitle>Transfer Asset</DialogTitle>
               <DialogDescription>
-                Transfer this asset to a different user, location, or
+                Transfer this asset to an employee, system user, location, or
                 organization.
               </DialogDescription>
             </DialogHeader>
@@ -392,7 +463,7 @@ export default function AssetTransfers({
                     <SelectValue placeholder="Select transfer type" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="user">User</SelectItem>
+                    <SelectItem value="user">Employee / User</SelectItem>
                     <SelectItem value="location">Location</SelectItem>
                     <SelectItem value="organization">Organization</SelectItem>
                   </SelectContent>

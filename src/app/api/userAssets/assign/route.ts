@@ -2,6 +2,7 @@ import type { NextRequest } from "next/server";
 import { Prisma } from "@prisma/client";
 import prisma from "../../../../lib/prisma";
 import { requireApiAdmin, requireNotDemoMode } from "@/lib/api-auth";
+import { AUDIT_ACTIONS, AUDIT_ENTITIES, createAuditLog } from "@/lib/audit-log";
 import { logger } from "@/lib/logger";
 
 export async function POST(req: NextRequest) {
@@ -9,7 +10,7 @@ export async function POST(req: NextRequest) {
     const demoBlock = requireNotDemoMode();
     if (demoBlock) return demoBlock;
 
-    await requireApiAdmin();
+    const actingUser = await requireApiAdmin();
     const { assetId, userId } = await req.json();
 
     if (!assetId || !userId) {
@@ -18,6 +19,53 @@ export async function POST(req: NextRequest) {
         {
           status: 400,
         },
+      );
+    }
+
+    const [asset, targetUser] = await Promise.all([
+      prisma.asset.findUnique({
+        where: { assetid: assetId },
+        select: { assetid: true, organizationId: true },
+      }),
+      prisma.user.findUnique({
+        where: { userid: userId },
+        select: {
+          userid: true,
+          organizationId: true,
+          isActive: true,
+        },
+      }),
+    ]);
+
+    if (!asset) {
+      return new Response(JSON.stringify({ error: "Asset not found" }), {
+        status: 404,
+      });
+    }
+    if (!targetUser) {
+      return new Response(
+        JSON.stringify({ error: "Employee user not found" }),
+        { status: 404 },
+      );
+    }
+    if (actingUser.organizationId && asset.organizationId) {
+      if (asset.organizationId !== actingUser.organizationId) {
+        return new Response(JSON.stringify({ error: "Forbidden" }), {
+          status: 403,
+        });
+      }
+    }
+    if (actingUser.organizationId && targetUser.organizationId) {
+      if (targetUser.organizationId !== actingUser.organizationId) {
+        return new Response(JSON.stringify({ error: "Forbidden" }), {
+          status: 403,
+        });
+      }
+    }
+    if (!targetUser.isActive) {
+      return new Response(
+        JSON.stringify({ error: "The selected employee is inactive" }),
+        { status: 400 },
       );
     }
 
@@ -46,12 +94,16 @@ export async function POST(req: NextRequest) {
       if (existingAssignment) {
         // Idempotent: if already assigned to the same user, no-op
         if (existingAssignment.userid === userId) {
-          return { assignment: existingAssignment, idempotent: true };
+          return {
+            assignment: existingAssignment,
+            idempotent: true,
+            wasReassigned: false,
+          };
         }
         // Reassign to the new user within the transaction
         assignment = await tx.userAssets.update({
           where: { userassetsid: existingAssignment.userassetsid },
-          data: { userid: userId },
+          data: { userid: userId, change_date: new Date() },
         });
       } else {
         assignment = await tx.userAssets.create({
@@ -68,7 +120,24 @@ export async function POST(req: NextRequest) {
         data: { statustypeid: activeStatus.statustypeid },
       });
 
-      return { assignment, idempotent: false };
+      return {
+        assignment,
+        idempotent: false,
+        wasReassigned: Boolean(existingAssignment),
+      };
+    });
+
+    await createAuditLog({
+      userId: actingUser.id ?? null,
+      action: result.wasReassigned
+        ? AUDIT_ACTIONS.REASSIGN
+        : AUDIT_ACTIONS.ASSIGN,
+      entity: AUDIT_ENTITIES.ASSET,
+      entityId: assetId,
+      details: {
+        userId,
+        idempotent: result.idempotent,
+      },
     });
 
     return new Response(

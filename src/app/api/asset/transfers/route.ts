@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireApiAdmin, requireNotDemoMode } from "@/lib/api-auth";
+import { AUDIT_ACTIONS, AUDIT_ENTITIES, createAuditLog } from "@/lib/audit-log";
 import { logger } from "@/lib/logger";
 
 // GET /api/asset/transfers
@@ -93,6 +94,63 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Asset not found" }, { status: 404 });
     }
 
+    if (user.organizationId && asset.organizationId) {
+      if (asset.organizationId !== user.organizationId) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      }
+    }
+
+    if (transferType === "user") {
+      const targetUser = await prisma.user.findUnique({
+        where: { userid: toUserId },
+        select: { userid: true, organizationId: true, isActive: true },
+      });
+      if (!targetUser) {
+        return NextResponse.json(
+          { error: "Employee user not found" },
+          { status: 404 },
+        );
+      }
+      if (user.organizationId && targetUser.organizationId) {
+        if (targetUser.organizationId !== user.organizationId) {
+          return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+        }
+      }
+      if (!targetUser.isActive) {
+        return NextResponse.json(
+          { error: "The selected employee is inactive" },
+          { status: 400 },
+        );
+      }
+    } else if (transferType === "location") {
+      const targetLocation = await prisma.location.findUnique({
+        where: { locationid: toLocationId },
+        select: { locationid: true, organizationId: true },
+      });
+      if (!targetLocation) {
+        return NextResponse.json(
+          { error: "Location not found" },
+          { status: 404 },
+        );
+      }
+      if (user.organizationId && targetLocation.organizationId) {
+        if (targetLocation.organizationId !== user.organizationId) {
+          return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+        }
+      }
+    } else {
+      const targetOrg = await prisma.organization.findUnique({
+        where: { id: toOrgId },
+        select: { id: true },
+      });
+      if (!targetOrg) {
+        return NextResponse.json(
+          { error: "Organization not found" },
+          { status: 404 },
+        );
+      }
+    }
+
     let transfer;
 
     if (transferType === "user") {
@@ -117,6 +175,20 @@ export async function POST(req: Request) {
             userid: toUserId,
             assetid: assetId,
             creation_date: new Date(),
+          },
+        });
+
+        const activeStatus = await tx.statusType.findFirst({
+          where: { statustypename: { equals: "Active", mode: "insensitive" } },
+          select: { statustypeid: true },
+        });
+        await tx.asset.update({
+          where: { assetid: assetId },
+          data: {
+            change_date: new Date(),
+            ...(activeStatus
+              ? { statustypeid: activeStatus.statustypeid }
+              : {}),
           },
         });
 
@@ -190,6 +262,14 @@ export async function POST(req: Request) {
         return record;
       });
     }
+
+    await createAuditLog({
+      userId: transferredBy,
+      action: AUDIT_ACTIONS.TRANSFER,
+      entity: AUDIT_ENTITIES.ASSET,
+      entityId: assetId,
+      details: { transferType, reason: reason ?? null },
+    });
 
     return NextResponse.json(transfer, { status: 201 });
   } catch (error) {

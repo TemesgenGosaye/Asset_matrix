@@ -44,6 +44,10 @@ const prismaMock = vi.hoisted(() => ({
     count: vi.fn(),
     groupBy: vi.fn(),
   },
+  employee: {
+    findMany: vi.fn(),
+    findFirst: vi.fn(),
+  },
 }));
 
 vi.mock("@/lib/prisma", () => ({
@@ -52,6 +56,11 @@ vi.mock("@/lib/prisma", () => ({
 
 vi.mock("@/lib/api-auth", () => ({
   requirePermission: vi.fn().mockResolvedValue({ id: "user-1", isAdmin: true }),
+  requireApiAdmin: vi.fn().mockResolvedValue({
+    id: "user-1",
+    isAdmin: true,
+    organizationId: "org-1",
+  }),
 }));
 
 vi.mock("@/lib/organization-context", () => ({
@@ -227,6 +236,33 @@ describe("/api/master-options", () => {
     expect(body.items).toMatchObject([
       { id: "Tractor", name: "Tractor", usageCount: 12 },
       { id: "Water pump", name: "Water pump", usageCount: 4 },
+    ]);
+  });
+
+  it("returns linked employees for asset assignment", async () => {
+    prismaMock.employee.findMany.mockResolvedValueOnce([
+      {
+        userid: "user-2",
+        employeeNumber: "EMP-001",
+        firstname: "Marta",
+        lastname: "Haile",
+        department: { name: "Finance" },
+      },
+    ]);
+
+    const req = createMockRequest("/api/master-options?type=employee&q=marta", {
+      method: "GET",
+    });
+    const res = await getMasterOptions(req);
+    const { body } = await parseResponse<any>(res);
+
+    expect(body.items).toMatchObject([
+      {
+        id: "user-2",
+        name: "EMP-001 · Marta Haile",
+        code: "Finance",
+        usageCount: 0,
+      },
     ]);
   });
 

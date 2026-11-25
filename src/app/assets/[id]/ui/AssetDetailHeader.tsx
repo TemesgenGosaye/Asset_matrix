@@ -28,22 +28,13 @@ function StatusChip({ name }) {
   );
 }
 
-export default function AssetDetailHeader({
-  asset,
-  statuses,
-  users,
-  userAssets,
-  isAdmin = true,
-}) {
-  const [statusId, setStatusId] = useState(asset.statustypeid || null);
+export default function AssetDetailHeader({ asset, statuses, isAdmin = true }) {
   const [requestOpen, setRequestOpen] = useState(false);
   const statusName = useMemo(
-    () => statuses.find((s) => s.statustypeid === statusId)?.statustypename,
-    [statuses, statusId],
-  );
-  const active = useMemo(
-    () => statuses.find((s) => s.statustypename?.toLowerCase() === "active"),
-    [statuses],
+    () =>
+      statuses.find((s) => s.statustypeid === asset.statustypeid)
+        ?.statustypename,
+    [statuses, asset.statustypeid],
   );
   const isAvailable = statusName?.toLowerCase().includes("available");
   const canRequest = !isAdmin && (asset.requestable || isAvailable);
@@ -93,14 +84,7 @@ export default function AssetDetailHeader({
             Edit
           </Link>
         )}
-        {isAdmin && (
-          <AssetDetailActions
-            asset={asset}
-            users={users}
-            userAssets={userAssets}
-            onAssigned={() => active && setStatusId(active.statustypeid)}
-          />
-        )}
+        {isAdmin && <AssetDetailActions asset={asset} />}
       </div>
     </div>
   );

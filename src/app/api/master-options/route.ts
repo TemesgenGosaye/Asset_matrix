@@ -2,7 +2,7 @@ import type { Prisma } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getOrganizationContext } from "@/lib/organization-context";
-import { requirePermission } from "@/lib/api-auth";
+import { requireApiAdmin, requirePermission } from "@/lib/api-auth";
 import { createAuditLog } from "@/lib/audit-log";
 import { logger } from "@/lib/logger";
 
@@ -247,6 +247,40 @@ export async function GET(req: NextRequest) {
           usageCount: item._count._all,
         })),
       );
+    } else if (type === "employee") {
+      await requireApiAdmin();
+      const candidates = await prisma.employee.findMany({
+        where: {
+          organizationId: orgId,
+          deletedAt: null,
+          userid: { not: null },
+          user: { isActive: true },
+          ...(q
+            ? {
+                OR: [
+                  { employeeNumber: qFilter },
+                  { firstname: qFilter },
+                  { lastname: qFilter },
+                ],
+              }
+            : {}),
+        },
+        select: {
+          userid: true,
+          employeeNumber: true,
+          firstname: true,
+          lastname: true,
+          department: { select: { name: true } },
+        },
+        orderBy: [{ lastname: "asc" }, { firstname: "asc" }],
+        take: limit,
+      });
+      items = candidates.map((item) => ({
+        id: item.userid!,
+        name: `${item.employeeNumber} · ${item.firstname} ${item.lastname}`.trim(),
+        code: item.department?.name ?? null,
+        usageCount: 0,
+      }));
     } else if (type === "status") {
       const where: Prisma.statusTypeWhereInput = {
         ...orgScope,
@@ -332,6 +366,26 @@ export async function GET(req: NextRequest) {
             isCurrent: true,
           });
         }
+      } else if (type === "employee") {
+        const current = await prisma.employee.findFirst({
+          where: { organizationId: orgId, userid: currentId },
+          select: {
+            userid: true,
+            employeeNumber: true,
+            firstname: true,
+            lastname: true,
+            department: { select: { name: true } },
+          },
+        });
+        if (current?.userid) {
+          items.unshift({
+            id: current.userid,
+            name: `${current.employeeNumber} · ${current.firstname} ${current.lastname}`.trim(),
+            code: current.department?.name ?? null,
+            usageCount: 0,
+            isCurrent: true,
+          });
+        }
       } else if (type === "assetName") {
         items.unshift({
           id: currentId,
@@ -380,6 +434,12 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ items });
   } catch (error) {
     logger.error("Failed to fetch master options", { error });
+    if (error instanceof Error && error.message === "Unauthorized") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    if (error instanceof Error && error.message.startsWith("Forbidden")) {
+      return NextResponse.json({ error: error.message }, { status: 403 });
+    }
     return NextResponse.json(
       {
         error: "Failed to load options",
