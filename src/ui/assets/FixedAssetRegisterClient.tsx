@@ -38,6 +38,7 @@ import { useUrlState } from "@/hooks/useUrlState";
 import { cn } from "@/lib/utils";
 import AssetOperationDialogs from "./AssetOperationDialogs";
 import AssetOperationsMenu from "./AssetOperationsMenu";
+import FixedAssetForm from "./FixedAssetForm";
 import type {
   ActiveAssetOperation,
   ReferenceItem,
@@ -89,7 +90,9 @@ function ConditionBadge({
 }) {
   const normalized = (value ?? "").toLowerCase();
   const variant =
-    normalized === "good"
+    normalized === "good" ||
+    normalized === "active" ||
+    normalized === "assigned"
       ? "success"
       : normalized === "n/f" || normalized === "nf"
         ? "warning"
@@ -149,6 +152,7 @@ export default function FixedAssetRegisterClient({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [createOpen, setCreateOpen] = useState(false);
   const [drawerItem, setDrawerItem] = useState<RegisterAsset | null>(null);
   const [activeOperation, setActiveOperation] =
     useState<ActiveAssetOperation | null>(null);
@@ -330,10 +334,8 @@ export default function FixedAssetRegisterClient({
                   <Upload className="h-4 w-4" /> Import
                 </Link>
               </Button>
-              <Button size="sm" asChild>
-                <Link href="/assets/register/create">
-                  <Plus className="h-4 w-4" /> Add Asset
-                </Link>
+              <Button size="sm" onClick={() => setCreateOpen(true)}>
+                <Plus className="h-4 w-4" /> Add Asset
               </Button>
             </>
           )}

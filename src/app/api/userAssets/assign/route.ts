@@ -145,16 +145,22 @@ export async function POST(req: NextRequest) {
         throw new Error("Employee user not found");
       }
 
-      // Resolve the "Active" status id (case-insensitive), falling back to
-      // the first available status type if "Active" is not configured.
-      let activeStatus = await tx.statusType.findFirst({
-        where: { statustypename: { equals: "Active", mode: "insensitive" } },
-      });
-      if (!activeStatus) {
-        activeStatus = await tx.statusType.findFirst({
+      // Resolve the "Assigned" status first (preferred when assigning),
+      // then fall back to "Active", then the first available status type.
+      let activeStatus =
+        (await tx.statusType.findFirst({
+          where: {
+            statustypename: { equals: "Assigned", mode: "insensitive" },
+          },
+        })) ??
+        (await tx.statusType.findFirst({
+          where: {
+            statustypename: { equals: "Active", mode: "insensitive" },
+          },
+        })) ??
+        (await tx.statusType.findFirst({
           orderBy: { statustypename: "asc" },
-        });
-      }
+        }));
       if (!activeStatus) {
         throw new Error("No status type configured");
       }
