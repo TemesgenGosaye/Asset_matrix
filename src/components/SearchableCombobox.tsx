@@ -312,12 +312,12 @@ export default function SearchableCombobox({
               aria-label={ariaLabel || label || placeholder}
               disabled={disabled}
               className={cn(
-                "border-default-200 bg-background h-10 w-full justify-between rounded-lg px-3 text-left text-sm font-normal shadow-xs transition-colors hover:border-blue-500/60 focus-visible:border-blue-500 focus-visible:ring-blue-500/20",
+                "border-default-200 bg-background hover:border-primary/60 focus-visible:border-primary focus-visible:ring-primary/20 h-10 w-full justify-between rounded-lg px-3 text-left text-sm font-normal shadow-xs transition-colors",
                 !value && !currentValue && "text-muted-foreground",
                 !!selectedOption &&
                   !selectedOption.isLegacy &&
                   !selectedOption.isCurrent &&
-                  "border-blue-500/40 bg-blue-500/5 text-blue-950 dark:text-blue-100",
+                  "border-primary/40 bg-primary/5 text-primary",
                 (selectedOption?.isLegacy || selectedOption?.isCurrent) &&
                   "border-amber-500/60 bg-amber-500/5 text-amber-900 dark:text-amber-200",
               )}
@@ -341,7 +341,7 @@ export default function SearchableCombobox({
                       />
                     )}
                     {selectedOption.code && (
-                      <span className="shrink-0 rounded bg-blue-600/10 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-blue-700 dark:bg-blue-400/15 dark:text-blue-200">
+                      <span className="bg-primary/10 text-primary shrink-0 rounded px-1.5 py-0.5 font-mono text-[10px] font-semibold">
                         {selectedOption.code}
                       </span>
                     )}
@@ -372,7 +372,7 @@ export default function SearchableCombobox({
         </div>
 
         <PopoverContent
-          className="w-[var(--radix-popover-trigger-width)] min-w-[280px] overflow-hidden rounded-xl border-blue-500/20 p-0 shadow-xl ring-1 ring-blue-500/10"
+          className="border-primary/20 ring-primary/10 w-[var(--radix-popover-trigger-width)] min-w-[280px] overflow-hidden rounded-xl p-0 shadow-xl ring-1"
           align="start"
         >
           {/* Search box input */}
@@ -452,12 +452,13 @@ export default function SearchableCombobox({
                       }}
                       className={cn(
                         "flex cursor-pointer items-center justify-between rounded-md px-2.5 py-1.5 text-sm transition-colors select-none",
-                        isHighlighted && "bg-blue-600 font-medium text-white",
+                        isHighlighted &&
+                          "bg-primary text-primary-foreground font-medium",
                         isSelected &&
-                          "bg-blue-600 font-semibold text-white ring-1 ring-blue-400/60 ring-inset",
+                          "bg-primary text-primary-foreground ring-primary/30 font-semibold ring-inset",
                         !isHighlighted &&
                           !isSelected &&
-                          "hover:bg-blue-600 hover:text-white",
+                          "hover:bg-primary hover:text-primary-foreground",
                         opt.isLegacy &&
                           !isHighlighted &&
                           !isSelected &&
@@ -468,7 +469,9 @@ export default function SearchableCombobox({
                         <Check
                           className={cn(
                             "h-4 w-4 shrink-0",
-                            isSelected ? "text-white opacity-100" : "opacity-0",
+                            isSelected
+                              ? "text-primary-foreground opacity-100"
+                              : "opacity-0",
                           )}
                         />
                         {safeColor(opt.color) && (
@@ -488,7 +491,7 @@ export default function SearchableCombobox({
                                 "mr-1.5 rounded px-1.5 py-0.5 font-mono text-[10px] font-semibold",
                                 isHighlighted || isSelected
                                   ? "bg-white/20 text-white"
-                                  : "bg-blue-500/10 text-blue-700 dark:bg-blue-400/15 dark:text-blue-200",
+                                  : "bg-primary/10 text-primary",
                               )}
                             >
                               {opt.code}
@@ -531,7 +534,7 @@ export default function SearchableCombobox({
                                   "rounded px-1 py-0.5 text-[10px] font-medium",
                                   isHighlighted || isSelected
                                     ? "bg-white/20 text-white"
-                                    : "bg-blue-500/10 text-blue-700 dark:bg-blue-400/15 dark:text-blue-200",
+                                    : "bg-primary/10 text-primary",
                                 )}
                                 title="Department usage count"
                               >

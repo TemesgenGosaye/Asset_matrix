@@ -450,7 +450,7 @@ export default function FixedAssetForm({ mode, assetId }: Props) {
           Cancel
         </Button>
         <Button
-          className="w-full bg-blue-600 hover:bg-blue-700 sm:w-auto"
+          className="w-full sm:w-auto"
           onClick={() => void submit()}
           disabled={saving}
         >

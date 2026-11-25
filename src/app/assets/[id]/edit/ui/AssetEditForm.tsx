@@ -246,7 +246,7 @@ export default function AssetEditForm({
               Edit: {initial.assetname}
             </h1>
             <p className="text-foreground-500 mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
-              <span className="rounded bg-blue-500/10 px-1.5 py-0.5 font-mono font-medium text-blue-700 dark:text-blue-200">
+              <span className="bg-primary/10 text-primary rounded px-1.5 py-0.5 font-mono font-medium">
                 {initial.assettag}
               </span>
               <span className="bg-muted rounded px-1.5 py-0.5 font-mono">
@@ -268,19 +268,19 @@ export default function AssetEditForm({
           <TabsList className="bg-muted/60 h-10 w-full justify-start gap-1 rounded-xl p-1 sm:w-auto">
             <TabsTrigger
               value="core"
-              className="data-[state=active]:bg-blue-600 data-[state=active]:text-white data-[state=active]:shadow-sm"
+              className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm"
             >
               Core
             </TabsTrigger>
             <TabsTrigger
               value="details"
-              className="data-[state=active]:bg-blue-600 data-[state=active]:text-white data-[state=active]:shadow-sm"
+              className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm"
             >
               Details
             </TabsTrigger>
             <TabsTrigger
               value="review"
-              className="data-[state=active]:bg-blue-600 data-[state=active]:text-white data-[state=active]:shadow-sm"
+              className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm"
             >
               Review
             </TabsTrigger>
@@ -701,7 +701,7 @@ export default function AssetEditForm({
             </Button>
             <Button
               variant="default"
-              className="w-full bg-blue-600 hover:bg-blue-700 sm:w-auto"
+              className="w-full sm:w-auto"
               type="submit"
               disabled={saving || assettagTaken || serialTaken}
             >

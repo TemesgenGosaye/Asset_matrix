@@ -80,7 +80,7 @@ function formatDate(value) {
 function MetricTile({ label, value, hint }) {
   return (
     <div className="metric-card relative overflow-hidden">
-      <span className="absolute top-0 left-0 h-full w-0.5 bg-blue-600" />
+      <span className="bg-primary absolute top-0 left-0 h-full w-0.5" />
       <p className="text-foreground-500 text-[11px] font-semibold tracking-wide uppercase">
         {label}
       </p>
@@ -359,25 +359,25 @@ export default async function Page(props: { params: Promise<{ id: string }> }) {
           <TabsList className="bg-muted/60 h-10 w-full justify-start gap-1 rounded-xl p-1 sm:w-auto">
             <TabsTrigger
               value="overview"
-              className="data-[state=active]:bg-blue-600 data-[state=active]:text-white data-[state=active]:shadow-sm"
+              className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm"
             >
               Overview
             </TabsTrigger>
             <TabsTrigger
               value="insights"
-              className="data-[state=active]:bg-blue-600 data-[state=active]:text-white data-[state=active]:shadow-sm"
+              className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm"
             >
               Insights
             </TabsTrigger>
             <TabsTrigger
               value="operations"
-              className="data-[state=active]:bg-blue-600 data-[state=active]:text-white data-[state=active]:shadow-sm"
+              className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm"
             >
               Operations
             </TabsTrigger>
             <TabsTrigger
               value="activity"
-              className="data-[state=active]:bg-blue-600 data-[state=active]:text-white data-[state=active]:shadow-sm"
+              className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm"
             >
               Files &amp; History
             </TabsTrigger>

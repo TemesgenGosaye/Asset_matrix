@@ -49,7 +49,7 @@ export default function AssetDetailHeader({ asset, statuses, isAdmin = true }) {
           <StatusChip name={statusName} />
         </div>
         <p className="text-foreground-500 mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
-          <span className="rounded bg-blue-500/10 px-1.5 py-0.5 font-mono font-medium text-blue-700 dark:text-blue-200">
+          <span className="bg-primary/10 text-primary rounded px-1.5 py-0.5 font-mono font-medium">
             {asset.assettag}
           </span>
           <span className="bg-muted rounded px-1.5 py-0.5 font-mono">
@@ -90,7 +90,7 @@ export default function AssetDetailHeader({ asset, statuses, isAdmin = true }) {
         {isAdmin && (
           <Link
             href={`/assets/${asset.assetid}/edit`}
-            className="inline-flex h-8 items-center justify-center rounded-lg bg-blue-600 px-3 text-sm font-medium text-white shadow-sm transition-colors hover:bg-blue-700"
+            className="bg-primary text-primary-foreground hover:bg-primary/90 inline-flex h-8 items-center justify-center rounded-lg px-3 text-sm font-medium shadow-sm transition-colors"
           >
             Edit
           </Link>
