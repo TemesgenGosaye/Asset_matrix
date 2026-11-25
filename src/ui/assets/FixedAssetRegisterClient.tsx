@@ -67,6 +67,8 @@ interface ListResponse {
 const selectClass =
   "h-9 rounded-lg border border-input bg-background px-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring/40";
 
+const TABLE_COLUMN_COUNT = 14;
+
 function formatDate(value?: string | null): string {
   if (!value) return "—";
   const date = new Date(value);
@@ -576,7 +578,7 @@ export default function FixedAssetRegisterClient({
 
       <Card className="overflow-hidden">
         <div className="max-h-[70vh] overflow-auto">
-          <Table>
+          <Table className="min-w-[1880px]">
             <TableHeader className="bg-muted/95 sticky top-0 z-10 backdrop-blur">
               <TableRow>
                 <TableHead className="w-10">
@@ -592,22 +594,27 @@ export default function FixedAssetRegisterClient({
                     aria-label="Select all on page"
                   />
                 </TableHead>
-                <TableHead>No.</TableHead>
-                <TableHead>Description</TableHead>
-                <TableHead>Department</TableHead>
-                <TableHead>Category Code</TableHead>
-                <TableHead>Property No</TableHead>
-                <TableHead>Condition 1st / 2nd</TableHead>
-                <TableHead>Location 1st / 2nd</TableHead>
-                <TableHead>Review 1st / 2nd</TableHead>
-                <TableHead>Flags</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+                <TableHead className="w-16">No.</TableHead>
+                <TableHead className="min-w-[260px]">Description</TableHead>
+                <TableHead className="min-w-[160px]">Department</TableHead>
+                <TableHead className="min-w-[130px]">Category Code</TableHead>
+                <TableHead className="min-w-[140px]">Property No</TableHead>
+                <TableHead className="min-w-[130px]">Condition (1st)</TableHead>
+                <TableHead className="min-w-[130px]">Condition (2nd)</TableHead>
+                <TableHead className="min-w-[180px]">Location (1st)</TableHead>
+                <TableHead className="min-w-[180px]">Location (2nd)</TableHead>
+                <TableHead className="min-w-[130px]">Review (1st)</TableHead>
+                <TableHead className="min-w-[130px]">Review (2nd)</TableHead>
+                <TableHead className="min-w-[140px]">Flags</TableHead>
+                <TableHead className="min-w-[180px] text-right">
+                  Actions
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {loading && (
                 <TableRow>
-                  <TableCell colSpan={11}>
+                  <TableCell colSpan={TABLE_COLUMN_COUNT}>
                     <div className="space-y-2">
                       {[0, 1, 2, 3, 4].map((index) => (
                         <Skeleton key={index} className="h-8 w-full" />
@@ -619,7 +626,7 @@ export default function FixedAssetRegisterClient({
               {!loading && !data.items.length && (
                 <TableRow>
                   <TableCell
-                    colSpan={11}
+                    colSpan={TABLE_COLUMN_COUNT}
                     className="text-muted-foreground py-16 text-center"
                   >
                     No assets match the current filters.
@@ -632,7 +639,7 @@ export default function FixedAssetRegisterClient({
                     {group.key && (
                       <TableRow className="bg-muted/60">
                         <TableCell
-                          colSpan={11}
+                          colSpan={TABLE_COLUMN_COUNT}
                           className="text-foreground font-semibold"
                         >
                           {group.key} ({group.items.length})
@@ -679,37 +686,49 @@ export default function FixedAssetRegisterClient({
                         <TableCell className="font-mono text-xs">
                           {item.serialnumber}
                         </TableCell>
-                        <TableCell>
-                          <div className="flex flex-col gap-1">
-                            <ConditionBadge
-                              value={item.condition1}
-                              color={
-                                statusColorByName.get(
-                                  item.condition1?.toLowerCase() ?? "",
-                                ) ?? null
-                              }
-                            />
-                            <ConditionBadge
-                              value={item.statusType?.statustypename}
-                              color={safeColor(
-                                statusColorByName.get(
-                                  item.statusType?.statustypename.toLowerCase() ??
-                                    "",
-                                ) ?? null,
-                              )}
-                            />
-                          </div>
+                        <TableCell className="min-w-[130px]">
+                          <ConditionBadge
+                            value={item.condition1}
+                            color={
+                              statusColorByName.get(
+                                item.condition1?.toLowerCase() ?? "",
+                              ) ?? null
+                            }
+                          />
                         </TableCell>
-                        <TableCell className="max-w-[180px] truncate text-xs">
+                        <TableCell className="min-w-[130px]">
+                          <ConditionBadge
+                            value={item.statusType?.statustypename}
+                            color={safeColor(
+                              statusColorByName.get(
+                                item.statusType?.statustypename.toLowerCase() ??
+                                  "",
+                              ) ?? null,
+                            )}
+                          />
+                        </TableCell>
+                        <TableCell
+                          className="max-w-[180px] truncate text-xs"
+                          title={item.location1 || undefined}
+                        >
                           {item.location1 || "—"}
-                          <br />
+                        </TableCell>
+                        <TableCell
+                          className="max-w-[180px] truncate text-xs"
+                          title={
+                            item.location?.locationname ||
+                            item.location2Raw ||
+                            undefined
+                          }
+                        >
                           {item.location?.locationname ||
                             item.location2Raw ||
                             "—"}
                         </TableCell>
                         <TableCell className="text-xs tabular-nums">
                           {formatDate(item.reviewDate1)}
-                          <br />
+                        </TableCell>
+                        <TableCell className="text-xs tabular-nums">
                           {formatDate(item.reviewsDate)}
                         </TableCell>
                         <TableCell>
