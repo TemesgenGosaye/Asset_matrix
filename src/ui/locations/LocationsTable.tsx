@@ -40,14 +40,22 @@ import {
   DeleteIcon,
   MoreVertical,
 } from "../Icons";
-import { ChevronRight, MapPin } from "lucide-react";
+import { ChevronRight, MapPin, GitMerge, Sparkles, Edit3, Power, Loader2 } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Badge } from "@/components/ui/badge";
 import { notify } from "@/lib/feedback/notify";
 
 const ROWS_PER_PAGE_OPTIONS = ["10", "20", "50", "100"];
 
+interface DuplicateCluster {
+  primary: { id: string; name: string; usageCount: number };
+  candidates: { id: string; name: string; usageCount: number; reason: string }[];
+}
+
 export default function LocationsTable({ items }) {
   const [searchValue, setSearchValue] = useState("");
   const [countryFilter, setCountryFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("active");
   const [rowsPerPage, setRowsPerPage] = useState(
     Number(ROWS_PER_PAGE_OPTIONS[0]),
   );
@@ -56,6 +64,22 @@ export default function LocationsTable({ items }) {
   const [selectedLocation, setSelectedLocation] = useState(null);
   const [locationsData, setLocationsData] = useState(items);
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
+
+  // Multi-select & merge states
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [isMergeModalOpen, setIsMergeModalOpen] = useState(false);
+  const [mergeTargetId, setMergeTargetId] = useState<string>("");
+  const [merging, setMerging] = useState(false);
+
+  // Rename modal states
+  const [isRenameModalOpen, setIsRenameModalOpen] = useState(false);
+  const [renameValue, setRenameValue] = useState("");
+  const [renaming, setRenaming] = useState(false);
+
+  // Possible duplicates modal states
+  const [isDuplicatesOpen, setIsDuplicatesOpen] = useState(false);
+  const [duplicatesLoading, setDuplicatesLoading] = useState(false);
+  const [duplicateClusters, setDuplicateClusters] = useState<DuplicateCluster[]>([]);
 
   const toggleExpand = (locationId: string) => {
     setExpandedRows((prev) => {
@@ -115,9 +139,15 @@ export default function LocationsTable({ items }) {
         countryFilter === "all" ||
         (item.country ?? "").toLowerCase() === countryFilter.toLowerCase();
 
-      return matchesSearch && matchesCountry;
+      const itemActive = item.isActive !== false;
+      const matchesStatus =
+        statusFilter === "all" ||
+        (statusFilter === "active" && itemActive) ||
+        (statusFilter === "inactive" && !itemActive);
+
+      return matchesSearch && matchesCountry && matchesStatus;
     });
-  }, [locationsData, searchValue, countryFilter]);
+  }, [locationsData, searchValue, countryFilter, statusFilter]);
 
   const pages = Math.max(1, Math.ceil(filteredItems.length / rowsPerPage));
   const paginatedItems = useMemo(() => {
@@ -158,6 +188,131 @@ export default function LocationsTable({ items }) {
     }
   };
 
+  const toggleSelect = (locationId: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(locationId)) next.delete(locationId);
+      else next.add(locationId);
+      return next;
+    });
+  };
+
+  const handleToggleActive = async (item) => {
+    const nextActive = item.isActive === false;
+    try {
+      const res = await fetch("/api/location", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          locationid: item.locationid,
+          isActive: nextActive,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to update status");
+      setLocationsData((prev) =>
+        prev.map((loc) =>
+          loc.locationid === item.locationid
+            ? { ...loc, isActive: nextActive }
+            : loc,
+        ),
+      );
+      notify.success(
+        nextActive ? "Location reactivated" : "Location deactivated",
+      );
+    } catch (err) {
+      notify.error(err instanceof Error ? err.message : "Update failed");
+    }
+  };
+
+  const handleRenameSubmit = async () => {
+    if (!selectedLocation || !renameValue.trim()) return;
+    setRenaming(true);
+    try {
+      const res = await fetch("/api/location", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          locationid: selectedLocation.locationid,
+          locationname: renameValue.trim(),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to rename location");
+      setLocationsData((prev) =>
+        prev.map((loc) =>
+          loc.locationid === selectedLocation.locationid
+            ? { ...loc, locationname: data.locationname }
+            : loc,
+        ),
+      );
+      notify.success("Location renamed");
+      setIsRenameModalOpen(false);
+    } catch (err) {
+      notify.error(err instanceof Error ? err.message : "Rename failed");
+    } finally {
+      setRenaming(false);
+    }
+  };
+
+  const handleMerge = async (sourceIds: string[], targetId: string) => {
+    setMerging(true);
+    try {
+      const res = await fetch("/api/master-data/merge", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type: "location", sourceIds, targetId }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Merge failed");
+      notify.success(data.message || "Locations merged");
+
+      const sourceSet = new Set(sourceIds.filter((id) => id !== targetId));
+      const newTargetUsage = data.details?.targetLocation?.usageCount;
+      setLocationsData((prev) =>
+        prev.map((loc) => {
+          if (sourceSet.has(loc.locationid)) {
+            return { ...loc, isActive: false };
+          }
+          if (loc.locationid === targetId && typeof newTargetUsage === "number") {
+            return { ...loc, usageCount: newTargetUsage };
+          }
+          return loc;
+        }),
+      );
+      setSelectedIds(new Set());
+      setIsMergeModalOpen(false);
+      // Remove merged candidates from duplicateClusters if open
+      setDuplicateClusters((prev) =>
+        prev
+          .map((cluster) => ({
+            ...cluster,
+            candidates: cluster.candidates.filter((c) => !sourceSet.has(c.id)),
+          }))
+          .filter((cluster) => cluster.candidates.length > 0),
+      );
+    } catch (err) {
+      notify.error(err instanceof Error ? err.message : "Merge failed");
+    } finally {
+      setMerging(false);
+    }
+  };
+
+  const openDuplicatesModal = async () => {
+    setIsDuplicatesOpen(true);
+    setDuplicatesLoading(true);
+    try {
+      const res = await fetch("/api/master-data/duplicates?type=location");
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to load duplicates");
+      setDuplicateClusters(data.clusters || []);
+    } catch (err) {
+      notify.error(err instanceof Error ? err.message : "Failed to load duplicates");
+    } finally {
+      setDuplicatesLoading(false);
+    }
+  };
+
   const renderActions = (item) => (
     <div className="flex items-center gap-1">
       <Button
@@ -182,14 +337,29 @@ export default function LocationsTable({ items }) {
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           <DropdownMenuItem
+            onClick={() => {
+              setSelectedLocation(item);
+              setRenameValue(item.locationname ?? "");
+              setIsRenameModalOpen(true);
+            }}
+          >
+            <Edit3 className="mr-2 h-4 w-4" />
+            Rename
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => handleToggleActive(item)}>
+            <Power className="mr-2 h-4 w-4" />
+            {item.isActive === false ? "Reactivate" : "Deactivate"}
+          </DropdownMenuItem>
+          <DropdownMenuItem
             className="text-destructive focus:text-destructive"
+            disabled={(item.usageCount ?? 0) > 0}
             onClick={() => {
               setSelectedLocation(item);
               setIsDeleteModalOpen(true);
             }}
           >
             <DeleteIcon className="mr-2 h-4 w-4" />
-            Delete
+            {(item.usageCount ?? 0) > 0 ? "Delete (In Use)" : "Delete"}
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -204,6 +374,13 @@ export default function LocationsTable({ items }) {
     return (
       <React.Fragment key={item.locationid}>
         <TableRow className={depth > 0 ? "bg-muted/30" : ""}>
+          <TableCell className="w-10">
+            <Checkbox
+              aria-label={`Select ${item.locationname ?? "location"}`}
+              checked={selectedIds.has(item.locationid)}
+              onCheckedChange={() => toggleSelect(item.locationid)}
+            />
+          </TableCell>
           <TableCell>
             <div
               className="flex items-center gap-2"
@@ -226,12 +403,20 @@ export default function LocationsTable({ items }) {
               <span className={depth === 0 && hasChildren ? "font-medium" : ""}>
                 {item.locationname ?? "(unnamed)"}
               </span>
+              {item.isActive === false && (
+                <Badge variant="secondary" className="text-[10px]">
+                  Inactive
+                </Badge>
+              )}
               {hasChildren && (
                 <span className="text-muted-foreground text-xs">
                   ({children.length})
                 </span>
               )}
             </div>
+          </TableCell>
+          <TableCell className="font-mono text-xs">
+            {item.usageCount ?? 0}
           </TableCell>
           <TableCell>
             {item.street
@@ -251,14 +436,33 @@ export default function LocationsTable({ items }) {
   return (
     <div className="w-full space-y-4">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <h1 className="text-2xl font-bold tracking-tight">Locations: ቦታዎች</h1>
-        <Button asChild>
-          <Link href="/locations/create">
-            <PlusIcon className="mr-2 h-4 w-4" />
-            Create
-          </Link>
-        </Button>
+        <div className="flex items-center gap-2">
+          {selectedIds.size >= 2 && (
+            <Button
+              variant="secondary"
+              onClick={() => {
+                const firstSelected = Array.from(selectedIds)[0] || "";
+                setMergeTargetId(firstSelected);
+                setIsMergeModalOpen(true);
+              }}
+            >
+              <GitMerge className="mr-2 h-4 w-4" />
+              Merge ({selectedIds.size})
+            </Button>
+          )}
+          <Button variant="outline" onClick={openDuplicatesModal}>
+            <Sparkles className="mr-2 h-4 w-4" />
+            Possible Duplicates
+          </Button>
+          <Button asChild>
+            <Link href="/locations/create">
+              <PlusIcon className="mr-2 h-4 w-4" />
+              Create
+            </Link>
+          </Button>
+        </div>
       </div>
 
       {/* Search + filters */}
@@ -276,6 +480,22 @@ export default function LocationsTable({ items }) {
             }}
           />
         </div>
+        <Select
+          value={statusFilter}
+          onValueChange={(v) => {
+            setStatusFilter(v);
+            setPage(1);
+          }}
+        >
+          <SelectTrigger className="h-9 w-[140px]">
+            <SelectValue placeholder="Status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="active">Active</SelectItem>
+            <SelectItem value="inactive">Inactive</SelectItem>
+            <SelectItem value="all">All</SelectItem>
+          </SelectContent>
+        </Select>
         <Select
           value={countryFilter}
           onValueChange={(v) => {
@@ -327,7 +547,9 @@ export default function LocationsTable({ items }) {
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead className="w-10" />
               <TableHead>Name</TableHead>
+              <TableHead className="w-24">Usage</TableHead>
               <TableHead>Street</TableHead>
               <TableHead>City</TableHead>
               <TableHead>Country</TableHead>
@@ -338,7 +560,7 @@ export default function LocationsTable({ items }) {
             {paginatedItems.length === 0 ? (
               <TableRow>
                 <TableCell
-                  colSpan={5}
+                  colSpan={7}
                   className="text-muted-foreground h-24 text-center"
                 >
                   No locations found
@@ -396,6 +618,148 @@ export default function LocationsTable({ items }) {
               Delete
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Rename Modal */}
+      <Dialog open={isRenameModalOpen} onOpenChange={setIsRenameModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Rename Location</DialogTitle>
+            <DialogDescription>
+              Update the master display name for &quot;
+              {selectedLocation?.locationname}&quot;.
+            </DialogDescription>
+          </DialogHeader>
+          <Input
+            value={renameValue}
+            onChange={(e) => setRenameValue(e.target.value)}
+            placeholder="Location name"
+            autoFocus
+          />
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setIsRenameModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              disabled={renaming || !renameValue.trim()}
+              onClick={handleRenameSubmit}
+            >
+              {renaming ? "Saving..." : "Save"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Merge Modal */}
+      <Dialog open={isMergeModalOpen} onOpenChange={setIsMergeModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Merge {selectedIds.size} Locations</DialogTitle>
+            <DialogDescription>
+              Choose the canonical target location. All assets referencing the
+              other selected locations will be re-pointed to the target, and the
+              source entries will be deactivated.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 py-2">
+            <label className="text-sm font-medium">Target Location</label>
+            <Select value={mergeTargetId} onValueChange={setMergeTargetId}>
+              <SelectTrigger>
+                <SelectValue placeholder="Choose target..." />
+              </SelectTrigger>
+              <SelectContent>
+                {locationsData
+                  .filter((l) => selectedIds.has(l.locationid))
+                  .map((l) => (
+                    <SelectItem key={l.locationid} value={l.locationid}>
+                      {l.locationname} ({l.usageCount ?? 0} uses)
+                    </SelectItem>
+                  ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setIsMergeModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              disabled={merging || !mergeTargetId}
+              onClick={() =>
+                handleMerge(Array.from(selectedIds), mergeTargetId)
+              }
+            >
+              {merging ? "Merging..." : "Confirm Merge"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Possible Duplicates Modal */}
+      <Dialog open={isDuplicatesOpen} onOpenChange={setIsDuplicatesOpen}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Possible Duplicate Locations</DialogTitle>
+            <DialogDescription>
+              Similar spellings and abbreviations detected in active locations.
+              Review carefully before merging.
+            </DialogDescription>
+          </DialogHeader>
+          {duplicatesLoading ? (
+            <div className="flex items-center justify-center py-8 text-sm text-muted-foreground">
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Scanning
+              locations...
+            </div>
+          ) : duplicateClusters.length === 0 ? (
+            <div className="py-8 text-center text-sm text-muted-foreground">
+              No likely duplicates found among top active locations.
+            </div>
+          ) : (
+            <div className="space-y-3 py-2">
+              {duplicateClusters.map((cluster) => (
+                <div
+                  key={cluster.primary.id}
+                  className="rounded-lg border p-3 space-y-2"
+                >
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <span className="font-semibold">
+                        {cluster.primary.name}
+                      </span>
+                      <span className="ml-2 text-xs text-muted-foreground">
+                        ({cluster.primary.usageCount} uses — Primary)
+                      </span>
+                    </div>
+                  </div>
+                  <div className="space-y-1.5 pl-3 border-l-2 border-muted">
+                    {cluster.candidates.map((cand) => (
+                      <div
+                        key={cand.id}
+                        className="flex items-center justify-between gap-2 text-sm"
+                      >
+                        <div>
+                          <span>{cand.name}</span>
+                          <span className="ml-2 text-xs text-muted-foreground">
+                            ({cand.usageCount} uses · {cand.reason})
+                          </span>
+                        </div>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={merging}
+                          onClick={() =>
+                            handleMerge([cand.id], cluster.primary.id)
+                          }
+                        >
+                          Merge into Primary
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>

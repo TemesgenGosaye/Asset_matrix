@@ -587,12 +587,16 @@ model asset {
   additionalDataJson       Json?
   sourceRow                Int?
   hiddenInSource           Boolean                 @default(false)
+  location1Id              String?                 @db.Uuid
+  condition1StatusId       String?                 @db.Uuid
   assetCategoryType        assetCategoryType?      @relation(fields: [assetcategorytypeid], references: [assetcategorytypeid], onDelete: NoAction, onUpdate: NoAction, map: "fk_asset_assetcategorytype_c_assetcategorytypeid")
-  location                 location?               @relation(fields: [locationid], references: [locationid], onDelete: NoAction, onUpdate: NoAction, map: "fk_asset_location_c_locationid")
+  location                 location?               @relation("asset_location2", fields: [locationid], references: [locationid], onDelete: NoAction, onUpdate: NoAction, map: "fk_asset_location_c_locationid")
+  location1Rel             location?               @relation("asset_location1", fields: [location1Id], references: [locationid], onDelete: SetNull, map: "fk_asset_location1_c_location1id")
   manufacturer             manufacturer?           @relation(fields: [manufacturerid], references: [manufacturerid], onDelete: NoAction, onUpdate: NoAction, map: "fk_asset_manufacturer_c_manufacturerid")
   model                    model?                  @relation(fields: [modelid], references: [modelid], onDelete: NoAction, onUpdate: NoAction, map: "fk_asset_model_c_modelid")
   organization             Organization?           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  statusType               statusType?             @relation(fields: [statustypeid], references: [statustypeid], onDelete: NoAction, onUpdate: NoAction, map: "fk_asset_statustype_c_statustypeid")
+  statusType               statusType?             @relation("asset_statustype", fields: [statustypeid], references: [statustypeid], onDelete: NoAction, onUpdate: NoAction, map: "fk_asset_statustype_c_statustypeid")
+  condition1Status         statusType?             @relation("asset_condition1_status", fields: [condition1StatusId], references: [statustypeid], onDelete: SetNull, map: "fk_asset_condition1_status_c_statusid")
   supplier                 supplier?               @relation(fields: [supplierid], references: [supplierid], onDelete: NoAction, onUpdate: NoAction, map: "fk_asset_supplier_c_supplierid")
   department               Department?             @relation(fields: [departmentId], references: [id], onDelete: SetNull)
   asset_attachments        asset_attachments[]
@@ -609,6 +613,8 @@ model asset {
   @@index([statustypeid])
   @@index([assetcategorytypeid])
   @@index([locationid])
+  @@index([location1Id])
+  @@index([condition1StatusId])
   @@index([organizationId])
   @@index([creation_date])
   @@index([modelid])
@@ -628,6 +634,7 @@ model asset {
   @@index([organizationId, sourceDepartment, categoryCode])
   @@index([organizationId, reviewDate1])
   @@index([organizationId, location1])
+  @@index([organizationId, location1Id])
   @@schema("public")
 }
 
@@ -675,6 +682,9 @@ model assetCategoryType {
   assetcategorytypeid   String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   assetcategorytypename String                 @db.VarChar
   assetTypeCode         String?                @db.VarChar(50)
+  normalizedName        String?                @db.VarChar(100)
+  isActive              Boolean                @default(true)
+  usageCount            Int                    @default(0)
   organizationId        String?                @db.Uuid
   organization          Organization?          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   asset                 asset[]
@@ -682,6 +692,7 @@ model assetCategoryType {
 
   @@index([organizationId])
   @@index([assetTypeCode])
+  @@index([organizationId, normalizedName])
   @@schema("public")
 }
 
@@ -898,6 +909,9 @@ model licenceCategoryType {
 model location {
   locationid        String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   locationname      String?         @db.VarChar
+  normalizedName    String?         @db.VarChar(500)
+  isActive          Boolean         @default(true)
+  usageCount        Int             @default(0)
   street            String?         @db.VarChar
   housenumber       String?         @db.VarChar
   city              String?         @db.VarChar
@@ -912,7 +926,8 @@ model location {
   parent            location?       @relation("LocationHierarchy", fields: [parentId], references: [locationid], onDelete: SetNull)
   children          location[]      @relation("LocationHierarchy")
   accessories       accessories[]
-  asset             asset[]
+  asset             asset[]         @relation("asset_location2")
+  assetsLocation1   asset[]         @relation("asset_location1")
   components        Component[]
   checkoutsReceived AssetCheckout[] @relation("checkout_to_location")
   auditEntries      AuditEntry[]
@@ -921,6 +936,7 @@ model location {
 
   @@index([parentId])
   @@index([organizationId])
+  @@index([organizationId, normalizedName])
   @@schema("public")
 }
 
@@ -1094,18 +1110,23 @@ model sessions {
 }
 
 model statusType {
-  statustypeid    String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  statustypename  String               @db.VarChar
-  color           String?              @db.VarChar(7)
-  isDefault       Boolean              @default(false)
-  organizationId  String?              @db.Uuid
-  organization    Organization?        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  accessories     accessories[]
-  asset           asset[]
-  transitionsFrom status_transitions[] @relation("from_status")
-  transitionsTo   status_transitions[] @relation("to_status")
+  statustypeid     String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  statustypename   String               @db.VarChar
+  normalizedName   String?              @db.VarChar(100)
+  isActive         Boolean              @default(true)
+  usageCount       Int                  @default(0)
+  color            String?              @db.VarChar(7)
+  isDefault        Boolean              @default(false)
+  organizationId   String?              @db.Uuid
+  organization     Organization?        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  accessories      accessories[]
+  asset            asset[]              @relation("asset_statustype")
+  assetsCondition1 asset[]              @relation("asset_condition1_status")
+  transitionsFrom  status_transitions[] @relation("from_status")
+  transitionsTo    status_transitions[] @relation("to_status")
 
   @@index([organizationId])
+  @@index([organizationId, normalizedName])
   @@schema("public")
 }
 

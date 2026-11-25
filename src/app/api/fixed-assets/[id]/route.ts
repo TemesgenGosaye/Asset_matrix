@@ -8,6 +8,7 @@ import {
 } from "@/lib/fixed-asset-api";
 import { createAuditLog } from "@/lib/audit-log";
 import { invalidateFixedAssetAnalytics } from "@/lib/fixed-asset-analytics/service";
+import { validateMasterReferences } from "@/lib/master-validation";
 import { logger } from "@/lib/logger";
 
 export const dynamic = "force-dynamic";
@@ -15,7 +16,9 @@ export const dynamic = "force-dynamic";
 const ASSET_INCLUDE = {
   department: true,
   statusType: true,
+  condition1Status: true,
   location: true,
+  location1Rel: true,
   assetCategoryType: true,
   manufacturer: true,
   model: true,
@@ -90,6 +93,38 @@ export async function PATCH(
     for (const field of textFields) {
       if (typeof body[field] === "string") data[field] = body[field];
     }
+    const fkFields = [
+      "location1Id",
+      "locationid",
+      "condition1StatusId",
+      "statustypeid",
+      "assetcategorytypeid",
+    ] as const;
+    for (const field of fkFields) {
+      if (body[field] === null || body[field] === "") {
+        data[field] = null;
+      } else if (typeof body[field] === "string") {
+        data[field] = body[field];
+      }
+    }
+    const masterError = await validateMasterReferences(
+      {
+        location1Id: typeof body.location1Id === "string" ? body.location1Id : undefined,
+        locationid: typeof body.locationid === "string" ? body.locationid : undefined,
+        condition1StatusId:
+          typeof body.condition1StatusId === "string"
+            ? body.condition1StatusId
+            : undefined,
+        statustypeid: typeof body.statustypeid === "string" ? body.statustypeid : undefined,
+        assetcategorytypeid:
+          typeof body.assetcategorytypeid === "string"
+            ? body.assetcategorytypeid
+            : undefined,
+      },
+      context.organizationId,
+      existing,
+    );
+    if (masterError) return masterError;
     for (const field of ["reviewDate1", "reviewsDate"] as const) {
       if (typeof body[field] === "string" && body[field]) {
         const date = new Date(body[field]);

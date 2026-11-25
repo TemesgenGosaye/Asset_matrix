@@ -12,6 +12,7 @@ import CustomFieldsSection from "@/components/CustomFieldsSection";
 import SelectWithQuickCreate, {
   type QuickCreateOption,
 } from "@/components/SelectWithQuickCreate";
+import SearchableCombobox from "@/components/SearchableCombobox";
 import {
   Select,
   SelectContent,
@@ -86,7 +87,6 @@ export default function AssetEditForm({
   const [error, setError] = useState("");
   const [assettagTaken, setAssettagTaken] = useState(false);
   const [serialTaken, setSerialTaken] = useState(false);
-  const [isDirty, setIsDirty] = useState(false);
   const [customFieldValues, setCustomFieldValues] = useState<
     Record<string, string | null>
   >({});
@@ -107,8 +107,10 @@ export default function AssetEditForm({
     requestable: Boolean(initial.requestable),
     assetcategorytypeid: initial.assetcategorytypeid ?? "",
     statustypeid: initial.statustypeid ?? "",
+    condition1StatusId: initial.condition1StatusId ?? "",
     supplierid: initial.supplierid ?? "",
     locationid: initial.locationid ?? "",
+    location1Id: initial.location1Id ?? "",
     manufacturerid: initial.manufacturerid ?? "",
     departmentid: initial.departmentId ?? "",
     departmentCode: initial.departmentCode ?? "",
@@ -139,8 +141,10 @@ export default function AssetEditForm({
         requestable: Boolean(initial.requestable),
         assetcategorytypeid: initial.assetcategorytypeid ?? "",
         statustypeid: initial.statustypeid ?? "",
+        condition1StatusId: initial.condition1StatusId ?? "",
         supplierid: initial.supplierid ?? "",
         locationid: initial.locationid ?? "",
+        location1Id: initial.location1Id ?? "",
         manufacturerid: initial.manufacturerid ?? "",
         departmentid: initial.departmentId ?? "",
         departmentCode: initial.departmentCode ?? "",
@@ -156,9 +160,10 @@ export default function AssetEditForm({
     [initial],
   );
 
-  useEffect(() => {
-    setIsDirty(JSON.stringify({ ...form }) !== initialSnapshot);
-  }, [form, initialSnapshot]);
+  const isDirty = useMemo(
+    () => JSON.stringify({ ...form }) !== initialSnapshot,
+    [form, initialSnapshot],
+  );
 
   useEffect(() => {
     const beforeUnload = (e) => {
@@ -196,8 +201,10 @@ export default function AssetEditForm({
           purchasedate: form.purchasedate || null,
           assetcategorytypeid: form.assetcategorytypeid || null,
           statustypeid: form.statustypeid || null,
+          condition1StatusId: form.condition1StatusId || null,
           supplierid: form.supplierid || null,
           locationid: form.locationid || null,
+          location1Id: form.location1Id || null,
           manufacturerid: form.manufacturerid || null,
           departmentId: form.departmentid || null,
           departmentCode: form.departmentCode || null,
@@ -296,84 +303,101 @@ export default function AssetEditForm({
                 />
               </div>
               <div>
-                <Label htmlFor="assetcategorytypeid">Asset Type</Label>
-                <SelectWithQuickCreate
+                <SearchableCombobox
                   id="assetcategorytypeid"
+                  label="Asset Type"
+                  type="category"
                   value={form.assetcategorytypeid}
-                  onValueChange={onSelectChange("assetcategorytypeid")}
-                  options={categoryOptions}
-                  onItemCreated={(item) =>
-                    setCategoryOptions((prev) => [...prev, item])
+                  departmentId={form.departmentid || null}
+                  currentValue={
+                    !form.assetcategorytypeid ? initial.categoryCode || null : null
                   }
-                  placeholder="Select asset type"
-                  apiEndpoint="/api/assetCategory"
-                  nameField="assetcategorytypename"
-                  idField="assetcategorytypeid"
-                  entityLabel="Asset Type"
+                  placeholder="Select asset type..."
+                  onChange={(val) => onSelectChange("assetcategorytypeid")(val)}
                 />
               </div>
               <div>
-                <Label htmlFor="statustypeid">Status</Label>
-                <SelectWithQuickCreate
+                <SearchableCombobox
                   id="statustypeid"
+                  label="Status / Condition (2nd)"
+                  type="status"
                   value={form.statustypeid}
-                  onValueChange={onSelectChange("statustypeid")}
-                  options={statusOptions}
-                  onItemCreated={(item) =>
-                    setStatusOptions((prev) => [...prev, item])
+                  currentValue={
+                    !form.statustypeid ? initial.condition2Raw || null : null
                   }
-                  placeholder="Select status"
-                  apiEndpoint="/api/statusType"
-                  nameField="statustypename"
-                  idField="statustypeid"
-                  entityLabel="Status"
+                  placeholder="Select status..."
+                  allowCreate={false}
+                  onChange={(val) => onSelectChange("statustypeid")(val)}
                 />
               </div>
               <div>
-                <Label htmlFor="departmentid">Department</Label>
-                <Select
+                <SearchableCombobox
+                  id="condition1StatusId"
+                  label="Condition (1st)"
+                  type="status"
+                  value={form.condition1StatusId}
+                  currentValue={
+                    !form.condition1StatusId ? initial.condition1 || null : null
+                  }
+                  placeholder="Select condition (1st)..."
+                  allowCreate={false}
+                  onChange={(val) => onSelectChange("condition1StatusId")(val)}
+                />
+              </div>
+              <div>
+                <SearchableCombobox
+                  id="departmentid"
+                  label="Department"
+                  type="department"
                   value={form.departmentid}
-                  onValueChange={(value) => {
+                  currentValue={
+                    !form.departmentid ? initial.sourceDepartment || null : null
+                  }
+                  placeholder="Select department..."
+                  allowCreate={false}
+                  onChange={(value, item) => {
                     const option = departmentOptions.find(
                       (o) => o.id === value,
                     );
                     setForm((f) => ({
                       ...f,
                       departmentid: value,
-                      departmentCode: option?.code ?? "",
+                      departmentCode: item?.code ?? option?.code ?? "",
                     }));
                   }}
-                >
-                  <SelectTrigger id="departmentid">
-                    <SelectValue placeholder="Select department" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {departmentOptions.length === 0 && (
-                      <p className="text-muted-foreground px-3 py-2 text-sm">
-                        No departments loaded yet
-                      </p>
-                    )}
-                    {departmentOptions.map((option) => (
-                      <SelectItem key={option.id} value={option.id}>
-                        <span
-                          className="flex items-baseline gap-1.5"
-                          style={{ paddingLeft: option.depth * 12 }}
-                        >
-                          {option.code && (
-                            <span className="text-muted-foreground font-mono text-xs">
-                              {option.code}
-                            </span>
-                          )}
-                          <span>{option.name}</span>
-                        </span>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                />
                 <p className="text-foreground-500 mt-1 text-xs">
                   Official MSF department. The department code is used in PID
                   and asset tag generation.
                 </p>
+              </div>
+              <div>
+                <SearchableCombobox
+                  id="location1Id"
+                  label="Location (1st)"
+                  type="location1"
+                  value={form.location1Id}
+                  departmentId={form.departmentid || null}
+                  currentValue={
+                    !form.location1Id ? initial.location1 || null : null
+                  }
+                  placeholder="Search location (1st)..."
+                  onChange={(val) => onSelectChange("location1Id")(val)}
+                />
+              </div>
+              <div>
+                <SearchableCombobox
+                  id="locationid"
+                  label="Location (2nd)"
+                  type="location2"
+                  value={form.locationid}
+                  departmentId={form.departmentid || null}
+                  currentValue={
+                    !form.locationid ? initial.location2Raw || null : null
+                  }
+                  placeholder="Search location (2nd)..."
+                  onChange={(val) => onSelectChange("locationid")(val)}
+                />
               </div>
               <div className="flex gap-6">
                 <div className="flex items-center space-x-2">

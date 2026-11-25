@@ -193,6 +193,8 @@ export const createAssetSchema = z.object({
   statustypeid: optionalUuid,
   supplierid: optionalUuid,
   locationid: optionalUuid,
+  location1Id: optionalUuid,
+  condition1StatusId: optionalUuid,
   manufacturerid: optionalUuid,
   departmentId: optionalUuid,
   departmentCode: optionalString,
@@ -218,6 +220,8 @@ export const updateAssetSchema = z.object({
   statustypeid: optionalUuid,
   supplierid: optionalUuid,
   locationid: optionalUuid,
+  location1Id: optionalUuid,
+  condition1StatusId: optionalUuid,
   manufacturerid: optionalUuid,
   departmentId: optionalUuid,
   departmentCode: optionalString,
@@ -334,7 +338,9 @@ export const createLocationSchema = z.object({
   parentId: z.string().uuid().nullable().optional(),
 });
 
-export const updateLocationSchema = createLocationSchema.partial();
+export const updateLocationSchema = createLocationSchema.partial().extend({
+  isActive: z.boolean().optional(),
+});
 
 // ---------------------------------------------------------------------------
 // Category Type schemas

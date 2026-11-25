@@ -33,6 +33,7 @@ import {
   AUDIT_ENTITIES,
 } from "@/lib/audit-log";
 import { generateNextPidAtomic } from "@/lib/asset-pid";
+import { validateMasterReferences } from "@/lib/master-validation";
 
 const ASSET_SORT_FIELDS = [
   "assetname",
@@ -210,6 +211,9 @@ export async function POST(req: NextRequest) {
     const department = await resolveDepartment(d.departmentId, orgId);
     if (department instanceof NextResponse) return department;
 
+    const masterError = await validateMasterReferences(d, orgId);
+    if (masterError) return masterError;
+
     const created = await prisma.$transaction(async (tx) => {
       let authoritativeSerialNumber = d.serialnumber;
       let authoritativeDepartmentCode = department?.code ?? null;
@@ -238,8 +242,10 @@ export async function POST(req: NextRequest) {
           requestable: d.requestable ?? null,
           assetcategorytypeid: d.assetcategorytypeid ?? null,
           statustypeid: d.statustypeid ?? null,
+          condition1StatusId: d.condition1StatusId ?? null,
           supplierid: d.supplierid ?? null,
           locationid: d.locationid ?? null,
+          location1Id: d.location1Id ?? null,
           manufacturerid: d.manufacturerid ?? null,
           departmentId: department?.id ?? null,
           departmentCode: authoritativeDepartmentCode,
@@ -332,6 +338,9 @@ export async function PUT(req: NextRequest) {
     // Optimistic concurrency check
     const conflict = conflictResponse(_expectedVersion, existing.change_date);
     if (conflict) return conflict;
+
+    const masterError = await validateMasterReferences(data, orgId, existing);
+    if (masterError) return masterError;
 
     // Normalize date types
     const updateData: Record<string, unknown> = { ...data };

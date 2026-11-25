@@ -485,23 +485,53 @@ function resolveRelations(
     warnings.push(`Department not mapped: ${parsed.sourceDepartment}`);
   }
 
-  const condition2 = normalizeText(
-    parsed.condition2Raw || parsed.condition1Raw || parsed.condition1,
-  );
+  const condition1Text = normalizeText(parsed.condition1Raw || parsed.condition1);
+  const condition1StatusId = condition1Text
+    ? lookups.statusByName.get(condition1Text.toLowerCase())
+    : undefined;
+  if (!condition1StatusId && condition1Text) {
+    warnings.push(`Condition (1st) not in master list: ${condition1Text}`);
+  }
+
+  const condition2 = normalizeText(parsed.condition2Raw);
   const statustypeid = condition2
     ? lookups.statusByName.get(condition2.toLowerCase())
     : undefined;
+  if (!statustypeid && condition2) {
+    warnings.push(`Condition (2nd) not in master list: ${condition2}`);
+  }
 
-  const locationText = normalizeText(parsed.location2Raw || parsed.location1);
-  const locationid = locationText
-    ? lookups.locationByName.get(locationText.toLowerCase())
+  const location1Text = normalizeText(parsed.location1);
+  const location1Id = location1Text
+    ? lookups.locationByName.get(location1Text.toLowerCase())
     : undefined;
+  if (!location1Id && location1Text) {
+    warnings.push(`Location (1st) not in master list: ${location1Text}`);
+  }
+
+  const location2Text = normalizeText(parsed.location2Raw);
+  const locationid = location2Text
+    ? lookups.locationByName.get(location2Text.toLowerCase())
+    : undefined;
+  if (!locationid && location2Text) {
+    warnings.push(`Location (2nd) not in master list: ${location2Text}`);
+  }
 
   const assetcategorytypeid = parsed.categoryCode
     ? lookups.categoryByCode.get(parsed.categoryCode.toLowerCase())
     : undefined;
+  if (!assetcategorytypeid && parsed.categoryCode) {
+    warnings.push(`Category code not in master list: ${parsed.categoryCode}`);
+  }
 
-  return { departmentId, statustypeid, locationid, assetcategorytypeid };
+  return {
+    departmentId,
+    condition1StatusId,
+    statustypeid,
+    location1Id,
+    locationid,
+    assetcategorytypeid,
+  };
 }
 
 function toCreateData(
@@ -521,7 +551,9 @@ function toCreateData(
     departmentCode: null,
     assetcategorytypeid: relations.assetcategorytypeid ?? null,
     statustypeid: relations.statustypeid ?? null,
+    condition1StatusId: relations.condition1StatusId ?? null,
     locationid: relations.locationid ?? null,
+    location1Id: relations.location1Id ?? null,
     categoryCode: parsed.categoryCode,
     serialNo: parsed.serialNo,
     assetnameRaw: parsed.assetnameRaw,
@@ -554,7 +586,9 @@ function toUpdateData(
     departmentId: relations.departmentId ?? null,
     assetcategorytypeid: relations.assetcategorytypeid ?? null,
     statustypeid: relations.statustypeid ?? null,
+    condition1StatusId: relations.condition1StatusId ?? null,
     locationid: relations.locationid ?? null,
+    location1Id: relations.location1Id ?? null,
     categoryCode: parsed.categoryCode,
     serialNo: parsed.serialNo,
     assetnameRaw: parsed.assetnameRaw,

@@ -45,7 +45,14 @@ export async function GET(request: NextRequest) {
     const assets = await prisma.asset.findMany({
       where,
       orderBy,
-      include: { department: true, statusType: true, location: true },
+      include: {
+        department: true,
+        statusType: true,
+        condition1Status: true,
+        location: true,
+        location1Rel: true,
+        assetCategoryType: true,
+      },
     });
 
     const workbook = new ExcelJS.Workbook();
@@ -56,18 +63,21 @@ export async function GET(request: NextRequest) {
     assets.forEach((asset, index) => {
       sheet.addRow([
         index + 1,
-        asset.sourceDepartment ?? asset.department?.name ?? "",
-        asset.categoryCode ?? "",
+        asset.department?.name ?? asset.sourceDepartment ?? "",
+        asset.assetCategoryType?.assetTypeCode ?? asset.categoryCode ?? "",
         asset.serialNo ?? "",
         asset.assetname ?? "",
         asset.serialnumber ?? "",
         asset.financeNo1 ?? "",
-        asset.condition1 ?? asset.condition1Raw ?? "",
-        asset.location1 ?? "",
+        asset.condition1Status?.statustypename ??
+          asset.condition1 ??
+          asset.condition1Raw ??
+          "",
+        asset.location1Rel?.locationname ?? asset.location1 ?? "",
         excelDateToCell(asset.reviewDate1),
         asset.financeNo2 ?? "",
         asset.statusType?.statustypename ?? asset.condition2Raw ?? "",
-        asset.location2Raw ?? asset.location?.locationname ?? "",
+        asset.location?.locationname ?? asset.location2Raw ?? "",
         excelDateToCell(asset.reviewsDate),
         additionalDataToCell(asset.additionalData ?? asset.additionalDataJson),
         asset.sourceRow ?? "",

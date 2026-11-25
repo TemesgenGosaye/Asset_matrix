@@ -215,6 +215,7 @@ export async function PUT(req: NextRequest) {
       city,
       country,
       parentId,
+      isActive,
     } = body;
 
     const orgCtx = await getOrganizationContext();
@@ -231,15 +232,22 @@ export async function PUT(req: NextRequest) {
       );
     }
 
+    const normalizedName =
+      typeof locationname === "string"
+        ? locationname.trim().replace(/\s+/g, " ").toLowerCase()
+        : undefined;
+
     const updated = await prisma.location.update({
       where: { locationid },
       data: {
-        ...(locationname !== undefined && { locationname }),
+        ...(locationname !== undefined && { locationname: locationname.trim() }),
+        ...(normalizedName !== undefined && { normalizedName }),
         ...(street !== undefined && { street: street ?? null }),
         ...(housenumber !== undefined && { housenumber: housenumber ?? null }),
         ...(city !== undefined && { city: city ?? null }),
         ...(country !== undefined && { country: country ?? null }),
         ...(parentId !== undefined && { parentId: parentId ?? null }),
+        ...(typeof isActive === "boolean" && { isActive }),
         change_date: new Date(),
       },
     });
@@ -334,7 +342,9 @@ export async function DELETE(req: NextRequest) {
 
     // Check for referencing records before deleting
     const [assetRefs, accessoriesRefs, componentRefs] = await Promise.all([
-      prisma.asset.count({ where: { locationid } }),
+      prisma.asset.count({
+        where: { OR: [{ locationid }, { location1Id: locationid }] },
+      }),
       prisma.accessories.count({ where: { locationid } }),
       prisma.component.count({ where: { locationId: locationid } }),
     ]);

@@ -9,6 +9,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import SearchableCombobox from "@/components/SearchableCombobox";
 
 interface Reference {
   id: string;
@@ -19,15 +20,19 @@ interface Reference {
 interface Props {
   mode: "create" | "edit";
   assetId?: string;
-  departments: Reference[];
-  statuses: Reference[];
-  locations: Reference[];
+  departments?: Reference[];
+  statuses?: Reference[];
+  locations?: Reference[];
 }
 
 interface FormState {
   departmentId: string;
+  sourceDepartment: string;
+  assetcategorytypeid: string;
   statustypeid: string;
+  condition1StatusId: string;
   locationid: string;
+  location1Id: string;
   assetname: string;
   serialnumber: string;
   categoryCode: string;
@@ -46,8 +51,12 @@ interface FormState {
 
 const emptyForm: FormState = {
   departmentId: "",
+  sourceDepartment: "",
+  assetcategorytypeid: "",
   statustypeid: "",
+  condition1StatusId: "",
   locationid: "",
+  location1Id: "",
   assetname: "",
   serialnumber: "",
   categoryCode: "",
@@ -64,9 +73,6 @@ const emptyForm: FormState = {
   hiddenInSource: false,
 };
 
-const selectClass =
-  "h-10 rounded-lg border border-input bg-background px-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring/40";
-
 function dateOnly(value?: string | null): string {
   if (!value) return "";
   return new Date(value).toISOString().slice(0, 10);
@@ -75,9 +81,6 @@ function dateOnly(value?: string | null): string {
 export default function FixedAssetForm({
   mode,
   assetId,
-  departments,
-  statuses,
-  locations,
 }: Props) {
   const router = useRouter();
   const [form, setForm] = useState<FormState>(emptyForm);
@@ -94,8 +97,12 @@ export default function FixedAssetForm({
         const item = payload.item as Record<string, unknown>;
         setForm({
           departmentId: (item.departmentId as string) ?? "",
+          sourceDepartment: (item.sourceDepartment as string) ?? "",
+          assetcategorytypeid: (item.assetcategorytypeid as string) ?? "",
           statustypeid: (item.statustypeid as string) ?? "",
+          condition1StatusId: (item.condition1StatusId as string) ?? "",
           locationid: (item.locationid as string) ?? "",
+          location1Id: (item.location1Id as string) ?? "",
           assetname: (item.assetname as string) ?? "",
           serialnumber: (item.serialnumber as string) ?? "",
           categoryCode: (item.categoryCode as string) ?? "",
@@ -132,9 +139,12 @@ export default function FixedAssetForm({
         assetname: form.assetname.trim(),
         assettag: form.serialnumber.trim(),
         serialnumber: form.serialnumber.trim(),
-        departmentId: form.departmentId || undefined,
-        statustypeid: form.statustypeid || undefined,
-        locationid: form.locationid || undefined,
+        departmentId: form.departmentId || null,
+        assetcategorytypeid: form.assetcategorytypeid || null,
+        statustypeid: form.statustypeid || null,
+        condition1StatusId: form.condition1StatusId || null,
+        locationid: form.locationid || null,
+        location1Id: form.location1Id || null,
         reviewsDate: form.reviewDate2 || undefined,
       };
       const baseResponse = await fetch("/api/asset", {
@@ -159,11 +169,16 @@ export default function FixedAssetForm({
           financeNo1: form.financeNo1 || null,
           condition1: form.condition1 || null,
           condition1Raw: form.condition1 || null,
+          condition1StatusId: form.condition1StatusId || null,
           location1: form.location1 || null,
+          location1Id: form.location1Id || null,
           reviewDate1: form.reviewDate1 || null,
           financeNo2: form.financeNo2 || null,
           condition2Raw: form.condition2Raw || null,
+          statustypeid: form.statustypeid || null,
           location2Raw: form.location2Raw || null,
+          locationid: form.locationid || null,
+          assetcategorytypeid: form.assetcategorytypeid || null,
           additionalData: form.additionalData || null,
           hiddenInSource: form.hiddenInSource,
         }),
@@ -228,68 +243,82 @@ export default function FixedAssetForm({
               />
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <Label>Department</Label>
-                <select
-                  className={selectClass}
-                  value={form.departmentId}
-                  onChange={(e) => update("departmentId", e.target.value)}
-                >
-                  <option value="">—</option>
-                  {departments.map((item) => (
-                    <option key={item.id} value={item.id}>
-                      {item.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="space-y-1">
-                <Label>Category Code</Label>
-                <Input
-                  value={form.categoryCode}
-                  onChange={(e) => update("categoryCode", e.target.value)}
-                />
-              </div>
+              <SearchableCombobox
+                id="fixed-asset-department"
+                label="Department"
+                ariaLabel="Department"
+                type="department"
+                value={form.departmentId}
+                currentValue={!form.departmentId ? form.sourceDepartment || null : null}
+                placeholder="Select department..."
+                allowCreate={false}
+                onChange={(val) => update("departmentId", val)}
+              />
+              <SearchableCombobox
+                id="fixed-asset-category"
+                label="Category Code"
+                ariaLabel="Category Code"
+                type="category"
+                value={form.assetcategorytypeid}
+                departmentId={form.departmentId || null}
+                currentValue={!form.assetcategorytypeid ? form.categoryCode || null : null}
+                placeholder="Search category code..."
+                onChange={(val, item) => {
+                  update("assetcategorytypeid", val);
+                  if (item && !item.isLegacy) {
+                    update("categoryCode", item.code || item.name);
+                  } else if (!val) {
+                    update("categoryCode", "");
+                  }
+                }}
+              />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
-                <Label>S.No</Label>
+                <Label htmlFor="fixed-asset-sno">S.No</Label>
                 <Input
+                  id="fixed-asset-sno"
                   value={form.serialNo}
                   onChange={(e) => update("serialNo", e.target.value)}
                 />
               </div>
-              <div className="space-y-1">
-                <Label>Condition (2nd)</Label>
-                <select
-                  className={selectClass}
-                  value={form.statustypeid}
-                  onChange={(e) => update("statustypeid", e.target.value)}
-                >
-                  <option value="">—</option>
-                  {statuses.map((item) => (
-                    <option key={item.id} value={item.id}>
-                      {item.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              <SearchableCombobox
+                id="fixed-asset-condition2"
+                label="Condition (2nd)"
+                ariaLabel="Condition (2nd)"
+                type="status"
+                value={form.statustypeid}
+                currentValue={!form.statustypeid ? form.condition2Raw || null : null}
+                placeholder="Select condition (2nd)..."
+                allowCreate={false}
+                onChange={(val, item) => {
+                  update("statustypeid", val);
+                  if (item && !item.isLegacy) {
+                    update("condition2Raw", item.name);
+                  } else if (!val) {
+                    update("condition2Raw", "");
+                  }
+                }}
+              />
             </div>
-            <div className="space-y-1">
-              <Label>Location (2nd)</Label>
-              <select
-                className={selectClass}
-                value={form.locationid}
-                onChange={(e) => update("locationid", e.target.value)}
-              >
-                <option value="">—</option>
-                {locations.map((item) => (
-                  <option key={item.id} value={item.id}>
-                    {item.name}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <SearchableCombobox
+              id="fixed-asset-location2"
+              label="Location (2nd)"
+              ariaLabel="Location (2nd)"
+              type="location2"
+              value={form.locationid}
+              departmentId={form.departmentId || null}
+              currentValue={!form.locationid ? form.location2Raw || null : null}
+              placeholder="Search location (2nd)..."
+              onChange={(val, item) => {
+                update("locationid", val);
+                if (item && !item.isLegacy) {
+                  update("location2Raw", item.name);
+                } else if (!val) {
+                  update("location2Raw", "");
+                }
+              }}
+            />
           </CardContent>
         </Card>
 
@@ -300,31 +329,55 @@ export default function FixedAssetForm({
           <CardContent className="grid gap-3">
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
-                <Label>Finance No (1st)</Label>
+                <Label htmlFor="fixed-asset-financeno1">Finance No (1st)</Label>
                 <Input
+                  id="fixed-asset-financeno1"
                   value={form.financeNo1}
                   onChange={(e) => update("financeNo1", e.target.value)}
                 />
               </div>
-              <div className="space-y-1">
-                <Label>Condition (1st)</Label>
-                <Input
-                  value={form.condition1}
-                  onChange={(e) => update("condition1", e.target.value)}
-                />
-              </div>
+              <SearchableCombobox
+                id="fixed-asset-condition1"
+                label="Condition (1st)"
+                ariaLabel="Condition (1st)"
+                type="status"
+                value={form.condition1StatusId}
+                currentValue={!form.condition1StatusId ? form.condition1 || null : null}
+                placeholder="Select condition (1st)..."
+                allowCreate={false}
+                onChange={(val, item) => {
+                  update("condition1StatusId", val);
+                  if (item && !item.isLegacy) {
+                    update("condition1", item.name);
+                  } else if (!val) {
+                    update("condition1", "");
+                  }
+                }}
+              />
             </div>
             <div className="grid grid-cols-2 gap-3">
+              <SearchableCombobox
+                id="fixed-asset-location1"
+                label="Location (1st)"
+                ariaLabel="Location (1st)"
+                type="location1"
+                value={form.location1Id}
+                departmentId={form.departmentId || null}
+                currentValue={!form.location1Id ? form.location1 || null : null}
+                placeholder="Search location (1st)..."
+                onChange={(val, item) => {
+                  update("location1Id", val);
+                  if (item && !item.isLegacy) {
+                    update("location1", item.name);
+                  } else if (!val) {
+                    update("location1", "");
+                  }
+                }}
+              />
               <div className="space-y-1">
-                <Label>Location (1st)</Label>
+                <Label htmlFor="fixed-asset-reviewdate1">Review Date (1st)</Label>
                 <Input
-                  value={form.location1}
-                  onChange={(e) => update("location1", e.target.value)}
-                />
-              </div>
-              <div className="space-y-1">
-                <Label>Review Date (1st)</Label>
-                <Input
+                  id="fixed-asset-reviewdate1"
                   type="date"
                   value={form.reviewDate1}
                   onChange={(e) => update("reviewDate1", e.target.value)}
@@ -333,34 +386,22 @@ export default function FixedAssetForm({
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
-                <Label>Finance No (2nd)</Label>
+                <Label htmlFor="fixed-asset-financeno2">Finance No (2nd)</Label>
                 <Input
+                  id="fixed-asset-financeno2"
                   value={form.financeNo2}
                   onChange={(e) => update("financeNo2", e.target.value)}
                 />
               </div>
               <div className="space-y-1">
-                <Label>Review Date (2nd)</Label>
+                <Label htmlFor="fixed-asset-reviewdate2">Review Date (2nd)</Label>
                 <Input
+                  id="fixed-asset-reviewdate2"
                   type="date"
                   value={form.reviewDate2}
                   onChange={(e) => update("reviewDate2", e.target.value)}
                 />
               </div>
-            </div>
-            <div className="space-y-1">
-              <Label>Condition raw (2nd)</Label>
-              <Input
-                value={form.condition2Raw}
-                onChange={(e) => update("condition2Raw", e.target.value)}
-              />
-            </div>
-            <div className="space-y-1">
-              <Label>Location raw (2nd)</Label>
-              <Input
-                value={form.location2Raw}
-                onChange={(e) => update("location2Raw", e.target.value)}
-              />
             </div>
             <div className="space-y-1">
               <Label>Additional Data</Label>

@@ -26,6 +26,9 @@ import CustomFieldsSection from "@/components/CustomFieldsSection";
 import SelectWithQuickCreate, {
   type QuickCreateOption,
 } from "@/components/SelectWithQuickCreate";
+import SearchableCombobox, {
+  type MasterOption,
+} from "@/components/SearchableCombobox";
 import { flattenDepartmentOptions } from "@/lib/department-master";
 import { useUnsavedChanges } from "@/hooks/useUnsavedChanges";
 import { compareAssetCategoryNames } from "@/lib/utils";
@@ -123,8 +126,10 @@ export default function AssetCreateForm({
     requestable: searchParams.get("requestable") === "true",
     assetcategorytypeid: searchParams.get("assetcategorytypeid") || "",
     statustypeid: searchParams.get("statustypeid") || "",
+    condition1StatusId: searchParams.get("condition1StatusId") || "",
     supplierid: searchParams.get("supplierid") || "",
     locationid: searchParams.get("locationid") || "",
+    location1Id: searchParams.get("location1Id") || "",
     manufacturerid: searchParams.get("manufacturerid") || "",
     departmentid: searchParams.get("departmentid") || "",
     departmentCode: searchParams.get("departmentCode") || "",
@@ -202,12 +207,15 @@ export default function AssetCreateForm({
       return;
     }
     let isMounted = true;
-    setGeneratingPid(true);
     const params = new URLSearchParams({
       categoryId: form.assetcategorytypeid,
       departmentId: form.departmentid,
     });
-    fetch(`/api/asset/nextPid?${params.toString()}`)
+    Promise.resolve()
+      .then(() => {
+        if (isMounted) setGeneratingPid(true);
+        return fetch(`/api/asset/nextPid?${params.toString()}`);
+      })
       .then((res) => {
         if (!res.ok) {
           return res.json().then((d) => {
@@ -231,17 +239,7 @@ export default function AssetCreateForm({
     };
   }, [form.assetcategorytypeid, form.departmentid]);
 
-  // Preselect default status "Available" if present
-  useEffect(() => {
-    if (!form.statustypeid && statusOptions.length) {
-      const available = statusOptions.find(
-        (s) => s.label?.toLowerCase() === "available",
-      );
-      if (available) {
-        setForm((f) => ({ ...f, statustypeid: available.id }));
-      }
-    }
-  }, [statusOptions, form.statustypeid]);
+  // Default status preselection is handled in initial state if needed
 
   const onChange = (e) => {
     const { name, value } = e.target;
@@ -252,17 +250,18 @@ export default function AssetCreateForm({
     setForm((f) => ({ ...f, [name]: value }));
   };
 
-  const onDepartmentChange = (value: string) => {
+  const onDepartmentChange = (value: string, item?: MasterOption | null) => {
     const option = departmentOptions.find((o) => o.id === value);
     setForm((f) => ({
       ...f,
       departmentid: value,
-      departmentCode: option?.code ?? "",
+      departmentCode: item?.code ?? option?.code ?? "",
     }));
   };
 
-  const onAssetTypeChange = (value: string) => {
+  const onAssetTypeChange = (value: string, item?: MasterOption | null) => {
     const selectedType = categoryOptions.find((c) => c.id === value);
+    const label = item?.name ?? selectedType?.label;
     setForm((f) => ({
       ...f,
       assetcategorytypeid: value,
@@ -270,7 +269,7 @@ export default function AssetCreateForm({
       // or was previously auto-filled (matches a category label)
       assetname:
         !f.assetname || categoryOptions.some((c) => c.label === f.assetname)
-          ? (selectedType?.label ?? f.assetname)
+          ? (label ?? f.assetname)
           : f.assetname,
     }));
   };
@@ -313,8 +312,10 @@ export default function AssetCreateForm({
         purchasedate: form.purchasedate || null,
         assetcategorytypeid: form.assetcategorytypeid || null,
         statustypeid: form.statustypeid || null,
+        condition1StatusId: form.condition1StatusId || null,
         supplierid: form.supplierid || null,
         locationid: form.locationid || null,
+        location1Id: form.location1Id || null,
         manufacturerid: form.manufacturerid || null,
         departmentId: form.departmentid || null,
         departmentCode: form.departmentCode || null,
@@ -375,8 +376,10 @@ export default function AssetCreateForm({
       requestable: false,
       assetcategorytypeid: "",
       statustypeid: "",
+      condition1StatusId: "",
       supplierid: "",
       locationid: "",
+      location1Id: "",
       manufacturerid: "",
       departmentid: "",
       departmentCode: "",
@@ -481,20 +484,15 @@ export default function AssetCreateForm({
             </h2>
             <div className="grid grid-cols-1 gap-3">
               <div>
-                <Label htmlFor="assetcategorytypeid">Asset Type *</Label>
-                <SelectWithQuickCreate
+                <SearchableCombobox
                   id="assetcategorytypeid"
+                  label="Asset Type"
+                  required
+                  type="category"
                   value={form.assetcategorytypeid}
-                  onValueChange={onAssetTypeChange}
-                  options={categoryOptions}
-                  onItemCreated={(item) =>
-                    setCategoryOptions((prev) => [...prev, item])
-                  }
-                  placeholder="Select asset type"
-                  apiEndpoint="/api/assetCategory"
-                  nameField="assetcategorytypename"
-                  idField="assetcategorytypeid"
-                  entityLabel="Asset Type"
+                  departmentId={form.departmentid || null}
+                  placeholder="Select asset type..."
+                  onChange={onAssetTypeChange}
                 />
               </div>
               <div>
@@ -508,58 +506,63 @@ export default function AssetCreateForm({
                 />
               </div>
               <div>
-                <Label htmlFor="statustypeid">Status</Label>
-                <SelectWithQuickCreate
+                <SearchableCombobox
                   id="statustypeid"
+                  label="Status / Condition (2nd)"
+                  type="status"
                   value={form.statustypeid}
-                  onValueChange={onSelectChange("statustypeid")}
-                  options={statusOptions}
-                  onItemCreated={(item) =>
-                    setStatusOptions((prev) => [...prev, item])
-                  }
-                  placeholder="Select status"
-                  apiEndpoint="/api/statusType"
-                  nameField="statustypename"
-                  idField="statustypeid"
-                  entityLabel="Status"
+                  placeholder="Select status..."
+                  allowCreate={false}
+                  onChange={(val) => onSelectChange("statustypeid")(val)}
                 />
               </div>
               <div>
-                <Label htmlFor="departmentid">Department</Label>
-                <Select
+                <SearchableCombobox
+                  id="condition1StatusId"
+                  label="Condition (1st)"
+                  type="status"
+                  value={form.condition1StatusId}
+                  placeholder="Select condition (1st)..."
+                  allowCreate={false}
+                  onChange={(val) => onSelectChange("condition1StatusId")(val)}
+                />
+              </div>
+              <div>
+                <SearchableCombobox
+                  id="departmentid"
+                  label="Department"
+                  type="department"
                   value={form.departmentid}
-                  onValueChange={onDepartmentChange}
-                >
-                  <SelectTrigger id="departmentid">
-                    <SelectValue placeholder="Select department" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {departmentOptions.length === 0 && (
-                      <p className="text-muted-foreground px-3 py-2 text-sm">
-                        No departments loaded yet
-                      </p>
-                    )}
-                    {departmentOptions.map((option) => (
-                      <SelectItem key={option.id} value={option.id}>
-                        <span
-                          className="flex items-baseline gap-1.5"
-                          style={{ paddingLeft: option.depth * 12 }}
-                        >
-                          {option.code && (
-                            <span className="text-muted-foreground font-mono text-xs">
-                              {option.code}
-                            </span>
-                          )}
-                          <span>{option.name}</span>
-                        </span>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  placeholder="Select department..."
+                  allowCreate={false}
+                  onChange={onDepartmentChange}
+                />
                 <p className="text-foreground-500 mt-1 text-xs">
                   Official MSF department. The department code is used in PID
                   and asset tag generation.
                 </p>
+              </div>
+              <div>
+                <SearchableCombobox
+                  id="location1Id"
+                  label="Location (1st)"
+                  type="location1"
+                  value={form.location1Id}
+                  departmentId={form.departmentid || null}
+                  placeholder="Search location (1st)..."
+                  onChange={(val) => onSelectChange("location1Id")(val)}
+                />
+              </div>
+              <div>
+                <SearchableCombobox
+                  id="locationid"
+                  label="Location (2nd)"
+                  type="location2"
+                  value={form.locationid}
+                  departmentId={form.departmentid || null}
+                  placeholder="Search location (2nd)..."
+                  onChange={(val) => onSelectChange("locationid")(val)}
+                />
               </div>
               <div className="flex gap-6">
                 <div className="flex items-center space-x-2">
