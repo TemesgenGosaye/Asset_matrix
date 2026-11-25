@@ -36,41 +36,13 @@ import {
 } from "@/components/ui/table";
 import { useUrlState } from "@/hooks/useUrlState";
 import { cn } from "@/lib/utils";
-
-interface RegisterAsset {
-  assetid: string;
-  assetname: string;
-  assetnameRaw?: string | null;
-  serialnumber: string;
-  assettag: string;
-  sourceDepartment?: string | null;
-  categoryCode?: string | null;
-  serialNo?: string | null;
-  condition1?: string | null;
-  condition1Raw?: string | null;
-  financeNo1?: string | null;
-  financeNo2?: string | null;
-  location1?: string | null;
-  location2Raw?: string | null;
-  reviewDate1?: string | null;
-  reviewsDate?: string | null;
-  additionalData?: string | null;
-  sourceRow?: number | null;
-  hiddenInSource?: boolean;
-  reviewDate1Ambiguous?: boolean;
-  reviewDate2Ambiguous?: boolean;
-  department?: { name: string } | null;
-  statusType?: { statustypename: string } | null;
-  location?: { locationname: string } | null;
-  assetCategoryType?: { assetcategorytypename: string } | null;
-}
-
-interface ReferenceItem {
-  id: string;
-  name: string;
-  code?: string | null;
-  color?: string | null;
-}
+import AssetOperationDialogs from "./AssetOperationDialogs";
+import AssetOperationsMenu from "./AssetOperationsMenu";
+import type {
+  ActiveAssetOperation,
+  ReferenceItem,
+  RegisterAsset,
+} from "./asset-types";
 
 function safeColor(color?: string | null): string | null {
   return color && /^#[0-9a-fA-F]{6}$/.test(color) ? color : null;
@@ -176,6 +148,8 @@ export default function FixedAssetRegisterClient({
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [drawerItem, setDrawerItem] = useState<RegisterAsset | null>(null);
+  const [activeOperation, setActiveOperation] =
+    useState<ActiveAssetOperation | null>(null);
   const [density, setDensity] = useState<"compact" | "comfortable">("compact");
   const [bulkStatusId, setBulkStatusId] = useState("");
   const [refreshKey, setRefreshKey] = useState(0);
@@ -756,18 +730,20 @@ export default function FixedAssetRegisterClient({
                           className="text-right"
                           onClick={(event) => event.stopPropagation()}
                         >
-                          <Button variant="ghost" size="sm" asChild>
-                            <Link href={`/assets/${item.assetid}`}>
-                              <ExternalLink className="h-4 w-4" /> Details
-                            </Link>
-                          </Button>
-                          {isAdmin && (
+                          <div className="inline-flex items-center justify-end gap-1">
                             <Button variant="ghost" size="sm" asChild>
-                              <Link href={`/assets/${item.assetid}/edit`}>
-                                Edit
+                              <Link href={`/assets/${item.assetid}`}>
+                                <ExternalLink className="h-4 w-4" /> Details
                               </Link>
                             </Button>
-                          )}
+                            <AssetOperationsMenu
+                              asset={item}
+                              isAdmin={isAdmin}
+                              onSelectOperation={(asset, type) =>
+                                setActiveOperation({ asset, type })
+                              }
+                            />
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -864,6 +840,14 @@ export default function FixedAssetRegisterClient({
           )}
         </DialogContent>
       </Dialog>
+
+      <AssetOperationDialogs
+        operation={activeOperation}
+        statuses={statuses}
+        isAdmin={isAdmin}
+        onClose={() => setActiveOperation(null)}
+        onSuccess={() => setRefreshKey((value) => value + 1)}
+      />
     </div>
   );
 }
