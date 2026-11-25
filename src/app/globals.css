@@ -140,7 +140,7 @@
   .detail-card:hover,
   .form-card:hover,
   .metric-card:hover {
-    border-color: rgb(59 130 246 / 0.4);
+    border-color: hsl(var(--primary) / 0.4);
   }
 
   .metric-card:hover {

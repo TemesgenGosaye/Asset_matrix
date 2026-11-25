@@ -2,6 +2,7 @@ import React from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import Breadcrumb from "@/components/Breadcrumb";
+import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import HistoryTimeline from "@/components/HistoryTimeline";
@@ -58,11 +59,7 @@ function asCurrency(value) {
 
 function booleanPill(val) {
   return (
-    <span
-      className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${val ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-700"}`}
-    >
-      {val ? "Yes" : "No"}
-    </span>
+    <Badge variant={val ? "success" : "muted"}>{val ? "Yes" : "No"}</Badge>
   );
 }
 
@@ -79,14 +76,14 @@ function formatDate(value) {
 
 function MetricTile({ label, value, hint }) {
   return (
-    <div className="metric-card relative overflow-hidden">
+    <div className="metric-card border-border/70 bg-card/80 relative overflow-hidden rounded-xl">
       <span className="bg-primary absolute top-0 left-0 h-full w-0.5" />
-      <p className="text-foreground-500 text-[11px] font-semibold tracking-wide uppercase">
+      <p className="text-muted-foreground text-[11px] font-semibold tracking-wide uppercase">
         {label}
       </p>
       <p className="mt-1.5 truncate text-lg font-semibold">{value}</p>
       {hint ? (
-        <p className="text-foreground-500 mt-1 truncate text-xs">{hint}</p>
+        <p className="text-muted-foreground mt-1 truncate text-xs">{hint}</p>
       ) : null}
     </div>
   );
@@ -203,7 +200,10 @@ export default async function Page(props: { params: Promise<{ id: string }> }) {
   }
 
   // Compute warranty status
-  let warrantyStatus: { label: string; color: string } | null = null;
+  let warrantyStatus: {
+    label: string;
+    variant: "destructive" | "warning" | "success";
+  } | null = null;
   if (asset.warrantyExpires) {
     const now = new Date();
     const expires = new Date(asset.warrantyExpires);
@@ -211,17 +211,14 @@ export default async function Page(props: { params: Promise<{ id: string }> }) {
       (expires.getTime() - now.getTime()) / (1000 * 60 * 60 * 24),
     );
     if (daysUntilExpiry < 0) {
-      warrantyStatus = { label: "Expired", color: "bg-red-100 text-red-700" };
+      warrantyStatus = { label: "Expired", variant: "destructive" };
     } else if (daysUntilExpiry <= 90) {
       warrantyStatus = {
         label: `Expiring Soon (${daysUntilExpiry}d)`,
-        color: "bg-yellow-100 text-yellow-700",
+        variant: "warning",
       };
     } else {
-      warrantyStatus = {
-        label: "Active",
-        color: "bg-green-100 text-green-700",
-      };
+      warrantyStatus = { label: "Active", variant: "success" };
     }
   }
   // Compute health score from data already fetched
@@ -327,7 +324,7 @@ export default async function Page(props: { params: Promise<{ id: string }> }) {
   ];
 
   return (
-    <>
+    <div className="mx-auto w-full max-w-7xl">
       <Breadcrumb options={breadcrumbOptions} />
       <div className="flex w-full flex-col gap-4 pb-6">
         <AssetDetailHeader asset={asset} statuses={status} isAdmin={isAdmin} />
@@ -351,7 +348,11 @@ export default async function Page(props: { params: Promise<{ id: string }> }) {
           <MetricTile
             label="Warranty"
             value={warrantyStatus?.label || "No warranty"}
-            hint={location?.locationname || "Location not set"}
+            hint={
+              asset.warrantyExpires
+                ? formatDate(asset.warrantyExpires)
+                : "No expiry recorded"
+            }
           />
         </div>
 
@@ -386,7 +387,7 @@ export default async function Page(props: { params: Promise<{ id: string }> }) {
           <TabsContent value="overview" className="mt-3 space-y-4">
             <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
               <section className="detail-card md:col-span-1">
-                <h2 className="text-foreground-600 mb-3 text-sm font-semibold">
+                <h2 className="text-muted-foreground mb-3 text-xs font-semibold tracking-wider uppercase">
                   Summary
                 </h2>
                 <dl className="grid grid-cols-1 gap-2 text-sm">
@@ -434,7 +435,7 @@ export default async function Page(props: { params: Promise<{ id: string }> }) {
               </section>
 
               <section className="detail-card">
-                <h2 className="text-foreground-600 mb-3 text-sm font-semibold">
+                <h2 className="text-muted-foreground mb-3 text-xs font-semibold tracking-wider uppercase">
                   Specifications
                 </h2>
                 <dl className="grid grid-cols-1 gap-2 text-sm">
@@ -468,7 +469,7 @@ export default async function Page(props: { params: Promise<{ id: string }> }) {
               </section>
 
               <section className="detail-card">
-                <h2 className="text-foreground-600 mb-3 text-sm font-semibold">
+                <h2 className="text-muted-foreground mb-3 text-xs font-semibold tracking-wider uppercase">
                   Procurement
                 </h2>
                 <dl className="grid grid-cols-1 gap-2 text-sm">
@@ -504,7 +505,7 @@ export default async function Page(props: { params: Promise<{ id: string }> }) {
 
             <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
               <section className="detail-card">
-                <h2 className="text-foreground-600 mb-3 text-sm font-semibold">
+                <h2 className="text-muted-foreground mb-3 text-xs font-semibold tracking-wider uppercase">
                   Assigned To
                 </h2>
                 {currentAssignment ? (
@@ -550,7 +551,7 @@ export default async function Page(props: { params: Promise<{ id: string }> }) {
               </section>
 
               <section className="detail-card border-dashed md:col-span-2">
-                <h2 className="text-foreground-600 mb-3 text-sm font-semibold">
+                <h2 className="text-muted-foreground mb-3 text-xs font-semibold tracking-wider uppercase">
                   Identifiers
                 </h2>
                 <div className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
@@ -579,30 +580,28 @@ export default async function Page(props: { params: Promise<{ id: string }> }) {
             </div>
 
             {customFields.length > 0 && (
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-                <section className="detail-card">
-                  <h2 className="text-foreground-600 mb-3 text-sm font-semibold">
-                    Custom Fields
-                  </h2>
-                  <dl className="grid grid-cols-1 gap-2 text-sm">
-                    {customFields.map((cf) => (
-                      <CustomFieldValue
-                        key={cf.name}
-                        name={cf.name}
-                        fieldType={cf.fieldType}
-                        value={cf.value}
-                      />
-                    ))}
-                  </dl>
-                </section>
-              </div>
+              <section className="detail-card">
+                <h2 className="text-muted-foreground mb-3 text-xs font-semibold tracking-wider uppercase">
+                  Custom Fields
+                </h2>
+                <dl className="grid grid-cols-1 gap-2 text-sm sm:grid-cols-2 lg:grid-cols-3">
+                  {customFields.map((cf) => (
+                    <CustomFieldValue
+                      key={cf.name}
+                      name={cf.name}
+                      fieldType={cf.fieldType}
+                      value={cf.value}
+                    />
+                  ))}
+                </dl>
+              </section>
             )}
           </TabsContent>
 
           <TabsContent value="insights" className="mt-3">
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <section className="detail-card">
-                <h2 className="text-foreground-600 mb-3 text-sm font-semibold">
+                <h2 className="text-muted-foreground mb-3 text-xs font-semibold tracking-wider uppercase">
                   Health Score
                 </h2>
                 <div className="space-y-3">
@@ -646,7 +645,7 @@ export default async function Page(props: { params: Promise<{ id: string }> }) {
               </section>
 
               <section className="detail-card">
-                <h2 className="text-foreground-600 mb-3 text-sm font-semibold">
+                <h2 className="text-muted-foreground mb-3 text-xs font-semibold tracking-wider uppercase">
                   Warranty
                 </h2>
                 <dl className="grid grid-cols-1 gap-2 text-sm">
@@ -654,13 +653,11 @@ export default async function Page(props: { params: Promise<{ id: string }> }) {
                     <dt className="text-foreground-500">Status</dt>
                     <dd className="font-medium">
                       {warrantyStatus ? (
-                        <span
-                          className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${warrantyStatus.color}`}
-                        >
+                        <Badge variant={warrantyStatus.variant}>
                           {warrantyStatus.label}
-                        </span>
+                        </Badge>
                       ) : (
-                        <span className="text-foreground-400">No warranty</span>
+                        <Badge variant="muted">No warranty</Badge>
                       )}
                     </dd>
                   </div>
@@ -684,7 +681,7 @@ export default async function Page(props: { params: Promise<{ id: string }> }) {
               </section>
 
               <section className="detail-card">
-                <h2 className="text-foreground-600 mb-3 text-sm font-semibold">
+                <h2 className="text-muted-foreground mb-3 text-xs font-semibold tracking-wider uppercase">
                   Depreciation
                 </h2>
                 {depreciationData && depreciationSettings ? (
@@ -729,7 +726,7 @@ export default async function Page(props: { params: Promise<{ id: string }> }) {
               </section>
 
               <section className="detail-card">
-                <h2 className="text-foreground-600 mb-3 text-sm font-semibold">
+                <h2 className="text-muted-foreground mb-3 text-xs font-semibold tracking-wider uppercase">
                   Maintenance
                 </h2>
                 {maintenanceSchedules.length > 0 ? (
@@ -753,15 +750,16 @@ export default async function Page(props: { params: Promise<{ id: string }> }) {
                                 : "Unassigned"}
                             </p>
                           </div>
-                          <span
-                            className={`ml-2 inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${isDue ? "bg-red-100 text-red-700" : "bg-blue-100 text-blue-700"}`}
+                          <Badge
+                            variant={isDue ? "destructive" : "info"}
+                            className="ml-2 shrink-0"
                           >
                             {isDue
                               ? "Due"
                               : new Date(
                                   schedule.nextDueDate,
                                 ).toLocaleDateString()}
-                          </span>
+                          </Badge>
                         </div>
                       );
                     })}
@@ -776,9 +774,9 @@ export default async function Page(props: { params: Promise<{ id: string }> }) {
           </TabsContent>
 
           <TabsContent value="operations" className="mt-3 space-y-4">
-            <div className="grid grid-cols-1 gap-4">
+            <div className="space-y-4">
               {isAdmin && (
-                <section className="detail-card md:col-span-3">
+                <section className="detail-card">
                   <AssetAssignment
                     assetId={asset.assetid}
                     assetTag={asset.assettag}
@@ -786,7 +784,7 @@ export default async function Page(props: { params: Promise<{ id: string }> }) {
                   />
                 </section>
               )}
-              <section className="detail-card md:col-span-3">
+              <section className="detail-card">
                 <AssetLifecycle
                   assetId={asset.assetid}
                   currentStatus={statusName}
@@ -833,7 +831,7 @@ export default async function Page(props: { params: Promise<{ id: string }> }) {
             )}
 
             <div className="detail-card">
-              <h2 className="text-foreground-600 mb-1 text-sm font-semibold">
+              <h2 className="text-muted-foreground mb-1 text-xs font-semibold tracking-wider uppercase">
                 Asset History
               </h2>
               <Separator className="my-3" />
@@ -842,6 +840,6 @@ export default async function Page(props: { params: Promise<{ id: string }> }) {
           </TabsContent>
         </Tabs>
       </div>
-    </>
+    </div>
   );
 }

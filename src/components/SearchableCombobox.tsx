@@ -74,6 +74,7 @@ interface SearchableComboboxProps {
   className?: string;
   ariaLabel?: string;
   required?: boolean;
+  compact?: boolean;
 }
 
 export default function SearchableCombobox({
@@ -90,6 +91,7 @@ export default function SearchableCombobox({
   className,
   ariaLabel,
   required = false,
+  compact = false,
 }: SearchableComboboxProps) {
   const [open, setOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -295,7 +297,10 @@ export default function SearchableCombobox({
   return (
     <div className={cn("flex flex-col gap-1.5", className)}>
       {label && (
-        <Label htmlFor={id} className="text-sm font-medium">
+        <Label
+          htmlFor={id}
+          className={compact ? "text-xs font-medium" : "text-sm font-medium"}
+        >
           {label} {required && <span className="text-destructive">*</span>}
         </Label>
       )}
@@ -312,7 +317,9 @@ export default function SearchableCombobox({
               aria-label={ariaLabel || label || placeholder}
               disabled={disabled}
               className={cn(
-                "border-default-200 bg-background hover:border-primary/60 focus-visible:border-primary focus-visible:ring-primary/20 h-10 w-full justify-between rounded-lg px-3 text-left text-sm font-normal shadow-xs transition-colors",
+                compact
+                  ? "border-input bg-background hover:border-primary/60 focus-visible:border-primary focus-visible:ring-primary/20 h-9 w-full justify-between rounded-lg px-2 text-left text-sm font-normal shadow-none transition-colors"
+                  : "border-default-200 bg-background hover:border-primary/60 focus-visible:border-primary focus-visible:ring-primary/20 h-10 w-full justify-between rounded-lg px-3 text-left text-sm font-normal shadow-xs transition-colors",
                 !value && !currentValue && "text-muted-foreground",
                 !!selectedOption &&
                   !selectedOption.isLegacy &&

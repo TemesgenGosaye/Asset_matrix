@@ -7,6 +7,7 @@ import {
   ChevronRight,
   Download,
   ExternalLink,
+  Fingerprint,
   LayoutList,
   Plus,
   RefreshCw,
@@ -799,6 +800,32 @@ export default function FixedAssetRegisterClient({
           </Button>
         </div>
       </div>
+
+      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+        <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-4xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-xl font-semibold">
+              <Fingerprint className="text-primary h-5 w-5" />
+              Add New Fixed Asset
+            </DialogTitle>
+            <DialogDescription>
+              Register an asset using the approved master lists and source
+              fields without leaving the register.
+            </DialogDescription>
+          </DialogHeader>
+          {createOpen ? (
+            <FixedAssetForm
+              mode="create"
+              embedded
+              onCancel={() => setCreateOpen(false)}
+              onSuccess={() => {
+                setCreateOpen(false);
+                setRefreshKey((value) => value + 1);
+              }}
+            />
+          ) : null}
+        </DialogContent>
+      </Dialog>
 
       <Dialog
         open={Boolean(drawerItem)}
