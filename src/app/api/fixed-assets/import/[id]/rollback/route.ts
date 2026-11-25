@@ -3,6 +3,7 @@ import { requirePermission, requireNotDemoMode } from "@/lib/api-auth";
 import { isFeatureEnabled } from "@/lib/feature-flags";
 import { getOrganizationContext } from "@/lib/organization-context";
 import { rollbackFixedAssetImport } from "@/lib/fixed-asset-import";
+import { invalidateFixedAssetAnalytics } from "@/lib/fixed-asset-analytics/service";
 import { logger } from "@/lib/logger";
 
 export const dynamic = "force-dynamic";
@@ -28,6 +29,7 @@ export async function POST(
     }
     const { id } = await params;
     const result = await rollbackFixedAssetImport(id, organizationId, user.id);
+    await invalidateFixedAssetAnalytics();
     return NextResponse.json(result);
   } catch (error) {
     logger.error("Failed to roll back fixed asset import", { error });

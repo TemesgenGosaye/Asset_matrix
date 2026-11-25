@@ -4,15 +4,24 @@ import DashboardWelcome from "@/components/dashboard/DashboardWelcome";
 import QuickActions from "@/components/dashboard/QuickActions";
 import AnalyticsSkeleton from "@/components/dashboard/analytics/AnalyticsSkeleton";
 import HouseAnalyticsPanel from "@/components/dashboard/analytics/HouseAnalyticsPanel";
+import DashboardAnalyticsTabs from "@/components/dashboard/fixed-asset-analytics/DashboardAnalyticsTabs";
+import FixedAssetAnalyticsDashboard from "@/components/dashboard/fixed-asset-analytics/FixedAssetAnalyticsDashboard";
+import { isFeatureEnabled } from "@/lib/feature-flags";
+import { parseFixedAssetAnalyticsFilters } from "@/lib/fixed-asset-analytics/contract";
 import { getOrganizationContext } from "@/lib/organization-context";
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
 
 export const metadata = {
-  title: "House Analytics - Dashboard",
+  title: "Analytics Dashboard",
 };
 
-export default async function DashboardPage() {
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const fixedAssetFilters = parseFixedAssetAnalyticsFilters(await searchParams);
   let ctx: Awaited<ReturnType<typeof getOrganizationContext>> = null;
   try {
     ctx = await getOrganizationContext();
@@ -29,6 +38,9 @@ export default async function DashboardPage() {
   // it to hide cards the caller could not add (the API enforces the same rules),
   // so a Standard User is not offered a Housing Summary that would 403.
   const permissionKeys = Array.from(ctx.permissions);
+  const canViewFixedAssets =
+    isFeatureEnabled("fixedAssetRegister") &&
+    (isAdmin || permissionKeys.includes("asset:view"));
 
   if (!isAdmin && ctx?.userId) {
     return (
@@ -55,6 +67,23 @@ export default async function DashboardPage() {
         <div className="mt-6">
           <DashboardGrid isAdmin={false} permissions={permissionKeys} />
         </div>
+        {canViewFixedAssets ? (
+          <section
+            className="mt-8"
+            aria-labelledby="fixed-asset-analytics-heading"
+          >
+            <h2
+              id="fixed-asset-analytics-heading"
+              className="text-lg font-semibold tracking-tight"
+            >
+              Fixed asset analytics
+            </h2>
+            <p className="text-muted-foreground mt-1 mb-3 text-sm">
+              Portfolio, condition, review, and data-quality intelligence
+            </p>
+            <FixedAssetAnalyticsDashboard initialFilters={fixedAssetFilters} />
+          </section>
+        ) : null}
       </main>
     );
   }
@@ -98,9 +127,21 @@ export default async function DashboardPage() {
         headingLevel={1}
       />
       <div className="mt-2 min-h-0 flex-1">
-        <Suspense fallback={<AnalyticsSkeleton />}>
-          <HouseAnalyticsPanel organizationId={ctx.organization.id} />
-        </Suspense>
+        <DashboardAnalyticsTabs
+          house={
+            <Suspense fallback={<AnalyticsSkeleton />}>
+              <HouseAnalyticsPanel organizationId={ctx.organization.id} />
+            </Suspense>
+          }
+          fixedAssets={
+            canViewFixedAssets ? (
+              <FixedAssetAnalyticsDashboard
+                initialFilters={fixedAssetFilters}
+                embedded
+              />
+            ) : null
+          }
+        />
       </div>
     </main>
   );

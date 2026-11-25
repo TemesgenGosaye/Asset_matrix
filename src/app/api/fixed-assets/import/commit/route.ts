@@ -12,6 +12,7 @@ import {
 } from "@/lib/fixed-asset-import";
 import { createAuditLog } from "@/lib/audit-log";
 import { invalidateCacheByPrefix } from "@/lib/cache";
+import { invalidateFixedAssetAnalytics } from "@/lib/fixed-asset-analytics/service";
 import { logger } from "@/lib/logger";
 
 export const dynamic = "force-dynamic";
@@ -105,6 +106,7 @@ export async function POST(request: NextRequest) {
     });
     invalidateCacheByPrefix("assets_");
     invalidateCacheByPrefix("asset_count");
+    await invalidateFixedAssetAnalytics();
     return NextResponse.json(result);
   } catch (error) {
     logger.error("Failed to commit fixed asset import", { error });

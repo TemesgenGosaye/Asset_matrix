@@ -7,6 +7,7 @@ import {
   serializeFixedAsset,
 } from "@/lib/fixed-asset-api";
 import { createAuditLog } from "@/lib/audit-log";
+import { invalidateFixedAssetAnalytics } from "@/lib/fixed-asset-analytics/service";
 import { logger } from "@/lib/logger";
 
 export const dynamic = "force-dynamic";
@@ -117,6 +118,7 @@ export async function PATCH(
       entityId: id,
       details: { before: existing, after: updated, fields: Object.keys(data) },
     });
+    await invalidateFixedAssetAnalytics();
     return NextResponse.json({ item: serializeFixedAsset(updated) });
   } catch (error) {
     logger.error("Failed to update fixed asset", { error });

@@ -621,9 +621,13 @@ model asset {
   @@index([organizationId, departmentId])
   @@index([organizationId, statustypeid])
   @@index([organizationId, condition1])
+  @@index([organizationId, condition2Raw])
   @@index([organizationId, categoryCode])
   @@index([organizationId, propertyKey])
   @@index([organizationId, sourceDepartment])
+  @@index([organizationId, sourceDepartment, categoryCode])
+  @@index([organizationId, reviewDate1])
+  @@index([organizationId, location1])
   @@schema("public")
 }
 
