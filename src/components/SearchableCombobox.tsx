@@ -95,9 +95,9 @@ export default function SearchableCombobox({
 }: SearchableComboboxProps) {
   const [open, setOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [debouncedQuery, setDebouncedQuery] = useState("");
   const [options, setOptions] = useState<MasterOption[]>([]);
   const [loading, setLoading] = useState(false);
+  const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [highlightedIndex, setHighlightedIndex] = useState<number>(0);
 
@@ -109,47 +109,86 @@ export default function SearchableCombobox({
   const [existingNearMatch, setExistingNearMatch] =
     useState<MasterOption | null>(null);
 
-  // Debounce search query
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedQuery(searchQuery);
-    }, 250);
-    return () => clearTimeout(timer);
-  }, [searchQuery]);
+  const searchQueryRef = useRef(searchQuery);
+  searchQueryRef.current = searchQuery;
+  const valueRef = useRef(value);
+  valueRef.current = value;
+  const currentValueRef = useRef(currentValue);
+  currentValueRef.current = currentValue;
+  const requestIdRef = useRef(0);
+  const loadedRef = useRef(false);
+  const lastFetchKeyRef = useRef<string | null>(null);
+  const initialSelectionRef = useRef(Boolean(value || currentValue));
 
-  // Fetch options whenever debouncedQuery, type, or departmentId changes
-  const fetchOptions = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const params = new URLSearchParams({
-        type,
-        q: debouncedQuery,
-        limit: type === "status" ? "50" : "5000",
-      });
-      if (departmentId) params.set("departmentId", departmentId);
-      if (value) params.set("currentId", value);
-      if (currentValue) params.set("currentValue", currentValue);
-
-      const res = await fetch(`/api/master-options?${params.toString()}`);
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.error || "Failed to load options");
+  const fetchOptions = useCallback(
+    async (query: string = searchQueryRef.current, force = false) => {
+      const key = `${type}|${departmentId ?? ""}|${query.trim()}`;
+      if (!force && loadedRef.current && lastFetchKeyRef.current === key) {
+        setLoading(false);
+        return;
       }
-      const data = await res.json();
-      setOptions(data.items || []);
-      setHighlightedIndex(0);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Error loading options");
-    } finally {
-      setLoading(false);
-    }
-  }, [type, debouncedQuery, departmentId, value, currentValue]);
+      lastFetchKeyRef.current = key;
+      const requestId = ++requestIdRef.current;
+      setLoading(true);
+      setError(null);
+      try {
+        const params = new URLSearchParams({
+          type,
+          q: query,
+          limit: type === "status" ? "50" : "5000",
+        });
+        if (departmentId) params.set("departmentId", departmentId);
+        if (valueRef.current) params.set("currentId", valueRef.current);
+        if (currentValueRef.current)
+          params.set("currentValue", currentValueRef.current);
 
-  // Initial and reactive fetch
+        const res = await fetch(`/api/master-options?${params.toString()}`);
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.error || "Failed to load options");
+        }
+        const data = await res.json();
+        if (requestId !== requestIdRef.current) return;
+        setOptions(data.items || []);
+        setHighlightedIndex(0);
+        setLoaded(true);
+        loadedRef.current = true;
+      } catch (err) {
+        if (requestId !== requestIdRef.current) return;
+        setError(err instanceof Error ? err.message : "Error loading options");
+        setLoaded(true);
+        loadedRef.current = true;
+      } finally {
+        if (requestId === requestIdRef.current) setLoading(false);
+      }
+    },
+    [type, departmentId],
+  );
+
   useEffect(() => {
-    fetchOptions();
+    if (initialSelectionRef.current) fetchOptions("", true);
   }, [fetchOptions]);
+
+  useEffect(() => {
+    if (!value) return;
+    if (options.some((opt) => opt.id === value)) return;
+    fetchOptions("", true);
+  }, [value, options, fetchOptions]);
+
+  useEffect(() => {
+    if (!open) return;
+    const delay = searchQueryRef.current ? 250 : 0;
+    const timer = setTimeout(() => {
+      fetchOptions(searchQueryRef.current);
+    }, delay);
+    return () => clearTimeout(timer);
+  }, [searchQuery, open, fetchOptions]);
+
+  const closePopover = useCallback(() => {
+    setOpen(false);
+    setSearchQuery("");
+    setHighlightedIndex(0);
+  }, []);
 
   // Selected option label resolution
   const selectedOption = useMemo(() => {
@@ -182,15 +221,15 @@ export default function SearchableCombobox({
       } else {
         onChange(option.id, option);
       }
-      setOpen(false);
+      closePopover();
     },
-    [onChange],
+    [onChange, closePopover],
   );
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Escape") {
       e.preventDefault();
-      setOpen(false);
+      closePopover();
       return;
     }
     if (options.length === 0) return;
@@ -234,7 +273,7 @@ export default function SearchableCombobox({
           description: `Using "${trimmed}" on this asset.`,
         });
         setCreateDialogOpen(false);
-        setOpen(false);
+        closePopover();
         setNewOptionName("");
         setCreateWarning(null);
         return;
@@ -254,7 +293,7 @@ export default function SearchableCombobox({
           if (data.existingItem) {
             onChange(data.existingItem.id, data.existingItem);
             setCreateDialogOpen(false);
-            setOpen(false);
+            closePopover();
           }
           return;
         }
@@ -280,7 +319,7 @@ export default function SearchableCombobox({
       setOptions((prev) => [created, ...prev]);
       onChange(created.id, created);
       setCreateDialogOpen(false);
-      setOpen(false);
+      closePopover();
       setNewOptionName("");
       setCreateWarning(null);
     } catch (err) {
@@ -305,7 +344,13 @@ export default function SearchableCombobox({
         </Label>
       )}
 
-      <Popover open={open} onOpenChange={setOpen}>
+      <Popover
+        open={open}
+        onOpenChange={(nextOpen) => {
+          if (nextOpen) setOpen(true);
+          else closePopover();
+        }}
+      >
         <div className="relative flex items-center">
           <PopoverTrigger asChild>
             <Button
@@ -318,8 +363,8 @@ export default function SearchableCombobox({
               disabled={disabled}
               className={cn(
                 compact
-                  ? "border-input bg-background hover:border-primary/60 focus-visible:border-primary focus-visible:ring-primary/20 h-9 w-full justify-between rounded-lg px-2 text-left text-sm font-normal shadow-none transition-colors"
-                  : "border-default-200 bg-background hover:border-primary/60 focus-visible:border-primary focus-visible:ring-primary/20 h-10 w-full justify-between rounded-lg px-3 text-left text-sm font-normal shadow-xs transition-colors",
+                  ? "border-input bg-background hover:border-primary/60 focus-visible:border-primary focus-visible:ring-ring/40 h-9 w-full justify-between rounded-lg px-2 text-left text-sm font-normal shadow-none transition-colors"
+                  : "border-default-200 bg-background hover:border-primary/60 focus-visible:border-primary focus-visible:ring-ring/40 h-10 w-full justify-between rounded-lg px-3 text-left text-sm font-normal shadow-xs transition-colors",
                 !value && !currentValue && "text-muted-foreground",
                 !!selectedOption &&
                   !selectedOption.isLegacy &&
@@ -413,8 +458,9 @@ export default function SearchableCombobox({
           {/* Options container with virtualization */}
           <div
             ref={parentRef}
-            className="max-h-60 overflow-x-hidden overflow-y-auto p-1 text-sm"
+            className="max-h-72 overflow-x-hidden overflow-y-auto overscroll-contain p-1 text-sm"
             role="listbox"
+            aria-busy={loading}
           >
             {error && (
               <div className="text-destructive p-3 text-center text-xs">
@@ -422,7 +468,23 @@ export default function SearchableCombobox({
               </div>
             )}
 
-            {!loading && options.length === 0 && !error && (
+            {!loaded && !error && (
+              <div
+                className="space-y-1 p-1"
+                role="status"
+                aria-live="polite"
+                aria-label="Loading options"
+              >
+                {[0, 1, 2, 3, 4].map((row) => (
+                  <div
+                    key={row}
+                    className="bg-muted/70 h-8 animate-pulse rounded-md"
+                  />
+                ))}
+              </div>
+            )}
+
+            {loaded && !loading && options.length === 0 && !error && (
               <div className="text-muted-foreground py-6 text-center text-xs">
                 No matching options found.
               </div>
@@ -648,7 +710,7 @@ export default function SearchableCombobox({
                     onClick={() => {
                       onChange(existingNearMatch.id, existingNearMatch);
                       setCreateDialogOpen(false);
-                      setOpen(false);
+                      closePopover();
                     }}
                   >
                     Use existing: &quot;{existingNearMatch.name}&quot;
