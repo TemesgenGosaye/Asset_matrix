@@ -253,19 +253,20 @@ export async function GET(req: NextRequest) {
         where: {
           organizationId: orgId,
           deletedAt: null,
-          userid: { not: null },
-          user: { isActive: true },
+          OR: [{ userid: null }, { user: { isActive: true } }],
           ...(q
             ? {
                 OR: [
                   { employeeNumber: qFilter },
                   { firstname: qFilter },
                   { lastname: qFilter },
+                  { department: { name: qFilter } },
                 ],
               }
             : {}),
         },
         select: {
+          id: true,
           userid: true,
           employeeNumber: true,
           firstname: true,
@@ -276,7 +277,7 @@ export async function GET(req: NextRequest) {
         take: limit,
       });
       items = candidates.map((item) => ({
-        id: item.userid!,
+        id: item.userid ?? item.id,
         name: `${item.employeeNumber} · ${item.firstname} ${item.lastname}`.trim(),
         code: item.department?.name ?? null,
         usageCount: 0,
@@ -368,8 +369,12 @@ export async function GET(req: NextRequest) {
         }
       } else if (type === "employee") {
         const current = await prisma.employee.findFirst({
-          where: { organizationId: orgId, userid: currentId },
+          where: {
+            organizationId: orgId,
+            OR: [{ userid: currentId }, { id: currentId }],
+          },
           select: {
+            id: true,
             userid: true,
             employeeNumber: true,
             firstname: true,
@@ -377,9 +382,9 @@ export async function GET(req: NextRequest) {
             department: { select: { name: true } },
           },
         });
-        if (current?.userid) {
+        if (current) {
           items.unshift({
-            id: current.userid,
+            id: current.userid ?? current.id,
             name: `${current.employeeNumber} · ${current.firstname} ${current.lastname}`.trim(),
             code: current.department?.name ?? null,
             usageCount: 0,

@@ -45,7 +45,45 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    return new Response(JSON.stringify({ userAsset }), {
+    const [linkedEmployee, linkedUser] = await Promise.all([
+      prisma.employee.findFirst({
+        where: {
+          userid: userAsset.userid,
+          ...(orgId ? { organizationId: orgId } : {}),
+        },
+        select: {
+          employeeNumber: true,
+          firstname: true,
+          lastname: true,
+          department: { select: { name: true } },
+          user: { select: { email: true } },
+        },
+      }),
+      prisma.user.findUnique({
+        where: { userid: userAsset.userid },
+        select: { firstname: true, lastname: true, email: true },
+      }),
+    ]);
+
+    const assignee = linkedEmployee
+      ? {
+          userId: userAsset.userid,
+          name: `${linkedEmployee.firstname} ${linkedEmployee.lastname}`.trim(),
+          employeeNumber: linkedEmployee.employeeNumber,
+          department: linkedEmployee.department?.name ?? null,
+          email: linkedEmployee.user?.email ?? linkedUser?.email ?? null,
+        }
+      : linkedUser
+        ? {
+            userId: userAsset.userid,
+            name: `${linkedUser.firstname} ${linkedUser.lastname}`.trim(),
+            employeeNumber: null,
+            department: null,
+            email: linkedUser.email ?? null,
+          }
+        : null;
+
+    return new Response(JSON.stringify({ userAsset, assignee }), {
       status: 200,
     });
   } catch (error) {

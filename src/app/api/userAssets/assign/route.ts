@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const [asset, targetUser] = await Promise.all([
+    const [asset, directUser] = await Promise.all([
       prisma.asset.findUnique({
         where: { assetid: assetId },
         select: { assetid: true, organizationId: true },
@@ -42,7 +42,55 @@ export async function POST(req: NextRequest) {
         status: 404,
       });
     }
+
+    let targetUser = directUser;
+    let employeeToLink: {
+      id: string;
+      organizationId: string;
+      departmentId: string | null;
+      firstname: string;
+      lastname: string;
+      employeeNumber: string;
+    } | null = null;
+
     if (!targetUser) {
+      const employee = await prisma.employee.findFirst({
+        where: { id: userId, deletedAt: null },
+        select: {
+          id: true,
+          userid: true,
+          organizationId: true,
+          departmentId: true,
+          firstname: true,
+          lastname: true,
+          employeeNumber: true,
+        },
+      });
+      if (!employee) {
+        return new Response(
+          JSON.stringify({ error: "Employee user not found" }),
+          { status: 404 },
+        );
+      }
+      if (
+        actingUser.organizationId &&
+        employee.organizationId !== actingUser.organizationId
+      ) {
+        return new Response(JSON.stringify({ error: "Forbidden" }), {
+          status: 403,
+        });
+      }
+      if (employee.userid) {
+        targetUser = await prisma.user.findUnique({
+          where: { userid: employee.userid },
+          select: { userid: true, organizationId: true, isActive: true },
+        });
+      } else {
+        employeeToLink = employee;
+      }
+    }
+
+    if (!targetUser && !employeeToLink) {
       return new Response(
         JSON.stringify({ error: "Employee user not found" }),
         { status: 404 },
@@ -55,14 +103,14 @@ export async function POST(req: NextRequest) {
         });
       }
     }
-    if (actingUser.organizationId && targetUser.organizationId) {
+    if (targetUser && actingUser.organizationId && targetUser.organizationId) {
       if (targetUser.organizationId !== actingUser.organizationId) {
         return new Response(JSON.stringify({ error: "Forbidden" }), {
           status: 403,
         });
       }
     }
-    if (!targetUser.isActive) {
+    if (targetUser && !targetUser.isActive) {
       return new Response(
         JSON.stringify({ error: "The selected employee is inactive" }),
         { status: 400 },
@@ -70,6 +118,33 @@ export async function POST(req: NextRequest) {
     }
 
     const result = await prisma.$transaction(async (tx) => {
+      let resolvedUserId = targetUser?.userid;
+      if (!resolvedUserId && employeeToLink) {
+        const createdUser = await tx.user.create({
+          data: {
+            firstname: employeeToLink.firstname,
+            lastname: employeeToLink.lastname,
+            email: `emp-${employeeToLink.id}@employee.local`,
+            isadmin: false,
+            canrequest: true,
+            isActive: true,
+            authProvider: "employee",
+            organizationId: employeeToLink.organizationId,
+            departmentId: employeeToLink.departmentId,
+            creation_date: new Date(),
+          },
+          select: { userid: true },
+        });
+        await tx.employee.update({
+          where: { id: employeeToLink.id },
+          data: { userid: createdUser.userid },
+        });
+        resolvedUserId = createdUser.userid;
+      }
+      if (!resolvedUserId) {
+        throw new Error("Employee user not found");
+      }
+
       // Resolve the "Active" status id (case-insensitive), falling back to
       // the first available status type if "Active" is not configured.
       let activeStatus = await tx.statusType.findFirst({
@@ -93,23 +168,24 @@ export async function POST(req: NextRequest) {
 
       if (existingAssignment) {
         // Idempotent: if already assigned to the same user, no-op
-        if (existingAssignment.userid === userId) {
+        if (existingAssignment.userid === resolvedUserId) {
           return {
             assignment: existingAssignment,
             idempotent: true,
             wasReassigned: false,
+            resolvedUserId,
           };
         }
         // Reassign to the new user within the transaction
         assignment = await tx.userAssets.update({
           where: { userassetsid: existingAssignment.userassetsid },
-          data: { userid: userId, change_date: new Date() },
+          data: { userid: resolvedUserId, change_date: new Date() },
         });
       } else {
         assignment = await tx.userAssets.create({
           data: {
             assetid: assetId,
-            userid: userId,
+            userid: resolvedUserId,
             creation_date: new Date(),
           } as Prisma.userAssetsUncheckedCreateInput,
         });
@@ -124,6 +200,7 @@ export async function POST(req: NextRequest) {
         assignment,
         idempotent: false,
         wasReassigned: Boolean(existingAssignment),
+        resolvedUserId,
       };
     });
 
@@ -135,7 +212,7 @@ export async function POST(req: NextRequest) {
       entity: AUDIT_ENTITIES.ASSET,
       entityId: assetId,
       details: {
-        userId,
+        userId: result.resolvedUserId,
         idempotent: result.idempotent,
       },
     });

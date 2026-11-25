@@ -204,6 +204,12 @@ function AssignDialog({
 }) {
   const [loadingCurrent, setLoadingCurrent] = useState(true);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [currentAssignee, setCurrentAssignee] = useState<{
+    name: string;
+    employeeNumber?: string | null;
+    department?: string | null;
+    email?: string | null;
+  } | null>(null);
   const [selectedUserId, setSelectedUserId] = useState("");
   const [selectedEmployee, setSelectedEmployee] = useState<MasterOption | null>(
     null,
@@ -221,13 +227,18 @@ function AssignDialog({
           const data = await res.json();
           const uid = data?.userAsset?.userid ?? null;
           setCurrentUserId(uid);
+          setCurrentAssignee(data?.assignee ?? null);
           if (uid) setSelectedUserId(uid);
         } else {
           setCurrentUserId(null);
+          setCurrentAssignee(null);
         }
       })
       .catch(() => {
-        if (active) setCurrentUserId(null);
+        if (active) {
+          setCurrentUserId(null);
+          setCurrentAssignee(null);
+        }
       })
       .finally(() => {
         if (active) setLoadingCurrent(false);
@@ -320,8 +331,26 @@ function AssignDialog({
         ) : (
           <div className="space-y-4 py-2">
             {currentUserId && (
-              <div className="bg-muted/50 flex items-center justify-between rounded-lg border p-3 text-sm">
-                <span>Currently assigned to an employee</span>
+              <div className="bg-muted/40 flex items-start justify-between gap-3 rounded-lg border p-3 text-sm">
+                <div className="min-w-0">
+                  <div className="text-muted-foreground text-xs font-medium uppercase">
+                    Current Custodian
+                  </div>
+                  <div className="mt-0.5 truncate font-semibold">
+                    {currentAssignee?.name || "Assigned Employee"}
+                  </div>
+                  <div className="text-muted-foreground mt-0.5 flex flex-wrap gap-x-2 text-xs">
+                    {currentAssignee?.employeeNumber && (
+                      <span>#{currentAssignee.employeeNumber}</span>
+                    )}
+                    {currentAssignee?.department && (
+                      <span>· {currentAssignee.department}</span>
+                    )}
+                    {currentAssignee?.email && (
+                      <span>· {currentAssignee.email}</span>
+                    )}
+                  </div>
+                </div>
                 <Button
                   variant="outline"
                   size="sm"
@@ -333,19 +362,29 @@ function AssignDialog({
                 </Button>
               </div>
             )}
-            <SearchableCombobox
-              id="register-assign-employee"
-              ariaLabel="Employee"
-              label="Employee"
-              type="employee"
-              allowCreate={false}
-              value={selectedUserId}
-              placeholder="Search employees by name or number…"
-              onChange={(value, option) => {
-                setSelectedUserId(value);
-                setSelectedEmployee(option);
-              }}
-            />
+            <div className="space-y-1">
+              <SearchableCombobox
+                id="register-assign-employee"
+                ariaLabel="Employee"
+                label={
+                  currentUserId ? "Reassign to Employee" : "Assign to Employee"
+                }
+                type="employee"
+                allowCreate={false}
+                value={selectedUserId}
+                currentValue={currentAssignee?.name ?? null}
+                placeholder="Search employees by name, number, or department…"
+                onChange={(value, option) => {
+                  setSelectedUserId(value);
+                  setSelectedEmployee(option ?? null);
+                }}
+              />
+              <p className="text-muted-foreground text-xs">
+                Lists all active employees from the directory. Assigning
+                automatically sets the asset status to Active and logs an audit
+                entry.
+              </p>
+            </div>
           </div>
         )}
 
