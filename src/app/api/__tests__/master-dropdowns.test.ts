@@ -198,6 +198,38 @@ describe("/api/master-options", () => {
     });
   });
 
+  it("allows large limits for DB-backed dropdowns", async () => {
+    prismaMock.location.findMany.mockResolvedValueOnce([]);
+
+    const req = createMockRequest(
+      "/api/master-options?type=location&limit=5000",
+      { method: "GET" },
+    );
+    await getMasterOptions(req);
+
+    expect(prismaMock.location.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ take: 5000 }),
+    );
+  });
+
+  it("returns distinct asset names from the asset register", async () => {
+    prismaMock.asset.groupBy.mockResolvedValueOnce([
+      { assetname: "Tractor", _count: { _all: 12 } },
+      { assetname: "Water pump", _count: { _all: 4 } },
+    ]);
+
+    const req = createMockRequest("/api/master-options?type=assetName", {
+      method: "GET",
+    });
+    const res = await getMasterOptions(req);
+    const { body } = await parseResponse<any>(res);
+
+    expect(body.items).toMatchObject([
+      { id: "Tractor", name: "Tractor", usageCount: 12 },
+      { id: "Water pump", name: "Water pump", usageCount: 4 },
+    ]);
+  });
+
   it("keeps a current inactive status visible", async () => {
     prismaMock.statusType.findMany.mockResolvedValueOnce([]);
     prismaMock.statusType.findFirst.mockResolvedValueOnce({

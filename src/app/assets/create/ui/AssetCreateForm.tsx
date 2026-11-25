@@ -492,13 +492,15 @@ export default function AssetCreateForm({
                 />
               </div>
               <div>
-                <Label htmlFor="assetname">Asset Name *</Label>
-                <Input
+                <SearchableCombobox
                   id="assetname"
-                  name="assetname"
+                  ariaLabel="Asset name"
+                  label="Asset Name"
+                  required
+                  type="assetName"
                   value={form.assetname}
-                  onChange={onChange}
-                  placeholder="Auto-filled from Asset Type — edit if needed"
+                  placeholder="Search existing asset names..."
+                  onChange={(val) => onSelectChange("assetname")(val)}
                 />
               </div>
               <div>

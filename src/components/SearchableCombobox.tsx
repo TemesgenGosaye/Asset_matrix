@@ -61,7 +61,8 @@ interface SearchableComboboxProps {
     | "location"
     | "category"
     | "department"
-    | "status";
+    | "status"
+    | "assetName";
   departmentId?: string | null;
   currentValue?: string | null;
   placeholder?: string;
@@ -121,7 +122,7 @@ export default function SearchableCombobox({
       const params = new URLSearchParams({
         type,
         q: debouncedQuery,
-        limit: "50",
+        limit: type === "status" ? "50" : "5000",
       });
       if (departmentId) params.set("departmentId", departmentId);
       if (value) params.set("currentId", value);
@@ -217,6 +218,25 @@ export default function SearchableCombobox({
     setCreating(true);
     setCreateWarning(null);
     try {
+      if (type === "assetName") {
+        const option: MasterOption = {
+          id: trimmed,
+          name: trimmed,
+          usageCount: 0,
+        };
+        setOptions((prev) => [option, ...prev]);
+        onChange(option.id, option);
+        notify.success({
+          title: "Asset name added",
+          description: `Using "${trimmed}" on this asset.`,
+        });
+        setCreateDialogOpen(false);
+        setOpen(false);
+        setNewOptionName("");
+        setCreateWarning(null);
+        return;
+      }
+
       const res = await fetch("/api/master-options", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -512,7 +532,10 @@ export default function SearchableCombobox({
                 }}
               >
                 <Plus className="mr-1.5 h-3.5 w-3.5" />
-                Add &quot;{searchQuery.trim() || "new option"}&quot;...
+                Add &quot;
+                {searchQuery.trim() ||
+                  (type === "assetName" ? "new asset name" : "new option")}
+                &quot;...
               </Button>
             </div>
           )}
@@ -529,11 +552,14 @@ export default function SearchableCombobox({
                 ? "Location"
                 : type === "category"
                   ? "Category Code"
-                  : "Option"}
+                  : type === "assetName"
+                    ? "Asset Name"
+                    : "Option"}
             </DialogTitle>
             <DialogDescription>
-              Create a new master entry. The system checks for near-duplicates
-              to prevent spelling fragmentation.
+              {type === "assetName"
+                ? "Use this name on the asset. Existing register names are shown first."
+                : "Create a new master entry. The system checks for near-duplicates to prevent spelling fragmentation."}
             </DialogDescription>
           </DialogHeader>
 

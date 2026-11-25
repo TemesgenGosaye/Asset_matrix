@@ -279,13 +279,15 @@ export default function AssetEditForm({
             </h2>
             <div className="grid grid-cols-1 gap-3">
               <div>
-                <Label htmlFor="assetname">Asset Name *</Label>
-                <Input
+                <SearchableCombobox
                   id="assetname"
-                  name="assetname"
-                  value={form.assetname}
-                  onChange={onChange}
+                  ariaLabel="Asset name"
+                  label="Asset Name"
                   required
+                  type="assetName"
+                  value={form.assetname}
+                  placeholder="Search existing asset names..."
+                  onChange={(val) => onSelectChange("assetname")(val)}
                 />
               </div>
               <div>

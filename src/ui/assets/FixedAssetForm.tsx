@@ -126,7 +126,7 @@ export default function FixedAssetForm({ mode, assetId }: Props) {
 
   const submit = async () => {
     if (!form.assetname.trim() || !form.serialnumber.trim()) {
-      setError("Description and Property No are required");
+      setError("Asset name and Property No are required");
       return;
     }
     setSaving(true);
@@ -226,10 +226,14 @@ export default function FixedAssetForm({ mode, assetId }: Props) {
           </CardHeader>
           <CardContent className="grid gap-3">
             <div className="space-y-1">
-              <Label>Description *</Label>
-              <Input
+              <SearchableCombobox
+                id="fixed-asset-name"
+                ariaLabel="Asset name"
+                label="Asset name"
+                type="assetName"
                 value={form.assetname}
-                onChange={(e) => update("assetname", e.target.value)}
+                placeholder="Search existing asset names..."
+                onChange={(val) => update("assetname", val)}
               />
             </div>
             <div className="space-y-1">

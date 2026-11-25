@@ -8,6 +8,8 @@ import { logger } from "@/lib/logger";
 
 export const dynamic = "force-dynamic";
 
+const MAX_OPTIONS = 5000;
+
 function normalize(val: string | null | undefined): string {
   if (!val) return "";
   return val.trim().replace(/\s+/g, " ").toLowerCase();
@@ -73,7 +75,7 @@ export async function GET(req: NextRequest) {
     const currentValue = searchParams.get("currentValue") || null;
     const requestedLimit = Number(searchParams.get("limit") || 50);
     const limit = Number.isFinite(requestedLimit)
-      ? Math.min(Math.max(Math.floor(requestedLimit), 1), 100)
+      ? Math.min(Math.max(Math.floor(requestedLimit), 1), MAX_OPTIONS)
       : 50;
 
     const qFilter = q
@@ -110,7 +112,7 @@ export async function GET(req: NextRequest) {
           usageCount: true,
         },
         orderBy: [{ usageCount: "desc" }, { locationname: "asc" }],
-        take: 2000,
+        take: MAX_OPTIONS,
       });
       const usageByDepartment = new Map<string, number>();
       if (departmentId && candidates.length) {
@@ -178,7 +180,7 @@ export async function GET(req: NextRequest) {
           usageCount: true,
         },
         orderBy: [{ usageCount: "desc" }, { assetcategorytypename: "asc" }],
-        take: 2000,
+        take: MAX_OPTIONS,
       });
       const usageByDepartment = new Map<string, number>();
       if (departmentId && candidates.length) {
@@ -227,6 +229,24 @@ export async function GET(req: NextRequest) {
         code: item.code,
         usageCount: item.sortOrder,
       }));
+    } else if (type === "assetName") {
+      const candidates = await prisma.asset.groupBy({
+        by: ["assetname"],
+        where: {
+          organizationId: orgId,
+          ...(q ? { assetname: qFilter } : {}),
+        },
+        _count: { _all: true },
+        orderBy: { assetname: "asc" },
+        take: limit,
+      });
+      items = sortOptions(
+        candidates.map((item) => ({
+          id: item.assetname,
+          name: item.assetname,
+          usageCount: item._count._all,
+        })),
+      );
     } else if (type === "status") {
       const where: Prisma.statusTypeWhereInput = {
         ...orgScope,
@@ -312,6 +332,13 @@ export async function GET(req: NextRequest) {
             isCurrent: true,
           });
         }
+      } else if (type === "assetName") {
+        items.unshift({
+          id: currentId,
+          name: currentId,
+          usageCount: 0,
+          isCurrent: true,
+        });
       } else if (type === "status") {
         const current = await prisma.statusType.findFirst({
           where: { statustypeid: currentId, ...orgScope },
