@@ -55,6 +55,7 @@ interface Props {
   departments: ReferenceItem[];
   statuses: ReferenceItem[];
   categories: ReferenceItem[];
+  initialEditId?: string | null;
 }
 
 interface ListResponse {
@@ -120,6 +121,7 @@ export default function FixedAssetRegisterClient({
   departments,
   statuses,
   categories,
+  initialEditId,
 }: Props) {
   const defaults = useMemo(
     () => ({
@@ -154,6 +156,9 @@ export default function FixedAssetRegisterClient({
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [createOpen, setCreateOpen] = useState(false);
+  const [editingAsset, setEditingAsset] = useState<RegisterAsset | null>(
+    initialEditId ? ({ assetid: initialEditId } as RegisterAsset) : null,
+  );
   const [drawerItem, setDrawerItem] = useState<RegisterAsset | null>(null);
   const [activeOperation, setActiveOperation] =
     useState<ActiveAssetOperation | null>(null);
@@ -761,6 +766,7 @@ export default function FixedAssetRegisterClient({
                             <AssetOperationsMenu
                               asset={item}
                               isAdmin={isAdmin}
+                              onEdit={(asset) => setEditingAsset(asset)}
                               onSelectOperation={(asset, type) =>
                                 setActiveOperation({ asset, type })
                               }
@@ -820,6 +826,38 @@ export default function FixedAssetRegisterClient({
               onCancel={() => setCreateOpen(false)}
               onSuccess={() => {
                 setCreateOpen(false);
+                setRefreshKey((value) => value + 1);
+              }}
+            />
+          ) : null}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={Boolean(editingAsset)}
+        onOpenChange={(open) => {
+          if (!open) setEditingAsset(null);
+        }}
+      >
+        <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-4xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-xl font-semibold">
+              <Fingerprint className="text-primary h-5 w-5" />
+              Edit Fixed Asset
+            </DialogTitle>
+            <DialogDescription>
+              Update {editingAsset?.assetname || "this asset"} without leaving
+              the register.
+            </DialogDescription>
+          </DialogHeader>
+          {editingAsset ? (
+            <FixedAssetForm
+              mode="edit"
+              assetId={editingAsset.assetid}
+              embedded
+              onCancel={() => setEditingAsset(null)}
+              onSuccess={() => {
+                setEditingAsset(null);
                 setRefreshKey((value) => value + 1);
               }}
             />

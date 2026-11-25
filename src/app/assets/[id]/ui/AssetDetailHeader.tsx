@@ -1,10 +1,18 @@
 "use client";
 import React, { useMemo, useState } from "react";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { CalendarPlus, Fingerprint } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { CalendarPlus, Fingerprint, Pencil } from "lucide-react";
 import AssetDetailActions from "./AssetDetailActions";
+import FixedAssetForm from "@/ui/assets/FixedAssetForm";
 import ReportProblemButton from "@/components/ReportProblemButton";
 import RequestItemDialog from "@/components/RequestItemDialog";
 import { AskMeriButton } from "@/components/ai/AskMeriButton";
@@ -30,8 +38,15 @@ function StatusChip({ name }) {
   );
 }
 
-export default function AssetDetailHeader({ asset, statuses, isAdmin = true }) {
+export default function AssetDetailHeader({
+  asset,
+  statuses,
+  isAdmin = true,
+  initialEditOpen = false,
+}) {
+  const router = useRouter();
   const [requestOpen, setRequestOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(initialEditOpen);
   const statusName = useMemo(
     () =>
       statuses.find((s) => s.statustypeid === asset.statustypeid)
@@ -42,65 +57,99 @@ export default function AssetDetailHeader({ asset, statuses, isAdmin = true }) {
   const canRequest = !isAdmin && (asset.requestable || isAvailable);
 
   return (
-    <div className="border-border/70 from-card to-muted/30 flex flex-col gap-4 rounded-xl border bg-gradient-to-r p-4 shadow-sm sm:p-5 lg:flex-row lg:items-center lg:justify-between">
-      <div className="flex min-w-0 items-start gap-3">
-        <span className="bg-primary text-primary-foreground flex h-10 w-10 shrink-0 items-center justify-center rounded-xl">
-          <Fingerprint className="h-5 w-5" />
-        </span>
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
-            <h1 className="text-foreground truncate text-2xl font-semibold tracking-tight">
-              {asset.assetname}
-            </h1>
-            <StatusChip name={statusName} />
+    <>
+      <div className="border-border/70 from-card to-muted/30 flex flex-col gap-4 rounded-xl border bg-gradient-to-r p-4 shadow-sm sm:p-5 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex min-w-0 items-start gap-3">
+          <span className="bg-primary text-primary-foreground flex h-10 w-10 shrink-0 items-center justify-center rounded-xl">
+            <Fingerprint className="h-5 w-5" />
+          </span>
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="text-foreground truncate text-2xl font-semibold tracking-tight">
+                {asset.assetname}
+              </h1>
+              <StatusChip name={statusName} />
+            </div>
+            <p className="text-muted-foreground mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
+              <span className="bg-primary/10 text-primary rounded px-1.5 py-0.5 font-mono font-medium">
+                {asset.assettag}
+              </span>
+              <span className="bg-muted rounded px-1.5 py-0.5 font-mono">
+                {asset.serialnumber}
+              </span>
+              <span className="hidden sm:inline">•</span>
+              <span>Asset profile and lifecycle</span>
+            </p>
           </div>
-          <p className="text-muted-foreground mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
-            <span className="bg-primary/10 text-primary rounded px-1.5 py-0.5 font-mono font-medium">
-              {asset.assettag}
-            </span>
-            <span className="bg-muted rounded px-1.5 py-0.5 font-mono">
-              {asset.serialnumber}
-            </span>
-            <span className="hidden sm:inline">•</span>
-            <span>Asset profile and lifecycle</span>
-          </p>
         </div>
-      </div>
-      <div className="flex flex-wrap items-center gap-2">
-        <AskMeriButton
-          variant="outline"
-          size="sm"
-          question={`Give me a full picture of asset ${asset.assettag} (${asset.assetname}): its current status, warranty position, maintenance history, and anything that looks overdue.`}
-        />
-        <ReportProblemButton
-          entityType="asset"
-          entityId={asset.assetid}
-          entityName={asset.assetname}
-        />
-        {canRequest && (
-          <Button
+        <div className="flex flex-wrap items-center gap-2">
+          <AskMeriButton
             variant="outline"
             size="sm"
-            onClick={() => setRequestOpen(true)}
-          >
-            <CalendarPlus className="mr-2 h-4 w-4" />
-            Request
-          </Button>
-        )}
-        <RequestItemDialog
-          entityType="asset"
-          entityId={asset.assetid}
-          entityName={asset.assetname}
-          open={requestOpen}
-          onOpenChange={setRequestOpen}
-        />
-        {isAdmin && (
-          <Button variant="default" size="sm" asChild>
-            <Link href={`/assets/${asset.assetid}/edit`}>Edit</Link>
-          </Button>
-        )}
-        {isAdmin && <AssetDetailActions asset={asset} />}
+            question={`Give me a full picture of asset ${asset.assettag} (${asset.assetname}): its current status, warranty position, maintenance history, and anything that looks overdue.`}
+          />
+          <ReportProblemButton
+            entityType="asset"
+            entityId={asset.assetid}
+            entityName={asset.assetname}
+          />
+          {canRequest && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setRequestOpen(true)}
+            >
+              <CalendarPlus className="mr-2 h-4 w-4" />
+              Request
+            </Button>
+          )}
+          <RequestItemDialog
+            entityType="asset"
+            entityId={asset.assetid}
+            entityName={asset.assetname}
+            open={requestOpen}
+            onOpenChange={setRequestOpen}
+          />
+          {isAdmin && (
+            <Button
+              variant="default"
+              size="sm"
+              onClick={() => setEditOpen(true)}
+            >
+              <Pencil className="mr-2 h-4 w-4" />
+              Edit
+            </Button>
+          )}
+          {isAdmin && <AssetDetailActions asset={asset} />}
+        </div>
       </div>
-    </div>
+
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-4xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-xl font-semibold">
+              <Fingerprint className="text-primary h-5 w-5" />
+              Edit Fixed Asset
+            </DialogTitle>
+            <DialogDescription>
+              Update {asset.assetname} ({asset.assettag}) without leaving the
+              detail page.
+            </DialogDescription>
+          </DialogHeader>
+          {editOpen ? (
+            <FixedAssetForm
+              mode="edit"
+              assetId={asset.assetid}
+              embedded
+              onCancel={() => setEditOpen(false)}
+              onSuccess={() => {
+                setEditOpen(false);
+                router.refresh();
+              }}
+            />
+          ) : null}
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

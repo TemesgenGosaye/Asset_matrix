@@ -24,7 +24,10 @@ export const metadata = {
   description: "Asset management tool",
 };
 
-export default async function Page() {
+export default async function Page(props: {
+  searchParams: Promise<{ edit?: string }>;
+}) {
+  const searchParams = await props.searchParams;
   let ctx;
   try {
     ctx = await getOrganizationContext();
@@ -57,6 +60,7 @@ export default async function Page() {
         >
           <FixedAssetRegisterClient
             isAdmin={isAdmin}
+            initialEditId={searchParams.edit ?? null}
             departments={departmentsRaw.map((department) => ({
               id: department.id,
               name: department.name,

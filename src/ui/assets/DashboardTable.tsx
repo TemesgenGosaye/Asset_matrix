@@ -1098,7 +1098,7 @@ export default function App({
                 </DropdownMenuItem>
                 {isAdmin && (
                   <DropdownMenuItem asChild>
-                    <Link href={`/assets/${asset.assetid}/edit`}>
+                    <Link href={`/assets/${asset.assetid}?edit=1`}>
                       <EditIcon className="mr-2 h-4 w-4" />
                       Edit
                     </Link>
@@ -1851,7 +1851,7 @@ export default function App({
                         </DropdownMenuItem>
                         {isAdmin && (
                           <DropdownMenuItem asChild>
-                            <Link href={`/assets/${item.assetid}/edit`}>
+                            <Link href={`/assets/${item.assetid}?edit=1`}>
                               <EditIcon className="mr-2 h-4 w-4" />
                               Edit
                             </Link>

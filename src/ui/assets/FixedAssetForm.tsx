@@ -248,7 +248,10 @@ export default function FixedAssetForm({
 
   if (loading)
     return (
-      <div className="text-muted-foreground p-8 text-sm">Loading asset…</div>
+      <div className="border-border/60 bg-muted/20 flex flex-col items-center justify-center gap-2 rounded-lg border p-10 text-sm">
+        <Loader2 className="text-primary h-5 w-5 animate-spin" />
+        <span className="text-muted-foreground">Loading asset details…</span>
+      </div>
     );
 
   const content = (

@@ -89,8 +89,13 @@ function MetricTile({ label, value, hint }) {
   );
 }
 
-export default async function Page(props: { params: Promise<{ id: string }> }) {
+export default async function Page(props: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ edit?: string | string[] }>;
+}) {
   const params = await props.params;
+  const searchParams = await props.searchParams;
+  const initialEditOpen = searchParams.edit === "1";
   let isAdmin = true;
   let ctx: Awaited<ReturnType<typeof getOrganizationContext>> = null;
   try {
@@ -327,7 +332,12 @@ export default async function Page(props: { params: Promise<{ id: string }> }) {
     <div className="mx-auto w-full max-w-7xl">
       <Breadcrumb options={breadcrumbOptions} />
       <div className="flex w-full flex-col gap-4 pb-6">
-        <AssetDetailHeader asset={asset} statuses={status} isAdmin={isAdmin} />
+        <AssetDetailHeader
+          asset={asset}
+          statuses={status}
+          isAdmin={isAdmin}
+          initialEditOpen={initialEditOpen}
+        />
 
         <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
           <MetricTile

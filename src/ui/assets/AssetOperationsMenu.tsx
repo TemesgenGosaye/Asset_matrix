@@ -30,6 +30,7 @@ import type { AssetOperationType, RegisterAsset } from "./asset-types";
 interface AssetOperationsMenuProps {
   asset: RegisterAsset;
   isAdmin: boolean;
+  onEdit?: (asset: RegisterAsset) => void;
   onSelectOperation: (asset: RegisterAsset, type: AssetOperationType) => void;
 }
 
@@ -65,6 +66,7 @@ function buildDuplicateUrl(asset: RegisterAsset): string {
 export default function AssetOperationsMenu({
   asset,
   isAdmin,
+  onEdit,
   onSelectOperation,
 }: AssetOperationsMenuProps) {
   const router = useRouter();
@@ -87,11 +89,14 @@ export default function AssetOperationsMenu({
           Asset Record
         </DropdownMenuLabel>
         {isAdmin && (
-          <DropdownMenuItem asChild>
-            <Link href={`/assets/${asset.assetid}/edit`}>
-              <Edit3 className="mr-2 h-4 w-4" />
-              Edit Asset
-            </Link>
+          <DropdownMenuItem
+            onSelect={() => {
+              if (onEdit) onEdit(asset);
+              else router.push(`/assets/${asset.assetid}?edit=1`);
+            }}
+          >
+            <Edit3 className="mr-2 h-4 w-4" />
+            Edit Asset
           </DropdownMenuItem>
         )}
         <DropdownMenuItem asChild>
