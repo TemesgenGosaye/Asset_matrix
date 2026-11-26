@@ -649,6 +649,10 @@ export default function SearchableCombobox({
             aria-busy={loading}
             aria-label={ariaLabel || label || placeholder}
             style={{ scrollbarGutter: "stable" }}
+            onWheel={(e) => {
+              // Allow mouse-wheel to scroll this list without bubbling to the modal behind it
+              e.stopPropagation();
+            }}
           >
             {/* Loading skeleton */}
             {!loaded && !error && (

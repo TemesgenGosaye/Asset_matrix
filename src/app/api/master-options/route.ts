@@ -436,7 +436,16 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    return NextResponse.json({ items });
+    // Cache master-list responses in the browser for 5 min, serve stale for 10 min.
+    // This means reopening any dropdown after the first load is instant — no network round-trip.
+    return NextResponse.json(
+      { items },
+      {
+        headers: {
+          "Cache-Control": "private, max-age=300, stale-while-revalidate=600",
+        },
+      },
+    );
   } catch (error) {
     logger.error("Failed to fetch master options", { error });
     if (error instanceof Error && error.message === "Unauthorized") {
