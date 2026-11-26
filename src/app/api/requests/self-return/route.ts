@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireApiAuth, requireNotDemoMode } from "@/lib/api-auth";
+import { resolveAvailableStatusId } from "@/lib/asset-status-resolver";
 import {
   getOrganizationContext,
   scopeToOrganization,
@@ -109,17 +110,12 @@ export async function POST(req: NextRequest) {
           await tx.userAssets.deleteMany({
             where: { assetid: entityId, userid: user.id },
           });
-          // Returns always set status to Available, bypassing workflow transition rules (intentional)
-          const available = await tx.statusType.findFirst({
-            where: {
-              statustypename: { equals: "Available", mode: "insensitive" },
-            },
-          });
-          if (available) {
+          const availableStatusId = await resolveAvailableStatusId(tx);
+          if (availableStatusId) {
             await tx.asset.update({
               where: { assetid: entityId },
               data: {
-                statustypeid: available.statustypeid,
+                statustypeid: availableStatusId,
                 change_date: new Date(),
               },
             });

@@ -2,6 +2,7 @@ import type { NextRequest } from "next/server";
 import prisma from "../../../../lib/prisma";
 import { requireApiAdmin, requireNotDemoMode } from "@/lib/api-auth";
 import { AUDIT_ACTIONS, AUDIT_ENTITIES, createAuditLog } from "@/lib/audit-log";
+import { resolveAvailableStatusId } from "@/lib/asset-status-resolver";
 import { logger } from "@/lib/logger";
 
 export async function DELETE(req: NextRequest) {
@@ -50,16 +51,10 @@ export async function DELETE(req: NextRequest) {
       }
     }
 
-    // Resolve the "Available" status id (case-insensitive)
-    const availableStatus = await prisma.statusType.findFirst({
-      where: { statustypename: { equals: "Available", mode: "insensitive" } },
-    });
-    if (!availableStatus) {
-      return new Response(
-        JSON.stringify({ error: "Status 'Available' not found in statusType" }),
-        { status: 500 },
-      );
-    }
+    const availableStatusId = await resolveAvailableStatusId(
+      prisma,
+      asset.organizationId,
+    );
 
     const deletedAsset = await prisma.$transaction(async (tx) => {
       const deleted = await tx.userAssets.deleteMany({
@@ -71,7 +66,7 @@ export async function DELETE(req: NextRequest) {
 
       await tx.asset.update({
         where: { assetid: assetId },
-        data: { statustypeid: availableStatus.statustypeid },
+        data: { statustypeid: availableStatusId },
       });
 
       return deleted;

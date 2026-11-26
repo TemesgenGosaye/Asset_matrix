@@ -7,6 +7,10 @@ import {
   requireNotDemoMode,
 } from "@/lib/api-auth";
 import { createAuditLog, AUDIT_ACTIONS } from "@/lib/audit-log";
+import {
+  resolveAssignedStatusId,
+  resolveAvailableStatusId,
+} from "@/lib/asset-status-resolver";
 import { logger, logCatchError } from "@/lib/logger";
 import {
   getOrganizationContext,
@@ -406,22 +410,17 @@ export async function PUT(req: NextRequest) {
         data: updateData,
       });
 
-      // On reject/cancel, revert asset status to "Available"
       if (
         (status === "rejected" || status === "cancelled") &&
         existing.entityType === "asset" &&
         existing.status === "pending"
       ) {
-        const available = await tx.statusType.findFirst({
-          where: {
-            statustypename: { equals: "Available", mode: "insensitive" },
-          },
-        });
-        if (available) {
+        const availableStatusId = await resolveAvailableStatusId(tx);
+        if (availableStatusId) {
           await tx.asset.update({
             where: { assetid: existing.entityId },
             data: {
-              statustypeid: available.statustypeid,
+              statustypeid: availableStatusId,
               change_date: new Date(),
             },
           });
@@ -598,15 +597,12 @@ async function autoAssignItem(
         });
       }
 
-      // Always ensure the asset status is "Active"
-      const active = await tx.statusType.findFirst({
-        where: { statustypename: { equals: "Active", mode: "insensitive" } },
-      });
-      if (active) {
+      const assignedStatusId = await resolveAssignedStatusId(tx);
+      if (assignedStatusId) {
         await tx.asset.update({
           where: { assetid: entityId },
           data: {
-            statustypeid: active.statustypeid,
+            statustypeid: assignedStatusId,
             change_date: new Date(),
           },
         });
@@ -675,16 +671,12 @@ async function unassignItem(
       await tx.userAssets.deleteMany({
         where: { assetid: entityId, userid: userId },
       });
-      const available = await tx.statusType.findFirst({
-        where: {
-          statustypename: { equals: "Available", mode: "insensitive" },
-        },
-      });
-      if (available) {
+      const availableStatusId = await resolveAvailableStatusId(tx);
+      if (availableStatusId) {
         await tx.asset.update({
           where: { assetid: entityId },
           data: {
-            statustypeid: available.statustypeid,
+            statustypeid: availableStatusId,
             change_date: new Date(),
           },
         });

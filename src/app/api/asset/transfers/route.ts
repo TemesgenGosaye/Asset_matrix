@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireApiAdmin, requireNotDemoMode } from "@/lib/api-auth";
 import { AUDIT_ACTIONS, AUDIT_ENTITIES, createAuditLog } from "@/lib/audit-log";
+import { resolveAssignedStatusId } from "@/lib/asset-status-resolver";
 import { logger } from "@/lib/logger";
 
 // GET /api/asset/transfers
@@ -178,17 +179,15 @@ export async function POST(req: Request) {
           },
         });
 
-        const activeStatus = await tx.statusType.findFirst({
-          where: { statustypename: { equals: "Active", mode: "insensitive" } },
-          select: { statustypeid: true },
-        });
+        const assignedStatusId = await resolveAssignedStatusId(
+          tx,
+          asset.organizationId,
+        );
         await tx.asset.update({
           where: { assetid: assetId },
           data: {
             change_date: new Date(),
-            ...(activeStatus
-              ? { statustypeid: activeStatus.statustypeid }
-              : {}),
+            ...(assignedStatusId ? { statustypeid: assignedStatusId } : {}),
           },
         });
 

@@ -3,6 +3,7 @@ import { Prisma } from "@prisma/client";
 import prisma from "../../../../lib/prisma";
 import { requireApiAdmin, requireNotDemoMode } from "@/lib/api-auth";
 import { AUDIT_ACTIONS, AUDIT_ENTITIES, createAuditLog } from "@/lib/audit-log";
+import { resolveAssignedStatusId } from "@/lib/asset-status-resolver";
 import { logger } from "@/lib/logger";
 
 export async function POST(req: NextRequest) {
@@ -145,25 +146,10 @@ export async function POST(req: NextRequest) {
         throw new Error("Employee user not found");
       }
 
-      // Resolve the "Assigned" status first (preferred when assigning),
-      // then fall back to "Active", then the first available status type.
-      let activeStatus =
-        (await tx.statusType.findFirst({
-          where: {
-            statustypename: { equals: "Assigned", mode: "insensitive" },
-          },
-        })) ??
-        (await tx.statusType.findFirst({
-          where: {
-            statustypename: { equals: "Active", mode: "insensitive" },
-          },
-        })) ??
-        (await tx.statusType.findFirst({
-          orderBy: { statustypename: "asc" },
-        }));
-      if (!activeStatus) {
-        throw new Error("No status type configured");
-      }
+      const assignedStatusId = await resolveAssignedStatusId(
+        tx,
+        asset.organizationId,
+      );
 
       // Check for existing assignment inside the transaction to prevent TOCTOU race
       const existingAssignment = await tx.userAssets.findFirst({
@@ -197,10 +183,12 @@ export async function POST(req: NextRequest) {
         });
       }
 
-      await tx.asset.update({
-        where: { assetid: assetId },
-        data: { statustypeid: activeStatus.statustypeid },
-      });
+      if (assignedStatusId) {
+        await tx.asset.update({
+          where: { assetid: assetId },
+          data: { statustypeid: assignedStatusId },
+        });
+      }
 
       return {
         assignment,

@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
 import prisma from "@/lib/prisma";
 import { requireNotDemoMode } from "@/lib/api-auth";
+import { resolveAssignedStatusId } from "@/lib/asset-status-resolver";
 import { logger } from "@/lib/logger";
 import {
   notifyReservationRequest,
@@ -300,15 +301,12 @@ export async function PUT(req: NextRequest) {
               },
             });
 
-            // Update asset status to "Active"
-            const activeStatus = await tx.statusType.findFirst({
-              where: { statustypename: "Active" },
-            });
+            const assignedStatusId = await resolveAssignedStatusId(tx);
 
-            if (activeStatus) {
+            if (assignedStatusId) {
               await tx.asset.update({
                 where: { assetid: updatedReservation.asset.assetid },
-                data: { statustypeid: activeStatus.statustypeid },
+                data: { statustypeid: assignedStatusId },
               });
             }
 
