@@ -7,9 +7,12 @@ import {
   MASTER_LIST_COLUMNS,
   buildFixedAssetOrderBy,
   buildFixedAssetWhere,
-  additionalDataToCell,
   excelDateToCell,
 } from "@/lib/fixed-asset-register";
+import {
+  CANONICAL_ASSET_COLUMNS,
+  getCanonicalAssetValue,
+} from "@/lib/asset-columns";
 import {
   getFixedAssetContext,
   parseFixedAssetParams,
@@ -60,40 +63,24 @@ export async function GET(request: NextRequest) {
     sheet.addRow([...MASTER_LIST_COLUMNS]);
     sheet.getRow(1).font = { bold: true };
 
-    assets.forEach((asset, index) => {
-      sheet.addRow([
-        index + 1,
-        asset.department?.name ?? asset.sourceDepartment ?? "",
-        asset.assetCategoryType?.assetTypeCode ?? asset.categoryCode ?? "",
-        asset.serialNo ?? "",
-        asset.assetname ?? "",
-        asset.serialnumber ?? "",
-        asset.financeNo1 ?? "",
-        asset.condition1Status?.statustypename ??
-          asset.condition1 ??
-          asset.condition1Raw ??
-          "",
-        asset.location1Rel?.locationname ?? asset.location1 ?? "",
-        excelDateToCell(asset.reviewDate1),
-        asset.financeNo2 ?? "",
-        asset.statusType?.statustypename ?? asset.condition2Raw ?? "",
-        asset.location?.locationname ?? asset.location2Raw ?? "",
-        excelDateToCell(asset.reviewsDate),
-        additionalDataToCell(asset.additionalData ?? asset.additionalDataJson),
-        asset.sourceRow ?? "",
-        asset.hiddenInSource ? "Yes" : "",
-      ]);
+    assets.forEach((asset) => {
+      sheet.addRow(
+        CANONICAL_ASSET_COLUMNS.map((column) => {
+          const value = getCanonicalAssetValue(asset, column.key);
+          if (value instanceof Date) return excelDateToCell(value);
+          if (typeof value === "boolean") return value ? "Yes" : "";
+          return value ?? "";
+        }),
+      );
     });
 
     MASTER_LIST_COLUMNS.forEach((column, index) => {
       const widths: Record<string, number> = {
-        "No.": 8,
-        Department: 18,
-        "Category Code": 14,
-        "S.No": 12,
+        "S/N0": 12,
         Description: 44,
         "Property No": 20,
-        "Additional Data": 36,
+        Dept: 18,
+        "Finance No": 20,
       };
       sheet.getColumn(index + 1).width = widths[column] ?? 16;
     });

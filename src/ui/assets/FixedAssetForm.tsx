@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import SearchableCombobox from "@/components/SearchableCombobox";
+import { resolveFinanceNo } from "@/lib/asset-columns";
 import { notify } from "@/lib/feedback/notify";
 import { prefetchMasterOptions } from "@/lib/master-options-cache";
 
@@ -42,11 +43,10 @@ interface FormState {
   serialnumber: string;
   categoryCode: string;
   serialNo: string;
-  financeNo1: string;
+  financeNo: string;
   condition1: string;
   location1: string;
   reviewDate1: string;
-  financeNo2: string;
   condition2Raw: string;
   location2Raw: string;
   reviewDate2: string;
@@ -66,11 +66,10 @@ const emptyForm: FormState = {
   serialnumber: "",
   categoryCode: "",
   serialNo: "",
-  financeNo1: "",
+  financeNo: "",
   condition1: "",
   location1: "",
   reviewDate1: "",
-  financeNo2: "",
   condition2Raw: "",
   location2Raw: "",
   reviewDate2: "",
@@ -153,11 +152,15 @@ export default function FixedAssetForm({
           serialnumber: (item.serialnumber as string) ?? "",
           categoryCode: (item.categoryCode as string) ?? "",
           serialNo: (item.serialNo as string) ?? "",
-          financeNo1: (item.financeNo1 as string) ?? "",
+          financeNo:
+            resolveFinanceNo({
+              financeNo: (item.financeNo as string) ?? null,
+              financeNo1: (item.financeNo1 as string) ?? null,
+              financeNo2: (item.financeNo2 as string) ?? null,
+            }) ?? "",
           condition1: (item.condition1 as string) ?? "",
           location1: (item.location1 as string) ?? "",
           reviewDate1: dateOnly(item.reviewDate1 as string | null),
-          financeNo2: (item.financeNo2 as string) ?? "",
           condition2Raw: (item.condition2Raw as string) ?? "",
           location2Raw: (item.location2Raw as string) ?? "",
           reviewDate2: dateOnly(item.reviewsDate as string | null),
@@ -225,14 +228,13 @@ export default function FixedAssetForm({
         body: JSON.stringify({
           categoryCode: form.categoryCode || null,
           serialNo: form.serialNo || null,
-          financeNo1: form.financeNo1 || null,
+          financeNo: form.financeNo,
           condition1: form.condition1 || null,
           condition1Raw: form.condition1 || null,
           condition1StatusId: form.condition1StatusId || null,
           location1: form.location1 || null,
           location1Id: form.location1Id || null,
           reviewDate1: form.reviewDate1 || null,
-          financeNo2: form.financeNo2 || null,
           condition2Raw: form.condition2Raw || null,
           statustypeid: form.statustypeid || null,
           location2Raw: form.location2Raw || null,
@@ -373,6 +375,20 @@ export default function FixedAssetForm({
               onChange={(event) => update("serialNo", event.target.value)}
             />
           </div>
+          <div className="space-y-1.5">
+            <Label
+              className="text-xs font-medium"
+              htmlFor="fixed-asset-financeno"
+            >
+              Finance No
+            </Label>
+            <Input
+              id="fixed-asset-financeno"
+              className={controlClass}
+              value={form.financeNo}
+              onChange={(event) => update("financeNo", event.target.value)}
+            />
+          </div>
         </div>
       </section>
 
@@ -438,40 +454,12 @@ export default function FixedAssetForm({
               onChange={(event) => update("reviewDate2", event.target.value)}
             />
           </div>
-          <div className="space-y-1.5">
-            <Label
-              className="text-xs font-medium"
-              htmlFor="fixed-asset-financeno2"
-            >
-              Finance No (2nd)
-            </Label>
-            <Input
-              id="fixed-asset-financeno2"
-              className={controlClass}
-              value={form.financeNo2}
-              onChange={(event) => update("financeNo2", event.target.value)}
-            />
-          </div>
         </div>
       </section>
 
       <section className="space-y-4">
         <SectionHeading step={3} title="First review" hint="Source sheet" />
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <div className="space-y-1.5">
-            <Label
-              className="text-xs font-medium"
-              htmlFor="fixed-asset-financeno1"
-            >
-              Finance No (1st)
-            </Label>
-            <Input
-              id="fixed-asset-financeno1"
-              className={controlClass}
-              value={form.financeNo1}
-              onChange={(event) => update("financeNo1", event.target.value)}
-            />
-          </div>
           <SearchableCombobox
             id="fixed-asset-condition1"
             label="Condition (1st)"

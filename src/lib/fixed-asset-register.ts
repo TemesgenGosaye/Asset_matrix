@@ -1,26 +1,23 @@
 import type { Prisma } from "@prisma/client";
+import { CANONICAL_ASSET_HEADERS, firstNonBlank } from "./asset-columns";
 
-export const MASTER_LIST_COLUMNS = [
+export const MASTER_LIST_COLUMNS = CANONICAL_ASSET_HEADERS;
+
+export const LEGACY_MASTER_LIST_COLUMNS = [
   "No.",
   "Department",
   "Category Code",
   "S.No",
-  "Description",
-  "Property No",
   "Finance No (1st)",
-  "Condition (1st)",
-  "Location (1st)",
-  "Review Date (1st)",
   "Finance No (2nd)",
-  "Condition (2nd)",
-  "Location (2nd)",
-  "Review Date (2nd)",
   "Additional Data",
   "Source Row",
   "Hidden in Source",
 ] as const;
 
-export type MasterListColumn = (typeof MASTER_LIST_COLUMNS)[number];
+export type MasterListColumn =
+  | (typeof CANONICAL_ASSET_HEADERS)[number]
+  | (typeof LEGACY_MASTER_LIST_COLUMNS)[number];
 
 export type CellValue = string | number | boolean | Date | null | undefined;
 
@@ -35,14 +32,13 @@ export interface ParsedMasterListRow {
   assetnameRaw: string;
   propertyNo: string;
   propertyKey: string;
-  financeNo1: string | null;
+  financeNo: string | null;
   condition1: string | null;
   condition1Raw: string | null;
   location1: string | null;
   reviewDate1: Date | null;
   reviewDate1Raw: string | null;
   reviewDate1Ambiguous: boolean;
-  financeNo2: string | null;
   condition2Raw: string | null;
   location2Raw: string | null;
   reviewDate2Raw: string | null;
@@ -250,7 +246,11 @@ export function mapMasterListRow(
   const errors: string[] = [];
   const descriptionRaw = normalizeText(cell(row, "Description"));
   const rawPropertyNo = normalizeText(cell(row, "Property No"));
-  const sourceDepartment = normalizeText(cell(row, "Department"));
+  const sourceDepartment =
+    firstNonBlank(
+      normalizeText(cell(row, "Dept")),
+      normalizeText(cell(row, "Department")),
+    ) || "";
   const sourceRowValue = cell(row, "Source Row");
   const sourceRow =
     typeof sourceRowValue === "number"
@@ -268,6 +268,12 @@ export function mapMasterListRow(
   if (!rawPropertyNo) {
     warnings.push(`Property No is missing; generated ${propertyNo}`);
   }
+
+  const financeNo = firstNonBlank(
+    normalizeText(cell(row, "Finance No")),
+    normalizeText(cell(row, "Finance No (2nd)")),
+    normalizeText(cell(row, "Finance No (1st)")),
+  );
 
   const condition1 = normalizeCondition(cell(row, "Condition (1st)"));
   const condition2 = normalizeCondition(
@@ -290,19 +296,21 @@ export function mapMasterListRow(
     sourceDepartment,
     normalizedDepartment: normalizeDepartmentAlias(sourceDepartment),
     categoryCode: normalizeText(cell(row, "Category Code")) || null,
-    serialNo: normalizeText(cell(row, "S.No")) || null,
+    serialNo: firstNonBlank(
+      normalizeText(cell(row, "S/N0")),
+      normalizeText(cell(row, "S.No")),
+    ),
     assetname: descriptionRaw,
     assetnameRaw: descriptionRaw,
     propertyNo,
     propertyKey: normalizePropertyKey(propertyNo),
-    financeNo1: normalizeText(cell(row, "Finance No (1st)")) || null,
+    financeNo,
     condition1: condition1.value,
     condition1Raw: normalizeText(cell(row, "Condition (1st)")) || null,
     location1: normalizeText(cell(row, "Location (1st)")) || null,
     reviewDate1: reviewDate1.date,
     reviewDate1Raw: reviewDate1.raw,
     reviewDate1Ambiguous: reviewDate1.ambiguous,
-    financeNo2: normalizeText(cell(row, "Finance No (2nd)")) || null,
     condition2Raw: normalizeText(cell(row, "Condition (2nd)")) || null,
     location2Raw: normalizeText(cell(row, "Location (2nd)")) || null,
     reviewDate2Raw: reviewDate2.raw,
@@ -358,8 +366,7 @@ export function buildFixedAssetWhere(
         { assetnameRaw: { contains: q, mode: "insensitive" } },
         { serialnumber: { contains: q, mode: "insensitive" } },
         { serialNo: { contains: q, mode: "insensitive" } },
-        { financeNo1: { contains: q, mode: "insensitive" } },
-        { financeNo2: { contains: q, mode: "insensitive" } },
+        { financeNo: { contains: q, mode: "insensitive" } },
         { additionalData: { contains: q, mode: "insensitive" } },
         { location1: { contains: q, mode: "insensitive" } },
         { location2Raw: { contains: q, mode: "insensitive" } },
@@ -447,14 +454,16 @@ export function buildFixedAssetOrderBy(
         ? { categoryCode: direction }
         : field === "propertyNo"
           ? { serialnumber: direction }
-          : field === "condition1"
-            ? { condition1: direction }
-            : field === "reviewDate1"
-              ? { reviewDate1: direction }
-              : field === "reviewDate2"
-                ? { reviewsDate: direction }
-                : field === "created"
-                  ? { creation_date: direction }
-                  : { sourceDepartment: direction };
+          : field === "financeNo"
+            ? { financeNo: direction }
+            : field === "condition1"
+              ? { condition1: direction }
+              : field === "reviewDate1"
+                ? { reviewDate1: direction }
+                : field === "reviewDate2"
+                  ? { reviewsDate: direction }
+                  : field === "created"
+                    ? { creation_date: direction }
+                    : { sourceDepartment: direction };
   return [primary, { assetid: "asc" }];
 }

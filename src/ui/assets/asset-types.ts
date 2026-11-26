@@ -23,8 +23,7 @@ export interface RegisterAsset {
   serialNo?: string | null;
   condition1?: string | null;
   condition1Raw?: string | null;
-  financeNo1?: string | null;
-  financeNo2?: string | null;
+  financeNo?: string | null;
   location1?: string | null;
   location2Raw?: string | null;
   reviewDate1?: string | null;

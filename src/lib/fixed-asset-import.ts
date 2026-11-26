@@ -107,11 +107,14 @@ export interface FixedAssetImportResult extends FixedAssetImportProgress {
 const HEADER_ALIASES: Record<string, MasterListColumn> = {
   no: "No.",
   department: "Department",
+  dept: "Dept",
   categorycode: "Category Code",
   sno: "S.No",
+  sn0: "S/N0",
   description: "Description",
   propertyno: "Property No",
   propertynumber: "Property No",
+  financeno: "Finance No",
   financeno1st: "Finance No (1st)",
   condition1st: "Condition (1st)",
   location1st: "Location (1st)",
@@ -250,14 +253,13 @@ const existingAssetSelect = {
   serialNo: true,
   assetnameRaw: true,
   propertyKey: true,
-  financeNo1: true,
+  financeNo: true,
   condition1: true,
   condition1Raw: true,
   location1: true,
   reviewDate1: true,
   reviewDate1Raw: true,
   reviewDate1Ambiguous: true,
-  financeNo2: true,
   condition2Raw: true,
   location2Raw: true,
   reviewDate2Raw: true,
@@ -485,7 +487,9 @@ function resolveRelations(
     warnings.push(`Department not mapped: ${parsed.sourceDepartment}`);
   }
 
-  const condition1Text = normalizeText(parsed.condition1Raw || parsed.condition1);
+  const condition1Text = normalizeText(
+    parsed.condition1Raw || parsed.condition1,
+  );
   const condition1StatusId = condition1Text
     ? lookups.statusByName.get(condition1Text.toLowerCase())
     : undefined;
@@ -558,14 +562,13 @@ function toCreateData(
     serialNo: parsed.serialNo,
     assetnameRaw: parsed.assetnameRaw,
     propertyKey: parsed.propertyKey,
-    financeNo1: parsed.financeNo1,
+    financeNo: parsed.financeNo,
     condition1: parsed.condition1,
     condition1Raw: parsed.condition1Raw,
     location1: parsed.location1,
     reviewDate1: parsed.reviewDate1,
     reviewDate1Raw: parsed.reviewDate1Raw,
     reviewDate1Ambiguous: parsed.reviewDate1Ambiguous,
-    financeNo2: parsed.financeNo2,
     condition2Raw: parsed.condition2Raw,
     location2Raw: parsed.location2Raw,
     reviewDate2Raw: parsed.reviewDate2Raw,
@@ -593,14 +596,13 @@ function toUpdateData(
     serialNo: parsed.serialNo,
     assetnameRaw: parsed.assetnameRaw,
     propertyKey: parsed.propertyKey,
-    financeNo1: parsed.financeNo1,
+    financeNo: parsed.financeNo,
     condition1: parsed.condition1,
     condition1Raw: parsed.condition1Raw,
     location1: parsed.location1,
     reviewDate1: parsed.reviewDate1,
     reviewDate1Raw: parsed.reviewDate1Raw,
     reviewDate1Ambiguous: parsed.reviewDate1Ambiguous,
-    financeNo2: parsed.financeNo2,
     condition2Raw: parsed.condition2Raw,
     location2Raw: parsed.location2Raw,
     reviewDate2Raw: parsed.reviewDate2Raw,
@@ -1180,8 +1182,7 @@ export async function rollbackFixedAssetImport(
           "location1",
           "reviewDate1",
           "reviewDate1Raw",
-          "financeNo1",
-          "financeNo2",
+          "financeNo",
           "condition2Raw",
           "location2Raw",
           "reviewDate2Raw",
@@ -1223,23 +1224,17 @@ export async function generateFixedAssetTemplate(): Promise<Buffer> {
   sheet.addRow([...MASTER_LIST_COLUMNS]);
   sheet.getRow(1).font = { bold: true };
   sheet.addRow([
-    1,
-    "Department",
-    "6.1",
     "1",
     "Sample asset",
     "PROP-0001",
-    "old.ma",
-    "Good",
-    "Store",
-    "01/01/2025",
+    "Department",
     "8.3.5-883",
     "Good",
     "Store",
+    "01/01/2025",
+    "Good",
+    "Store",
     "01/01/2026",
-    "[House No] 12",
-    2,
-    "No",
   ]);
   sheet.columns.forEach((column) => {
     column.width = 18;

@@ -20,6 +20,7 @@ import {
   getEntityHistory,
 } from "@/lib/data";
 import prisma from "@/lib/prisma";
+import { resolveFinanceNo } from "@/lib/asset-columns";
 import {
   calculateDepreciation,
   formatCurrency,
@@ -439,6 +440,12 @@ export default async function Page(props: {
                         : asset?.departmentCode
                           ? `${asset.departmentCode}`
                           : "-"}
+                    </dd>
+                  </div>
+                  <div className="flex justify-between">
+                    <dt className="text-foreground-500">Finance No</dt>
+                    <dd className="font-medium">
+                      {resolveFinanceNo(asset) || "-"}
                     </dd>
                   </div>
                 </dl>

@@ -314,7 +314,7 @@ function buildAnalyticsQuery(
       SELECT
         "assetid" AS id,
         "assetname" AS name,
-        COALESCE(NULLIF("propertyKey", ''), NULLIF("serialnumber", ''), NULLIF("financeNo1", ''), '—') AS "propertyNo",
+        COALESCE(NULLIF("propertyKey", ''), NULLIF("serialnumber", ''), NULLIF("financeNo", ''), '—') AS "propertyNo",
         COALESCE(NULLIF(BTRIM("sourceDepartment"), ''), 'Unassigned') AS department,
         "condition1" AS condition,
         TO_CHAR("reviewDate1", 'YYYY-MM-DD') AS "reviewDate"

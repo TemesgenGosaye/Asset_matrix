@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  MASTER_LIST_COLUMNS,
   buildFixedAssetWhere,
   mapMasterListRow,
   normalizeCondition,
@@ -54,6 +55,52 @@ describe("fixed asset register normalization", () => {
     );
     expect(normalizePropertyKey(" prop - 12 / 3 ")).toBe("PROP-12/3");
   });
+
+  it("uses canonical master list headers", () => {
+    expect([...MASTER_LIST_COLUMNS]).toEqual([
+      "S/N0",
+      "Description",
+      "Property No",
+      "Dept",
+      "Finance No",
+      "Condition (1st)",
+      "Location (1st)",
+      "Review Date (1st)",
+      "Condition (2nd)",
+      "Location (2nd)",
+      "Review Date (2nd)",
+    ]);
+  });
+
+  it("maps canonical and legacy workbooks to one Finance No", () => {
+    const canonical = mapMasterListRow(
+      {
+        "S/N0": "12",
+        Description: "Printer",
+        "Property No": "PROP-1",
+        Dept: "Store",
+        "Finance No": "canonical",
+      },
+      2,
+    );
+    expect(canonical.serialNo).toBe("12");
+    expect(canonical.sourceDepartment).toBe("Store");
+    expect(canonical.financeNo).toBe("canonical");
+
+    const legacy = mapMasterListRow(
+      {
+        Department: "Store",
+        Description: "Printer",
+        "Property No": "PROP-2",
+        "Finance No (1st)": "old.ma",
+        "Finance No (2nd)": "8.3.5-883",
+      },
+      3,
+    );
+    expect(legacy.financeNo).toBe("8.3.5-883");
+    expect("financeNo1" in legacy).toBe(false);
+    expect("financeNo2" in legacy).toBe(false);
+  });
 });
 
 describe("buildFixedAssetWhere", () => {
@@ -85,5 +132,13 @@ describe("buildFixedAssetWhere", () => {
       { assetid: { in: ["asset-1"] } },
       { statustypeid: { in: ["status-1"] } },
     ]);
+  });
+
+  it("searches the canonical Finance No field only", () => {
+    const where = buildFixedAssetWhere({ search: "883" }, "org-1", true);
+    const serialized = JSON.stringify(where);
+    expect(serialized).toContain('"financeNo"');
+    expect(serialized).not.toContain('"financeNo1"');
+    expect(serialized).not.toContain('"financeNo2"');
   });
 });

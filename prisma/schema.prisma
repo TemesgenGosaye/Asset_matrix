@@ -571,6 +571,7 @@ model asset {
   serialNo                 String?                 @db.VarChar(100)
   assetnameRaw             String?
   propertyKey              String?                 @db.VarChar(255)
+  financeNo                String?                 @db.VarChar(255)
   financeNo1               String?                 @db.VarChar(255)
   condition1               String?                 @db.VarChar(50)
   condition1Raw            String?                 @db.VarChar(255)

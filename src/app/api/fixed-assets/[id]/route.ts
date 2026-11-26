@@ -86,8 +86,7 @@ export async function PATCH(
       "location2Raw",
       "condition2Raw",
       "reviewDate2Raw",
-      "financeNo1",
-      "financeNo2",
+      "financeNo",
       "additionalData",
     ] as const;
     for (const field of textFields) {

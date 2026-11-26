@@ -21,6 +21,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  CANONICAL_ASSET_COLUMNS,
+  type CanonicalAssetColumnKey,
+} from "@/lib/asset-columns";
 import { filterSelectClass } from "@/lib/select-styles";
 
 type ErrorHandling = "skip" | "abort" | "flag";
@@ -44,9 +48,15 @@ interface PreviewRow {
     sourceDepartment: string;
     assetname: string;
     propertyNo: string;
+    serialNo: string | null;
+    financeNo: string | null;
     categoryCode: string | null;
     condition1: string | null;
+    location1: string | null;
+    reviewDate1: string | null;
     condition2Raw: string | null;
+    location2Raw: string | null;
+    reviewDate2Raw: string | null;
     warnings: string[];
     errors: string[];
   };
@@ -121,6 +131,36 @@ const emptyPlan: ImportPlan = {
   duplicate: 0,
   importable: 0,
 };
+
+function previewValue(
+  parsed: PreviewRow["parsed"],
+  key: CanonicalAssetColumnKey,
+): string {
+  switch (key) {
+    case "serialNo":
+      return parsed.serialNo || "—";
+    case "assetname":
+      return parsed.assetname || "—";
+    case "serialnumber":
+      return parsed.propertyNo || "—";
+    case "department":
+      return parsed.sourceDepartment || "—";
+    case "financeNo":
+      return parsed.financeNo || "—";
+    case "condition1":
+      return parsed.condition1 || "—";
+    case "location1":
+      return parsed.location1 || "—";
+    case "reviewDate1":
+      return parsed.reviewDate1 || "—";
+    case "condition2":
+      return parsed.condition2Raw || "—";
+    case "location2":
+      return parsed.location2Raw || "—";
+    case "reviewDate2":
+      return parsed.reviewDate2Raw || "—";
+  }
+}
 
 export default function FixedAssetImportWizard({
   initialHistory,
@@ -528,10 +568,9 @@ export default function FixedAssetImportWizard({
                 <TableHeader>
                   <TableRow>
                     <TableHead>Row</TableHead>
-                    <TableHead>Department</TableHead>
-                    <TableHead>Description</TableHead>
-                    <TableHead>Property No</TableHead>
-                    <TableHead>Condition 1st / 2nd</TableHead>
+                    {CANONICAL_ASSET_COLUMNS.map((column) => (
+                      <TableHead key={column.key}>{column.header}</TableHead>
+                    ))}
                     <TableHead>Issues</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -539,17 +578,15 @@ export default function FixedAssetImportWizard({
                   {preview.preview.map((row) => (
                     <TableRow key={row.rowNumber}>
                       <TableCell>{row.rowNumber}</TableCell>
-                      <TableCell>
-                        {row.parsed.sourceDepartment || "—"}
-                      </TableCell>
-                      <TableCell>{row.parsed.assetname || "—"}</TableCell>
-                      <TableCell className="font-mono text-xs">
-                        {row.parsed.propertyNo}
-                      </TableCell>
-                      <TableCell>
-                        {row.parsed.condition1 || "—"} /{" "}
-                        {row.parsed.condition2Raw || "—"}
-                      </TableCell>
+                      {CANONICAL_ASSET_COLUMNS.map((column) => (
+                        <TableCell
+                          key={column.key}
+                          className="max-w-[180px] truncate text-xs"
+                          title={previewValue(row.parsed, column.key)}
+                        >
+                          {previewValue(row.parsed, column.key)}
+                        </TableCell>
+                      ))}
                       <TableCell className="text-xs">
                         {[...row.parsed.errors, ...row.parsed.warnings].join(
                           "; ",

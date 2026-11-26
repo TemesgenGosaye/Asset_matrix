@@ -36,6 +36,13 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useUrlState } from "@/hooks/useUrlState";
+import {
+  CANONICAL_ASSET_COLUMNS,
+  OPTIONAL_ASSET_COLUMNS,
+  getCanonicalAssetValue,
+  type CanonicalAssetColumnKey,
+  type OptionalAssetColumnKey,
+} from "@/lib/asset-columns";
 import { filterSelectClass } from "@/lib/select-styles";
 import { cn } from "@/lib/utils";
 import AssetOperationDialogs from "./AssetOperationDialogs";
@@ -68,17 +75,31 @@ interface ListResponse {
   facets: { key: string; count: number }[];
 }
 
-const TABLE_COLUMN_COUNT = 14;
-
-function formatDate(value?: string | null): string {
+function formatDate(value?: string | Date | null): string {
   if (!value) return "—";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
+  if (typeof value === "string" && Number.isNaN(new Date(value).getTime())) {
+    return value;
+  }
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return "—";
   return date.toLocaleDateString(undefined, {
     year: "numeric",
     month: "short",
     day: "2-digit",
   });
+}
+
+function displayCanonicalValue(
+  asset: RegisterAsset,
+  key: CanonicalAssetColumnKey | OptionalAssetColumnKey,
+): string {
+  const value = getCanonicalAssetValue(asset, key);
+  if (value === null || value === undefined || value === "") return "—";
+  if (key === "reviewDate1" || key === "reviewDate2") {
+    return formatDate(value as string | Date | null);
+  }
+  if (typeof value === "boolean") return value ? "Yes" : "No";
+  return String(value);
 }
 
 function ConditionBadge({
@@ -163,6 +184,28 @@ export default function FixedAssetRegisterClient({
   const [density, setDensity] = useState<"compact" | "comfortable">("compact");
   const [bulkStatusId, setBulkStatusId] = useState("");
   const [refreshKey, setRefreshKey] = useState(0);
+  const [optionalColumns, setOptionalColumns] = useState<
+    Set<OptionalAssetColumnKey>
+  >(new Set());
+
+  const visibleOptionalColumns = useMemo(
+    () =>
+      OPTIONAL_ASSET_COLUMNS.filter((column) =>
+        optionalColumns.has(column.key),
+      ),
+    [optionalColumns],
+  );
+  const tableColumnCount =
+    1 + CANONICAL_ASSET_COLUMNS.length + visibleOptionalColumns.length + 2;
+
+  const toggleOptionalColumn = useCallback((key: OptionalAssetColumnKey) => {
+    setOptionalColumns((current) => {
+      const next = new Set(current);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  }, []);
 
   const query = useMemo(() => {
     const params = new URLSearchParams();
@@ -492,6 +535,7 @@ export default function FixedAssetRegisterClient({
           <option value="department">Sort: Department</option>
           <option value="description">Sort: Description</option>
           <option value="propertyNo">Sort: Property No</option>
+          <option value="financeNo">Sort: Finance No</option>
           <option value="condition1">Sort: Condition</option>
           <option value="reviewDate1">Sort: Review (1st)</option>
           <option value="reviewDate2">Sort: Review (2nd)</option>
@@ -520,6 +564,27 @@ export default function FixedAssetRegisterClient({
         >
           <LayoutList className="h-4 w-4" /> {density}
         </Button>
+        <details className="relative">
+          <summary
+            className={cn(filterSelectClass, "cursor-pointer list-none")}
+          >
+            Columns
+          </summary>
+          <div className="bg-popover border-border absolute top-full left-0 z-30 mt-1 w-56 space-y-2 rounded-lg border p-2 shadow-lg">
+            {OPTIONAL_ASSET_COLUMNS.map((column) => (
+              <label
+                key={column.key}
+                className="flex items-center gap-2 text-sm"
+              >
+                <Checkbox
+                  checked={optionalColumns.has(column.key)}
+                  onCheckedChange={() => toggleOptionalColumn(column.key)}
+                />
+                {column.header}
+              </label>
+            ))}
+          </div>
+        </details>
         <span className="text-muted-foreground ml-auto text-xs">
           Rows:{" "}
           <select
@@ -587,7 +652,7 @@ export default function FixedAssetRegisterClient({
           <Table className="min-w-[1880px]">
             <TableHeader className="bg-muted/95 sticky top-0 z-10 backdrop-blur">
               <TableRow>
-                <TableHead className="w-10">
+                <TableHead rowSpan={2} className="w-10">
                   <Checkbox
                     checked={allPageSelected}
                     onCheckedChange={(checked) =>
@@ -600,27 +665,49 @@ export default function FixedAssetRegisterClient({
                     aria-label="Select all on page"
                   />
                 </TableHead>
-                <TableHead className="w-16">No.</TableHead>
-                <TableHead className="min-w-[260px]">Description</TableHead>
-                <TableHead className="min-w-[160px]">Department</TableHead>
-                <TableHead className="min-w-[130px]">Category Code</TableHead>
-                <TableHead className="min-w-[140px]">Property No</TableHead>
-                <TableHead className="min-w-[130px]">Condition (1st)</TableHead>
-                <TableHead className="min-w-[130px]">Condition (2nd)</TableHead>
-                <TableHead className="min-w-[180px]">Location (1st)</TableHead>
-                <TableHead className="min-w-[180px]">Location (2nd)</TableHead>
-                <TableHead className="min-w-[130px]">Review (1st)</TableHead>
-                <TableHead className="min-w-[130px]">Review (2nd)</TableHead>
-                <TableHead className="min-w-[140px]">Flags</TableHead>
-                <TableHead className="min-w-[180px] text-right">
+                {CANONICAL_ASSET_COLUMNS.slice(0, 5).map((column) => (
+                  <TableHead
+                    key={column.key}
+                    rowSpan={2}
+                    className="min-w-[140px]"
+                  >
+                    {column.header}
+                  </TableHead>
+                ))}
+                <TableHead colSpan={3} className="text-center">
+                  1st Review
+                </TableHead>
+                <TableHead colSpan={3} className="text-center">
+                  2nd Review
+                </TableHead>
+                {visibleOptionalColumns.map((column) => (
+                  <TableHead
+                    key={column.key}
+                    rowSpan={2}
+                    className="min-w-[130px]"
+                  >
+                    {column.header}
+                  </TableHead>
+                ))}
+                <TableHead rowSpan={2} className="min-w-[140px]">
+                  Flags
+                </TableHead>
+                <TableHead rowSpan={2} className="min-w-[180px] text-right">
                   Actions
                 </TableHead>
+              </TableRow>
+              <TableRow>
+                {CANONICAL_ASSET_COLUMNS.slice(5).map((column) => (
+                  <TableHead key={column.key} className="min-w-[140px]">
+                    {column.header}
+                  </TableHead>
+                ))}
               </TableRow>
             </TableHeader>
             <TableBody>
               {loading && (
                 <TableRow>
-                  <TableCell colSpan={TABLE_COLUMN_COUNT}>
+                  <TableCell colSpan={tableColumnCount}>
                     <div className="space-y-2">
                       {[0, 1, 2, 3, 4].map((index) => (
                         <Skeleton key={index} className="h-8 w-full" />
@@ -632,7 +719,7 @@ export default function FixedAssetRegisterClient({
               {!loading && !data.items.length && (
                 <TableRow>
                   <TableCell
-                    colSpan={TABLE_COLUMN_COUNT}
+                    colSpan={tableColumnCount}
                     className="text-muted-foreground py-16 text-center"
                   >
                     No assets match the current filters.
@@ -645,14 +732,14 @@ export default function FixedAssetRegisterClient({
                     {group.key && (
                       <TableRow className="bg-muted/60">
                         <TableCell
-                          colSpan={TABLE_COLUMN_COUNT}
+                          colSpan={tableColumnCount}
                           className="text-foreground font-semibold"
                         >
                           {group.key} ({group.items.length})
                         </TableCell>
                       </TableRow>
                     )}
-                    {group.items.map((item, index) => (
+                    {group.items.map((item) => (
                       <TableRow
                         key={item.assetid}
                         data-state={
@@ -672,71 +759,82 @@ export default function FixedAssetRegisterClient({
                             aria-label={`Select ${item.serialnumber}`}
                           />
                         </TableCell>
-                        <TableCell className="text-muted-foreground text-xs tabular-nums">
-                          {(data.page - 1) * data.pageSize + index + 1}
+                        <TableCell className="font-mono text-xs">
+                          {displayCanonicalValue(item, "serialNo")}
                         </TableCell>
                         <TableCell
                           className="max-w-[280px] truncate font-medium"
-                          title={item.assetname}
+                          title={item.assetname ?? undefined}
                         >
-                          {item.assetname}
+                          {displayCanonicalValue(item, "assetname")}
+                        </TableCell>
+                        <TableCell className="font-mono text-xs">
+                          {displayCanonicalValue(item, "serialnumber")}
                         </TableCell>
                         <TableCell>
-                          {item.sourceDepartment ||
-                            item.department?.name ||
-                            "—"}
+                          {displayCanonicalValue(item, "department")}
                         </TableCell>
                         <TableCell className="font-mono text-xs">
-                          {item.categoryCode || "—"}
-                        </TableCell>
-                        <TableCell className="font-mono text-xs">
-                          {item.serialnumber}
+                          {displayCanonicalValue(item, "financeNo")}
                         </TableCell>
                         <TableCell className="min-w-[130px]">
                           <ConditionBadge
-                            value={item.condition1}
-                            color={
-                              statusColorByName.get(
-                                item.condition1?.toLowerCase() ?? "",
-                              ) ?? null
+                            value={
+                              getCanonicalAssetValue(item, "condition1") as
+                                string | null
                             }
-                          />
-                        </TableCell>
-                        <TableCell className="min-w-[130px]">
-                          <ConditionBadge
-                            value={item.statusType?.statustypename}
                             color={safeColor(
                               statusColorByName.get(
-                                item.statusType?.statustypename.toLowerCase() ??
-                                  "",
+                                displayCanonicalValue(
+                                  item,
+                                  "condition1",
+                                ).toLowerCase(),
                               ) ?? null,
                             )}
                           />
                         </TableCell>
                         <TableCell
                           className="max-w-[180px] truncate text-xs"
-                          title={item.location1 || undefined}
+                          title={displayCanonicalValue(item, "location1")}
                         >
-                          {item.location1 || "—"}
+                          {displayCanonicalValue(item, "location1")}
+                        </TableCell>
+                        <TableCell className="text-xs tabular-nums">
+                          {displayCanonicalValue(item, "reviewDate1")}
+                        </TableCell>
+                        <TableCell className="min-w-[130px]">
+                          <ConditionBadge
+                            value={
+                              getCanonicalAssetValue(item, "condition2") as
+                                string | null
+                            }
+                            color={safeColor(
+                              statusColorByName.get(
+                                displayCanonicalValue(
+                                  item,
+                                  "condition2",
+                                ).toLowerCase(),
+                              ) ?? null,
+                            )}
+                          />
                         </TableCell>
                         <TableCell
                           className="max-w-[180px] truncate text-xs"
-                          title={
-                            item.location?.locationname ||
-                            item.location2Raw ||
-                            undefined
-                          }
+                          title={displayCanonicalValue(item, "location2")}
                         >
-                          {item.location?.locationname ||
-                            item.location2Raw ||
-                            "—"}
+                          {displayCanonicalValue(item, "location2")}
                         </TableCell>
                         <TableCell className="text-xs tabular-nums">
-                          {formatDate(item.reviewDate1)}
+                          {displayCanonicalValue(item, "reviewDate2")}
                         </TableCell>
-                        <TableCell className="text-xs tabular-nums">
-                          {formatDate(item.reviewsDate)}
-                        </TableCell>
+                        {visibleOptionalColumns.map((column) => (
+                          <TableCell
+                            key={column.key}
+                            className="max-w-[180px] truncate text-xs"
+                          >
+                            {displayCanonicalValue(item, column.key)}
+                          </TableCell>
+                        ))}
                         <TableCell>
                           <div className="flex flex-wrap gap-1">
                             {item.hiddenInSource && (
@@ -878,39 +976,21 @@ export default function FixedAssetRegisterClient({
           </DialogHeader>
           {drawerItem && (
             <div className="grid gap-4 sm:grid-cols-2">
-              {(
-                [
-                  [
-                    "Department",
-                    drawerItem.sourceDepartment || drawerItem.department?.name,
-                  ],
-                  ["Category Code", drawerItem.categoryCode],
-                  ["S.No", drawerItem.serialNo],
-                  ["Finance No (1st)", drawerItem.financeNo1],
-                  ["Condition (1st)", drawerItem.condition1],
-                  ["Location (1st)", drawerItem.location1],
-                  ["Review Date (1st)", formatDate(drawerItem.reviewDate1)],
-                  ["Finance No (2nd)", drawerItem.financeNo2],
-                  ["Condition (2nd)", drawerItem.statusType?.statustypename],
-                  [
-                    "Location (2nd)",
-                    drawerItem.location?.locationname ||
-                      drawerItem.location2Raw,
-                  ],
-                  ["Review Date (2nd)", formatDate(drawerItem.reviewsDate)],
-                  ["Additional Data", drawerItem.additionalData],
-                  ["Source Row", drawerItem.sourceRow],
-                  [
-                    "Hidden in Source",
-                    drawerItem.hiddenInSource ? "Yes" : "No",
-                  ],
-                ] as const
-              ).map(([label, value]) => (
+              {[
+                ...CANONICAL_ASSET_COLUMNS.map((column) => ({
+                  label: column.header,
+                  value: displayCanonicalValue(drawerItem, column.key),
+                })),
+                ...OPTIONAL_ASSET_COLUMNS.map((column) => ({
+                  label: column.header,
+                  value: displayCanonicalValue(drawerItem, column.key),
+                })),
+              ].map(({ label, value }) => (
                 <div key={label} className="rounded-lg border p-3">
                   <div className="text-muted-foreground text-xs tracking-wide uppercase">
                     {label}
                   </div>
-                  <div className="mt-1 text-sm break-words">{value || "—"}</div>
+                  <div className="mt-1 text-sm break-words">{value}</div>
                 </div>
               ))}
               <div className="sm:col-span-2">
