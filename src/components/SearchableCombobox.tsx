@@ -7,7 +7,6 @@ import React, {
   useCallback,
   useMemo,
 } from "react";
-import { useVirtualizer } from "@tanstack/react-virtual";
 import {
   Popover,
   PopoverContent,
@@ -26,13 +25,18 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Check,
-  ChevronsUpDown,
+  ChevronDown,
   X,
   Loader2,
   Plus,
   AlertCircle,
   AlertTriangle,
 } from "lucide-react";
+import {
+  filterSelectOptionClass,
+  filterSelectPopoverClass,
+  filterSelectTriggerClass,
+} from "@/lib/select-styles";
 import { cn } from "@/lib/utils";
 import { notify } from "@/lib/feedback/notify";
 
@@ -110,11 +114,20 @@ export default function SearchableCombobox({
     useState<MasterOption | null>(null);
 
   const searchQueryRef = useRef(searchQuery);
-  searchQueryRef.current = searchQuery;
   const valueRef = useRef(value);
-  valueRef.current = value;
   const currentValueRef = useRef(currentValue);
-  currentValueRef.current = currentValue;
+
+  useEffect(() => {
+    searchQueryRef.current = searchQuery;
+  }, [searchQuery]);
+
+  useEffect(() => {
+    valueRef.current = value;
+  }, [value]);
+
+  useEffect(() => {
+    currentValueRef.current = currentValue;
+  }, [currentValue]);
   const requestIdRef = useRef(0);
   const loadedRef = useRef(false);
   const lastFetchKeyRef = useRef<string | null>(null);
@@ -205,14 +218,7 @@ export default function SearchableCombobox({
     return null;
   }, [options, value, currentValue]);
 
-  // Virtualizer for options list inside PopoverContent
-  const parentRef = useRef<HTMLDivElement>(null);
-  const virtualizer = useVirtualizer({
-    count: options.length,
-    getScrollElement: () => parentRef.current,
-    estimateSize: () => 38,
-    overscan: 5,
-  });
+  const listRef = useRef<HTMLDivElement>(null);
 
   const selectOption = useCallback(
     (option: MasterOption) => {
@@ -226,6 +232,14 @@ export default function SearchableCombobox({
     [onChange, closePopover],
   );
 
+  useEffect(() => {
+    if (!open) return;
+    const option = listRef.current?.querySelector<HTMLElement>(
+      `[data-option-index="${highlightedIndex}"]`,
+    );
+    option?.scrollIntoView({ block: "nearest" });
+  }, [highlightedIndex, open]);
+
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Escape") {
       e.preventDefault();
@@ -237,12 +251,10 @@ export default function SearchableCombobox({
       e.preventDefault();
       const next = Math.min(highlightedIndex + 1, options.length - 1);
       setHighlightedIndex(next);
-      virtualizer.scrollToIndex(next, { align: "auto" });
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
       const prev = Math.max(highlightedIndex - 1, 0);
       setHighlightedIndex(prev);
-      virtualizer.scrollToIndex(prev, { align: "auto" });
     } else if (e.key === "Enter") {
       e.preventDefault();
       const opt = options[highlightedIndex];
@@ -362,9 +374,8 @@ export default function SearchableCombobox({
               aria-label={ariaLabel || label || placeholder}
               disabled={disabled}
               className={cn(
-                compact
-                  ? "border-input bg-background hover:border-primary/60 focus-visible:border-primary focus-visible:ring-ring/40 h-9 w-full justify-between rounded-lg px-2 text-left text-sm font-normal shadow-none transition-colors"
-                  : "border-default-200 bg-background hover:border-primary/60 focus-visible:border-primary focus-visible:ring-ring/40 h-10 w-full justify-between rounded-lg px-3 text-left text-sm font-normal shadow-xs transition-colors",
+                filterSelectTriggerClass,
+                "text-left",
                 !value && !currentValue && "text-muted-foreground",
                 !!selectedOption &&
                   !selectedOption.isLegacy &&
@@ -403,7 +414,7 @@ export default function SearchableCombobox({
                   placeholder
                 )}
               </span>
-              <ChevronsUpDown className="h-4 w-4 shrink-0 opacity-50" />
+              <ChevronDown className="h-4 w-4 shrink-0 opacity-50" />
             </Button>
           </PopoverTrigger>
 
@@ -423,10 +434,7 @@ export default function SearchableCombobox({
           )}
         </div>
 
-        <PopoverContent
-          className="border-primary/20 ring-primary/10 w-[var(--radix-popover-trigger-width)] min-w-[280px] overflow-hidden rounded-xl p-0 shadow-xl ring-1"
-          align="start"
-        >
+        <PopoverContent className={filterSelectPopoverClass} align="start">
           {/* Search box input */}
           <div className="flex items-center border-b px-3 py-2">
             <Input
@@ -457,8 +465,8 @@ export default function SearchableCombobox({
 
           {/* Options container with virtualization */}
           <div
-            ref={parentRef}
-            className="max-h-72 overflow-x-hidden overflow-y-auto overscroll-contain p-1 text-sm"
+            ref={listRef}
+            className="filter-select-list max-h-80 overflow-x-hidden overflow-y-auto overscroll-contain scroll-smooth p-1 text-sm"
             role="listbox"
             aria-busy={loading}
           >
@@ -491,58 +499,46 @@ export default function SearchableCombobox({
             )}
 
             {options.length > 0 && (
-              <div
-                style={{
-                  height: `${virtualizer.getTotalSize()}px`,
-                  width: "100%",
-                  position: "relative",
-                }}
-              >
-                {virtualizer.getVirtualItems().map((virtualRow) => {
-                  const opt = options[virtualRow.index];
+              <div className="space-y-0.5">
+                {options.map((opt, index) => {
                   const isSelected = opt.id === value;
-                  const isHighlighted = virtualRow.index === highlightedIndex;
+                  const isHighlighted = index === highlightedIndex;
 
                   return (
                     <div
                       key={opt.id}
-                      id={`${id || "combobox"}-opt-${virtualRow.index}`}
+                      id={`${id || "combobox"}-opt-${index}`}
+                      data-option-index={index}
                       role="option"
                       aria-selected={isSelected}
-                      onMouseEnter={() => setHighlightedIndex(virtualRow.index)}
+                      onMouseEnter={() => setHighlightedIndex(index)}
                       onClick={() => selectOption(opt)}
-                      style={{
-                        position: "absolute",
-                        top: 0,
-                        left: 0,
-                        width: "100%",
-                        height: `${virtualRow.size}px`,
-                        transform: `translateY(${virtualRow.start}px)`,
-                      }}
                       className={cn(
-                        "flex cursor-pointer items-center justify-between rounded-md px-2.5 py-1.5 text-sm transition-colors select-none",
-                        isHighlighted &&
-                          "bg-primary text-primary-foreground font-medium",
-                        isSelected &&
-                          "bg-primary text-primary-foreground ring-primary/30 font-semibold ring-inset",
+                        filterSelectOptionClass,
+                        "transition-colors",
+                        (isHighlighted || isSelected) &&
+                          "bg-primary/10 text-primary",
+                        isSelected && "font-semibold",
                         !isHighlighted &&
                           !isSelected &&
-                          "hover:bg-primary hover:text-primary-foreground",
+                          "hover:bg-primary/10 hover:text-primary",
                         opt.isLegacy &&
                           !isHighlighted &&
                           !isSelected &&
                           "text-amber-800 dark:text-amber-300",
                       )}
                     >
-                      <div className="flex items-center gap-2 truncate pr-2">
+                      <span className="absolute left-2 flex h-3.5 w-3.5 items-center justify-center">
                         <Check
                           className={cn(
-                            "h-4 w-4 shrink-0",
+                            "h-4 w-4",
                             isSelected
-                              ? "text-primary-foreground opacity-100"
+                              ? "text-primary opacity-100"
                               : "opacity-0",
                           )}
                         />
+                      </span>
+                      <div className="flex min-w-0 items-center gap-2 pr-2">
                         {safeColor(opt.color) && (
                           <span
                             aria-hidden="true"
@@ -559,7 +555,7 @@ export default function SearchableCombobox({
                               className={cn(
                                 "mr-1.5 rounded px-1.5 py-0.5 font-mono text-[10px] font-semibold",
                                 isHighlighted || isSelected
-                                  ? "bg-white/20 text-white"
+                                  ? "bg-primary/20 text-primary"
                                   : "bg-primary/10 text-primary",
                               )}
                             >
@@ -573,7 +569,7 @@ export default function SearchableCombobox({
                             className={cn(
                               "shrink-0 rounded px-1 py-0.5 text-[10px] font-semibold",
                               isHighlighted || isSelected
-                                ? "bg-white/20 text-white"
+                                ? "bg-primary/20 text-primary"
                                 : "bg-amber-500/20 text-amber-700 dark:text-amber-300",
                             )}
                           >
@@ -589,7 +585,7 @@ export default function SearchableCombobox({
                             className={cn(
                               "rounded px-1.5 py-0.5 text-[10px] font-semibold",
                               isHighlighted || isSelected
-                                ? "bg-white/20 text-white"
+                                ? "bg-primary/20 text-primary"
                                 : "bg-amber-500/20 text-amber-700 dark:text-amber-300",
                             )}
                           >
@@ -602,7 +598,7 @@ export default function SearchableCombobox({
                                 className={cn(
                                   "rounded px-1 py-0.5 text-[10px] font-medium",
                                   isHighlighted || isSelected
-                                    ? "bg-white/20 text-white"
+                                    ? "bg-primary/20 text-primary"
                                     : "bg-primary/10 text-primary",
                                 )}
                                 title="Department usage count"
@@ -614,7 +610,7 @@ export default function SearchableCombobox({
                               className={cn(
                                 "text-[11px]",
                                 isHighlighted || isSelected
-                                  ? "text-white/80"
+                                  ? "text-primary/80"
                                   : "text-muted-foreground",
                               )}
                               title="Global asset usage count"

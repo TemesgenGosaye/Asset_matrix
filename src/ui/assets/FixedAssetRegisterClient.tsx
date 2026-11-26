@@ -36,6 +36,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useUrlState } from "@/hooks/useUrlState";
+import { filterSelectClass } from "@/lib/select-styles";
 import { cn } from "@/lib/utils";
 import AssetOperationDialogs from "./AssetOperationDialogs";
 import AssetOperationsMenu from "./AssetOperationsMenu";
@@ -66,9 +67,6 @@ interface ListResponse {
   pageCount: number;
   facets: { key: string; count: number }[];
 }
-
-const selectClass =
-  "h-9 rounded-lg border border-input bg-background px-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring/40";
 
 const TABLE_COLUMN_COUNT = 14;
 
@@ -367,7 +365,7 @@ export default function FixedAssetRegisterClient({
               Department
             </label>
             <select
-              className={selectClass}
+              className={filterSelectClass}
               value={urlState.department}
               onChange={(event) =>
                 update({ department: event.target.value, page: "1" })
@@ -386,7 +384,7 @@ export default function FixedAssetRegisterClient({
               Category code
             </label>
             <select
-              className={selectClass}
+              className={filterSelectClass}
               value={urlState.categoryCode}
               onChange={(event) =>
                 update({ categoryCode: event.target.value, page: "1" })
@@ -408,7 +406,7 @@ export default function FixedAssetRegisterClient({
               Condition
             </label>
             <select
-              className={selectClass}
+              className={filterSelectClass}
               value={urlState.condition}
               onChange={(event) =>
                 update({ condition: event.target.value, page: "1" })
@@ -473,7 +471,7 @@ export default function FixedAssetRegisterClient({
       <div className="bg-card/60 flex flex-wrap items-center gap-2 rounded-xl border p-2">
         <SlidersHorizontal className="text-muted-foreground h-4 w-4" />
         <select
-          className={selectClass}
+          className={filterSelectClass}
           value={urlState.groupBy}
           onChange={(event) =>
             update({ groupBy: event.target.value, page: "1" })
@@ -485,7 +483,7 @@ export default function FixedAssetRegisterClient({
           <option value="none">No grouping</option>
         </select>
         <select
-          className={selectClass}
+          className={filterSelectClass}
           value={urlState.sortBy}
           onChange={(event) =>
             update({ sortBy: event.target.value, page: "1" })
@@ -546,7 +544,7 @@ export default function FixedAssetRegisterClient({
           {isAdmin && (
             <>
               <select
-                className={selectClass}
+                className={filterSelectClass}
                 value={bulkStatusId}
                 onChange={(event) => setBulkStatusId(event.target.value)}
               >

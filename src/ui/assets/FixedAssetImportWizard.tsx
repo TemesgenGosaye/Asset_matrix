@@ -21,6 +21,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { filterSelectClass } from "@/lib/select-styles";
 
 type ErrorHandling = "skip" | "abort" | "flag";
 type DuplicatePolicy = "flag" | "skip" | "update";
@@ -108,9 +109,6 @@ interface HistoryItem {
 interface FixedAssetImportWizardProps {
   initialHistory: HistoryItem[];
 }
-
-const selectClass =
-  "h-9 rounded-lg border border-input bg-background px-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring/40";
 
 const emptyPlan: ImportPlan = {
   total: 0,
@@ -426,7 +424,7 @@ export default function FixedAssetImportWizard({
                 Invalid rows
               </label>
               <select
-                className={selectClass}
+                className={filterSelectClass}
                 value={errorHandling}
                 onChange={(event) => {
                   setErrorHandling(event.target.value as ErrorHandling);
@@ -443,7 +441,7 @@ export default function FixedAssetImportWizard({
                 Duplicate Property No
               </label>
               <select
-                className={selectClass}
+                className={filterSelectClass}
                 value={duplicatePolicy}
                 onChange={(event) => {
                   setDuplicatePolicy(event.target.value as DuplicatePolicy);

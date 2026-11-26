@@ -389,6 +389,20 @@
     @apply border-border;
     scrollbar-color: hsl(var(--muted-foreground) / 0.3) transparent;
   }
+  .filter-select-list {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--primary) / 0.45) transparent;
+  }
+  .filter-select-list::-webkit-scrollbar {
+    width: 8px;
+  }
+  .filter-select-list::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .filter-select-list::-webkit-scrollbar-thumb {
+    background: hsl(var(--primary) / 0.35);
+    border-radius: 9999px;
+  }
   html {
     @apply bg-background text-foreground;
     transition:
