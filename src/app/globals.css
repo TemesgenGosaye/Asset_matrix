@@ -403,6 +403,40 @@
     background: hsl(var(--primary) / 0.35);
     border-radius: 9999px;
   }
+
+  /* ── Combobox option rows ──────────────────────────────────────────────────
+   * Defined in CSS (not Tailwind utilities) so they are never tree-shaken.
+   * Hover, keyboard-highlighted, and selected all use the same solid-blue
+   * treatment as the /assets page Department filter.
+   */
+  .combobox-option {
+    transition:
+      background-color 0.1s ease,
+      color 0.1s ease;
+  }
+  .combobox-option:hover,
+  .combobox-option[data-highlighted="true"] {
+    background-color: hsl(var(--primary)) !important;
+    color: hsl(var(--primary-foreground)) !important;
+  }
+  .combobox-option[data-selected="true"] {
+    background-color: hsl(var(--primary)) !important;
+    color: hsl(var(--primary-foreground)) !important;
+    font-weight: 600;
+  }
+  /* Badge/chip inside an active row inverts to foreground tints */
+  .combobox-option:hover .combobox-badge,
+  .combobox-option[data-highlighted="true"] .combobox-badge,
+  .combobox-option[data-selected="true"] .combobox-badge {
+    background-color: hsl(var(--primary-foreground) / 0.2) !important;
+    color: hsl(var(--primary-foreground)) !important;
+  }
+  /* Usage count number inside active row */
+  .combobox-option:hover .combobox-count,
+  .combobox-option[data-highlighted="true"] .combobox-count,
+  .combobox-option[data-selected="true"] .combobox-count {
+    color: hsl(var(--primary-foreground) / 0.75) !important;
+  }
   html {
     @apply bg-background text-foreground;
     transition:

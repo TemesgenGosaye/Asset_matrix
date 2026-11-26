@@ -49,6 +49,7 @@ import {
 } from "lucide-react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import {
+  filterSelectListClass,
   filterSelectOptionClass,
   filterSelectPopoverClass,
   filterSelectTriggerClass,
@@ -395,12 +396,14 @@ export default function SearchableCombobox({
         data-option-index={index}
         role="option"
         aria-selected={isSelected}
+        data-highlighted={isHighlighted ? "true" : undefined}
+        data-selected={isSelected ? "true" : undefined}
         style={style}
         onMouseEnter={() => setHighlightedIndex(index)}
         onClick={() => selectOption(opt)}
         className={cn(
           filterSelectOptionClass,
-          "cursor-pointer transition-none",
+          "cursor-pointer",
           // Solid blue on hover/highlight (matches /assets Department filter)
           isHighlighted && !isSelected && "bg-primary text-primary-foreground",
           // Selected: strong tint + check
@@ -436,7 +439,7 @@ export default function SearchableCombobox({
             {opt.code ? (
               <span
                 className={cn(
-                  "mr-1.5 rounded px-1.5 py-0.5 font-mono text-[10px] font-semibold",
+                  "combobox-badge mr-1.5 rounded px-1.5 py-0.5 font-mono text-[10px] font-semibold",
                   isActive
                     ? "bg-primary-foreground/20 text-primary-foreground"
                     : "bg-primary/10 text-primary",
@@ -450,7 +453,7 @@ export default function SearchableCombobox({
           {opt.isCurrent && (
             <span
               className={cn(
-                "shrink-0 rounded px-1 py-0.5 text-[10px] font-semibold",
+                "combobox-badge shrink-0 rounded px-1 py-0.5 text-[10px] font-semibold",
                 isActive
                   ? "bg-primary-foreground/20 text-primary-foreground"
                   : "bg-amber-500/20 text-amber-700 dark:text-amber-300",
@@ -466,7 +469,7 @@ export default function SearchableCombobox({
           {opt.isLegacy ? (
             <span
               className={cn(
-                "rounded px-1.5 py-0.5 text-[10px] font-semibold",
+                "combobox-badge rounded px-1.5 py-0.5 text-[10px] font-semibold",
                 isActive
                   ? "bg-primary-foreground/20 text-primary-foreground"
                   : "bg-amber-500/20 text-amber-700 dark:text-amber-300",
@@ -479,7 +482,7 @@ export default function SearchableCombobox({
               {opt.departmentUsageCount ? (
                 <span
                   className={cn(
-                    "rounded px-1 py-0.5 text-[10px] font-medium",
+                    "combobox-badge rounded px-1 py-0.5 text-[10px] font-medium",
                     isActive
                       ? "bg-primary-foreground/20 text-primary-foreground"
                       : "bg-primary/10 text-primary",
@@ -491,7 +494,7 @@ export default function SearchableCombobox({
               ) : null}
               <span
                 className={cn(
-                  "text-[11px]",
+                  "combobox-count text-[11px]",
                   isActive
                     ? "text-primary-foreground/70"
                     : "text-muted-foreground",
@@ -644,7 +647,10 @@ export default function SearchableCombobox({
           {/* ── List area — max 320px, scrolls independently ── */}
           <div
             ref={listRef}
-            className="max-h-80 overflow-x-hidden overflow-y-auto overscroll-contain p-1 text-sm"
+            className={cn(
+              filterSelectListClass,
+              "max-h-80 overflow-x-hidden overflow-y-auto overscroll-contain p-1 text-sm",
+            )}
             role="listbox"
             aria-busy={loading}
             aria-label={ariaLabel || label || placeholder}
