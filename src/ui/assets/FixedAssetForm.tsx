@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import SearchableCombobox from "@/components/SearchableCombobox";
 import { notify } from "@/lib/feedback/notify";
+import { prefetchMasterOptions } from "@/lib/master-options-cache";
 
 interface Reference {
   id: string;
@@ -127,6 +128,12 @@ export default function FixedAssetForm({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Kick off parallel prefetch of all master lists as soon as the form mounts
+  // so every dropdown opens instantly without waiting for user interaction.
+  useEffect(() => {
+    prefetchMasterOptions();
+  }, []);
+
   useEffect(() => {
     if (mode !== "edit" || !assetId) return;
     fetch(`/api/fixed-assets/${assetId}`)
@@ -161,6 +168,14 @@ export default function FixedAssetForm({
       .catch((caught: Error) => setError(caught.message))
       .finally(() => setLoading(false));
   }, [mode, assetId]);
+
+  // When department is chosen, prefetch department-scoped location lists
+  // so both Location dropdowns open instantly.
+  useEffect(() => {
+    if (form.departmentId) {
+      prefetchMasterOptions(form.departmentId);
+    }
+  }, [form.departmentId]);
 
   const update = <K extends keyof FormState>(key: K, value: FormState[K]) => {
     setForm((current) => ({ ...current, [key]: value }));
